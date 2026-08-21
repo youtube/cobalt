@@ -13,15 +13,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
-#include "quiche/quic/core/quic_clock.h"
-#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -35,7 +35,6 @@
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
-#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
@@ -251,7 +250,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
     void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
     void OnTrackStatusRequestMessage(
-        const MoqtTrackStatusRequest& message) override {};
+        const MoqtTrackStatusRequest& message) override;
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
@@ -296,8 +295,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendFetchError(uint64_t subscribe_id, RequestErrorCode error_code,
-                        absl::string_view reason_phrase);
+    void SendFetchError(uint64_t request_id, RequestErrorCode error_code,
+                        absl::string_view error_reason);
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
@@ -562,9 +561,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   class QUICHE_EXPORT PublishedFetch {
    public:
-    PublishedFetch(uint64_t fetch_id, MoqtSession* session,
+    PublishedFetch(uint64_t request_id, MoqtSession* session,
                    std::unique_ptr<MoqtFetchTask> fetch)
-        : session_(session), fetch_(std::move(fetch)), fetch_id_(fetch_id) {}
+        : session_(session),
+          fetch_(std::move(fetch)),
+          request_id_(request_id) {}
 
     class FetchStreamVisitor : public webtransport::StreamVisitor {
      public:
@@ -577,7 +578,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       ~FetchStreamVisitor() {
         std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
         if (fetch != nullptr) {
-          fetch->session()->incoming_fetches_.erase(fetch->fetch_id_);
+          fetch->session()->incoming_fetches_.erase(fetch->request_id_);
         }
       }
       // webtransport::StreamVisitor implementation.
@@ -597,15 +598,79 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     MoqtFetchTask* fetch_task() { return fetch_.get(); }
     MoqtSession* session() { return session_; }
-    uint64_t fetch_id() const { return fetch_id_; }
+    uint64_t request_id() const { return request_id_; }
     void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
 
    private:
     MoqtSession* session_;
     std::unique_ptr<MoqtFetchTask> fetch_;
-    uint64_t fetch_id_;
+    uint64_t request_id_;
     // Store the stream ID in case a FETCH_CANCEL requires a reset.
     std::optional<webtransport::StreamId> stream_id_;
+  };
+
+  class QUICHE_EXPORT DownstreamTrackStatus : public MoqtObjectListener {
+   public:
+    DownstreamTrackStatus(uint64_t request_id,
+                          MoqtSession* absl_nonnull session,
+                          MoqtTrackPublisher* absl_nonnull publisher)
+        : request_id_(request_id), session_(session), publisher_(publisher) {
+      publisher_->AddObjectListener(this);
+    }
+    ~DownstreamTrackStatus() {
+      if (publisher_ != nullptr) {
+        publisher_->RemoveObjectListener(this);
+      }
+    }
+
+    void OnSubscribeAccepted() override {
+      MoqtTrackStatus track_status;
+      track_status.request_id = request_id_;
+      QUICHE_CHECK(publisher_ != nullptr);
+      absl::StatusOr<MoqtTrackStatusCode> status = publisher_->GetTrackStatus();
+      if (!status.ok()) {
+        session_->Error(MoqtError::kInternalError,
+                        "Failed to get track status");
+        return;
+      }
+      track_status.status_code = *status;
+      if (*status != MoqtTrackStatusCode::kDoesNotExist &&
+          *status != MoqtTrackStatusCode::kNotYetBegun) {
+        track_status.largest_location = publisher_->GetLargestLocation();
+      }  // Else, leave it at (0,0).
+      session_->SendControlMessage(
+          session_->framer_.SerializeTrackStatus(track_status));
+      session_->incoming_track_status_.erase(request_id_);
+      // No class access below this line!
+    }
+
+    // TODO(martinduke): In draft-13, this will trigger TRACK_STATUS_ERROR.
+    void OnSubscribeRejected(MoqtSubscribeErrorReason /*error_code*/,
+                             std::optional<uint64_t> /*track_alias*/) override {
+      OnSubscribeAccepted();
+    }
+
+    void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {}
+    void OnNewFinAvailable(Location location, uint64_t subgroup) override {}
+    void OnSubgroupAbandoned(
+        uint64_t group, uint64_t subgroup,
+        webtransport::StreamErrorCode error_code) override {}
+    void OnGroupAbandoned(uint64_t group_id) override {}
+    void OnTrackPublisherGone() override {
+      publisher_ = nullptr;
+      MoqtTrackStatus track_status;
+      track_status.request_id = request_id_;
+      track_status.status_code = MoqtTrackStatusCode::kDoesNotExist;
+      track_status.largest_location = Location(0, 0);
+      session_->SendControlMessage(
+          session_->framer_.SerializeTrackStatus(track_status));
+      session_->incoming_track_status_.erase(request_id_);
+    }
+
+   private:
+    uint64_t request_id_;
+    MoqtSession* session_;
+    MoqtTrackPublisher* publisher_;
   };
 
   class GoAwayTimeoutDelegate : public quic::QuicAlarm::DelegateWithoutContext {
@@ -748,21 +813,29 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
       incoming_fetches_;
 
+  absl::flat_hash_map<uint64_t, DownstreamTrackStatus> incoming_track_status_;
+
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Indexed by track namespace. If the value is not nullptr, no OK or ERROR
-  // has been received. The entry is deleted after sending UNANNOUNCE or
-  // receiving ANNOUNCE_CANCEL.
+  // Outgoing ANNOUNCE for which no OK or ERROR has been received.
+  absl::flat_hash_map<uint64_t, TrackNamespace> pending_outgoing_announces_;
+  // All outgoing ANNOUNCE.
   absl::flat_hash_map<TrackNamespace, MoqtOutgoingAnnounceCallback>
       outgoing_announces_;
+
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
   // result from this subscription use incoming_announce_callback.
-  absl::flat_hash_map<TrackNamespace, MoqtOutgoingSubscribeAnnouncesCallback>
-      outgoing_subscribe_announces_;
+  struct PendingSubscribeAnnouncesData {
+    TrackNamespace track_namespace;
+    MoqtOutgoingSubscribeAnnouncesCallback callback;
+  };
+  absl::flat_hash_map<uint64_t, PendingSubscribeAnnouncesData>
+      pending_outgoing_subscribe_announces_;
+  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_announces_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

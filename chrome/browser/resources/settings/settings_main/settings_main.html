@@ -42,7 +42,7 @@
   <managed-footnote></managed-footnote>
 </template>
 
-<if expr="not chromeos_ash">
+<if expr="not is_chromeos">
   <template is="dom-if" if="[[showPage_(pageVisibility_.languages)]]">
     <settings-languages languages="{{languages_}}" prefs="{{prefs}}">
     </settings-languages>
@@ -54,20 +54,82 @@
   <div slot="view" id="old">
     <template is="dom-if" if="[[renderBasicPage_(lastRoute_)]]">
       <settings-basic-page class="cr-centered-card-container"
-          prefs="{{prefs}}" languages="[[languages_]]"
-          in-search-mode="[[inSearchMode_]]">
+          prefs="{{prefs}}" in-search-mode="[[inSearchMode_]]">
       </settings-basic-page>
     </template>
   </div>
+
+  <template is="dom-if" if="[[showPage_(pageVisibility_.autofill)]]">
+    <div slot="view" id="autofill">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.AUTOFILL, lastRoute_, inSearchMode_)]]">
+        <settings-autofill-page-index prefs="{{prefs}}"
+            in-search-mode="[[inSearchMode_]]">
+        </settings-autofill-page-index>
+      </template>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[showPage_(pageVisibility_.performance)]]">
+    <div slot="view" id="performance">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.PERFORMANCE, lastRoute_, inSearchMode_)]]">
+        <settings-performance-page-index prefs="{{prefs}}"
+            in-search-mode="[[inSearchMode_]]">
+        </settings-performance-page-index>
+      </template>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[showPage_(pageVisibility_.appearance)]]">
+    <div slot="view" id="appearance">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.APPEARANCE, lastRoute_, inSearchMode_)]]">
+        <settings-appearance-page-index prefs="{{prefs}}"
+            in-search-mode="[[inSearchMode_]]">
+        </settings-appearance-page-index>
+      </template>
+    </div>
+  </template>
+
+  <div slot="view" id="search">
+    <template is="dom-if" if="[[renderPlugin_(
+        routes_.SEARCH, lastRoute_, inSearchMode_)]]">
+      <settings-search-page-index prefs="{{prefs}}"
+          in-search-mode="[[inSearchMode_]]">
+      </settings-search-page-index>
+    </template>
+  </div>
+
+<if expr="not is_chromeos">
+  <template is="dom-if" if="[[showPage_(pageVisibility_.defaultBrowser)]]">
+    <div slot="view" id="defaultBrowser">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.DEFAULT_BROWSER, lastRoute_, inSearchMode_)]]">
+        <settings-default-browser-page></settings-default-browser-page>
+      </template>
+    </div>
+  </template>
+</if>
+
+  <template is="dom-if" if="[[showPage_(pageVisibility_.onStartup)]]">
+    <div slot="view" id="onStartup">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.ON_STARTUP, lastRoute_, inSearchMode_)]]">
+        <settings-on-startup-page prefs="{{prefs}}">
+        </settings-on-startup-page>
+      </template>
+    </div>
+  </template>
 
   <template is="dom-if" if="[[showPage_(pageVisibility_.languages)]]">
     <div slot="view" id="languages">
       <template is="dom-if" if="[[renderPlugin_(
           routes_.LANGUAGES, lastRoute_, inSearchMode_)]]">
-<if expr="chromeos_ash">
+<if expr="is_chromeos">
         <settings-languages-page-index></settings-languages-page-index>
 </if>
-<if expr="not chromeos_ash">
+<if expr="not is_chromeos">
         <settings-languages-page-index prefs="{{prefs}}"
             languages="[[languages_]]" in-search-mode="[[inSearchMode_]]">
         </settings-languages-page-index>
@@ -96,7 +158,7 @@
     </div>
   </template>
 
-<if expr="not chromeos_ash">
+<if expr="not is_chromeos">
   <template is="dom-if" if="[[showPage_(pageVisibility_.system)]]">
     <div slot="view" id="system">
       <template is="dom-if" if="[[renderPlugin_(

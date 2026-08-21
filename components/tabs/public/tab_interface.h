@@ -16,6 +16,10 @@
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/supports_handles.h"
 
+namespace ui {
+class UnownedUserDataHost;
+}
+
 namespace content {
 class WebContents;
 }  // namespace content
@@ -135,6 +139,11 @@ class TabInterface : public SupportsHandles<TabInterfaceHandleFactory> {
   // provide multiple visible tabs per window. This state is not related to
   // widget visibility or occlusion of the window.
   virtual bool IsVisible() const = 0;
+
+  // Returns true if the tab is selected in its browser window. Note that
+  // "selected" is distinct from "activated" -- multiple tabs may be selected at
+  // a time, and a selected tab is not necessarily active.
+  virtual bool IsSelected() const = 0;
 
   // Register for these two callbacks to detect changes to IsVisible().
   using DidBecomeVisibleCallback = base::RepeatingCallback<void(TabInterface*)>;
@@ -257,6 +266,12 @@ class TabInterface : public SupportsHandles<TabInterfaceHandleFactory> {
 
   // Must be called whenever any of this tab's ancestor collections change.
   virtual void OnAncestorChanged(base::PassKey<TabCollection>) = 0;
+
+  // Returns the UnownedUserDataHost associated with this tab. This is used to
+  // retrieve arbitrary features from the tab without requiring TabModel to have
+  // knowledge of them.
+  virtual ui::UnownedUserDataHost& GetUnownedUserDataHost() = 0;
+  virtual const ui::UnownedUserDataHost& GetUnownedUserDataHost() const = 0;
 };
 
 using TabHandle = TabInterface::Handle;

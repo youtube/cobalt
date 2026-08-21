@@ -23,7 +23,7 @@ using FrameStatistics = VideoCodecTestStatsImpl::FrameStatistics;
 
 namespace {
 
-const size_t kTimestamp = 12345;
+constexpr size_t kTimestamp = 12345;
 
 using ::testing::AllOf;
 using ::testing::Contains;

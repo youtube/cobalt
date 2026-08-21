@@ -120,7 +120,7 @@
 #include "media/base/android/media_codec_util.h"
 #endif
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<viz::SurfaceId>
@@ -133,10 +133,6 @@ struct CrossThreadCopier<media::VideoTransformation>
     : public CrossThreadCopierPassThrough<media::VideoTransformation> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 namespace {
 

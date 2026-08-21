@@ -13,6 +13,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="1073417869336441572">Hjälp oss att förbättra Chrome genom att berätta varför du har tillåtit cookies från tredje part. <ph name="BEGIN_LINK" />Skicka feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Du kan begära att se webbplatsernas datorversion</translation>
 <translation id="1085696779717592361">Använd Chrome som standard</translation>
+<translation id="1178015372320901893">Ark på nedre delen av skärmen för Mina genvägar</translation>
 <translation id="1178581264944972037">Paus</translation>
 <translation id="1181037720776840403">Ta bort</translation>
 <translation id="1192844206376121885">All data och alla cookies som har sparats av <ph name="ORIGIN" /> raderas.</translation>
@@ -62,6 +63,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="1704230497453185209">Tillåt inte att webbplatser spelar upp ljud</translation>
 <translation id="1717218214683051432">Rörelsesensorer</translation>
 <translation id="1717996979683942279">När detta är aktiverat kan webbplatser begära att hantera fönster på alla skärmar. När detta är inaktiverat kan inte webbplatser hantera fönster på alla skärmar.</translation>
+<translation id="1738912554587725807">Ark på nedre delen av skärmen för temasamlingar för utseende på sidan Ny flik</translation>
 <translation id="1743802530341753419">Fråga innan webbplatser tillåts ansluta till en enhet (rekommenderas)</translation>
 <translation id="1777815584158991902">Arket på nedre delen av skärmen för flödet Upptäck</translation>
 <translation id="1779089405699405702">Bildavkodare</translation>
@@ -355,6 +357,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="5100237604440890931">Vyn har komprimerats. Expandera den genom att klicka.</translation>
 <translation id="5116239826668864748">Du kan använda Chrome varje gång du trycker på länkar i meddelanden, dokument och andra appar</translation>
 <translation id="5123685120097942451">Inkognitoflik</translation>
+<translation id="512938610812707830">Arket på nedre delen av skärmen för temasamlingar för utseende på sidan Ny flik har öppnats över hela skärmen</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Sänkt pris på öppna flikar}other{Sänkta priser på öppna flikar}}</translation>
 <translation id="5186036860380548585">Alternativet visas högt upp på skärmen</translation>
 <translation id="5197729504361054390">Kontakterna du väljer delas med <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -457,6 +460,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="6262191102408817757">Utifrån din senaste flik</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> och <ph name="PERMISSION_2" /> blockeras</translation>
 <translation id="6270391203985052864">Webbplatser får be om tillåtelse att skicka aviseringar</translation>
+<translation id="6278428485366576908">Tema</translation>
 <translation id="6295158916970320988">Alla webbplatser</translation>
 <translation id="6320088164292336938">Vibration</translation>
 <translation id="6367753977865761591">Blockera tredjepartsinloggning på en viss webbplats.</translation>
@@ -562,6 +566,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="7681597159868843240">Åtkomst till enhetens rörelsesensorer brukar kunna behövas för funktioner som virtuell verklighet eller att hålla koll på träningen</translation>
 <translation id="7688240020069572972">Dölj kortet med tips om Chrome</translation>
 <translation id="7719367874908701697">Sidzoom</translation>
+<translation id="775043444390799886">Återkalla behörighet</translation>
 <translation id="7759147511335618829">Styra/omprogrammera MIDI-enheter</translation>
 <translation id="7781829728241885113">Igår</translation>
 <translation id="7791543448312431591">Lägg till</translation>
@@ -641,6 +646,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="8549127125482561383">Så här visar du begäranden</translation>
 <translation id="8558480467877843976">Nu kan du använda Chrome varje gång du surfar eller trycker på länkar i meddelanden, dokument och andra appar.</translation>
 <translation id="857943718398505171">Tillåten (rekommenderas)</translation>
+<translation id="8580511488901768832">arket på nedre delen av skärmen för mina genvägar har öppnats över hela skärmen</translation>
 <translation id="8593422116412089302">När detta är aktiverat kan webbplatser be om att få använda uppgifter som de har sparat om dig. När detta är inaktiverat får webbplatser inte be dig om att använda uppgifter som de har sparat om dig.</translation>
 <translation id="8609465669617005112">Flytta upp</translation>
 <translation id="8617611086246832542">När detta är aktiverat visas datorvyn för webbplatser. När detta är inaktiverat visas mobilvyn för webbplatser.</translation>

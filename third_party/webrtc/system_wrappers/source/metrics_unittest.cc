@@ -25,7 +25,7 @@ using ::testing::Pair;
 #if RTC_METRICS_ENABLED
 namespace webrtc {
 namespace {
-const int kSample = 22;
+constexpr int kSample = 22;
 
 void AddSparseSample(absl::string_view name, int sample) {
   RTC_HISTOGRAM_COUNTS_SPARSE_100(name, sample);

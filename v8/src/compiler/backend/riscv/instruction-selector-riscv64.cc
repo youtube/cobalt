@@ -208,7 +208,7 @@ void EmitLoad(InstructionSelector* selector, OpIndex node,
 }
 
 void EmitS128Load(InstructionSelector* selector, OpIndex node,
-                  InstructionCode opcode, VSew sew, Vlmul lmul) {
+                  InstructionCode opcode) {
   RiscvOperandGenerator g(selector);
   const Operation& op = selector->Get(node);
   DCHECK_EQ(op.input_count, 2);
@@ -217,16 +217,14 @@ void EmitS128Load(InstructionSelector* selector, OpIndex node,
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
                    g.DefineAsRegister(node), g.UseRegister(base),
-                   g.UseImmediate(index), g.UseImmediate(sew),
-                   g.UseImmediate(lmul));
+                   g.UseImmediate(index));
   } else {
     InstructionOperand addr_reg = g.TempRegister();
     selector->Emit(kRiscvAdd64 | AddressingModeField::encode(kMode_None),
                    addr_reg, g.UseRegister(index), g.UseRegister(base));
     // Emit desired load opcode, using temp addr_reg.
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI),
-                   g.DefineAsRegister(node), addr_reg, g.TempImmediate(0),
-                   g.UseImmediate(sew), g.UseImmediate(lmul));
+                   g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
   }
 }
 
@@ -875,7 +873,7 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt32(OpIndex node) {
     outputs[output_count++] = g.DefineAsRegister(success_output.value());
   }
 
-  this->Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
+  Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
@@ -937,7 +935,7 @@ void InstructionSelector::VisitTryTruncateFloat32ToInt64(OpIndex node) {
     outputs[output_count++] = g.DefineAsRegister(success_output.value());
   }
 
-  this->Emit(kRiscvTruncLS, output_count, outputs, 1, inputs);
+  Emit(kRiscvTruncLS, output_count, outputs, 1, inputs);
 }
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt64(OpIndex node) {
@@ -1834,28 +1832,13 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           switch (binop->kind) {
             case OverflowCheckedBinopOp::Kind::kSignedAdd:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              if (is64) {
-                return VisitBinop<Int32BinopMatcher>(this, node,
-                                                     kRiscvAddOvfWord, cont);
-              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
-                        // 64 bit, kRiscvAdd64 can't process smi overflow.
-                return VisitBinop<Int32BinopMatcher>(
-                    this, node,
-                    COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
-                    cont);
-              }
+              return VisitBinop<Int32BinopMatcher>(
+                  this, node, is64 ? kRiscvAddOvfWord : kRiscvAdd64, cont);
             case OverflowCheckedBinopOp::Kind::kSignedSub:
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              if (is64) {
-                return VisitBinop<Int32BinopMatcher>(this, node,
-                                                     kRiscvSubOvfWord, cont);
-              } else {  // If enable COMPRESS_POINTERS, smi will zero extend to
-                        // 64 bit, kRiscvSub64 can't process smi overflow.
-                return VisitBinop<Int32BinopMatcher>(
-                    this, node,
-                    COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
-                    cont);
-              }
+
+              return VisitBinop<Int32BinopMatcher>(
+                  this, node, is64 ? kRiscvSubOvfWord : kRiscvSub64, cont);
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               cont->OverwriteAndNegateIfEqual(kOverflow);
               return VisitBinop<Int32BinopMatcher>(
@@ -1952,9 +1935,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     // If enable COMPRESS_POINTERS, smi will zero extend to
     // 64 bit, kRiscvAdd64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, COMPRESS_POINTERS_BOOL ? kRiscvAddOvf32 : kRiscvAdd64,
-        &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
@@ -1966,9 +1947,7 @@ void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
     // If enable COMPRESS_POINTERS, smi will zero extend to
     // 64 bit, kRiscvSub64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(
-        this, node, COMPRESS_POINTERS_BOOL ? kRiscvSubOvf32 : kRiscvSub64,
-        &cont);
+    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
@@ -2331,7 +2310,7 @@ void InstructionSelector::VisitSignExtendWord32ToInt64(OpIndex node) {
 //     InstructionOperand inputs[2];
 //     inputs[0] = operand;
 //     inputs[1] = g.UseImmediate64(length);
-//     this->Emit(kArchComment, 0, nullptr, 1, inputs);
+//     Emit(kArchComment, 0, nullptr, 1, inputs);
 // }
 
 // static

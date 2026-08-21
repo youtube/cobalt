@@ -935,6 +935,7 @@ static bool GetConfig(const Span<const uint8_t> args[],
         "mode": "keyGen",
         "revision": "FIPS204",
         "parameterSets": [
+          "ML-DSA-44",
           "ML-DSA-65",
           "ML-DSA-87"
         ]
@@ -953,6 +954,7 @@ static bool GetConfig(const Span<const uint8_t> args[],
         ],
         "capabilities": [{
           "parameterSets": [
+            "ML-DSA-44",
             "ML-DSA-65",
             "ML-DSA-87"
           ],
@@ -975,6 +977,7 @@ static bool GetConfig(const Span<const uint8_t> args[],
             "increment": 8
           }],
           "parameterSets": [
+            "ML-DSA-44",
             "ML-DSA-65",
             "ML-DSA-87"
           ]
@@ -2569,6 +2572,10 @@ static constexpr struct {
     {"ECDH/P-384", 3, ECDH<NID_secp384r1>},
     {"ECDH/P-521", 3, ECDH<NID_secp521r1>},
     {"FFDH", 6, FFDH},
+    {"ML-DSA-44/keyGen", 1,
+     MLDSAKeyGen<BCM_mldsa44_private_key, BCM_MLDSA44_PUBLIC_KEY_BYTES,
+                 BCM_mldsa44_generate_key_external_entropy_fips,
+                 BCM_mldsa44_marshal_private_key>},
     {"ML-DSA-65/keyGen", 1,
      MLDSAKeyGen<BCM_mldsa65_private_key, BCM_MLDSA65_PUBLIC_KEY_BYTES,
                  BCM_mldsa65_generate_key_external_entropy_fips,
@@ -2577,12 +2584,18 @@ static constexpr struct {
      MLDSAKeyGen<BCM_mldsa87_private_key, BCM_MLDSA87_PUBLIC_KEY_BYTES,
                  BCM_mldsa87_generate_key_external_entropy_fips,
                  BCM_mldsa87_marshal_private_key>},
+    {"ML-DSA-44/sigGen", 3,
+     MLDSASigGen<BCM_mldsa44_private_key, BCM_MLDSA44_SIGNATURE_BYTES,
+                 BCM_mldsa44_parse_private_key, BCM_mldsa44_sign_internal>},
     {"ML-DSA-65/sigGen", 3,
      MLDSASigGen<BCM_mldsa65_private_key, BCM_MLDSA65_SIGNATURE_BYTES,
                  BCM_mldsa65_parse_private_key, BCM_mldsa65_sign_internal>},
     {"ML-DSA-87/sigGen", 3,
      MLDSASigGen<BCM_mldsa87_private_key, BCM_MLDSA87_SIGNATURE_BYTES,
                  BCM_mldsa87_parse_private_key, BCM_mldsa87_sign_internal>},
+    {"ML-DSA-44/sigVer", 3,
+     MLDSASigVer<BCM_mldsa44_public_key, BCM_MLDSA44_SIGNATURE_BYTES,
+                 BCM_mldsa44_parse_public_key, BCM_mldsa44_verify_internal>},
     {"ML-DSA-65/sigVer", 3,
      MLDSASigVer<BCM_mldsa65_public_key, BCM_MLDSA65_SIGNATURE_BYTES,
                  BCM_mldsa65_parse_public_key, BCM_mldsa65_verify_internal>},

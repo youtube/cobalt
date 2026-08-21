@@ -106,6 +106,7 @@ if (!build_with_chromium) {
         ":echo_emulation",
         ":test_peer",
         "../..:copy_to_file_audio_capturer",
+        "../../../api:create_modular_peer_connection_factory",
         "../../../api:enable_media_with_defaults",
         "../../../api:libjingle_peerconnection_api",
         "../../../api:scoped_refptr",

@@ -9,6 +9,11 @@ import("//mojo/public/tools/bindings/mojom.gni")
 
 assert(enable_glic)
 
+# TODO(b/430371855): This target should eventually become Glic's public target,
+# to be imported from external BUILD files. The "impl" source set below would
+# then list resources only needed internally for the implementation. In the
+# meantime, prefer adding new sources or dependencies only needed internally to
+# the "impl" target.
 source_set("glic") {
   sources = [
     "browser_ui/glic_border_view.h",
@@ -53,7 +58,6 @@ source_set("glic") {
     ":mojo_bindings",
     "//base",
     "//chrome/browser:shell_integration",
-    "//chrome/browser/content_extraction",
     "//chrome/browser/contextual_cueing",
     "//chrome/browser/glic/resources:browser_resources",
     "//chrome/browser/optimization_guide",
@@ -62,6 +66,7 @@ source_set("glic") {
     "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui/browser_window:browser_window",
     "//chrome/browser/ui/tabs:tab_strip_model_observer",
+    "//components/content_extraction/content/browser",
     "//components/favicon/core",
     "//components/metrics:metrics",
     "//components/optimization_guide/content/browser",
@@ -70,7 +75,6 @@ source_set("glic") {
     "//components/variations",
     "//content/public/browser",
     "//google_apis/common:common",
-    "//pdf/mojom",
     "//ui/views:views",
     "//ui/views/controls/webview",
     "//ui/webui",
@@ -86,6 +90,9 @@ source_set("enum") {
   sources = [ "glic_enums.h" ]
 }
 
+# TODO(b/430371855): This is the better target for resources only needed
+# by the Glic implementation. Prefer adding to this target any new sources or
+# dependencies that are only needed internally.
 source_set("impl") {
   sources = [
     "glic_enabling.cc",
@@ -154,33 +161,37 @@ source_set("impl") {
     "//chrome/browser/actor/ui",
     "//chrome/browser/background/glic",
     "//chrome/browser/contextual_cueing",
+    "//chrome/browser/feedback:feedback",
     "//chrome/browser/glic/browser_ui",
     "//chrome/browser/glic/fre",
     "//chrome/browser/glic/media",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/media/webrtc",
+    "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/resources/glic:resources",
     "//chrome/browser/resources/glic/fre:resources",
+    "//chrome/browser/signin",
     "//chrome/browser/themes:themes",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/browser_window:browser_window",
+    "//chrome/browser/ui/profiles",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/user_education",
     "//chrome/browser/ui/views",
     "//chrome/common",
     "//components/favicon/content:content",
     "//components/feature_engagement/public:feature_constants",
+    "//components/feedback/content:content",
     "//components/guest_view/browser",
     "//components/language/core/common",
     "//components/metrics",
     "//components/metrics_services_manager:metrics_services_manager",
-    "//components/pdf/common:constants",
     "//components/pref_registry",
     "//components/prefs",
     "//components/sessions",
@@ -190,10 +201,6 @@ source_set("impl") {
     "//ui/webui",
     "//url",
   ]
-
-  if (enable_pdf) {
-    deps += [ "//components/pdf/browser:browser" ]
-  }
 
   if (is_mac) {
     deps += [ "//ui/accelerated_widget_mac" ]
@@ -289,6 +296,7 @@ source_set("browser_tests") {
     "//chrome/browser/prefs:prefs",
     "//chrome/browser/ui",
     "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/profiles",
     "//chrome/common:constants",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
@@ -308,6 +316,7 @@ source_set("interactive_ui_tests") {
   sources = [
     "glic_profile_manager_interactive_uitest.cc",
     "glic_settings_util_interactive_uitest.cc",
+    "glic_user_status_interactive_uitest.cc",
     "host/glic_actor_controller_interactive_uitest.cc",
     "host/glic_annotation_manager_interactive_uitest.cc",
     "host/glic_permission_enforcement_interactive_uitest.cc",

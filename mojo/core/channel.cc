@@ -41,10 +41,6 @@
 #include "base/win/win_util.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-#include "mojo/core/channel_binder.h"
-#endif
-
 namespace mojo::core {
 
 namespace {
@@ -929,12 +925,8 @@ scoped_refptr<Channel> Channel::CreateForIpczDriver(
     Delegate* delegate,
     PlatformChannelEndpoint endpoint,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner) {
-#if BUILDFLAG(IS_NACL)
-  return nullptr;
-#else
   return Create(delegate, ConnectionParams{std::move(endpoint)},
                 HandlePolicy::kAcceptHandles, std::move(io_task_runner));
-#endif
 }
 
 void Channel::ShutDown() {
@@ -1169,9 +1161,8 @@ void Channel::LogHistogramForIPCMetrics(MessageType type) {
   }
 }
 
-// Currently only Non-nacl CrOs, Linux, and Android support upgrades.
-#if BUILDFLAG(IS_NACL) || (!(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || \
-                             BUILDFLAG(IS_ANDROID)))
+// Currently only CrOs, Linux, and Android support upgrades.
+#if !(BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
 // static
 MOJO_SYSTEM_IMPL_EXPORT bool Channel::SupportsChannelUpgrade() {
   return false;

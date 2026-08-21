@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/cert/ct_log_verifier.h"
 
 #include <stdint.h>
@@ -14,14 +9,14 @@
 #include <algorithm>
 #include <array>
 #include <bit>
-#include <memory>
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
 #include "base/time/time.h"
-#include "crypto/secure_hash.h"
+#include "crypto/hash.h"
 #include "net/base/hash_value.h"
 #include "net/cert/ct_log_verifier_util.h"
 #include "net/cert/merkle_audit_proof.h"
@@ -167,8 +162,8 @@ template <typename TestVectorType>
 std::vector<std::string> GetProof(const TestVectorType& test_vector) {
   std::vector<std::string> proof(test_vector.proof_length);
   std::transform(test_vector.proof,
-                 test_vector.proof + test_vector.proof_length, proof.begin(),
-                 &HexToBytes);
+                 UNSAFE_TODO(test_vector.proof + test_vector.proof_length),
+                 proof.begin(), &HexToBytes);
 
   return proof;
 }
@@ -583,16 +578,14 @@ namespace rfc6962 {
 // Calculates the hash of a leaf in a Merkle tree, given its content.
 // See RFC6962, section 2.1.
 std::string HashLeaf(const std::string& leaf) {
-  const char kLeafPrefix[] = {'\x00'};
+  static constexpr std::array<uint8_t, 1> kTag = {0x00};
 
-  SHA256HashValue sha256 = {0};
+  crypto::hash::Hasher hash(crypto::hash::kSha256);
+  hash.Update(kTag);
+  hash.Update(leaf);
 
-  std::unique_ptr<crypto::SecureHash> hash(
-      crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  hash->Update(kLeafPrefix, 1);
-  hash->Update(leaf.data(), leaf.size());
-  hash->Finish(sha256);
-
+  std::array<uint8_t, crypto::hash::kSha256Size> sha256;
+  hash.Finish(sha256);
   return std::string(base::as_string_view(sha256));
 }
 
@@ -608,8 +601,9 @@ std::string HashTree(std::string leaves[], size_t tree_size) {
   const size_t split = std::bit_floor(tree_size - 1);
 
   // Hash the left and right sub-trees, then hash the results.
-  return ct::internal::HashNodes(HashTree(leaves, split),
-                                 HashTree(&leaves[split], tree_size - split));
+  return ct::internal::HashNodes(
+      HashTree(leaves, split),
+      HashTree(&UNSAFE_TODO(leaves[split]), tree_size - split));
 }
 
 // Returns a Merkle audit proof for the leaf with index |leaf_index|.
@@ -633,10 +627,10 @@ std::vector<std::string> CreateAuditProof(std::string leaves[],
   // on the way up to build the proof.
   if (leaf_index < split) {
     proof = CreateAuditProof(leaves, split, leaf_index);
-    proof.push_back(HashTree(&leaves[split], tree_size - split));
+    proof.push_back(HashTree(&UNSAFE_TODO(leaves[split]), tree_size - split));
   } else {
-    proof =
-        CreateAuditProof(&leaves[split], tree_size - split, leaf_index - split);
+    proof = CreateAuditProof(&UNSAFE_TODO(leaves[split]), tree_size - split,
+                             leaf_index - split);
     proof.push_back(HashTree(leaves, split));
   }
 
@@ -675,14 +669,15 @@ std::vector<std::string> CreateConsistencyProof(std::string leaves[],
     proof =
         CreateConsistencyProof(leaves, split, old_tree_size, contains_old_tree);
     // Record the hash of the right subtree (only present in the new tree).
-    proof.push_back(HashTree(&leaves[split], new_tree_size - split));
+    proof.push_back(
+        HashTree(&UNSAFE_TODO(leaves[split]), new_tree_size - split));
   } else {
     // The old tree root is at the same level as the new tree root.
     // Prove that the right subtrees are consistent. The right subtree
     // doesn't contain the root of the old tree, so set contains_old_tree =
     // false.
-    proof = CreateConsistencyProof(&leaves[split], new_tree_size - split,
-                                   old_tree_size - split,
+    proof = CreateConsistencyProof(&UNSAFE_TODO(leaves[split]),
+                                   new_tree_size - split, old_tree_size - split,
                                    /* contains_old_tree = */ false);
     // Record the hash of the left subtree (equal in both trees).
     proof.push_back(HashTree(leaves, split));

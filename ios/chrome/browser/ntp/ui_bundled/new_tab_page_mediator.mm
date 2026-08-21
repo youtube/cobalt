@@ -49,6 +49,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
+#import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service_observer_bridge.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
@@ -285,6 +286,17 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
           : @"";
   [self.headerConsumer setDefaultSearchEngineName:dseName];
 
+  if (self.placeholderService) {
+    // The DSE icon might have already been fetched. In this case, no updated
+    // will be delivered. Therefore we should query the cache, as the icon store
+    // might have already been updated.
+    UIImage* fetchedIcon =
+        self.placeholderService->GetDefaultSearchEngineIcon(kIconPointSize);
+    if (fetchedIcon) {
+      [self.headerConsumer setDefaultSearchEngineImage:fetchedIcon];
+    }
+  }
+
   [self updateAccountImage];
   [self updateAccountErrorBadge];
   [self startObservingPrefs];
@@ -295,8 +307,6 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
     _backgroundCustomizationServiceObserverBridge =
         std::make_unique<HomeBackgroundCustomizationServiceObserverBridge>(
             _backgroundCustomizationService, self);
-    // Make sure the intial background is set.
-    [self updateBackground];
   }
 
   BOOL miaPolicyAllowed = omnibox::IsAimAllowedByPolicy(_prefService);
@@ -325,7 +335,8 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   _backgroundCustomizationServiceObserverBridge = nullptr;
   _backgroundCustomizationService = nullptr;
   _imageFetcherService = nullptr;
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
+      base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     self.placeholderService = nullptr;
   }
 }
@@ -358,7 +369,8 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 }
 
 - (void)setPlaceholderService:(PlaceholderService*)placeholderService {
-  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate));
+  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
+        base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2));
 
   _placeholderService = placeholderService;
 
@@ -370,6 +382,46 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   _placeholderServiceObserver =
       std::make_unique<PlaceholderServiceObserverBridge>(self,
                                                          placeholderService);
+}
+
+- (void)updateBackground {
+  std::optional<sync_pb::NtpCustomBackground> background =
+      _backgroundCustomizationService->GetCurrentCustomBackground();
+
+  std::optional<sync_pb::UserColorTheme> colorTheme =
+      _backgroundCustomizationService->GetCurrentColorTheme();
+
+  if (colorTheme && colorTheme->color()) {
+    [self.consumer
+        updateBackgroundWithColorPalette:
+            CreateColorPaletteFromSeedColor(
+                skia::UIColorFromSkColor(colorTheme->color()),
+                ProtoEnumToSchemeVariant(colorTheme->browser_color_variant()))];
+    [self.consumer setBackgroundImage:nil];
+    return;
+  }
+
+  [self.consumer updateBackgroundWithColorPalette:nil];
+  if (!background) {
+    [self.consumer setBackgroundImage:nil];
+    return;
+  }
+
+  GURL imageURL = GURL(background->url());
+
+  image_fetcher::ImageFetcher* imageFetcher =
+      _imageFetcherService->GetImageFetcher(
+          image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
+
+  __weak __typeof(self) weakSelf = self;
+  imageFetcher->FetchImage(
+      imageURL,
+      base::BindOnce(^(const gfx::Image& image,
+                       const image_fetcher::RequestMetadata& metadata) {
+        [weakSelf handleBackgroundImageFetch:image];
+      }),
+      // TODO (crbug.com/417234848): Add annotation.
+      image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
 }
 
 #pragma mark - BrowserViewVisibilityObserving
@@ -427,6 +479,10 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 #pragma mark - PlaceholderServiceObserving
 
 - (void)placeholderImageUpdated {
+  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
+    return;
+  }
+
   // Show Default Search Engine favicon.
   // Remember what is the Default Search Engine provider that the icon is
   // for, in case the user changes Default Search Engine while this is being
@@ -529,45 +585,6 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
       updateADPBadgeWithErrorFound:primaryIdentityHasError
                               name:_signedInIdentity.userFullName
                              email:_signedInIdentity.userEmail];
-}
-
-- (void)updateBackground {
-  std::optional<sync_pb::NtpCustomBackground> background =
-      _backgroundCustomizationService->GetCurrentCustomBackground();
-
-  std::optional<sync_pb::UserColorTheme> colorTheme =
-      _backgroundCustomizationService->GetCurrentColorTheme();
-
-  if (colorTheme && colorTheme->color()) {
-    [self.consumer
-        updateBackgroundWithColorPalette:CreateColorPaletteFromSeedColor(
-                                             skia::UIColorFromSkColor(
-                                                 colorTheme->color()))];
-    [self.consumer setBackgroundImage:nil];
-    return;
-  }
-
-  [self.consumer updateBackgroundWithColorPalette:nil];
-  if (!background) {
-    [self.consumer setBackgroundImage:nil];
-    return;
-  }
-
-  GURL imageURL = GURL(background->url());
-
-  image_fetcher::ImageFetcher* imageFetcher =
-      _imageFetcherService->GetImageFetcher(
-          image_fetcher::ImageFetcherConfig::kDiskCacheOnly);
-
-  __weak __typeof(self) weakSelf = self;
-  imageFetcher->FetchImage(
-      imageURL,
-      base::BindOnce(^(const gfx::Image& image,
-                       const image_fetcher::RequestMetadata& metadata) {
-        [weakSelf handleBackgroundImageFetch:image];
-      }),
-      // TODO (crbug.com/417234848): Add annotation.
-      image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
 }
 
 // Helper method to handle the image response after fetching the background

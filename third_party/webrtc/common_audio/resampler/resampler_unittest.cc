@@ -11,6 +11,9 @@
 #include "common_audio/resampler/include/resampler.h"
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 #include "rtc_base/strings/string_builder.h"
 #include "test/gtest.h"
@@ -21,11 +24,11 @@ namespace webrtc {
 namespace {
 
 // Rates we must support.
-const int kMaxRate = 96000;
-const int kRates[] = {8000, 16000, 32000, 44000, 48000, kMaxRate};
-const size_t kRatesSize = sizeof(kRates) / sizeof(*kRates);
-const int kMaxChannels = 2;
-const size_t kDataSize = static_cast<size_t>(kMaxChannels * kMaxRate / 100);
+constexpr int kMaxRate = 96000;
+constexpr int kRates[] = {8000, 16000, 32000, 44000, 48000, kMaxRate};
+constexpr size_t kRatesSize = sizeof(kRates) / sizeof(*kRates);
+constexpr int kMaxChannels = 2;
+constexpr size_t kDataSize = static_cast<size_t>(kMaxChannels * kMaxRate / 100);
 
 // TODO(andrew): should we be supporting these combinations?
 bool ValidRates(int in_rate, int out_rate) {

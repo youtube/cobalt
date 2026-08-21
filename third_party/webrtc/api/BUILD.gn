@@ -70,6 +70,19 @@ rtc_library("enable_media_with_defaults") {
   ]
 }
 
+rtc_source_set("create_modular_peer_connection_factory") {
+  visibility = [ "*" ]
+  allow_poison = [ "environment_construction" ]
+  sources = [ "create_modular_peer_connection_factory.h" ]
+  deps = [
+    ":libjingle_peerconnection_api",
+    ":scoped_refptr",
+    "../pc:peer_connection_factory",
+    "../rtc_base/system:rtc_export",
+    "../stats:rtc_stats",
+  ]
+}
+
 if (!build_with_chromium) {
   rtc_library("create_peerconnection_factory") {
     visibility = [ "*" ]
@@ -79,14 +92,13 @@ if (!build_with_chromium) {
       "create_peerconnection_factory.h",
     ]
     deps = [
+      ":create_modular_peer_connection_factory",
       ":enable_media",
       ":field_trials_view",
       ":libjingle_peerconnection_api",
       ":scoped_refptr",
-      "../pc:peer_connection_factory",
       "../rtc_base:threading",
       "../rtc_base/system:rtc_export",
-      "../stats:rtc_stats",
       "audio:audio_device",
       "audio:audio_mixer_api",
       "audio:audio_processing",
@@ -277,6 +289,17 @@ rtc_library("rtp_sender_interface") {
   ]
 }
 
+# TODO: bugs.webrtc.org/42220069 - Remove when downstream has been updated
+# to depend on `create_modular_peer_connection_factory` instead.
+rtc_source_set("create_modular_peer_connection_factory_internal") {
+  visibility = [ ":libjingle_peerconnection_api" ]
+  sources = [ "create_modular_peer_connection_factory_internal.h" ]
+  deps = [
+    ":scoped_refptr",
+    "../rtc_base/system:rtc_export",
+  ]
+}
+
 rtc_library("libjingle_peerconnection_api") {
   visibility = [ "*" ]
   cflags = []
@@ -317,6 +340,7 @@ rtc_library("libjingle_peerconnection_api") {
     ":async_dns_resolver",
     ":audio_options_api",
     ":candidate",
+    ":create_modular_peer_connection_factory_internal",
     ":data_channel_event_observer_interface",
     ":dtls_transport_interface",
     ":fec_controller_api",
@@ -416,6 +440,7 @@ rtc_library("frame_transformer_interface") {
     ":make_ref_counted",
     ":ref_count",
     ":scoped_refptr",
+    "../rtc_base:checks",
     "../rtc_base:refcount",
     "../rtc_base/system:rtc_export",
     "units:time_delta",
@@ -888,6 +913,8 @@ rtc_source_set("simulated_network_api") {
     "../rtc_base:random",
     "transport:ecn_marking",
     "units:data_rate",
+    "units:data_size",
+    "units:timestamp",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
@@ -913,6 +940,7 @@ rtc_library("network_emulation_manager_api") {
     "../rtc_base:socket_address",
     "../test/network:simulated_network",
     "test/network_emulation",
+    "test/network_emulation:network_queue",
     "units:data_rate",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1700,6 +1728,11 @@ rtc_source_set("field_trials_view") {
 
 rtc_library("field_trials") {
   visibility = [ "*" ]
+
+  # Internally webrtc shouldn't create or modify field trials, and should use
+  # FieldTrials through the FieldTrialsView interface that is usually propagated
+  # with Environment.
+  poisonous = [ "environment_construction" ]
   sources = [
     "field_trials.cc",
     "field_trials.h",

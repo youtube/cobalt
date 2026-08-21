@@ -197,8 +197,8 @@ class EventReportValidator : public EventReportValidatorBase {
       const std::string& expected_profile_username,
       const std::string& expected_profile_identifier);
 
-  // Closure to run once all expected events are validated.
-  void SetDoneClosure(base::RepeatingClosure closure);
+  void ExpectActiveUser(const std::string& user);
+  void ExpectSourceActiveUser(const std::string& user);
 
  private:
   void ValidateReport(const base::Value::Dict* report);
@@ -237,6 +237,8 @@ class EventReportValidator : public EventReportValidatorBase {
       password_breach_identities_ = std::nullopt;
   std::optional<std::string> data_controls_result_ = std::nullopt;
   data_controls::Verdict::TriggeredRules data_controls_triggered_rules_;
+  std::optional<std::string> active_content_area_user_;
+  std::optional<std::string> source_active_content_area_user_;
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // `DataMaskingEvent`'s copy constructor is deleted, so to keep

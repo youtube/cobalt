@@ -20,6 +20,7 @@ class AnnotatedPageContent;
 
 namespace actor {
 
+class ActorTask;
 class AggregatedJournal;
 class ObservationDelayController;
 
@@ -75,6 +76,17 @@ class Tool {
   // loading navigation to settle.
   virtual std::unique_ptr<ObservationDelayController> GetObservationDelayer()
       const = 0;
+
+  // TODO(crbug.com/411462297): These need to be reshaped and made callable from
+  // ExecutionEngine to enable better integration with UI. This will require
+  // some plumbing through ToolController to make this possible.
+  // Gives the tool an opportunity to update the task's state before being
+  // invoked.
+  virtual void UpdateTaskBeforeInvoke(ActorTask& task) const;
+
+  // Gives the tool an opportunity to update the task's state after being
+  // invoked.
+  virtual void UpdateTaskAfterInvoke(ActorTask& task) const;
 
  protected:
   TaskId task_id() const { return task_id_; }

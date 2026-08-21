@@ -37,7 +37,6 @@
 #import "ios/chrome/browser/settings/ui_bundled/password/reauthentication/reauthentication_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/widget_promo_instructions/widget_promo_instructions_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_event.h"
@@ -68,7 +67,6 @@ using chrome_test_util::PasswordsTableViewMatcher;
 using chrome_test_util::SettingsCollectionView;
 using chrome_test_util::SettingsDoneButton;
 using chrome_test_util::SettingsNavigationBar;
-using chrome_test_util::TabGridEditButton;
 using chrome_test_util::TextFieldForCellWithLabelId;
 using chrome_test_util::TurnTableViewSwitchOn;
 using password_manager::kPasswordManagerSurfaceVisitHistogramName;
@@ -173,12 +171,12 @@ GREYElementInteraction* SaveInAccountConfirmationDialogButton() {
                  kPasswordSettingsBulkMovePasswordsToAccountAlertViewId)];
 }
 
-// Matcher for "Saved Passwords" header in the password list.
-id<GREYMatcher> SavedPasswordsHeaderMatcher() {
-  return grey_allOf(
-      grey_accessibilityLabel(
-          l10n_util::GetNSString(IDS_IOS_SETTINGS_PASSWORDS_SAVED_HEADING)),
-      grey_accessibilityTrait(UIAccessibilityTraitHeader), nullptr);
+// Matcher for "Saved Passwords & Passkeys" header in the password list.
+id<GREYMatcher> SavedPasswordsPasskeysHeaderMatcher() {
+  return grey_allOf(grey_accessibilityLabel(l10n_util::GetNSString(
+                        IDS_IOS_SETTINGS_PASSWORDS_PASSKEYS_SAVED_HEADING)),
+                    grey_accessibilityTrait(UIAccessibilityTraitHeader),
+                    nullptr);
 }
 
 // Matcher for a UITextField inside a SettingsSearchCell.
@@ -726,13 +724,6 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   // prevent flakiness, due to a spinner that appears in some tests and blocks
   // later ones from interacting with the UI.
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
-
-  if ([self isRunningTest:@selector
-            (testTurnOnPasswordsInOtherAppsItemVisibility)] ||
-      [self
-          isRunningTest:@selector(testTapsOnTurnOnPasswordsInOtherAppsItem)]) {
-    config.features_enabled.push_back(kIOSPasskeysM2);
-  }
 
   if ([self isRunningTest:@selector(testClosingPasswordManagerWidgetPromo)] ||
       [self isRunningTest:@selector
@@ -2400,7 +2391,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [ChromeEarlGreyUI waitForAppToIdle];
 
   // Check that saved forms header is removed.
-  [[EarlGrey selectElementWithMatcher:SavedPasswordsHeaderMatcher()]
+  [[EarlGrey selectElementWithMatcher:SavedPasswordsPasskeysHeaderMatcher()]
       assertWithMatcher:grey_nil()];
 
   // Verify that the deletion was propagated to the ProfilePasswordStore.
@@ -2978,27 +2969,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   id<GREYMatcher> offMatcher = grey_allOf(
       grey_accessibilityLabel(l10n_util::GetNSString(IDS_IOS_SETTING_OFF)),
       grey_sufficientlyVisible(), nil);
-  if ([PasswordManagerAppInterface isPasskeysM2FeatureEnabled]) {
-    if (@available(iOS 18, *)) {
-      offMatcher = grey_allOf(TurnOnPasswordsInOtherAppsButton(),
-                              grey_sufficientlyVisible(), nil);
-    }
+  if (@available(iOS 18, *)) {
+    offMatcher = grey_allOf(TurnOnPasswordsInOtherAppsButton(),
+                            grey_sufficientlyVisible(), nil);
   }
 
-  if ([PasswordManagerAppInterface isPasskeysM2FeatureEnabled]) {
-    // When the Passkeys M2 feature is on, the AutoFill status is defaulted to
-    // "off" until populated.
-    [ChromeEarlGrey waitForUIElementToAppearWithMatcher:offMatcher];
-    [[EarlGrey selectElementWithMatcher:onMatcher]
-        assertWithMatcher:grey_nil()];
-  } else {
-    // No detail text should appear until the AutoFill status has been
-    // populated.
-    [[EarlGrey selectElementWithMatcher:onMatcher]
-        assertWithMatcher:grey_nil()];
-    [[EarlGrey selectElementWithMatcher:offMatcher]
-        assertWithMatcher:grey_nil()];
-  }
+  [ChromeEarlGrey waitForUIElementToAppearWithMatcher:offMatcher];
+  [[EarlGrey selectElementWithMatcher:onMatcher] assertWithMatcher:grey_nil()];
 
   [PasswordsInOtherAppsAppInterface startFakeManagerWithAutoFillStatus:NO];
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:offMatcher];
@@ -3603,7 +3580,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
         selectElementWithMatcher:grey_accessibilityLabel(l10n_util::GetNSString(
                                      IDS_IOS_SETTINGS_SET_UP_SCREENLOCK_TITLE))]
         assertWithMatcher:grey_sufficientlyVisible()];
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::OKButton()]
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::AlertItemWithAccessibilityLabelId(IDS_OK)]
         performAction:grey_tap()];
 
     // Check for the Settings page after Password Manager is gone.
@@ -3646,7 +3624,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
         selectElementWithMatcher:grey_accessibilityLabel(l10n_util::GetNSString(
                                      IDS_IOS_SETTINGS_SET_UP_SCREENLOCK_TITLE))]
         assertWithMatcher:grey_sufficientlyVisible()];
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::OKButton()]
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::AlertItemWithAccessibilityLabelId(IDS_OK)]
         performAction:grey_tap()];
 
     // Check for the Settings page after Password Manager is gone.

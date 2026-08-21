@@ -13,6 +13,9 @@ namespace password_manager {
 
 namespace {
 
+using autofill::FieldGlobalId;
+using autofill::FormGlobalId;
+
 std::vector<autofill::FieldGlobalId> GetFillableOtpFieldIds(
     const autofill::FormData& form,
     const base::flat_map<autofill::FieldGlobalId, autofill::FieldType>&
@@ -52,15 +55,40 @@ void OtpManager::ProcessClassificationModelPredictions(
     return;
   }
 
-  if (form_managers_.find(form_id) == form_managers_.end()) {
+  OtpFormManager* form_manager = GetManagerForForm(form_id);
+  if (!form_manager) {
     form_managers_.emplace(form_id, std::make_unique<OtpFormManager>(
                                         form_id, fillable_otp_fields, client_));
     client_->InformPasswordChangeServiceOfOtpPresent();
 
   } else {
-    CHECK(form_managers_.at(form_id));
-    form_managers_.at(form_id)->ProcessUpdatedPredictions(fillable_otp_fields);
+    form_manager->ProcessUpdatedPredictions(fillable_otp_fields);
   }
+}
+
+bool OtpManager::IsFieldEligibleForOtpFilling(
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id) const {
+  OtpFormManager* form_manager = GetManagerForForm(form_id);
+  return form_manager ? form_manager->IsFieldEligibleForOtpFilling(field_id)
+                      : false;
+}
+
+void OtpManager::GetOtpSuggestions(
+    const autofill::FormGlobalId& form_id,
+    const autofill::FieldGlobalId& field_id,
+    base::OnceCallback<void(std::vector<std::string>)> callback) const {
+  OtpFormManager* form_manager = GetManagerForForm(form_id);
+  CHECK(form_manager);
+  form_manager->GetOtpSuggestions(field_id, std::move(callback));
+}
+
+OtpFormManager* OtpManager::GetManagerForForm(
+    const FormGlobalId& form_id) const {
+  if (form_managers_.find(form_id) == form_managers_.end()) {
+    return nullptr;
+  }
+  return form_managers_.at(form_id).get();
 }
 
 }  // namespace password_manager

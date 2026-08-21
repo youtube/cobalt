@@ -1096,8 +1096,17 @@ void LensOverlayController::IssueLensRequest(
   MaybeOpenSidePanel();
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kRegionSelect);
-  state_ = State::kOverlayAndResults;
-  MaybeLaunchSurvey();
+
+  // TODO(crbug.com/428208291): The overlay can be in the live page and results
+  // state and this could be a query coming from the back stack which would make
+  // setting this to kOverlayAndResults incorrect. Check if the overlay is
+  // currently in that state to determine if this should be set to
+  // kOverlayAndResults or not. This should be fixed by moving the functionality
+  // to make Lens requests to a more appropriate location.
+  if (state_ != State::kLivePageAndResults) {
+    state_ = State::kOverlayAndResults;
+    MaybeLaunchSurvey();
+  }
 }
 
 void LensOverlayController::IssueMultimodalRequest(
@@ -1326,16 +1335,14 @@ void LensOverlayController::GetPdfCurrentPage(
     const SkBitmap& bitmap,
     const std::vector<gfx::Rect>& bounds) {
 #if BUILDFLAG(ENABLE_PDF)
-  if (lens::features::SendPdfCurrentPageEnabled()) {
-    pdf::PDFDocumentHelper* pdf_helper =
-        pdf::PDFDocumentHelper::MaybeGetForWebContents(tab_->GetContents());
-    if (pdf_helper) {
-      pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
-          &LensOverlayController::DidCaptureScreenshot,
-          weak_factory_.GetWeakPtr(), std::move(chrome_render_frame),
-          attempt_id, bitmap, bounds));
-      return;
-    }
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(tab_->GetContents());
+  if (pdf_helper) {
+    pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
+        &LensOverlayController::DidCaptureScreenshot,
+        weak_factory_.GetWeakPtr(), std::move(chrome_render_frame), attempt_id,
+        bitmap, bounds));
+    return;
   }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
@@ -2522,9 +2529,9 @@ void LensOverlayController::HandleInteractionResponse(
 
 void LensOverlayController::HandlePageContentUploadProgress(uint64_t position,
                                                             uint64_t total) {
-  // If the progress bar is disabled, do not show it.
-  if (!lens::features::ShouldShowUploadProgressBar() ||
-      !is_upload_progress_bar_shown_ || !IsContextualSearchbox()) {
+  // If the progress bar is not being shown for this upload, or if this user is
+  // not making contextual queries, do not update the progress bar.
+  if (!is_upload_progress_bar_shown_ || !IsContextualSearchbox()) {
     return;
   }
 

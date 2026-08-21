@@ -11,9 +11,11 @@
 #include "rtc_base/platform_thread.h"
 
 #include <optional>
+#include <utility>
 
+#include "api/units/time_delta.h"
 #include "rtc_base/event.h"
-#include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace webrtc {
 

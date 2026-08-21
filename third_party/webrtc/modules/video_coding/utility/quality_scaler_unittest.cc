@@ -24,10 +24,10 @@
 
 namespace webrtc {
 namespace {
-const int kFramerate = 30;
-const int kLowQp = 15;
-const int kHighQp = 40;
-const int kMinFramesNeededToScale = 60;  // From quality_scaler.cc.
+constexpr int kFramerate = 30;
+constexpr int kLowQp = 15;
+constexpr int kHighQp = 40;
+constexpr int kMinFramesNeededToScale = 60;  // From quality_scaler.cc.
 constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(150);
 }  // namespace
 

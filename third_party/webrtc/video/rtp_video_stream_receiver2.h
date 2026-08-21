@@ -20,6 +20,7 @@
 #include <variant>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/crypto/frame_decryptor_interface.h"
 #include "api/environment/environment.h"
 #include "api/frame_transformer_interface.h"
@@ -131,7 +132,7 @@ class RtpVideoStreamReceiver2 : public LossNotificationSender,
   // Produces the transport-related timestamps; current_delay_ms is left unset.
   std::optional<Syncable::Info> GetSyncInfo() const;
 
-  bool DeliverRtcp(const uint8_t* rtcp_packet, size_t rtcp_packet_length);
+  bool DeliverRtcp(ArrayView<const uint8_t> rtcp_packet);
 
   void FrameContinuous(int64_t seq_num);
 

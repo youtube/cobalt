@@ -113,6 +113,7 @@ public class ArchivedTabsDialogCoordinatorTest {
     private static final Token TAB_GROUP_ID1 = new Token(829L, 283L);
     private static final String SYNC_GROUP_ID1 = "test_sync_group_id1";
     private static final String SYNC_GROUP_ID2 = "test_sync_group_id2";
+    private static final String SYNC_GROUP_ID3 = "test_sync_group_id3";
     private static final String GROUP_TITLE1 = "My Group";
     private static final String GROUP_TITLE2 = "Test";
     private static final @TabGroupColorId int SYNC_GROUP_COLOR1 = TabGroupColorId.BLUE;
@@ -855,6 +856,27 @@ public class ArchivedTabsDialogCoordinatorTest {
 
     @Test
     @MediumTest
+    @Feature({"RenderTest"})
+    @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
+    public void testTabGroupMultiThumbnail_3Tabs_4Tabs_5Tabs() throws Exception {
+        ChromeTabbedActivity cta = mCtaTestRule.getActivity();
+        when(mTabGroupSyncService.getAllGroupIds())
+                .thenReturn(new String[] {SYNC_GROUP_ID1, SYNC_GROUP_ID2, SYNC_GROUP_ID3});
+        createSavedTabGroup(SYNC_GROUP_ID1, GROUP_TITLE1, SYNC_GROUP_COLOR1, 3, true);
+        createSavedTabGroup(SYNC_GROUP_ID2, GROUP_TITLE2, SYNC_GROUP_COLOR1, 4, true);
+        createSavedTabGroup(SYNC_GROUP_ID3, "", SYNC_GROUP_COLOR1, 5, true);
+        addArchivedTab(new GURL("https://google.com"), "test 1");
+
+        RegularTabSwitcherStation tabSwitcherStation = mInitialPage.openRegularTabSwitcher();
+        tabSwitcherStation.expectArchiveMessageCard().openArchivedTabsDialog();
+
+        mRenderTestRule.render(
+                cta.findViewById(R.id.archived_tabs_dialog),
+                "archived_tabs_saved_tab_group_multi_thumbnail");
+    }
+
+    @Test
+    @MediumTest
     @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
     public void testCloseAllArchivedTabs_WithSyncedTabGroups() {
         when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {SYNC_GROUP_ID1});
@@ -1329,6 +1351,35 @@ public class ArchivedTabsDialogCoordinatorTest {
         // Verify that the selection state is now hidden.
         onView(withText("1 inactive item")).check(matches(isDisplayed()));
         mRobot.resultRobot.verifyTabListEditorIsVisible().verifyAdapterHasItemCount(1);
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS})
+    public void testTabListEditorTabGroupTitleUpdated_OnRemoteModification() {
+        when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {SYNC_GROUP_ID1});
+        SavedTabGroup savedTabGroup =
+                createSavedTabGroup(SYNC_GROUP_ID1, GROUP_TITLE1, SYNC_GROUP_COLOR1, 1, true);
+        addArchivedTab(new GURL("https://google.com"), "test 1");
+
+        RegularTabSwitcherStation tabSwitcherStation = mInitialPage.openRegularTabSwitcher();
+        tabSwitcherStation.expectArchiveMessageCard().openArchivedTabsDialog();
+        ThreadUtils.runOnUiThreadBlocking(() -> notifyTabGroupSyncObserversWithInitialization());
+
+        assertEquals(1, mRegularTabModel.getCount());
+        assertEquals(1, mArchivedTabModel.getCount());
+
+        // Assert that there are 2 items consisting of a tab group and 1 tab.
+        onView(withText("2 inactive items")).check(matches(isDisplayed()));
+        onView(withText(GROUP_TITLE1)).check(matches(isDisplayed()));
+
+        // Mock an external event emitted which updates the tab group title.
+        savedTabGroup.title = GROUP_TITLE2;
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> notifyTabGroupSyncObserversWithChangedGroup(savedTabGroup));
+
+        // Verify that the new group title is now showing.
+        onView(withText(GROUP_TITLE2)).check(matches(isDisplayed()));
     }
 
     private Tab addArchivedTab(GURL url, String title) {

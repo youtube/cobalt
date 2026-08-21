@@ -25,6 +25,7 @@
 #include "api/field_trials_view.h"
 #include "api/test/network_emulation/cross_traffic.h"
 #include "api/test/network_emulation/network_emulation_interfaces.h"
+#include "api/test/network_emulation/network_queue.h"
 #include "api/test/peer_network_dependencies.h"
 #include "api/test/simulated_network.h"
 #include "api/test/time_controller.h"
@@ -190,6 +191,8 @@ class NetworkEmulationManager {
       // Sets the config state, note that this will replace any previously set
       // values.
       Builder& config(BuiltInNetworkBehaviorConfig config);
+      // If set, `queue_factory` must outlive the Builder.
+      Builder& queue_factory(NetworkQueueFactory& queue_factory);
       Builder& delay_ms(int queue_delay_ms);
       Builder& capacity(DataRate link_capacity);
       Builder& capacity_kbps(int link_capacity_kbps);
@@ -207,6 +210,7 @@ class NetworkEmulationManager {
      private:
       NetworkEmulationManager* const net_;
       BuiltInNetworkBehaviorConfig config_;
+      NetworkQueueFactory* queue_factory_ = nullptr;
     };
   };
   virtual ~NetworkEmulationManager() = default;

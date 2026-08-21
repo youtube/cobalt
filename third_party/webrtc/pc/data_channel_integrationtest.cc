@@ -63,6 +63,7 @@ namespace {
 using ::testing::Eq;
 using ::testing::IsTrue;
 using ::testing::Ne;
+using ::testing::NotNull;
 using ::testing::ValuesIn;
 
 // All tests in this file require SCTP support.
@@ -1420,7 +1421,7 @@ TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsNotAllowed) {
         answer.reset(desc.release());
       });
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
 
   // Currently SRD succeeds.
   EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
@@ -1471,7 +1472,7 @@ TEST_P(DataChannelIntegrationTest, ChangingSctpPortIsAllowedWithDtlsRestart) {
         answer.reset(desc.release());
       });
   caller()->CreateAndSetAndSignalOffer();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
 
   EXPECT_TRUE(caller()->SetRemoteDescription(std::move(answer)));
   // Check the state of the SCTP transport.

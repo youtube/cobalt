@@ -98,30 +98,39 @@
 namespace webrtc {
 namespace {
 
-const char kStreamId1[] = "local_stream_1";
-const char kStreamId2[] = "local_stream_2";
-const char kStreamId3[] = "local_stream_3";
-const int kDefaultStunPort = 3478;
-const char kStunAddressOnly[] = "stun:address";
-const char kStunInvalidPort[] = "stun:address:-1";
-const char kStunAddressPortAndMore1[] = "stun:address:port:more";
-const char kStunAddressPortAndMore2[] = "stun:address:port more";
-const char kTurnIceServerUri[] = "turn:turn.example.org";
-const char kTurnUsername[] = "user";
-const char kTurnPassword[] = "password";
-const char kTurnHostname[] = "turn.example.org";
-const uint32_t kTimeout = 10000U;
+using ::testing::Eq;
+using ::testing::Exactly;
+using ::testing::NotNull;
+using ::testing::SizeIs;
+using ::testing::Values;
 
-const char kStreams[][8] = {"stream1", "stream2"};
-const char kAudioTracks[][32] = {"audiotrack0", "audiotrack1"};
-const char kVideoTracks[][32] = {"videotrack0", "videotrack1"};
+using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
+using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 
-const char kRecvonly[] = "recvonly";
-const char kSendrecv[] = "sendrecv";
+constexpr char kStreamId1[] = "local_stream_1";
+constexpr char kStreamId2[] = "local_stream_2";
+constexpr char kStreamId3[] = "local_stream_3";
+constexpr int kDefaultStunPort = 3478;
+constexpr char kStunAddressOnly[] = "stun:address";
+constexpr char kStunInvalidPort[] = "stun:address:-1";
+constexpr char kStunAddressPortAndMore1[] = "stun:address:port:more";
+constexpr char kStunAddressPortAndMore2[] = "stun:address:port more";
+constexpr char kTurnIceServerUri[] = "turn:turn.example.org";
+constexpr char kTurnUsername[] = "user";
+constexpr char kTurnPassword[] = "password";
+constexpr char kTurnHostname[] = "turn.example.org";
+constexpr uint32_t kTimeout = 10000U;
+
+constexpr char kStreams[][8] = {"stream1", "stream2"};
+constexpr char kAudioTracks[][32] = {"audiotrack0", "audiotrack1"};
+constexpr char kVideoTracks[][32] = {"videotrack0", "videotrack1"};
+
+constexpr char kRecvonly[] = "recvonly";
+constexpr char kSendrecv[] = "sendrecv";
 
 // Reference SDP with a MediaStream with label "stream1" and audio track with
 // id "audio_1" and a video track with id "video_1;
-const char kSdpStringWithStream1PlanB[] =
+constexpr char kSdpStringWithStream1PlanB[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -151,7 +160,7 @@ const char kSdpStringWithStream1PlanB[] =
 // Same string as above but with the MID changed to the Unified Plan default and
 // a=msid added. This is needed so that this SDP can be used as an answer for a
 // Unified Plan offer.
-const char kSdpStringWithStream1UnifiedPlan[] =
+constexpr char kSdpStringWithStream1UnifiedPlan[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -181,7 +190,7 @@ const char kSdpStringWithStream1UnifiedPlan[] =
 
 // Reference SDP with a MediaStream with label "stream1" and audio track with
 // id "audio_1";
-const char kSdpStringWithStream1AudioTrackOnly[] =
+constexpr char kSdpStringWithStream1AudioTrackOnly[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -201,7 +210,7 @@ const char kSdpStringWithStream1AudioTrackOnly[] =
 // Reference SDP with two MediaStreams with label "stream1" and "stream2. Each
 // MediaStreams have one audio track and one video track.
 // This uses MSID.
-const char kSdpStringWithStream1And2PlanB[] =
+constexpr char kSdpStringWithStream1And2PlanB[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -233,7 +242,7 @@ const char kSdpStringWithStream1And2PlanB[] =
     "a=ssrc:2 msid:stream1 videotrack0\r\n"
     "a=ssrc:4 cname:stream2\r\n"
     "a=ssrc:4 msid:stream2 videotrack1\r\n";
-const char kSdpStringWithStream1And2UnifiedPlan[] =
+constexpr char kSdpStringWithStream1And2UnifiedPlan[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -285,7 +294,7 @@ const char kSdpStringWithStream1And2UnifiedPlan[] =
     "a=ssrc:4 msid:stream2 videotrack1\r\n";
 
 // Reference SDP without MediaStreams. Msid is not supported.
-const char kSdpStringWithoutStreams[] =
+constexpr char kSdpStringWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -310,7 +319,7 @@ const char kSdpStringWithoutStreams[] =
     "a=rtpmap:120 VP8/90000\r\n";
 
 // Reference SDP without MediaStreams. Msid is supported.
-const char kSdpStringWithMsidWithoutStreams[] =
+constexpr char kSdpStringWithMsidWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -336,7 +345,7 @@ const char kSdpStringWithMsidWithoutStreams[] =
     "a=rtpmap:120 VP8/90000\r\n";
 
 // Reference SDP without MediaStreams and audio only.
-const char kSdpStringWithoutStreamsAudioOnly[] =
+constexpr char kSdpStringWithoutStreamsAudioOnly[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -352,7 +361,7 @@ const char kSdpStringWithoutStreamsAudioOnly[] =
     "a=rtpmap:111 OPUS/48000/2\r\n";
 
 // Reference SENDONLY SDP without MediaStreams. Msid is not supported.
-const char kSdpStringSendOnlyWithoutStreams[] =
+constexpr char kSdpStringSendOnlyWithoutStreams[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -378,14 +387,14 @@ const char kSdpStringSendOnlyWithoutStreams[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:120 VP8/90000\r\n";
 
-const char kSdpStringInit[] =
+constexpr char kSdpStringInit[] =
     "v=0\r\n"
     "o=- 0 0 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
     "t=0 0\r\n"
     "a=msid-semantic: WMS\r\n";
 
-const char kSdpStringAudio[] =
+constexpr char kSdpStringAudio[] =
     "m=audio 1 RTP/AVPF 111\r\n"
     "a=ice-ufrag:e5785931\r\n"
     "a=ice-pwd:36fb7878390db89481c1d46daa4278d8\r\n"
@@ -396,7 +405,7 @@ const char kSdpStringAudio[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:111 OPUS/48000/2\r\n";
 
-const char kSdpStringVideo[] =
+constexpr char kSdpStringVideo[] =
     "m=video 1 RTP/AVPF 120\r\n"
     "a=ice-ufrag:e5785931\r\n"
     "a=ice-pwd:36fb7878390db89481c1d46daa4278d8\r\n"
@@ -407,19 +416,19 @@ const char kSdpStringVideo[] =
     "a=rtcp-mux\r\n"
     "a=rtpmap:120 VP8/90000\r\n";
 
-const char kSdpStringMs1Audio0[] =
+constexpr char kSdpStringMs1Audio0[] =
     "a=ssrc:1 cname:stream1\r\n"
     "a=ssrc:1 msid:stream1 audiotrack0\r\n";
 
-const char kSdpStringMs1Video0[] =
+constexpr char kSdpStringMs1Video0[] =
     "a=ssrc:2 cname:stream1\r\n"
     "a=ssrc:2 msid:stream1 videotrack0\r\n";
 
-const char kSdpStringMs1Audio1[] =
+constexpr char kSdpStringMs1Audio1[] =
     "a=ssrc:3 cname:stream1\r\n"
     "a=ssrc:3 msid:stream1 audiotrack1\r\n";
 
-const char kSdpStringMs1Video1[] =
+constexpr char kSdpStringMs1Video1[] =
     "a=ssrc:4 cname:stream1\r\n"
     "a=ssrc:4 msid:stream1 videotrack1\r\n";
 
@@ -428,14 +437,6 @@ class RtcEventLogOutputNull final : public RtcEventLogOutput {
   bool IsActive() const override { return true; }
   bool Write(const absl::string_view /*output*/) override { return true; }
 };
-
-using ::testing::Eq;
-using ::testing::Exactly;
-using ::testing::SizeIs;
-using ::testing::Values;
-
-using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
-using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 
 // Gets the first ssrc of given content type from the ContentInfo.
 bool GetFirstSsrc(const ContentInfo* content_info, int* ssrc) {
@@ -1032,7 +1033,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   void CreateAnswerAsRemoteDescription(const std::string& sdp) {
     std::unique_ptr<SessionDescriptionInterface> answer(
         CreateSessionDescription(SdpType::kAnswer, sdp));
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_TRUE(DoSetRemoteDescription(std::move(answer)));
     EXPECT_EQ(PeerConnectionInterface::kStable, observer_.state_);
   }
@@ -1045,7 +1046,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     EXPECT_EQ(PeerConnectionInterface::kHaveRemotePrAnswer, observer_.state_);
     std::unique_ptr<SessionDescriptionInterface> answer(
         CreateSessionDescription(SdpType::kAnswer, sdp));
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_TRUE(DoSetRemoteDescription(std::move(answer)));
     EXPECT_EQ(PeerConnectionInterface::kStable, observer_.state_);
   }
@@ -2073,7 +2074,7 @@ TEST_P(PeerConnectionInterfaceTest, DISABLED_TestRejectSctpDataChannelInAnswer)
   EXPECT_TRUE(pc_->local_description()->ToString(&sdp));
   std::unique_ptr<SessionDescriptionInterface> answer(
       CreateSessionDescription(SdpType::kAnswer, sdp));
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ContentInfo* data_info = GetFirstDataContent(answer->description());
   data_info->rejected = true;
 
@@ -3485,7 +3486,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithAudioVideoOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3500,7 +3501,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithAudioOnlyOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_EQ(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3515,7 +3516,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithVideoOnlyOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_EQ(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3528,7 +3529,7 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithDefaultOfferAnswerOptions) {
   std::unique_ptr<SessionDescriptionInterface> offer;
   CreatePeerConnection();
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_EQ(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_EQ(nullptr, GetFirstVideoContent(offer->description()));
 }
@@ -3583,14 +3584,14 @@ TEST_P(PeerConnectionInterfaceTest, CreateOfferWithRtpMux) {
 
   rtc_options.use_rtp_mux = true;
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
   EXPECT_TRUE(offer->description()->HasGroup(GROUP_TYPE_BUNDLE));
 
   rtc_options.use_rtp_mux = false;
   offer = CreateOfferWithOptions(rtc_options);
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   EXPECT_NE(nullptr, GetFirstAudioContent(offer->description()));
   EXPECT_NE(nullptr, GetFirstVideoContent(offer->description()));
   EXPECT_FALSE(offer->description()->HasGroup(GROUP_TYPE_BUNDLE));

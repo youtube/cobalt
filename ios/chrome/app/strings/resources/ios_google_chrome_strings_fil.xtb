@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Maghanap gamit ang Google Lens</translation>
 <translation id="1143896152279775643">Ise-save ang iyong password sa Google Password Manager para sa <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Magbukas ng bagong tab sa Chrome</translation>
+<translation id="1158134713295836892">Gemini sa Chrome</translation>
 <translation id="1166460004393506534">I-delete ang data mula sa pag-browse sa Chrome</translation>
 <translation id="1179527450541388808">Mas mabilis na i-access ang Chrome mula sa dock ng home screen ng iyong iPad.</translation>
 <translation id="1180362651362502943">Patuloy na gamitin ang data sa Chrome sa iyong Google Account.</translation>
@@ -16,7 +17,6 @@
 <translation id="1352919863522755794">Hindi masuri ng Google Password Manager ang iyong mga password. Subukang tingnan ang iyong koneksyon sa internet.</translation>
 <translation id="1394995526009609883">Puwede mong i-update ang iyong mga pinili anumang oras sa mga setting ng Chrome.</translation>
 <translation id="1407843355326180937">Mag-sign in sa site na ito at sa Chrome para makuha mo ang iyong mga bookmark at higit pa sa lahat ng device mo.</translation>
-<translation id="1426599484714342603">Makuha ang kakayahan ng Chrome sa Shopping</translation>
 <translation id="1462727070346936664">Mag-sign in para masulit ang Chrome.</translation>
 <translation id="1493827051843127077">Itakda ang Chrome bilang default para ma-sync ang iyong mga tab, password, at impormasyon sa pagbabayad sa lahat ng device mo</translation>
 <translation id="1504372625950710826">Hindi matingnan ng Chrome kung may mga update. Subukang tingnan ang iyong koneksyon sa internet.</translation>
@@ -33,7 +33,6 @@ Mga bagay na dapat isaalang-alang:
 <translation id="1554731936187952550">Nasa iyo ang pinakamaigting na seguridad ng Chrome laban sa mga mapaminsalang website</translation>
 <translation id="155816064895200734">Itakda ang Chrome bilang default browser</translation>
 <translation id="1580570086594302477">Magbubukas ng bagong tab na Incognito sa Chrome.</translation>
-<translation id="1634522710245925681">Gamitin ang Chrome bilang default para madaling makakuha ng mga insight sa presyo</translation>
 <translation id="1646463005043273333">Bubuksan ang Setting ng Chrome para itakda ang Chrome bilang default browser.</translation>
 <translation id="1670609221633730681">Tip sa Chrome: Piliin ang posisyon ng iyong address bar</translation>
 <translation id="1683863426423719967">Para makatanggap ng Mga Paalala sa Tab mula sa Chrome, i-on ang mga notification sa Mga Setting ng iyong iOS.</translation>
@@ -65,14 +64,12 @@ Mga bagay na dapat isaalang-alang:
 <translation id="2423077901494354337">Masusulit mo na ngayon ang Chrome sa iyong device.</translation>
 <translation id="2427791862912929107">May mga feature ang Chrome na nakakatulong sa iyong pamahalaan ang data mo sa internet at kung gaano ka kabilis nakakapag-load ng mga webpage.
 <ph name="BEGIN_LINK" />Matuto pa<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">Para madaling makuha ang iyong mga naka-save na password sa iba mo pang app, gamitin ang Chrome para sa AutoFill</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} minuto. Posibleng kasama rito ang history at autofill.}one{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} minuto. Posibleng kasama rito ang history at autofill.}other{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} na minuto. Posibleng kasama rito ang history at autofill.}}</translation>
 <translation id="2561231791489583059">Gamitin ang Chrome bilang iyong default na browser para manatiling protektado laban sa mga mapanganib na site at mapanatiling ligtas ang mga password mo</translation>
 <translation id="2574249610672786438">Para makita ang iyong mga tab sa kahit saan ka man gumagamit ng Chrome, mag-sign in sa lahat ng device mo</translation>
 <translation id="2576431527583832481">Naging mas mahusay na ang Chrome! Available na ang bagong bersyon.</translation>
 <translation id="257708665678654955">Gusto mo bang mag-alok ang Google Chrome na isalin ang mga <ph name="LANGUAGE_NAME" /> page mula sa site na ito sa susunod na pagkakataon?</translation>
 <translation id="2668242166988961773">Maghanap gamit ang boses sa Chrome.</translation>
-<translation id="2671426118752779020">Puwede mong gamitin ang mga password na na-save mo sa Google Password Manager sa iba pang app sa iyong iPhone.</translation>
 <translation id="2689064829982324496">Para mag-sign out sa iyong Google Account sa lahat ng website, <ph name="BEGIN_LINK" />mag-sign out sa Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Hindi matingnan ng Chrome kung may mga update. Subukan ulit sa ibang pagkakataon.</translation>
 <translation id="2703746758996815929">Para makakuha ng mga kapaki-pakinabang na tip sa Chrome, i-on ang mga notification sa iyong mga setting ng iOS.</translation>
@@ -222,7 +219,6 @@ Naka-encrypt ang iyong data gamit ang passphrase mo. Ilagay ito para magamit at 
 <translation id="6684809838922667136">Pahusayin ang Chrome</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}one{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}other{Nangyayari ito kapag hindi ginamit ang Chrome nang {THRESHOLD} na minuto. Ang naka-save lang na data sa device na ito habang naka-sign in ka ang ide-delete. Puwedeng kabilang dito ang history at mga password.}}</translation>
 <translation id="6709398533399187136">Na-expose ang password mo sa isang paglabag sa data. Inirerekomenda ng Google Password Manager na palitan na ito ngayon.</translation>
-<translation id="6788035488757621217">Sa mga setting ng iyong device, buksan ang "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" at piliin ang "Chrome"</translation>
 <translation id="6820553595690137150">Hindi kasama sa pag-encrypt ng passphrase ang mga paraan ng pagbabayad at address.
 
 Para baguhin ang setting na ito, <ph name="BEGIN_LINK" />i-delete ang data sa Chrome sa iyong account<ph name="END_LINK" />.</translation>
@@ -242,7 +238,6 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="7175129790242719365">Tip sa Chrome: Mag-sign in sa Chrome</translation>
 <translation id="7187993566681480880">Pinapanatili kang ligtas sa Chrome at puwedeng gamitin para paigtingin ang iyong seguridad sa iba pang Google app kapag naka-sign in ka.</translation>
 <translation id="7200524487407690471">Awtomatikong pinapatakbo ng Chrome ang Pag-check sa Kaligtasan araw-araw para panatilihin kang ligtas laban sa mga paglabag sa data, hindi ligtas na website, at higit pa. Makakakita ka ng higit pa tungkol sa Pag-check sa Kaligtasan sa Mga Setting.</translation>
-<translation id="72119412072970160">Puwede mong gamitin ang mga password na na-save mo sa Google Password Manager sa iba pang app sa iyong iPad.</translation>
 <translation id="7214019116829172458">Buksan ang tab na Incognito sa Chrome</translation>
 <translation id="722167379782941918">Inirerekomenda ng Chrome ang pinaigting na proteksyon</translation>
 <translation id="723787869754590019">Gamitin ang Chrome para sa Autofill</translation>
@@ -288,7 +283,6 @@ Para sa higit pang setting na gumagamit ng data para pahusayin ang iyong experie
 <translation id="8018153653741938705">Manatiling ligtas sa Google Chrome</translation>
 <translation id="8022947259858476807">Gamitin ang Chrome bilang default para magbukas ng mga link, maghanap mula sa mga widget, at mag-autofill ng mga password sa iba pang app</translation>
 <translation id="804638182476029347">Payagan ang mga notification sa Chrome na makatanggap ng mga alerto sa pagbaba ng presyo</translation>
-<translation id="804756029368067824">Itakda ang Chrome bilang iyong default browser para madaling ma-track ang mga presyo at makakuha ng mga insight sa presyo para sa mga bagay na gusto mong bilhin.</translation>
 <translation id="8065292699993359127">Buksan ang mga URL sa Chrome sa Incognito</translation>
 <translation id="8069507567842347179">Sinusubaybayan na ang package na ito sa Chrome.</translation>
 <translation id="8136856065410661948">Gagamitin ito para gumawa ng mga event sa iyong Apple Calendar mula sa Chrome at Google Lens.</translation>

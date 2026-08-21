@@ -4,6 +4,9 @@
 
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 
+#include "base/time/time.h"
+#include "components/omnibox/composebox/composebox_image_helper.h"
+#include "components/search/ntp_composebox_fieldtrial.h"
 #include "content/public/browser/page_navigator.h"
 
 ComposeboxHandler::ComposeboxHandler(
@@ -30,10 +33,13 @@ void ComposeboxHandler::SubmitQuery(const std::string& query_text,
                                     bool ctrl_key,
                                     bool meta_key,
                                     bool shift_key) {
+  // This is the time that the user clicked the submit button, and should not
+  // go any lower in this method.
+  base::Time query_start_time = base::Time::Now();
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
-  OpenUrl(query_controller_->CreateAimUrl(query_text), disposition);
+  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time), disposition);
 }
 
 void ComposeboxHandler::OpenUrl(GURL url,
@@ -45,7 +51,8 @@ void ComposeboxHandler::OpenUrl(GURL url,
 
 void ComposeboxHandler::AddFile(
     composebox::mojom::SelectedFileInfoPtr file_info_mojom,
-    mojo_base::BigBuffer file_bytes) {
+    mojo_base::BigBuffer file_bytes,
+    AddFileCallback callback) {
   scoped_refptr<base::RefCountedBytes> file_data =
       base::MakeRefCounted<base::RefCountedBytes>(file_bytes);
 
@@ -56,14 +63,32 @@ void ComposeboxHandler::AddFile(
   file_info_metadata->webui_selection_time = file_info_mojom->selection_time;
   file_info_metadata->file_token_ = base::UnguessableToken::Create();
 
+  std::optional<composebox::ImageEncodingOptions> image_options = std::nullopt;
+
   if ((file_info_mojom->mime_type).find("pdf") != std::string::npos) {
     file_info_metadata->mime_type_ = lens::MimeType::kPdf;
   } else if ((file_info_mojom->mime_type).find("image") != std::string::npos) {
     file_info_metadata->mime_type_ = lens::MimeType::kImage;
+    auto field_config = ntp_composebox_fieldtrial::FeatureConfig::Get();
+    image_options = composebox::ImageEncodingOptions{
+        .max_size = field_config.downscale_max_image_size,
+        .max_height = field_config.downscale_max_image_height,
+        .max_width = field_config.downscale_max_image_width,
+        .compression_quality = field_config.image_compression_quality};
   } else {
     NOTREACHED();
   }
 
+  std::move(callback).Run(file_info_metadata->file_token_);
   query_controller_->StartFileUploadFlow(std::move(file_info_metadata),
-                                         std::move(file_data));
+                                         std::move(file_data),
+                                         std::move(image_options));
+}
+
+void ComposeboxHandler::DeleteFile(const base::UnguessableToken& file_token) {
+  // If an UnguessabledToken that wasn't in the cache was sent, delete fails.
+  // Report a bad message.
+  if (!query_controller_->DeleteFile(file_token)) {
+    handler_.ReportBadMessage("An invalid file token was sent to DeleteFile");
+  }
 }

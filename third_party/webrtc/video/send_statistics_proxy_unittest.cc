@@ -53,17 +53,17 @@ namespace {
 
 using ::testing::Optional;
 
-const uint32_t kFirstSsrc = 17;
-const uint32_t kSecondSsrc = 42;
-const uint32_t kFirstRtxSsrc = 18;
-const uint32_t kSecondRtxSsrc = 43;
-const uint32_t kFlexFecSsrc = 55;
-const int kFpsPeriodicIntervalMs = 2000;
-const int kWidth = 640;
-const int kHeight = 480;
-const int kQpIdx0 = 21;
-const int kQpIdx1 = 39;
-const int kRtpClockRateHz = 90000;
+constexpr uint32_t kFirstSsrc = 17;
+constexpr uint32_t kSecondSsrc = 42;
+constexpr uint32_t kFirstRtxSsrc = 18;
+constexpr uint32_t kSecondRtxSsrc = 43;
+constexpr uint32_t kFlexFecSsrc = 55;
+constexpr int kFpsPeriodicIntervalMs = 2000;
+constexpr int kWidth = 640;
+constexpr int kHeight = 480;
+constexpr int kQpIdx0 = 21;
+constexpr int kQpIdx1 = 39;
+constexpr int kRtpClockRateHz = 90000;
 const CodecSpecificInfo kDefaultCodecInfo = []() {
   CodecSpecificInfo codec_info;
   codec_info.codecType = kVideoCodecVP8;

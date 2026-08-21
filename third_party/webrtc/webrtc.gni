@@ -331,7 +331,7 @@ declare_args() {
   rtc_disable_metrics = false
 
   # Enables an experimental rust version of base64 for building and testing.
-  rtc_rusty_base64 = true
+  rtc_rusty_base64 = false
 }
 
 declare_args() {

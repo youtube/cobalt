@@ -24,14 +24,6 @@ class ExecutionEngine;
 class ActorTask;
 }  // namespace actor
 
-namespace content {
-class WebContents;
-}  // namespace content
-
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
-
 namespace glic {
 
 // Controls the interaction with the actor to complete an action.
@@ -65,13 +57,9 @@ class GlicActorController {
   void OnResponseStarted();
   void OnResponseStopped();
 
-  bool IsExecutionEngineActingOnTab(const content::WebContents* tab) const;
-
-  actor::ExecutionEngine& GetExecutionEngineForTesting(tabs::TabInterface* tab);
-
  private:
   void OnTaskStartedForAct(
-      const optimization_guide::proto::BrowserAction& action,
+      optimization_guide::proto::BrowserAction action,
       const mojom::GetTabContextOptions& options,
       mojom::WebClientHandler::ActInFocusedTabCallback callback,
       optimization_guide::proto::BrowserStartTaskResult result);
@@ -89,6 +77,7 @@ class GlicActorController {
       actor::mojom::ActionResultPtr result) const;
 
   actor::ExecutionEngine* GetExecutionEngine() const;
+  actor::ActorTask* GetCurrentTask() const;
 
   base::WeakPtr<const GlicActorController> GetWeakPtr() const;
   base::WeakPtr<GlicActorController> GetWeakPtr();
@@ -96,9 +85,6 @@ class GlicActorController {
   class OngoingRequest;
 
   raw_ptr<Profile> profile_;
-  // The most recently created task, or nullptr if no task has ever been
-  // created.
-  raw_ptr<actor::ActorTask> actor_task_ = nullptr;
   // True if and only if a task is in the process of being started.
   bool starting_task_ = false;
   std::unique_ptr<OngoingRequest> current_request_;

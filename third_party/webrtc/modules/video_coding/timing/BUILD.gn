@@ -89,7 +89,6 @@ rtc_library("timestamp_extrapolator") {
     "timestamp_extrapolator.h",
   ]
   deps = [
-    "../../../api:field_trials",
     "../../../api:field_trials_view",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",

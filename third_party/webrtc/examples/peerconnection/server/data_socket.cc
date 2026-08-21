@@ -10,11 +10,10 @@
 
 #include "examples/peerconnection/server/data_socket.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -24,7 +23,8 @@
 #include "rtc_base/net_helpers.h"
 
 #if defined(WEBRTC_POSIX)
-#include <unistd.h>
+#include <asm-generic/socket.h>
+#include <unistd.h>  // IWYU pragma: keep
 #endif
 
 static const char kHeaderTerminator[] = "\r\n\r\n";

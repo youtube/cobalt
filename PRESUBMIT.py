@@ -229,7 +229,7 @@ _BANNED_JAVA_FUNCTIONS: Sequence[BanRule] = (
         ('Prefer passing in the Profile reference instead of relying on the '
          'static getLastUsedRegularProfile() call. Only top level entry points '
          '(e.g. Activities) should call this method. Otherwise, the Profile '
-         'should either be passed in explicitly or retreived from an existing '
+         'should either be passed in explicitly or retrieved from an existing '
          'entity with a reference to the Profile (e.g. WebContents).', ),
         False,
         excluded_paths=(r'.*Test[A-Z]?.*\.java', ),
@@ -835,7 +835,6 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'tools/android/io_benchmark/',
             # Fuzzers are allowed to use standard library random number generators
             # since fuzzing speed + reproducibility is important.
-            r'tools/ipc_fuzzer/',
             r'.+_fuzzer\.cc$',
             r'.+_fuzzertest\.cc$',
             # TODO(https://crbug.com/1380528): These are all unsanctioned uses of
@@ -1935,7 +1934,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         pattern='ProfileManager::GetLastUsedProfile',
         explanation=
         ('Most code should already be scoped to a Profile. Pass in a Profile* '
-         'or retreive from an existing entity with a reference to the Profile '
+         'or retrieve from an existing entity with a reference to the Profile '
          '(e.g. WebContents).', ),
         treat_as_error=False,
     ),
@@ -1950,24 +1949,9 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
                  r'FindBrowserWithActiveWindow'),
         explanation=
         ('Most code should already be scoped to a Browser. Pass in a Browser* '
-         'or retreive from an existing entity with a reference to the Browser.',
+         'or retrieve from an existing entity with a reference to the Browser.',
          ),
         treat_as_error=False,
-    ),
-    BanRule(
-        pattern='BrowserUserData',
-        explanation=
-        ('Do not use BrowserUserData to store state on a Browser instance. '
-         'Instead use BrowserWindowFeatures. BrowserWindowFeatures is '
-         'functionally identical but has two benefits: it does not force a '
-         'dependency onto class Browser, and lifetime semantics are explicit '
-         'rather than implicit. See BrowserUserData header file for more '
-         'details.', ),
-        treat_as_error=False,
-        excluded_paths=(
-            # Exclude iOS as the iOS implementation of BrowserUserData is separate
-            # and still in use.
-            '^ios/', ),
     ),
     BanRule(
         pattern=r'subspan(0u,',
@@ -2355,7 +2339,6 @@ _GENERIC_PYDEPS_FILES = [
     'components/module_installer/android/module_desc_java.pydeps',
     'content/public/android/generate_child_service.pydeps',
     'fuchsia_web/av_testing/av_sync_tests.pydeps',
-    'net/tools/testserver/testserver.pydeps',
     'testing/scripts/run_isolated_script_test.pydeps',
     'testing/merge_scripts/standard_isolated_script_merge.pydeps',
     'testing/merge_scripts/standard_gtest_merge.pydeps',
@@ -2410,7 +2393,9 @@ _KNOWN_ROBOTS = set() | set('%s@appspot.gserviceaccount.com' % s for s in (
                     'chops-security-borg',
                     'chops-security-cronjobs-cpesuggest')) | set(
                         '%s@chromeos-release-bot.iam.gserviceaccount.com' % s
-                        for s in ('chromeos-ci-release', ))
+                        for s in ('chromeos-ci-release', )) | set(
+                        '%s@chromeos-bot.iam.gserviceaccount.com' % s
+                        for s in ('chromeos-ci-prod', ))
 
 _INVALID_GRD_FILE_LINE = [(r'<file lang=.* path=.*',
                            'Path should come before lang in GRD files.')]

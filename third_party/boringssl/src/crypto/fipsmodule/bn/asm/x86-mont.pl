@@ -49,7 +49,7 @@ open STDOUT,">$output";
 
 $sse2=1;
 
-&function_begin("bn_mul_mont");
+&function_begin("bn_mul_mont_words");
 
 $i="edx";
 $j="ecx";
@@ -325,7 +325,7 @@ $mask="mm7";
 
 	&mov	("esp",$_sp);		# pull saved stack pointer
 	# No return value
-&function_end("bn_mul_mont");
+&function_end("bn_mul_mont_words");
 
 &asciz("Montgomery Multiplication for x86, CRYPTOGAMS by <appro\@openssl.org>");
 

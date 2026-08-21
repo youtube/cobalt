@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_variable_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 
 namespace blink {
 
@@ -309,7 +310,6 @@ CSSValue* ConsumeDescriptor(StyleRule::RuleType rule_type,
     case StyleRule::kStartingStyle:
     case StyleRule::kMixin:
     case StyleRule::kApplyMixin:
-    case StyleRule::kContents:
     case StyleRule::kPositionTry:
     case StyleRule::kCustomMedia:
       // TODO(andruud): Handle other descriptor types here.
@@ -391,6 +391,9 @@ CSSValue* AtRuleDescriptorParser::ParseFontFaceDescriptor(
     case AtRuleDescriptorID::DescentOverride:
     case AtRuleDescriptorID::LineGapOverride:
       parsed_value = ConsumeFontMetricOverride(stream, context);
+      if (parsed_value && IsUseCounterEnabledForMode(context.Mode())) {
+        context.Count(WebDXFeature::kFontMetricOverrides);
+      }
       break;
     case AtRuleDescriptorID::SizeAdjust:
       parsed_value = css_parsing_utils::ConsumePercent(

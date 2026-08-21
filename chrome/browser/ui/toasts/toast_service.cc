@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
@@ -260,4 +261,27 @@ void ToastService::RegisterToasts(
             .Build());
   }
 
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiStateManager)) {
+    toast_registry_->RegisterToast(
+        ToastId::kGeminiWorkingOnTask,
+        ToastSpecification::Builder(kScreensaverAutoIcon,
+                                    IDS_GEMINI_WORKING_ON_TASK_BODY)
+            .AddCloseButton()
+            .Build());
+  }
+
+  toast_registry_->RegisterToast(
+      ToastId::kDiceUserMigrated,
+      ToastSpecification::Builder(vector_icons::kCelebrationIcon,
+                                  IDS_DICE_MIGRATION_CONFIRMATION_TOAST_MESSAGE)
+          .AddCloseButton()
+          .AddActionButton(IDS_DICE_MIGRATION_CONFIRMATION_TOAST_BUTTON,
+                           base::BindRepeating(
+                               [](BrowserWindowInterface* window) {
+                                 chrome::ShowSettingsSubPageForProfile(
+                                     window->GetProfile(),
+                                     chrome::kSyncSetupSubPage);
+                               },
+                               base::Unretained(browser_window_interface)))
+          .Build());
 }  // RegisterToasts() end.

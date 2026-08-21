@@ -112,13 +112,13 @@ const SocketAddress kTurnUdpIPv6IntAddr("2400:4030:1:2c00:be30:abcd:efab:cdef",
 const SocketAddress kTurnInvalidAddr("www.google.invalid.", 3478);
 const SocketAddress kTurnValidAddr("www.google.valid.", 3478);
 
-const char kCandidateFoundation[] = "foundation";
-const char kIceUfrag1[] = "TESTICEUFRAG0001";
-const char kIceUfrag2[] = "TESTICEUFRAG0002";
-const char kIcePwd1[] = "TESTICEPWD00000000000001";
-const char kIcePwd2[] = "TESTICEPWD00000000000002";
-const char kTurnUsername[] = "test";
-const char kTurnPassword[] = "test";
+constexpr char kCandidateFoundation[] = "foundation";
+constexpr char kIceUfrag1[] = "TESTICEUFRAG0001";
+constexpr char kIceUfrag2[] = "TESTICEUFRAG0002";
+constexpr char kIcePwd1[] = "TESTICEPWD00000000000001";
+constexpr char kIcePwd2[] = "TESTICEPWD00000000000002";
+constexpr char kTurnUsername[] = "test";
+constexpr char kTurnPassword[] = "test";
 // This test configures the virtual socket server to simulate delay so that we
 // can verify operations take no more than the expected number of round trips.
 constexpr unsigned int kSimulatedRtt = 50;

@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <openssl/ctrdrbg.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "internal.h"
 #include "../../test/file_test.h"

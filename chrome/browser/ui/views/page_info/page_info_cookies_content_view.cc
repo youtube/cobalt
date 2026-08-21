@@ -207,7 +207,8 @@ void PageInfoCookiesContentView::
               &PageInfoCookiesContentView::
                   IncognitoTrackingProtectionSettingsLinkClicked,
               base::Unretained(this)),
-          PageInfoViewFactory::GetImageModel(vector_icons::kSettingsIcon),
+          PageInfoViewFactory::GetImageModel(
+              vector_icons::kSettingsChromeRefreshIcon),
           l10n_util::GetStringUTF16(
               IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_TITLE),
           l10n_util::GetStringUTF16(
@@ -239,8 +240,7 @@ void PageInfoCookiesContentView::SyncSettingsLinkClicked(
   presenter_->OpenSyncSettingsView();
 }
 
-void PageInfoCookiesContentView::SetCookieInfo(
-    const CookiesNewInfo& cookie_info) {
+void PageInfoCookiesContentView::SetCookieInfo(const CookiesInfo& cookie_info) {
   if (IsTrackingProtectionsUi(cookie_info.controls_state)) {
     SetIncognitoTrackingProtectionsDescription(cookie_info.enforcement,
                                                cookie_info.controls_state);

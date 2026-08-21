@@ -15,14 +15,17 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.UI_THEME_SETTING;
 import static org.chromium.chrome.browser.tab.Tab.INVALID_TAB_ID;
 import static org.chromium.chrome.browser.tabmodel.TabList.INVALID_TAB_INDEX;
 
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.MediumTest;
 
 import org.junit.After;
@@ -50,6 +53,8 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.app.tabmodel.ArchivedTabModelOrchestrator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.night_mode.NightModeUtils;
+import org.chromium.chrome.browser.night_mode.ThemeType;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.TabArchiverImpl.Clock;
 import org.chromium.chrome.browser.tab.state.ArchivePersistedTabData;
@@ -68,9 +73,11 @@ import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Tests for TabArchiver. */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -149,6 +156,7 @@ public class TabArchiverTest {
                     mTabArchiveSettings = new TabArchiveSettings(mSharedPrefs);
                     mTabArchiveSettings.resetSettingsForTesting();
                     mTabArchiveSettings.setArchiveEnabled(true);
+                    mSharedPrefs.removeKey(UI_THEME_SETTING);
                 });
 
         mTabArchiver =
@@ -173,12 +181,30 @@ public class TabArchiverTest {
                             .closeTabs(
                                     TabClosureParams.closeAllTabs().build(),
                                     /* allowDialog= */ false);
+                    // Remove key between tests to reset the status.
+                    mSharedPrefs.removeKey(UI_THEME_SETTING);
                 });
     }
 
     @AfterClass
     public static void tearDownTestSuite() {
         ActivityFinisher.finishAll();
+    }
+
+    @Test
+    @MediumTest
+    @UiThreadTest
+    public void testGetTabsToArchive_emptyTabModel() {
+        mRegularTabModel.getTabRemover().forceCloseTabs(TabClosureParams.closeAllTabs().build());
+        assertEquals(0, mRegularTabModel.getCount());
+        assertEquals(0, mArchivedTabModel.getCount());
+
+        assertEquals(
+                mTabArchiver.getTabsToArchive(
+                        mRegularTabModelSelector
+                                .getTabGroupModelFilterProvider()
+                                .getCurrentTabGroupModelFilter()),
+                new ArrayList<>());
     }
 
     @Test
@@ -680,6 +706,51 @@ public class TabArchiverTest {
 
     @Test
     @MediumTest
+    public void testDuplicateTabsNotArchivedWithUiThemeChange() {
+        // Tab 2
+        sActivityTestRule.loadUrlInNewTab(
+                sActivityTestRule.getTestServer().getURL(TEST_PATH), /* incognito= */ false);
+        // Tab 3
+        sActivityTestRule.loadUrlInNewTab(
+                sActivityTestRule.getTestServer().getURL(TEST_PATH), /* incognito= */ false);
+        // Tab 4
+        sActivityTestRule.loadUrlInNewTab(
+                sActivityTestRule.getTestServer().getURL(TEST_PATH_2), /* incognito= */ false);
+
+        runOnUiThreadBlocking(
+                () -> {
+                    // Set the tab to expire after 2 hour to simplify testing.
+                    mTabArchiveSettings.setArchiveTimeDeltaHours(2);
+                    // Change the UI theme type.
+                    mSharedPrefs.writeInt(UI_THEME_SETTING, getAlternateUiThemeSetting());
+                });
+
+        // Set the clock to 1 hour after 0. No tabs should be archived by timestamp eligibility.
+        doReturn(TimeUnit.HOURS.toMillis(1)).when(mClock).currentTimeMillis();
+        // Set the timestamp for the second and third tabs sharing the same URL (not fourth since it
+        // will be the new active tab), tab 2 at 0 and tab 3 at 1.
+        ((TabImpl) mRegularTabModel.getTabAt(1)).setTimestampMillisForTesting(0);
+        ((TabImpl) mRegularTabModel.getTabAt(2)).setTimestampMillisForTesting(1);
+
+        assertEquals(4, mRegularTabModel.getCount());
+        assertEquals(0, mArchivedTabModel.getCount());
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder().expectNoRecords("Tabs.TabArchived.TabCount").build();
+        // Duplicate tabs should not be archived.
+        runOnUiThreadBlocking(
+                () -> {
+                    mTabArchiveSettings.setArchiveDuplicateTabsEnabled(true);
+                    mTabArchiver.doArchivePass(
+                            sActivityTestRule.getActivity().getTabModelSelectorSupplier().get());
+                });
+        CriteriaHelper.pollUiThread(() -> 4 == mRegularTabModel.getCount());
+        assertEquals(0, mArchivedTabModel.getCount());
+        watcher.assertExpected();
+    }
+
+    @Test
+    @MediumTest
     public void testDuplicateTabInGroupIsNotArchived_BaseDuplicateOutOfGroup() {
         // Tab 2
         sActivityTestRule.loadUrlInNewTab(
@@ -845,6 +916,156 @@ public class TabArchiverTest {
                 });
         callbackHelper.waitForNext();
         watcher.assertExpected();
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS)
+    public void testEligibleTabGroupsAreAutoDeleted() throws TimeoutException {
+        SavedTabGroup eligibleGroup = new SavedTabGroup();
+        eligibleGroup.syncId = "eligible_sync_id";
+        eligibleGroup.archivalTimeMs = TimeUnit.HOURS.toMillis(1);
+        SavedTabGroupTab eligibleGroupTab1 = new SavedTabGroupTab();
+        SavedTabGroupTab eligibleGroupTab2 = new SavedTabGroupTab();
+        eligibleGroup.savedTabs = Arrays.asList(eligibleGroupTab1, eligibleGroupTab2);
+
+        SavedTabGroup ineligibleGroup = new SavedTabGroup();
+        ineligibleGroup.syncId = "ineligible_sync_id";
+        ineligibleGroup.archivalTimeMs = TimeUnit.HOURS.toMillis(2);
+
+        when(mTabGroupSyncService.getAllGroupIds())
+                .thenReturn(new String[] {"eligible_sync_id", "ineligible_sync_id"});
+        when(mTabGroupSyncService.getGroup("eligible_sync_id")).thenReturn(eligibleGroup);
+        when(mTabGroupSyncService.getGroup("ineligible_sync_id")).thenReturn(ineligibleGroup);
+
+        doReturn(TimeUnit.HOURS.toMillis(2)).when(mClock).currentTimeMillis();
+
+        CallbackHelper callbackHelper = new CallbackHelper();
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords(
+                                "TabGroups.TabGroupAutoDeleteEligibilityCheck.AfterNDays", 0, 0)
+                        .expectIntRecord("TabGroups.TabGroupAutoDeleted.TabCount", 2)
+                        .build();
+
+        runOnUiThreadBlocking(
+                () -> {
+                    mTabArchiveSettings.setAutoDeleteEnabled(true);
+                    mTabArchiveSettings.setAutoDeleteTimeDeltaHours(1);
+                    mTabArchiver.addObserver(
+                            new TabArchiver.Observer() {
+                                @Override
+                                public void onAutodeletePassCompleted() {
+                                    callbackHelper.notifyCalled();
+                                }
+                            });
+                    mTabArchiver.doAutodeletePass();
+                });
+        callbackHelper.waitForNext();
+
+        verify(mTabGroupSyncService, times(1))
+                .updateArchivalStatus(eq("eligible_sync_id"), eq(false));
+        verify(mTabGroupSyncService, never())
+                .updateArchivalStatus(eq("ineligible_sync_id"), anyBoolean());
+        watcher.assertExpected();
+        assertEquals(1, mUserActionTester.getActionCount("TabGroups.ArchivedTabGroupAutoDeleted"));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS)
+    public void testBothEligibleTabsAndTabGroupsAreAutoDeleted() throws TimeoutException {
+        runOnUiThreadBlocking(
+                () -> {
+                    mTabArchiveSettings.setArchiveTimeDeltaHours(0);
+                });
+
+        Tab tab =
+                sActivityTestRule.loadUrlInNewTab(
+                        sActivityTestRule.getTestServer().getURL(TEST_PATH),
+                        /* incognito= */ false);
+
+        assertEquals(2, mRegularTabModel.getCount());
+        assertEquals(0, mArchivedTabModel.getCount());
+
+        CallbackHelper callbackHelper = new CallbackHelper();
+        runOnUiThreadBlocking(
+                () -> {
+                    mTabArchiver.archiveAndRemoveTabs(
+                            mRegularTabModelSelector
+                                    .getTabGroupModelFilterProvider()
+                                    .getTabGroupModelFilter(false),
+                            Arrays.asList(tab));
+                    ArchivePersistedTabData.from(
+                            mArchivedTabModel.getTabAt(0),
+                            (archivedTabData) -> {
+                                assertNotNull(archivedTabData);
+                                callbackHelper.notifyCalled();
+                            });
+                });
+        callbackHelper.waitForNext();
+
+        assertEquals(1, mRegularTabModel.getCount());
+        assertEquals(1, mArchivedTabModel.getCount());
+        Tab archivedTab = mArchivedTabModel.getTabAt(0);
+
+        SavedTabGroup eligibleGroup = new SavedTabGroup();
+        eligibleGroup.syncId = "eligible_sync_id";
+        eligibleGroup.archivalTimeMs = TimeUnit.HOURS.toMillis(1);
+        SavedTabGroupTab eligibleGroupTab1 = new SavedTabGroupTab();
+        SavedTabGroupTab eligibleGroupTab2 = new SavedTabGroupTab();
+        eligibleGroup.savedTabs = Arrays.asList(eligibleGroupTab1, eligibleGroupTab2);
+
+        when(mTabGroupSyncService.getAllGroupIds()).thenReturn(new String[] {"eligible_sync_id"});
+        when(mTabGroupSyncService.getGroup("eligible_sync_id")).thenReturn(eligibleGroup);
+
+        doReturn(TimeUnit.HOURS.toMillis(3)).when(mClock).currentTimeMillis();
+
+        HistogramWatcher watcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecords("Tabs.TabAutoDeleteEligibilityCheck.AfterNDays", 0)
+                        .expectIntRecords("Tabs.TabAutoDeleted.AfterNDays", 0)
+                        .expectIntRecords(
+                                "TabGroups.TabGroupAutoDeleteEligibilityCheck.AfterNDays", 0)
+                        .expectIntRecord("TabGroups.TabGroupAutoDeleted.TabCount", 2)
+                        .build();
+
+        runOnUiThreadBlocking(
+                () -> {
+                    mTabArchiveSettings.setAutoDeleteEnabled(true);
+                    mTabArchiveSettings.setAutoDeleteTimeDeltaHours(0);
+                    mTabArchiver.addObserver(
+                            new TabArchiver.Observer() {
+                                @Override
+                                public void onAutodeletePassCompleted() {
+                                    callbackHelper.notifyCalled();
+                                }
+                            });
+                    mTabArchiver.doAutodeletePass();
+                });
+
+        callbackHelper.waitForNext();
+
+        CriteriaHelper.pollInstrumentationThread(() -> mArchivedTabModel.getCount() == 0);
+        CriteriaHelper.pollInstrumentationThread(() -> archivedTab.isDestroyed());
+        assertEquals(1, mRegularTabModel.getCount());
+        runOnUiThreadBlocking(
+                () -> {
+                    ArchivePersistedTabData.from(
+                            archivedTab,
+                            (archivedTabData) -> {
+                                assertNull(archivedTabData);
+                                callbackHelper.notifyCalled();
+                            });
+                });
+        callbackHelper.waitForNext();
+
+        verify(mTabGroupSyncService, times(1))
+                .updateArchivalStatus(eq("eligible_sync_id"), eq(false));
+        watcher.assertExpected();
+        assertEquals(1, mUserActionTester.getActionCount("Tabs.ArchivedTabAutoDeleted"));
+        assertEquals(1, mUserActionTester.getActionCount("TabGroups.ArchivedTabGroupAutoDeleted"));
     }
 
     @Test
@@ -1115,7 +1336,7 @@ public class TabArchiverTest {
         runOnUiThreadBlocking(
                 () -> {
                     mTabArchiver.deleteArchivedTabsIfEligibleAsyncImpl(
-                            Arrays.asList(archivedTab), 0, 0);
+                            Arrays.asList(archivedTab), 0, 0, new AtomicInteger(1));
                     // This should cause the callback to be destroyed, and the ptd should still
                     // exist with the value set earlier in the test.
                     mTabArchiver.destroy();
@@ -1136,5 +1357,12 @@ public class TabArchiverTest {
                         /* incognito= */ false,
                         TabLaunchType.FROM_LONGPRESS_BACKGROUND);
         runOnUiThreadBlocking(() -> tab.setTimestampMillis(0));
+    }
+
+    // Taking into account the tri-state enum, get an alternate UI theme setting from the current.
+    private int getAlternateUiThemeSetting() {
+        return NightModeUtils.getThemeSetting() == ThemeType.LIGHT
+                ? ThemeType.DARK
+                : ThemeType.LIGHT;
     }
 }

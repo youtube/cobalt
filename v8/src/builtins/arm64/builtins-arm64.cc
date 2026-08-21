@@ -393,37 +393,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
-static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                      Register data,
-                                                      Register scratch,
-                                                      Label* is_baseline,
-                                                      Label* is_bytecode) {
-#if V8_STATIC_ROOTS_BOOL
-  __ IsObjectTypeFast(data, scratch, CODE_TYPE);
-#else
-  __ CompareObjectType(data, scratch, scratch, CODE_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ B(ne, &not_baseline);
-    AssertCodeIsBaseline(masm, data, scratch);
-    __ B(eq, is_baseline);
-    __ Bind(&not_baseline);
-  } else {
-    __ B(eq, is_baseline);
-  }
-
-#if V8_STATIC_ROOTS_BOOL
-  // scratch already contains the compressed map.
-  __ CompareInstanceTypeWithUniqueCompressedMap(scratch, Register::no_reg(),
-                                                INTERPRETER_DATA_TYPE);
-#else
-  // scratch already contains the instance type.
-  __ Cmp(scratch, INTERPRETER_DATA_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-  __ B(ne, is_bytecode);
-}
-
 // TODO(v8:11429): Add a path for "not_compiled" and unify the two uses under
 // the more general dispatch.
 static void GetSharedFunctionInfoBytecodeOrBaseline(
@@ -443,8 +412,31 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
     __ B(ne, &done);
   } else {
-    CheckSharedFunctionInfoBytecodeOrBaseline(masm, data, scratch1, is_baseline,
-                                              &done);
+#if V8_STATIC_ROOTS_BOOL
+    __ IsObjectTypeFast(data, scratch1, CODE_TYPE);
+#else
+    __ CompareObjectType(data, scratch1, scratch1, CODE_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+
+    if (v8_flags.debug_code) {
+      Label not_baseline;
+      __ B(ne, &not_baseline);
+      AssertCodeIsBaseline(masm, data, scratch1);
+      __ B(eq, is_baseline);
+      __ Bind(&not_baseline);
+    } else {
+      __ B(eq, is_baseline);
+    }
+
+#if V8_STATIC_ROOTS_BOOL
+    // scratch already contains the compressed map.
+    __ CompareInstanceTypeWithUniqueCompressedMap(scratch1, Register::no_reg(),
+                                                  INTERPRETER_DATA_TYPE);
+#else
+    // scratch already contains the instance type.
+    __ Cmp(scratch1, INTERPRETER_DATA_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+    __ B(ne, &done);
   }
 
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
@@ -4086,14 +4078,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   int catch_handler = __ pc_offset();
   __ JumpTarget();
 
-  DEFINE_SCOPED(thread_in_wasm_flag_addr);
-  thread_in_wasm_flag_addr = x2;
-  // Unset thread_in_wasm_flag.
-  __ Ldr(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ Str(wzr, MemOperand(thread_in_wasm_flag_addr, 0));
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   __ Move(reason, kReturnRegister0);
@@ -4271,15 +4255,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    DEFINE_SCOPED(scratch);
-    __ Mov(scratch, 1);
-    __ Str(scratch.W(), MemOperand(thread_in_wasm_flag_addr, 0));
-  }
   __ Str(xzr,
          MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
   {
@@ -4299,13 +4274,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // The wrapper_buffer has to be in x2 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1);
   ASSIGN_PINNED(wrapper_buffer, x2);
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    __ Str(wzr, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
 
   __ Ldr(wrapper_buffer,
          MemOperand(fp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset));
@@ -5452,7 +5420,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadTrustedPointerField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      kCodeIndirectPointerTag);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

@@ -13,7 +13,6 @@
 
 #include <string>
 
-#include "absl/base/macros.h"
 #include "rtc_base/system/rtc_export.h"
 
 namespace webrtc {

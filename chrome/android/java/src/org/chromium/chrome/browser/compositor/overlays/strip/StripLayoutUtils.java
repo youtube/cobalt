@@ -11,6 +11,7 @@ import android.text.TextUtils;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.Supplier;
@@ -30,6 +31,7 @@ import org.chromium.ui.base.LocalizationUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @NullMarked
 public class StripLayoutUtils {
@@ -39,7 +41,7 @@ public class StripLayoutUtils {
     // closeButtonEndPadding(10) + tabContainerEndPadding(16) + groupTitleStartMargin(13)
     //         - overlap(28-16) =
     public static final float TAB_GROUP_BOTTOM_INDICATOR_WIDTH_OFFSET = 27.f;
-    static final float MIN_TAB_WIDTH_DP = 108.f;
+    public static final float MIN_TAB_WIDTH_DP = shouldApplyMoreDensity() ? 76.f : 108.f;
     public static final float MAX_TAB_WIDTH_DP = TabUiThemeUtil.getMaxTabStripTabWidthDp();
     public static final float TAB_OVERLAP_WIDTH_DP = 28.f;
 
@@ -268,6 +270,45 @@ public class StripLayoutUtils {
     }
 
     /**
+     * Finds and returns a list of {@link StripLayoutTab}s that match a given set of tab IDs.
+     *
+     * @param stripTabs The array of {@link StripLayoutTab}s to search through.
+     * @param ids A {@link Set} of tab IDs to find.
+     * @return A {@link List} containing the matching {@link StripLayoutTab}s, or {@code null} if no
+     *     matching tabs are found.
+     */
+    public static @Nullable List<StripLayoutTab> findTabsByIds(
+            StripLayoutTab[] stripTabs, Set<Integer> ids) {
+        List<StripLayoutTab> tabs = new ArrayList<>();
+        for (StripLayoutTab stripTab : stripTabs) {
+            if (ids.contains(stripTab.getTabId())) {
+                tabs.add(stripTab);
+            }
+        }
+        return tabs.isEmpty() ? null : tabs;
+    }
+
+    /**
+     * Filters a set of tab IDs, returning them in the order they appear in the tab strip.
+     *
+     * @param stripTabs The array of {@link StripLayoutTab}s representing the current visual order.
+     * @param ids A {@link Set} of tab IDs to find and order.
+     * @return A {@link List} of the found tab IDs, sorted according to their order in {@code
+     *     stripTabs}. Returns {@code null} if no matching tabs are found.
+     */
+    public static @Nullable List<Integer> getTabIdsInOrder(
+            StripLayoutTab[] stripTabs, Set<Integer> ids) {
+        List<Integer> tabs = new ArrayList<>();
+        for (StripLayoutTab stripTab : stripTabs) {
+            int id = stripTab.getTabId();
+            if (ids.contains(id)) {
+                tabs.add(id);
+            }
+        }
+        return tabs.isEmpty() ? null : tabs;
+    }
+
+    /**
      * @param views The list of {@link StripLayoutView}.
      * @param x The x position to use to retrieve view.
      * @param includeGroupTitles Whether to include group title when finding view.
@@ -379,5 +420,10 @@ public class StripLayoutUtils {
     public static boolean skipTabEdgePositionCalculation(StripLayoutTab tab) {
         return (tab.isDying() && !ChromeFeatureList.sTabletTabStripAnimation.isEnabled())
                 || tab.isDraggedOffStrip();
+    }
+
+    public static boolean shouldApplyMoreDensity() {
+        return ChromeFeatureList.sTabStripDensityChangeAndroid.isEnabled()
+                && DeviceInfo.isDesktop();
     }
 }

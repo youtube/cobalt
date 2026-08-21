@@ -182,6 +182,7 @@ rtc_library("connection") {
     ":candidate_pair_interface",
     ":connection_info",
     ":dtls_stun_piggyback_controller",
+    ":dtls_utils",
     ":ice_credentials_iterator",
     ":p2p_constants",
     ":p2p_transport_channel_ice_field_trials",

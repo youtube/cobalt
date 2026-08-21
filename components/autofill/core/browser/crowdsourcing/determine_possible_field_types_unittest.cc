@@ -26,11 +26,39 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
+
+void PrintTo(const PossibleTypes& ps, std::ostream* os) {
+  auto type_to_string = [](FormatString_Type t) {
+    switch (t) {
+      case FormatString_Type_AFFIX:
+        return u"AFFIX";
+      case FormatString_Type_DATE:
+        return u"DATE";
+    }
+    NOTREACHED();
+  };
+  auto format_to_string =
+      [&](const std::pair<FormatString_Type, std::u16string>& format) {
+        return base::StrCat({u"{", type_to_string(format.first), u"\"",
+                             format.second, u"\"", u"}"});
+      };
+  *os << "PossibleTypes{.types = {"
+      << base::JoinString(base::ToVector(ps.types,
+                                         [](FieldType t) {
+                                           return FieldTypeToStringView(t);
+                                         }),
+                          ",")
+      << "}, .formats = {"
+      << base::JoinString(base::ToVector(ps.formats, format_to_string), u",")
+      << "}}";
+}
+
 namespace {
 
 using ::autofill::test::CreateTestFormField;
 using ::autofill::test::CreateTestSelectField;
 using ::testing::Contains;
+using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::IsEmpty;
@@ -39,6 +67,41 @@ using ::testing::Not;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
+
+// Matcher for `PossibleTypes::types`.
+template <typename... Ts>
+  requires(std::convertible_to<Ts, FieldType> && ...)
+Matcher<const PossibleTypes&> HasTypes(Ts&&... field_types) {
+  return Field("PossibleTypes::types", &PossibleTypes::types,
+               UnorderedElementsAre(field_types...));
+}
+
+// Matcher for `PossibleTypes::formats`.
+template <typename... Ts>
+  requires(std::convertible_to<Ts, const char*> && ...)
+Matcher<const PossibleTypes&> HasNoFormats() {
+  return Field("PossibleTypes::formats", &PossibleTypes::formats, IsEmpty());
+}
+
+// Matcher for `PossibleTypes::formats`.
+template <typename... Ts>
+  requires(std::convertible_to<Ts, const char*> && ...)
+Matcher<const PossibleTypes&> HasAffixFormats(Ts&&... formats) {
+  return Field("PossibleTypes::formats", &PossibleTypes::formats,
+               UnorderedElementsAre(
+                   Pair(FormatString_Type_AFFIX,
+                        base::UTF8ToUTF16(std::string_view(formats)))...));
+}
+
+// Matcher for `PossibleTypes::formats`.
+template <typename... Ts>
+  requires(std::convertible_to<Ts, const char*> && ...)
+Matcher<const PossibleTypes&> HasDateFormats(Ts&&... formats) {
+  return Field("PossibleTypes::formats", &PossibleTypes::formats,
+               UnorderedElementsAre(
+                   Pair(FormatString_Type_DATE,
+                        base::UTF8ToUTF16(std::string_view(formats)))...));
+}
 
 // Fakes that a `form` has been seen (without its field value) and parsed and
 // then values have been entered. Returns the resulting FormStructure.
@@ -56,27 +119,16 @@ std::unique_ptr<FormStructure> ConstructFormStructureFromFormData(
 }
 
 void CheckThatOnlyFieldByIndexHasThisPossibleType(
-    const FormStructure& form_structure,
+    base::span<const PossibleTypes> possible_types,
     size_t field_index,
-    FieldType type,
-    FieldPropertiesMask mask) {
-  EXPECT_TRUE(field_index < form_structure.field_count());
-
-  for (size_t i = 0; i < form_structure.field_count(); i++) {
+    FieldType type) {
+  EXPECT_LT(field_index, possible_types.size());
+  for (size_t i = 0; i < possible_types.size(); i++) {
     if (i == field_index) {
-      EXPECT_THAT(form_structure.field(i)->possible_types(), ElementsAre(type));
-      EXPECT_EQ(mask, form_structure.field(i)->properties_mask());
+      EXPECT_THAT(possible_types[i].types, ElementsAre(type)) << "i=" << i;
     } else {
-      EXPECT_THAT(form_structure.field(i)->possible_types(),
-                  Not(Contains(type)));
+      EXPECT_THAT(possible_types[i].types, Not(Contains(type))) << "i=" << i;
     }
-  }
-}
-
-void CheckThatNoFieldHasThisPossibleType(const FormStructure& form_structure,
-                                         FieldType type) {
-  for (size_t i = 0; i < form_structure.field_count(); i++) {
-    EXPECT_THAT(form_structure.field(i)->possible_types(), Not(Contains(type)));
   }
 }
 
@@ -310,13 +362,10 @@ TEST_P(ProfileMatchingTypesTest, DeterminePossibleFieldTypesForUpload) {
   test::SetProfileInfo(&profiles[3], "Vincent", "Wilhelm", "van Gogh", "NL");
   profiles[3].set_guid(MakeGuid(4));
 
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", "4234-5678-9012-3456", "04",
                           "2999", "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
   FormData form;
   form.set_name(u"MyForm");
@@ -328,17 +377,17 @@ TEST_P(ProfileMatchingTypesTest, DeterminePossibleFieldTypesForUpload) {
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/u"", /*dates_and_formats=*/{}, "en-us",
-      *form_structure);
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          profiles, {credit_card}, std::vector<EntityInstance>(),
+          std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/u"", "en-us",
+          form_structure->fields());
 
-  ASSERT_EQ(1U, form_structure->field_count());
-
-  FieldTypeSet possible_types = form_structure->field(0)->possible_types();
-  EXPECT_EQ(possible_types, expected_possible_types);
+  ASSERT_EQ(form_structure->field_count(), possible_types.size());
+  EXPECT_THAT(possible_types[0].types,
+              UnorderedElementsAreArray(expected_possible_types));
 }
 
 INSTANTIATE_TEST_SUITE_P(DeterminePossibleFieldTypesForUploadTest,
@@ -350,6 +399,7 @@ class DeterminePossibleFieldTypesForUploadTest : public ::testing::Test {
   DeterminePossibleFieldTypesForUploadTest() {
     scoped_feature_list_.InitWithFeatures(
         {features::kAutofillAiWithDataSchema, features::kAutofillAiNoTagTypes,
+         features::kAutofillAiVoteForFormatStringsForAffixes,
          features::kAutofillAiVoteForFormatStringsFromSingleFields,
          features::kAutofillAiVoteForFormatStringsFromMultipleFields,
          features::kAutofillEnableLoyaltyCardsFilling},
@@ -365,9 +415,6 @@ class DeterminePossibleFieldTypesForUploadTest : public ::testing::Test {
 // BrowserAutofillManager reuses the CVC value to identify a potentially
 // existing CVC form field to cast a |CREDIT_CARD_VERIFICATION_CODE|-type vote.
 TEST_F(DeterminePossibleFieldTypesForUploadTest, CrowdsourceCVCFieldByValue) {
-  std::vector<AutofillProfile> profiles;
-  std::vector<CreditCard> credit_cards;
-
   constexpr char kCvc[] = "1234";
   constexpr char16_t kCvc16[] = u"1234";
   constexpr char kFourDigitButNotCvc[] = "6676";
@@ -388,18 +435,17 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest, CrowdsourceCVCFieldByValue) {
 
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
-  form_structure->field(0)->set_possible_types({CREDIT_CARD_NUMBER});
 
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/kCvc16, /*dates_and_formats=*/{},
-      "en-us", *form_structure);
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), std::vector<CreditCard>(),
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/kCvc16, "en-us",
+          form_structure->fields());
 
-  CheckThatOnlyFieldByIndexHasThisPossibleType(
-      *form_structure, 2, CREDIT_CARD_VERIFICATION_CODE,
-      FieldPropertiesFlags::kKnownValue);
+  CheckThatOnlyFieldByIndexHasThisPossibleType(possible_types, 2,
+                                               CREDIT_CARD_VERIFICATION_CODE);
 }
 
 // Expiration year field was detected by the server. The other field with a
@@ -426,32 +472,21 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types({CREDIT_CARD_NUMBER});
-  form_structure->field(1)->set_possible_types({CREDIT_CARD_EXP_4_DIGIT_YEAR});
-  form_structure->field(2)->set_possible_types({UNKNOWN_TYPE});
-
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", credit_card_number, "04",
                           actual_credit_card_exp_year, "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
-  // Set up the test profiles.
-  std::vector<AutofillProfile> profiles;
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), {credit_card},
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/std::u16string(), "en-us",
+          form_structure->fields());
 
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/std::u16string(),
-      /*dates_and_formats=*/{}, "en-us", *form_structure);
-
-  CheckThatOnlyFieldByIndexHasThisPossibleType(*form_structure, 2,
-                                               CREDIT_CARD_VERIFICATION_CODE,
-                                               FieldPropertiesFlags::kNoFlags);
+  CheckThatOnlyFieldByIndexHasThisPossibleType(possible_types, 2,
+                                               CREDIT_CARD_VERIFICATION_CODE);
 }
 
 // Tests if the CVC field is heuristically detected if it appears after the
@@ -478,32 +513,21 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types({CREDIT_CARD_NUMBER});
-  form_structure->field(1)->set_possible_types({CREDIT_CARD_EXP_4_DIGIT_YEAR});
-  form_structure->field(2)->set_possible_types({UNKNOWN_TYPE});
-
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", credit_card_number, "04",
                           actual_credit_card_exp_year, "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
-  // Set up the test profiles.
-  std::vector<AutofillProfile> profiles;
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), {credit_card},
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/std::u16string(), "en-us",
+          form_structure->fields());
 
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/std::u16string(),
-      /*dates_and_formats=*/{}, "en-us", *form_structure);
-
-  CheckThatOnlyFieldByIndexHasThisPossibleType(*form_structure, 2,
-                                               CREDIT_CARD_VERIFICATION_CODE,
-                                               FieldPropertiesFlags::kNoFlags);
+  CheckThatOnlyFieldByIndexHasThisPossibleType(possible_types, 2,
+                                               CREDIT_CARD_VERIFICATION_CODE);
 }
 
 // Tests if the CVC field is heuristically detected if it contains a value which
@@ -529,32 +553,21 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types({CREDIT_CARD_NUMBER});
-  form_structure->field(1)->set_possible_types({UNKNOWN_TYPE});
-  form_structure->field(2)->set_possible_types({UNKNOWN_TYPE});
-
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", credit_card_number, "04",
                           actual_credit_card_exp_year, "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
-  // Set up the test profiles.
-  std::vector<AutofillProfile> profiles;
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), {credit_card},
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/std::u16string(), "en-us",
+          form_structure->fields());
 
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/std::u16string(),
-      /*dates_and_formats=*/{}, "en-us", *form_structure);
-
-  CheckThatOnlyFieldByIndexHasThisPossibleType(*form_structure, 1,
-                                               CREDIT_CARD_VERIFICATION_CODE,
-                                               FieldPropertiesFlags::kNoFlags);
+  CheckThatOnlyFieldByIndexHasThisPossibleType(possible_types, 1,
+                                               CREDIT_CARD_VERIFICATION_CODE);
 }
 
 // Tests if no CVC field is heuristically detected due to the missing of a
@@ -580,30 +593,21 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types({UNKNOWN_TYPE});
-  form_structure->field(1)->set_possible_types({CREDIT_CARD_EXP_4_DIGIT_YEAR});
-  form_structure->field(2)->set_possible_types({UNKNOWN_TYPE});
-
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", credit_card_number, "04",
                           actual_credit_card_exp_year, "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
-  // Set up the test profiles.
-  std::vector<AutofillProfile> profiles;
-
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/std::u16string(),
-      /*dates_and_formats=*/{}, "en-us", *form_structure);
-  CheckThatNoFieldHasThisPossibleType(*form_structure,
-                                      CREDIT_CARD_VERIFICATION_CODE);
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), {credit_card},
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/std::u16string(), "en-us",
+          form_structure->fields());
+  EXPECT_THAT(possible_types,
+              Each(Field(&PossibleTypes::types,
+                         Not(Contains(CREDIT_CARD_VERIFICATION_CODE)))));
 }
 
 // Test if no CVC is found because the candidate has no valid CVC value.
@@ -627,32 +631,21 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest,
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types(
-      {CREDIT_CARD_NUMBER, UNKNOWN_TYPE});
-  form_structure->field(1)->set_possible_types({CREDIT_CARD_EXP_4_DIGIT_YEAR});
-  form_structure->field(2)->set_possible_types({UNKNOWN_TYPE});
-
-  // Set up the test credit cards.
-  std::vector<CreditCard> credit_cards;
   CreditCard credit_card;
   test::SetCreditCardInfo(&credit_card, "John Doe", credit_card_number, "04",
                           credit_card_exp_year, "1");
   credit_card.set_guid(MakeGuid(3));
-  credit_cards.push_back(credit_card);
 
-  // Set up the test profiles.
-  std::vector<AutofillProfile> profiles;
-
-  DeterminePossibleFieldTypesForUpload(
-      profiles, credit_cards, std::vector<EntityInstance>(),
-      std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/u"", /*dates_and_formats=*/{}, "en-us",
-      *form_structure);
-
-  CheckThatNoFieldHasThisPossibleType(*form_structure,
-                                      CREDIT_CARD_VERIFICATION_CODE);
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), {credit_card},
+          std::vector<EntityInstance>(), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/u"", "en-us",
+          form_structure->fields());
+  EXPECT_THAT(possible_types,
+              Each(Field(&PossibleTypes::types,
+                         Not(Contains(CREDIT_CARD_VERIFICATION_CODE)))));
 }
 
 // Tests if the loyalty card field detected.
@@ -672,24 +665,18 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest, CrowdsourceLoyaltyCardField) {
   std::unique_ptr<FormStructure> form_structure =
       ConstructFormStructureFromFormData(form);
 
-  // Set the field types.
-  form_structure->field(0)->set_possible_types({LOYALTY_MEMBERSHIP_PROGRAM});
-
-  // Set up the test loyalty cards.
-  std::vector<LoyaltyCard> loyalty_cards;
   LoyaltyCard loyalty_card = test::CreateLoyaltyCard();
   loyalty_card.set_loyalty_card_number(loyalty_card_number);
-  loyalty_cards.push_back(loyalty_card);
-  DeterminePossibleFieldTypesForUpload(
-      std::vector<AutofillProfile>(), std::vector<CreditCard>(),
-      std::vector<EntityInstance>(), loyalty_cards,
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/u"", /*dates_and_formats=*/{}, "en-us",
-      *form_structure);
+  std::vector<PossibleTypes> possible_types =
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), std::vector<CreditCard>(),
+          std::vector<EntityInstance>(), {loyalty_card},
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/u"", "en-us",
+          form_structure->fields());
 
-  CheckThatOnlyFieldByIndexHasThisPossibleType(*form_structure, 1,
-                                               LOYALTY_MEMBERSHIP_ID,
-                                               FieldPropertiesFlags::kNoFlags);
+  CheckThatOnlyFieldByIndexHasThisPossibleType(possible_types, 1,
+                                               LOYALTY_MEMBERSHIP_ID);
 }
 
 // Tests if the Autofill AI field types are crowdsourced.
@@ -724,29 +711,93 @@ TEST_F(DeterminePossibleFieldTypesForUploadTest, CrowdsourceAutofillAiTypes) {
       .issue_date = u"2010-09-01",
   });
 
-  DeterminePossibleFieldTypesForUpload(
-      std::vector<AutofillProfile>(), std::vector<CreditCard>(),
-      base::span_from_ref(entity), std::vector<LoyaltyCard>(),
-      /*fields_that_match_state=*/{},
-      /*last_unlocked_credit_card_cvc=*/u"",
-      ExtractDatesInFields(form_structure->fields()), "en-US", *form_structure);
+  EXPECT_THAT(DeterminePossibleFieldTypesForUpload(
+                  std::vector<AutofillProfile>(), std::vector<CreditCard>(),
+                  base::span_from_ref(entity), std::vector<LoyaltyCard>(),
+                  /*fields_that_match_state=*/{},
+                  /*last_unlocked_credit_card_cvc=*/u"", "en-US",
+                  form_structure->fields()),
+              ElementsAre(HasTypes(NAME_FIRST),                   //
+                          HasTypes(NAME_LAST, NAME_LAST_SECOND),  //
+                          HasTypes(PASSPORT_NUMBER),              //
+                          HasTypes(PASSPORT_EXPIRATION_DATE),     //
+                          HasTypes(PASSPORT_ISSUE_DATE),          //
+                          HasTypes(PASSPORT_ISSUE_DATE),          //
+                          HasTypes(PASSPORT_ISSUE_DATE),          //
+                          HasTypes(UNKNOWN_TYPE)));
+}
 
-  EXPECT_THAT(form_structure->fields()[0]->possible_types(),
-              UnorderedElementsAre(NAME_FIRST));
-  EXPECT_THAT(form_structure->fields()[1]->possible_types(),
-              UnorderedElementsAre(NAME_LAST, NAME_LAST_SECOND));
-  EXPECT_THAT(form_structure->fields()[2]->possible_types(),
-              UnorderedElementsAre(PASSPORT_NUMBER));
-  EXPECT_THAT(form_structure->fields()[3]->possible_types(),
-              UnorderedElementsAre(PASSPORT_EXPIRATION_DATE));
-  EXPECT_THAT(form_structure->fields()[4]->possible_types(),
-              UnorderedElementsAre(PASSPORT_ISSUE_DATE));
-  EXPECT_THAT(form_structure->fields()[5]->possible_types(),
-              UnorderedElementsAre(PASSPORT_ISSUE_DATE));
-  EXPECT_THAT(form_structure->fields()[6]->possible_types(),
-              UnorderedElementsAre(PASSPORT_ISSUE_DATE));
-  EXPECT_THAT(form_structure->fields()[7]->possible_types(),
-              UnorderedElementsAre(UNKNOWN_TYPE));
+// Tests if format strings are crowdsourced for certain Autofill AI FieldTypes.
+TEST_F(DeterminePossibleFieldTypesForUploadTest,
+       CrowdsourceAutofillAiFormatStrings) {
+  FormData form;
+  form.set_fields({
+      // Complete first/last name.
+      CreateTestFormField("first-name", "first-name", "Pippi",
+                          FormControlType::kInputText),
+      CreateTestFormField("last-name", "last-name", "Longstocking",
+                          FormControlType::kInputText),
+      // Complete passport number.
+      CreateTestFormField("number", "number", "0123456789",
+                          FormControlType::kInputText),
+      // Affixes of the passport number.
+      CreateTestFormField("number", "number", "0123",
+                          FormControlType::kInputText),
+      CreateTestFormField("number", "number", "789",
+                          FormControlType::kInputText),
+      CreateTestFormField("number", "number", "23456789",
+                          FormControlType::kInputText),
+      // These two are too long.
+      CreateTestFormField("number", "number", "012345678",
+                          FormControlType::kInputText),
+      CreateTestFormField("number", "number", "123456789",
+                          FormControlType::kInputText),
+      // Date format strings.
+      CreateTestFormField("expiry-date", "expiry-date", "30/08/2019",
+                          FormControlType::kInputText),
+      CreateTestFormField("issue", "issue-day", "01",
+                          FormControlType::kInputText),
+      CreateTestFormField("issue", "issue-month", "09",
+                          FormControlType::kInputText),
+      CreateTestFormField("issue", "issue-year", "2010",
+                          FormControlType::kInputText),
+      // No format string.
+      CreateTestFormField("wrong-country", "wrong-country", "Finland",
+                          FormControlType::kInputText),
+  });
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructFormStructureFromFormData(form);
+
+  EntityInstance entity = test::GetPassportEntityInstance({
+      .name = u"Pippi Longstocking",
+      .number = u"0123456789",
+      .country = u"Sweden",
+      .expiry_date = u"2019-08-30",
+      .issue_date = u"2010-09-01",
+  });
+
+  EXPECT_THAT(
+      DeterminePossibleFieldTypesForUpload(
+          std::vector<AutofillProfile>(), std::vector<CreditCard>(),
+          base::span_from_ref(entity), std::vector<LoyaltyCard>(),
+          /*fields_that_match_state=*/{},
+          /*last_unlocked_credit_card_cvc=*/u"", "en-US",
+          form_structure->fields()),
+      ElementsAre(
+          AllOf(HasTypes(NAME_FIRST), HasNoFormats()),
+          AllOf(HasTypes(NAME_LAST, NAME_LAST_SECOND), HasNoFormats()),
+          AllOf(HasTypes(PASSPORT_NUMBER), HasAffixFormats("0")),
+          AllOf(HasTypes(PASSPORT_NUMBER), HasAffixFormats("4")),
+          AllOf(HasTypes(PASSPORT_NUMBER), HasAffixFormats("-3")),
+          AllOf(HasTypes(PASSPORT_NUMBER), HasAffixFormats("-8")),
+          AllOf(HasTypes(UNKNOWN_TYPE), HasNoFormats()),
+          AllOf(HasTypes(UNKNOWN_TYPE), HasNoFormats()),
+          AllOf(HasTypes(PASSPORT_EXPIRATION_DATE),
+                HasDateFormats("DD/MM/YYYY")),
+          AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("DD", "MM")),
+          AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("DD", "MM")),
+          AllOf(HasTypes(PASSPORT_ISSUE_DATE), HasDateFormats("YYYY")),
+          AllOf(HasTypes(UNKNOWN_TYPE), HasNoFormats())));
 }
 
 // Test fixture for PreProcessStateMatchingTypes().
@@ -844,14 +895,51 @@ TEST_F(PreProcessStateMatchingTypesTest, PreProcessStateMatchingTypes) {
               ElementsAre(form_structure.field(1)->global_id()));
 }
 
-// Test fixture for ExtractDatesInFields().
-class ExtractDatesInFieldsTest : public testing::Test {
+// Test fixture for FindDatesAndSetFormatStrings(). It's an interneal function
+// of determine_possible_field_types.cc but it's sufficiently complex for a
+// separate test.
+class FindDatesAndSetFormatStringsTest : public testing::Test {
  public:
-  ExtractDatesInFieldsTest() {
+  struct DatesAndFormats {
+    base::flat_set<data_util::Date> dates;
+    std::set<std::pair<FormatString_Type, std::u16string>> formats;
+  };
+
+  FindDatesAndSetFormatStringsTest() {
     scoped_feature_list_.InitWithFeatures(
         {features::kAutofillAiVoteForFormatStringsFromSingleFields,
          features::kAutofillAiVoteForFormatStringsFromMultipleFields},
         {});
+  }
+
+  // FindDatesAndSetFormatStrings() does two things:
+  // - It stores the format strings in `PossibleTypes::formats`.
+  // - It returns the found dates and pointers to the `PossibleTypes` of the
+  //   fields that contribute to the date.
+  //
+  // That's ergonomic inside determine_possible_field_types.cc but not for
+  // tests.
+  //
+  // We therefore merge the found dates and formats per field and return them in
+  // a vector whose `i`th element corresponds to `fields[i]`.
+  static std::vector<DatesAndFormats> FindDatesAndSetFormatStrings(
+      base::span<const std::unique_ptr<AutofillField>> fields) {
+    std::vector<PossibleTypes> possible_types;
+    possible_types.resize(fields.size());
+    base::flat_set<std::pair<data_util::Date, PossibleTypes*>> dates =
+        FindDatesAndSetFormatStringsForTesting(fields, possible_types);
+
+    std::vector<DatesAndFormats> dafs;
+    dafs.resize(fields.size());
+    for (auto [pt, daf] : base::zip(possible_types, dafs)) {
+      daf.formats = pt.formats;
+      for (const auto& p : dates) {
+        if (&pt == p.second) {
+          daf.dates.insert(p.first);
+        }
+      }
+    }
+    return dafs;
   }
 
   static std::unique_ptr<AutofillField> CreateInput(
@@ -873,15 +961,16 @@ class ExtractDatesInFieldsTest : public testing::Test {
     return field;
   }
 
-  static auto AreDatesAndFormatStrings(
+  static auto HasDatesAndFormatStrings(
       base::span<const data_util::Date> dates,
       base::span<const std::string_view> formats) {
-    std::vector<std::u16string> u16formats = base::ToVector(
-        formats, [](std::string_view s) { return base::UTF8ToUTF16(s); });
+    auto format_pairs = base::ToVector(formats, [](std::string_view s) {
+      return Pair(FormatString_Type_DATE, base::UTF8ToUTF16(s));
+    });
     return AllOf(
         Field(&DatesAndFormats::dates, UnorderedElementsAreArray(dates)),
         Field(&DatesAndFormats::formats,
-              UnorderedElementsAreArray(u16formats)));
+              UnorderedElementsAreArray(format_pairs)));
   }
 
  private:
@@ -890,9 +979,9 @@ class ExtractDatesInFieldsTest : public testing::Test {
 };
 
 // Tests that non-text <input> do not match any format string.
-TEST_F(ExtractDatesInFieldsTest, InputNonText) {
+TEST_F(FindDatesAndSetFormatStringsTest, InputNonText) {
   using enum FormControlType;
-  EXPECT_THAT(ExtractDatesInFields({
+  EXPECT_THAT(FindDatesAndSetFormatStrings({
                   CreateInput("2025-12-31", kInputDate),
                   CreateInput("2025-12", kInputMonth),
                   CreateInput("2025-12-31", kInputNumber),
@@ -900,7 +989,7 @@ TEST_F(ExtractDatesInFieldsTest, InputNonText) {
                   CreateInput("2025-12-31", kInputSearch),
                   CreateInput("2025-12-31", kInputUrl),
               }),
-              IsEmpty());
+              Each(HasDatesAndFormatStrings({}, {})));
 }
 
 struct DateSingleTextParam {
@@ -925,13 +1014,13 @@ struct DateSingleTextParam {
 
 // Test fixture for a single <input type=text> whose value may be a complete
 // date.
-class ExtractDatesInFieldsTest_SingleTextInput
-    : public ExtractDatesInFieldsTest,
+class FindDatesAndSetFormatStringsTest_SingleTextInput
+    : public FindDatesAndSetFormatStringsTest,
       public testing::WithParamInterface<DateSingleTextParam> {};
 
 INSTANTIATE_TEST_SUITE_P(
     ,
-    ExtractDatesInFieldsTest_SingleTextInput,
+    FindDatesAndSetFormatStringsTest_SingleTextInput,
     testing::ValuesIn(std::vector<DateSingleTextParam>{
         {"2025-12-31", {{2025, 12, 31}}, {"YYYY-MM-DD", "YYYY-M-D"}},
         {"31/12/2025", {{2025, 12, 31}}, {"DD/MM/YYYY", "D/M/YYYY"}},
@@ -955,17 +1044,16 @@ INSTANTIATE_TEST_SUITE_P(
     }));
 
 // Tests that the values of <input type=text> match certain format strings.
-TEST_P(ExtractDatesInFieldsTest_SingleTextInput, SingleTextInput) {
+TEST_P(FindDatesAndSetFormatStringsTest_SingleTextInput, SingleTextInput) {
   SCOPED_TRACE(testing::Message() << "Values are:\n" << GetParam().ToString());
   std::unique_ptr<AutofillField> field = CreateInput(GetParam().value);
   if (GetParam().format_strings.empty()) {
-    EXPECT_THAT(ExtractDatesInFields(base::span_from_ref(field)), IsEmpty());
+    EXPECT_THAT(FindDatesAndSetFormatStrings(base::span_from_ref(field)),
+                ElementsAre(HasDatesAndFormatStrings({}, {})));
   } else {
-    EXPECT_THAT(
-        ExtractDatesInFields(base::span_from_ref(field)),
-        ElementsAre(Pair(field->global_id(),
-                         AreDatesAndFormatStrings(GetParam().dates,
-                                                  GetParam().format_strings))));
+    EXPECT_THAT(FindDatesAndSetFormatStrings(base::span_from_ref(field)),
+                ElementsAre(HasDatesAndFormatStrings(
+                    GetParam().dates, GetParam().format_strings)));
   }
 }
 
@@ -1003,13 +1091,13 @@ struct DateMultipleTextParam {
 
 // Test fixture for a sequences of <input type=text> whose combined values may
 // be a complete date.
-class ExtractDatesInFieldsTest_MultipleTextInput
-    : public ExtractDatesInFieldsTest,
+class FindDatesAndSetFormatStringsTest_MultipleTextInput
+    : public FindDatesAndSetFormatStringsTest,
       public testing::WithParamInterface<DateMultipleTextParam> {};
 
 INSTANTIATE_TEST_SUITE_P(
     ,
-    ExtractDatesInFieldsTest_MultipleTextInput,
+    FindDatesAndSetFormatStringsTest_MultipleTextInput,
     testing::ValuesIn(std::vector<DateMultipleTextParam>{
         {{{"Date", "2025", {{2025, 12, 31}}, {"YYYY"}},
           {"Date", "12", {{2025, 12, 31}}, {"MM", "M"}},
@@ -1070,7 +1158,7 @@ INSTANTIATE_TEST_SUITE_P(
 //   <input type=text value=2025>
 // represents the date 31/12/2025 and the resulting format strings for the
 // three fields should be DD od D, MM or M, and YYYY, respectively.
-TEST_P(ExtractDatesInFieldsTest_MultipleTextInput, MultipleTextInput) {
+TEST_P(FindDatesAndSetFormatStringsTest_MultipleTextInput, MultipleTextInput) {
   SCOPED_TRACE(testing::Message() << "Fields are:\n" << GetParam().ToString());
   std::vector<std::unique_ptr<AutofillField>> fields = base::ToVector(
       GetParam().fields, [](const DateMultipleTextParam::Field& field) {
@@ -1079,20 +1167,13 @@ TEST_P(ExtractDatesInFieldsTest_MultipleTextInput, MultipleTextInput) {
         return f;
       });
 
-  std::vector<Matcher<std::pair<FieldGlobalId, const DatesAndFormats&>>>
-      expectations;
-  for (auto [expectation, autofill_field] :
-       base::zip(GetParam().fields, fields)) {
-    if (!expectation.format_strings.empty()) {
-      expectations.emplace_back(
-          Pair(autofill_field->global_id(),
-               AreDatesAndFormatStrings(expectation.dates,
-                                        expectation.format_strings)));
-    }
-  }
-
-  EXPECT_THAT(ExtractDatesInFields(fields),
-              UnorderedElementsAreArray(expectations));
+  EXPECT_THAT(FindDatesAndSetFormatStrings(fields),
+              ElementsAreArray(base::ToVector(
+                  GetParam().fields,
+                  [](const DateMultipleTextParam::Field& expectation) {
+                    return HasDatesAndFormatStrings(expectation.dates,
+                                                    expectation.format_strings);
+                  })));
 }
 
 // Test fixture for DetermineAvailableFieldTypes().

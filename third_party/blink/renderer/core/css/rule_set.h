@@ -381,22 +381,20 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   RuleSet(const RuleSet&) = delete;
   RuleSet& operator=(const RuleSet&) = delete;
 
-  void AddRulesFromSheet(const StyleSheetContents* contents,
-                         const MediaQueryEvaluator& medium,
-                         const MixinMap& mixins,
-                         CascadeLayer* cascade_layer = nullptr,
-                         const StyleScope* style_scope = nullptr);
+  void AddRulesFromSheet(const StyleSheetContents*,
+                         const MediaQueryEvaluator&,
+                         CascadeLayer* = nullptr,
+                         const StyleScope* = nullptr);
 
-  // non-nullptr “apply_mixin” means that we are currently adding this rule
+  // “within_mixin” means that we are currently adding this rule
   // as part of @apply in a mixin, and all rules we add must be
   // duplicated and reparented. This is also propagated through
   // AddChildRules().
   void AddStyleRule(StyleRule* style_rule,
                     StyleRule* parent_rule,
                     const MediaQueryEvaluator& medium,
-                    const MixinMap& mixins,
                     AddRuleFlags add_rule_flags,
-                    const StyleRuleApplyMixin* apply_mixin,
+                    bool within_mixin,
                     const ContainerQuery* container_query = nullptr,
                     CascadeLayer* cascade_layer = nullptr,
                     const StyleScope* style_scope = nullptr);
@@ -644,12 +642,11 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   void AddChildRules(StyleRule* parent_rule,
                      base::span<const Member<StyleRuleBase>>,
                      const MediaQueryEvaluator& medium,
-                     const MixinMap& mixins,
                      AddRuleFlags,
                      const ContainerQuery*,
                      CascadeLayer*,
                      const StyleScope*,
-                     const StyleRuleApplyMixin* apply_mixin);
+                     bool within_mixin);
 
   // Determines whether or not CSSSelector::is_covered_by_bucketing_ should
   // be computed during calls to FindBestRuleSetAndAdd.
@@ -763,6 +760,7 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   HeapVector<Member<StyleRulePositionTry>> position_try_rules_;
   HeapVector<MediaQuerySetResult> media_query_set_results_;
   HeapVector<Member<StyleRuleFunction>> function_rules_;
+  HeapHashMap<AtomicString, Member<StyleRuleMixin>> mixins_;
 
   // Whether there is a ruleset bucket for rules with a selector on
   // the style attribute (which is rare, but allowed). If so, the caller

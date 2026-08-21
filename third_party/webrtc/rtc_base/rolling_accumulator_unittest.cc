@@ -18,7 +18,7 @@ namespace webrtc {
 
 namespace {
 
-const double kLearningRate = 0.5;
+constexpr double kLearningRate = 0.5;
 
 // Add `n` samples drawn from uniform distribution in [a;b].
 void FillStatsFromUniformDistribution(RollingAccumulator<double>& stats,

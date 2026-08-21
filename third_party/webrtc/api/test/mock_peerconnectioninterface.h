@@ -199,6 +199,10 @@ class MockPeerConnectionInterface : public PeerConnectionInterface {
               RemoveIceCandidates,
               (const std::vector<Candidate>&),
               (override));
+  MOCK_METHOD(bool,
+              RemoveIceCandidate,
+              (const IceCandidate* candidate),
+              (override));
   MOCK_METHOD(RTCError, SetBitrate, (const BitrateSettings&), (override));
   MOCK_METHOD(void,
               ReconfigureBandwidthEstimation,

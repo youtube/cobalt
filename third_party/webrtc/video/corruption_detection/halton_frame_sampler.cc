@@ -111,8 +111,14 @@ double GetFilteredElement(const VideoFrameSampler& frame_sampler,
   RTC_CHECK_LT(row, frame_sampler.height(channel));
   RTC_CHECK_GE(column, 0);
   RTC_CHECK_LT(column, frame_sampler.width(channel));
-  RTC_CHECK_GT(std_dev, 0.0)
-      << "Standard deviation = 0 yields improper Gaussian weights.";
+  RTC_CHECK_GE(std_dev, 0.0);
+
+  // `std_dev` being zero should ideally correspond to a very low QP value. In
+  // this case even a noisy pixel should be able to be encoded and transmitted
+  // correctly. Hence, the pixel value can be used as is.
+  if (std_dev == 0.0) {
+    return frame_sampler.GetSampleValue(channel, column, row);
+  }
 
   int max_distance =
       std::ceil(std::sqrt(-2.0 * std::log(kCutoff) * std::pow(std_dev, 2.0))) -

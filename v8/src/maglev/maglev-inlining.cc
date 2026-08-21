@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "src/base/base-export.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
@@ -14,24 +15,26 @@
 
 namespace v8::internal::maglev {
 
-void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
+bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
+                                           const MaglevCallSiteInfo* info2) {
+  return info1->score < info2->score;
+}
+
+void MaglevInliner::Run() {
   if (graph_->inlineable_calls().empty()) return;
 
-  while (true) {
+  while (!graph_->inlineable_calls().empty()) {
     if (graph_->total_inlined_bytecode_size() >
-        v8_flags.max_maglev_inlined_bytecode_size_cumulative) {
+        max_inlined_bytecode_size_cumulative()) {
       // No more inlining.
       break;
     }
     MaglevCallSiteInfo* call_site = ChooseNextCallSite();
-    if (!call_site) break;
-
     MaybeReduceResult result = BuildInlineFunction(call_site);
     if (result.IsFail()) continue;
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
-    if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-        v8_flags.trace_maglev_inlining_verbose) {
+    if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
       std::cout << "\nAfter inlining "
                 << call_site->generic_call_node->shared_function_info()
                 << std::endl;
@@ -43,8 +46,7 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
       GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
-      if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-          v8_flags.trace_maglev_inlining_verbose) {
+      if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
         std::cout << "\nAfter optimization "
                   << call_site->generic_call_node->shared_function_info()
                   << std::endl;
@@ -54,30 +56,23 @@ void MaglevInliner::Run(bool is_tracing_maglev_graphs_enabled) {
   }
 
   // Otherwise we print just once at the end.
-  if (is_tracing_maglev_graphs_enabled && v8_flags.print_maglev_graphs &&
-      !v8_flags.trace_maglev_inlining_verbose) {
+  if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
     std::cout << "\nAfter inlining" << std::endl;
     PrintGraph(std::cout, graph_);
   }
 }
 
+int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
+  if (graph_->compilation_info()->is_turbolev()) {
+    return v8_flags.max_inlined_bytecode_size_cumulative;
+  } else {
+    return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
+  }
+}
+
 MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
-  auto it =
-      v8_flags.maglev_inlining_following_eager_order
-          ? std::ranges::find_if(graph_->inlineable_calls(),
-                                 [](auto* site) { return site != nullptr; })
-          : std::ranges::max_element(
-                graph_->inlineable_calls(),
-                [](const MaglevCallSiteInfo* info1,
-                   const MaglevCallSiteInfo* info2) {
-                  if (info1 == nullptr || info2 == nullptr) {
-                    return info2 != nullptr;
-                  }
-                  return info1->score < info2->score;
-                });
-  if (it == graph_->inlineable_calls().end()) return nullptr;
-  MaglevCallSiteInfo* call_site = *it;
-  *it = nullptr;  // Erase call site.
+  auto call_site = graph_->inlineable_calls().top();
+  graph_->inlineable_calls().pop();
   return call_site;
 }
 
@@ -97,7 +92,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     return ReduceResult::Fail();
   }
 
-  if (v8_flags.trace_maglev_inlining) {
+  if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) {
     std::cout << "  non-eager inlining " << shared << std::endl;
   }
 

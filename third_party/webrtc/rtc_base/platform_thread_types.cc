@@ -12,8 +12,13 @@
 
 // IWYU pragma: begin_keep
 #if defined(WEBRTC_LINUX)
+#include <linux/prctl.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
+
+#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64)
+#include <asm/unistd_64.h>
+#endif
 #endif
 
 #if defined(WEBRTC_WIN)
@@ -27,7 +32,6 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 #endif
 
 #if defined(WEBRTC_FUCHSIA)
-#include <string.h>
 #include <zircon/syscalls.h>
 
 #include "rtc_base/checks.h"

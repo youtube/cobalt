@@ -129,14 +129,14 @@ using ::webrtc::SocketAddress;
 
 // Default timeout for tests in this file.
 // Should be large enough for slow buildbots to run the tests reliably.
-const int kDefaultTimeout = 10000;
-const int kMediumTimeout = 3000;
-const int kShortTimeout = 1000;
+constexpr int kDefaultTimeout = 10000;
+constexpr int kMediumTimeout = 3000;
+constexpr int kShortTimeout = 1000;
 
-const int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
-                            webrtc::PORTALLOCATOR_DISABLE_RELAY |
-                            webrtc::PORTALLOCATOR_DISABLE_TCP;
-const int LOW_RTT = 20;
+constexpr int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
+                                webrtc::PORTALLOCATOR_DISABLE_RELAY |
+                                webrtc::PORTALLOCATOR_DISABLE_TCP;
+constexpr int LOW_RTT = 20;
 // Addresses on the public internet.
 const SocketAddress kPublicAddrs[2] = {SocketAddress("11.11.11.11", 0),
                                        SocketAddress("22.22.22.22", 0)};
@@ -7544,7 +7544,8 @@ class P2PTransportChannelTestDtlsInStun : public P2PTransportChannelTestBase {
     DestroyChannels();
   }
 
-  std::pair<std::optional<absl::string_view>, std::optional<absl::string_view>>
+  std::pair<std::optional<absl::string_view>,
+            std::optional<std::vector<uint32_t>>>
   data_to_piggyback_func(StunMessageType type) {
     return make_pair(absl::string_view(pending_packet_), std::nullopt);
   }

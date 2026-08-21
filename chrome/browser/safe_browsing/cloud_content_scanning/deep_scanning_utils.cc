@@ -10,6 +10,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/enterprise/connectors/common.h"
+#include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -156,24 +157,27 @@ void MaybeReportDeepScanningVerdict(
     const std::string& trigger,
     const std::string& content_transfer_method,
     const std::string& source_email,
-    enterprise_connectors::DeepScanAccessPoint access_point,
     const int64_t content_size,
     const safe_browsing::ReferrerChain& referrer_chain,
     BinaryUploadService::Result result,
     const enterprise_connectors::ContentAnalysisResponse& response,
     enterprise_connectors::EventResult event_result) {
   DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
-  auto* router =
+  auto* safe_browsing_router =
       extensions::SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile);
-  if (!router)
+  auto* reporting_event_router =
+      enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
+          profile);
+  if (!safe_browsing_router || !reporting_event_router) {
     return;
+  }
 
   std::string unscanned_reason = MaybeGetUnscannedReason(result);
   if (!unscanned_reason.empty()) {
-    router->OnUnscannedFileEvent(
+    reporting_event_router->OnUnscannedFileEvent(
         url, tab_url, source, destination, file_name, download_digest_sha256,
-        mime_type, trigger, access_point, unscanned_reason,
-        content_transfer_method, content_size, referrer_chain, event_result);
+        mime_type, trigger, unscanned_reason, content_transfer_method,
+        content_size, referrer_chain, event_result);
   }
 
   if (result != BinaryUploadService::Result::SUCCESS)
@@ -188,16 +192,16 @@ void MaybeReportDeepScanningVerdict(
       else if (response_result.tag() == "dlp")
         unscanned_reason = "DLP_SCAN_FAILED";
 
-      router->OnUnscannedFileEvent(
+      reporting_event_router->OnUnscannedFileEvent(
           url, tab_url, source, destination, file_name, download_digest_sha256,
-          mime_type, trigger, access_point, std::move(unscanned_reason),
+          mime_type, trigger, std::move(unscanned_reason),
           content_transfer_method, content_size, referrer_chain, event_result);
     } else if (response_result.triggered_rules_size() > 0) {
-      router->OnAnalysisConnectorResult(
+      safe_browsing_router->OnAnalysisConnectorResult(
           url, tab_url, source, destination, file_name, download_digest_sha256,
           mime_type, trigger, response.request_token(), content_transfer_method,
-          source_email, access_point, response_result, content_size,
-          referrer_chain, event_result);
+          source_email, response_result, content_size, referrer_chain,
+          event_result);
     }
   }
 }
@@ -213,7 +217,6 @@ void ReportAnalysisConnectorWarningBypass(
     const std::string& mime_type,
     const std::string& trigger,
     const std::string& content_transfer_method,
-    enterprise_connectors::DeepScanAccessPoint access_point,
     const int64_t content_size,
     const safe_browsing::ReferrerChain& referrer_chain,
     const enterprise_connectors::ContentAnalysisResponse& response,
@@ -232,7 +235,7 @@ void ReportAnalysisConnectorWarningBypass(
     router->OnAnalysisConnectorWarningBypassed(
         url, tab_url, source, destination, file_name, download_digest_sha256,
         mime_type, trigger, response.request_token(), content_transfer_method,
-        access_point, referrer_chain, result, content_size, user_justification);
+        referrer_chain, result, content_size, user_justification);
   }
 }
 

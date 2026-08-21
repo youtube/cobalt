@@ -11,6 +11,7 @@
 #include "rtc_base/event.h"
 
 #include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/gtest.h"

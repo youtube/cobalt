@@ -37,7 +37,7 @@ namespace {
 // clang-format off
 // clang formatting doesn't respect inline comments.
 
-const uint8_t kStunMessageWithIPv6MappedAddress[] = {
+constexpr uint8_t kStunMessageWithIPv6MappedAddress[] = {
   0x00, 0x01, 0x00, 0x18,  // message header
   0x21, 0x12, 0xa4, 0x42,  // transaction id
   0x29, 0x1f, 0xcd, 0x7c,
@@ -51,7 +51,7 @@ const uint8_t kStunMessageWithIPv6MappedAddress[] = {
   0xfe, 0xe5, 0x00, 0xc3
 };
 
-const uint8_t kStunMessageWithIPv4MappedAddress[] = {
+constexpr uint8_t kStunMessageWithIPv4MappedAddress[] = {
   0x01, 0x01, 0x00, 0x0c,   // binding response, length 12
   0x21, 0x12, 0xa4, 0x42,   // magic cookie
   0x29, 0x1f, 0xcd, 0x7c,   // transaction ID
@@ -63,7 +63,7 @@ const uint8_t kStunMessageWithIPv4MappedAddress[] = {
 };
 
 // Test XOR-mapped IP addresses:
-const uint8_t kStunMessageWithIPv6XorMappedAddress[] = {
+constexpr uint8_t kStunMessageWithIPv6XorMappedAddress[] = {
   0x01, 0x01, 0x00, 0x18,  // message header (binding response)
   0x21, 0x12, 0xa4, 0x42,  // magic cookie (rfc5389)
   0xe3, 0xa9, 0x46, 0xe1,  // transaction ID
@@ -77,7 +77,7 @@ const uint8_t kStunMessageWithIPv6XorMappedAddress[] = {
   0xaa, 0xed, 0x01, 0xc3
 };
 
-const uint8_t kStunMessageWithIPv4XorMappedAddress[] = {
+constexpr uint8_t kStunMessageWithIPv4XorMappedAddress[] = {
   0x01, 0x01, 0x00, 0x0c,  // message header (binding response)
   0x21, 0x12, 0xa4, 0x42,  // magic cookie
   0x29, 0x1f, 0xcd, 0x7c,  // transaction ID
@@ -89,7 +89,7 @@ const uint8_t kStunMessageWithIPv4XorMappedAddress[] = {
 };
 
 // ByteString Attribute (username)
-const uint8_t kStunMessageWithByteStringAttribute[] = {
+constexpr uint8_t kStunMessageWithByteStringAttribute[] = {
   0x00, 0x01, 0x00, 0x0c,
   0x21, 0x12, 0xa4, 0x42,
   0xe3, 0xa9, 0x46, 0xe1,
@@ -102,7 +102,7 @@ const uint8_t kStunMessageWithByteStringAttribute[] = {
 
 // Message with an unknown but comprehensible optional attribute.
 // Parsing should succeed despite this unknown attribute.
-const uint8_t kStunMessageWithUnknownAttribute[] = {
+constexpr uint8_t kStunMessageWithUnknownAttribute[] = {
   0x00, 0x01, 0x00, 0x14,
   0x21, 0x12, 0xa4, 0x42,
   0xe3, 0xa9, 0x46, 0xe1,
@@ -116,7 +116,7 @@ const uint8_t kStunMessageWithUnknownAttribute[] = {
 };
 
 // ByteString Attribute (username) with padding byte
-const uint8_t kStunMessageWithPaddedByteStringAttribute[] = {
+constexpr uint8_t kStunMessageWithPaddedByteStringAttribute[] = {
   0x00, 0x01, 0x00, 0x08,
   0x21, 0x12, 0xa4, 0x42,
   0xe3, 0xa9, 0x46, 0xe1,
@@ -127,7 +127,7 @@ const uint8_t kStunMessageWithPaddedByteStringAttribute[] = {
 };
 
 // Message with an Unknown Attributes (uint16_t list) attribute.
-const uint8_t kStunMessageWithUInt16ListAttribute[] = {
+constexpr uint8_t kStunMessageWithUInt16ListAttribute[] = {
   0x00, 0x01, 0x00, 0x0c,
   0x21, 0x12, 0xa4, 0x42,
   0xe3, 0xa9, 0x46, 0xe1,
@@ -139,7 +139,7 @@ const uint8_t kStunMessageWithUInt16ListAttribute[] = {
 };
 
 // Error response message (unauthorized)
-const uint8_t kStunMessageWithErrorAttribute[] = {
+constexpr uint8_t kStunMessageWithErrorAttribute[] = {
   0x01, 0x11, 0x00, 0x14,
   0x21, 0x12, 0xa4, 0x42,
   0x29, 0x1f, 0xcd, 0x7c,
@@ -155,9 +155,9 @@ const uint8_t kStunMessageWithErrorAttribute[] = {
 // Sample messages with an invalid length Field
 
 // The actual length in bytes of the invalid messages (including STUN header)
-const int kRealLengthOfInvalidLengthTestCases = 32;
+constexpr int kRealLengthOfInvalidLengthTestCases = 32;
 
-const uint8_t kStunMessageWithZeroLength[] = {
+constexpr uint8_t kStunMessageWithZeroLength[] = {
   0x00, 0x01, 0x00, 0x00,  // length of 0 (last 2 bytes)
   0x21, 0x12, 0xA4, 0x42,  // magic cookie
   '0', '1', '2', '3',      // transaction id
@@ -168,7 +168,7 @@ const uint8_t kStunMessageWithZeroLength[] = {
   0x21, 0x12, 0xA4, 0x53,
 };
 
-const uint8_t kStunMessageWithExcessLength[] = {
+constexpr uint8_t kStunMessageWithExcessLength[] = {
   0x00, 0x01, 0x00, 0x55,  // length of 85
   0x21, 0x12, 0xA4, 0x42,  // magic cookie
   '0', '1', '2', '3',      // transaction id
@@ -179,7 +179,7 @@ const uint8_t kStunMessageWithExcessLength[] = {
   0x21, 0x12, 0xA4, 0x53,
 };
 
-const uint8_t kStunMessageWithSmallLength[] = {
+constexpr uint8_t kStunMessageWithSmallLength[] = {
   0x00, 0x01, 0x00, 0x03,  // length of 3
   0x21, 0x12, 0xA4, 0x42,  // magic cookie
   '0', '1', '2', '3',      // transaction id
@@ -190,7 +190,7 @@ const uint8_t kStunMessageWithSmallLength[] = {
   0x21, 0x12, 0xA4, 0x53,
 };
 
-const uint8_t kStunMessageWithBadHmacAtEnd[] = {
+constexpr uint8_t kStunMessageWithBadHmacAtEnd[] = {
   0x00, 0x01, 0x00, 0x14,  // message length exactly 20
   0x21, 0x12, 0xA4, 0x42,  // magic cookie
   '0', '1', '2', '3',      // transaction ID
@@ -205,7 +205,7 @@ const uint8_t kStunMessageWithBadHmacAtEnd[] = {
 
 // RTCP packet, for testing we correctly ignore non stun packet types.
 // V=2, P=false, RC=0, Type=200, Len=6, Sender-SSRC=85, etc
-const uint8_t kRtcpPacket[] = {
+constexpr uint8_t kRtcpPacket[] = {
   0x80, 0xc8, 0x00, 0x06, 0x00, 0x00, 0x00, 0x55,
   0xce, 0xa5, 0x18, 0x3a, 0x39, 0xcc, 0x7d, 0x09,
   0x23, 0xed, 0x19, 0x07, 0x00, 0x00, 0x01, 0x56,
@@ -218,30 +218,30 @@ const uint8_t kRtcpPacket[] = {
 // Software name (response): "test vector" (without quotes)
 // Username:  "evtj:h6vY" (without quotes)
 // Password:  "VOkJxbRl1RmTxUk/WvJxBt" (without quotes)
-const uint8_t kRfc5769SampleMsgTransactionId[] = {
+constexpr uint8_t kRfc5769SampleMsgTransactionId[] = {
   0xb7, 0xe7, 0xa7, 0x01, 0xbc, 0x34, 0xd6, 0x86, 0xfa, 0x87, 0xdf, 0xae
 };
-const char kRfc5769SampleMsgClientSoftware[] = "STUN test client";
-const char kRfc5769SampleMsgServerSoftware[] = "test vector";
-const char kRfc5769SampleMsgUsername[] = "evtj:h6vY";
-const char kRfc5769SampleMsgPassword[] = "VOkJxbRl1RmTxUk/WvJxBt";
+constexpr char kRfc5769SampleMsgClientSoftware[] = "STUN test client";
+constexpr char kRfc5769SampleMsgServerSoftware[] = "test vector";
+constexpr char kRfc5769SampleMsgUsername[] = "evtj:h6vY";
+constexpr char kRfc5769SampleMsgPassword[] = "VOkJxbRl1RmTxUk/WvJxBt";
 const SocketAddress kRfc5769SampleMsgMappedAddress(
     "192.0.2.1", 32853);
 const SocketAddress kRfc5769SampleMsgIPv6MappedAddress(
     "2001:db8:1234:5678:11:2233:4455:6677", 32853);
 
-const uint8_t kRfc5769SampleMsgWithAuthTransactionId[] = {
+constexpr uint8_t kRfc5769SampleMsgWithAuthTransactionId[] = {
   0x78, 0xad, 0x34, 0x33, 0xc6, 0xad, 0x72, 0xc0, 0x29, 0xda, 0x41, 0x2e
 };
-const char kRfc5769SampleMsgWithAuthUsername[] =
+constexpr char kRfc5769SampleMsgWithAuthUsername[] =
     "\xe3\x83\x9e\xe3\x83\x88\xe3\x83\xaa\xe3\x83\x83\xe3\x82\xaf\xe3\x82\xb9";
-const char kRfc5769SampleMsgWithAuthPassword[] = "TheMatrIX";
-const char kRfc5769SampleMsgWithAuthNonce[] =
+constexpr char kRfc5769SampleMsgWithAuthPassword[] = "TheMatrIX";
+constexpr char kRfc5769SampleMsgWithAuthNonce[] =
     "f//499k954d6OL34oL9FSTvy64sA";
-const char kRfc5769SampleMsgWithAuthRealm[] = "example.org";
+constexpr char kRfc5769SampleMsgWithAuthRealm[] = "example.org";
 
 // 2.1.  Sample Request
-const uint8_t kRfc5769SampleRequest[] = {
+constexpr uint8_t kRfc5769SampleRequest[] = {
   0x00, 0x01, 0x00, 0x58,   //    Request type and message length
   0x21, 0x12, 0xa4, 0x42,   //    Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,   // }
@@ -272,7 +272,7 @@ const uint8_t kRfc5769SampleRequest[] = {
 };
 
 // 2.1.  Sample Request
-const uint8_t kSampleRequestMI32[] = {
+constexpr uint8_t kSampleRequestMI32[] = {
   0x00, 0x01, 0x00, 0x48,   //    Request type and message length
   0x21, 0x12, 0xa4, 0x42,   //    Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,   // }
@@ -299,7 +299,7 @@ const uint8_t kSampleRequestMI32[] = {
 };
 
 // 2.2.  Sample IPv4 Response
-const uint8_t kRfc5769SampleResponse[] = {
+constexpr uint8_t kRfc5769SampleResponse[] = {
   0x01, 0x01, 0x00, 0x3c,  //     Response type and message length
   0x21, 0x12, 0xa4, 0x42,  //     Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,  // }
@@ -323,7 +323,7 @@ const uint8_t kRfc5769SampleResponse[] = {
 };
 
 // 2.3.  Sample IPv6 Response
-const uint8_t kRfc5769SampleResponseIPv6[] = {
+constexpr uint8_t kRfc5769SampleResponseIPv6[] = {
   0x01, 0x01, 0x00, 0x48,  //    Response type and message length
   0x21, 0x12, 0xa4, 0x42,  //    Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,  // }
@@ -350,7 +350,7 @@ const uint8_t kRfc5769SampleResponseIPv6[] = {
 };
 
 // 2.4.  Sample Request with Long-Term Authentication
-const uint8_t kRfc5769SampleRequestLongTermAuth[] = {
+constexpr uint8_t kRfc5769SampleRequestLongTermAuth[] = {
   0x00, 0x01, 0x00, 0x60,  //    Request type and message length
   0x21, 0x12, 0xa4, 0x42,  //    Magic cookie
   0x78, 0xad, 0x34, 0x33,  // }
@@ -385,7 +385,7 @@ const uint8_t kRfc5769SampleRequestLongTermAuth[] = {
 // Length parameter is changed to 0x38 from 0x58.
 // AddMessageIntegrity will add MI information and update the length param
 // accordingly.
-const uint8_t kRfc5769SampleRequestWithoutMI[] = {
+constexpr uint8_t kRfc5769SampleRequestWithoutMI[] = {
   0x00, 0x01, 0x00, 0x38,  //    Request type and message length
   0x21, 0x12, 0xa4, 0x42,  //    Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,  // }
@@ -409,7 +409,7 @@ const uint8_t kRfc5769SampleRequestWithoutMI[] = {
 
 // This HMAC differs from the RFC 5769 SampleRequest message. This differs
 // because spec uses 0x20 for the padding where as our implementation uses 0.
-const uint8_t kCalculatedHmac1[] = {
+constexpr uint8_t kCalculatedHmac1[] = {
   0x79, 0x07, 0xc2, 0xd2,  // }
   0xed, 0xbf, 0xea, 0x48,  // }
   0x0e, 0x4c, 0x76, 0xd8,  // }  HMAC-SHA1 fingerprint
@@ -421,14 +421,14 @@ const uint8_t kCalculatedHmac1[] = {
 // above since the sum is computed including header
 // and the header is different since the message is shorter
 // than when MESSAGE-INTEGRITY is used.
-const uint8_t kCalculatedHmac1_32[] = {
+constexpr uint8_t kCalculatedHmac1_32[] = {
   0xda, 0x39, 0xde, 0x5d,  // }
 };
 
 // Length parameter is changed to 0x1c from 0x3c.
 // AddMessageIntegrity will add MI information and update the length param
 // accordingly.
-const uint8_t kRfc5769SampleResponseWithoutMI[] = {
+constexpr uint8_t kRfc5769SampleResponseWithoutMI[] = {
   0x01, 0x01, 0x00, 0x1c,  //    Response type and message length
   0x21, 0x12, 0xa4, 0x42,  //    Magic cookie
   0xb7, 0xe7, 0xa7, 0x01,  // }
@@ -445,7 +445,7 @@ const uint8_t kRfc5769SampleResponseWithoutMI[] = {
 
 // This HMAC differs from the RFC 5769 SampleResponse message. This differs
 // because spec uses 0x20 for the padding where as our implementation uses 0.
-const uint8_t kCalculatedHmac2[] = {
+constexpr uint8_t kCalculatedHmac2[] = {
   0x5d, 0x6b, 0x58, 0xbe,  // }
   0xad, 0x94, 0xe0, 0x7e,  // }
   0xef, 0x0d, 0xfc, 0x12,  // }  HMAC-SHA1 fingerprint
@@ -457,7 +457,7 @@ const uint8_t kCalculatedHmac2[] = {
 // above since the sum is computed including header
 // and the header is different since the message is shorter
 // than when MESSAGE-INTEGRITY is used.
-const uint8_t kCalculatedHmac2_32[] = {
+constexpr uint8_t kCalculatedHmac2_32[] = {
   0xe7, 0x5c, 0xd3, 0x16,  // }
 };
 
@@ -465,14 +465,14 @@ const uint8_t kCalculatedHmac2_32[] = {
 
 // A transaction ID without the 'magic cookie' portion
 // pjnat's test programs use this transaction ID a lot.
-const uint8_t kTestTransactionId1[] = {0x029, 0x01f, 0x0cd, 0x07c,
-                                       0x0ba, 0x058, 0x0ab, 0x0d7,
-                                       0x0f2, 0x041, 0x001, 0x000};
+constexpr uint8_t kTestTransactionId1[] = {0x029, 0x01f, 0x0cd, 0x07c,
+                                           0x0ba, 0x058, 0x0ab, 0x0d7,
+                                           0x0f2, 0x041, 0x001, 0x000};
 
 // They use this one sometimes too.
-const uint8_t kTestTransactionId2[] = {0x0e3, 0x0a9, 0x046, 0x0e1,
-                                       0x07c, 0x000, 0x0c2, 0x062,
-                                       0x054, 0x008, 0x001, 0x000};
+constexpr uint8_t kTestTransactionId2[] = {0x0e3, 0x0a9, 0x046, 0x0e1,
+                                           0x07c, 0x000, 0x0c2, 0x062,
+                                           0x054, 0x008, 0x001, 0x000};
 
 const in6_addr kIPv6TestAddress1 = {
     {{0x24, 0x01, 0xfa, 0x00, 0x00, 0x04, 0x10, 0x00, 0xbe, 0x30, 0x5b, 0xff,
@@ -487,17 +487,17 @@ const in_addr kIPv4TestAddress1 = {0xe64417ac};
 // Windows in_addr has a union with a uchar[] array first.
 const in_addr kIPv4TestAddress1 = {{{0x0ac, 0x017, 0x044, 0x0e6}}};
 #endif
-const char kTestUserName1[] = "abcdefgh";
-const char kTestUserName2[] = "abc";
-const char kTestErrorReason[] = "Unauthorized";
-const int kTestErrorClass = 4;
-const int kTestErrorNumber = 1;
-const int kTestErrorCode = 401;
+constexpr char kTestUserName1[] = "abcdefgh";
+constexpr char kTestUserName2[] = "abc";
+constexpr char kTestErrorReason[] = "Unauthorized";
+constexpr int kTestErrorClass = 4;
+constexpr int kTestErrorNumber = 1;
+constexpr int kTestErrorCode = 401;
 
-const int kTestMessagePort1 = 59977;
-const int kTestMessagePort2 = 47233;
-const int kTestMessagePort3 = 56743;
-const int kTestMessagePort4 = 40444;
+constexpr int kTestMessagePort1 = 59977;
+constexpr int kTestMessagePort2 = 47233;
+constexpr int kTestMessagePort3 = 56743;
+constexpr int kTestMessagePort4 = 40444;
 }  // namespace
 
 class StunTest : public ::testing::Test {

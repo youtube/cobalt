@@ -13,6 +13,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
@@ -4221,6 +4222,12 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  maglev::ProcessResult Process(maglev::Float64Sqrt* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node, __ Float64Sqrt(Map(node->input())));
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::CheckedSmiIncrement* node,
                                 const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
@@ -4420,6 +4427,8 @@ class GraphBuildingNodeProcessor {
       case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
         break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        UNREACHABLE();
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
         kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
             kNumberOrBoolean;
@@ -4441,12 +4450,28 @@ class GraphBuildingNodeProcessor {
       maglev::CheckedNumberOrOddballToHoleyFloat64* node,
       const maglev::ProcessingState& state) {
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind;
+    switch (node->conversion_type()) {
+      case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber;
+        break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+            kNumberOrUndefined;
+        break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+            kNumberOrBoolean;
+        break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
+        kind = ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+            kNumberOrOddball;
+        break;
+    }
     SetMap(
         node,
         __ ConvertJSPrimitiveToUntaggedOrDeopt(
-            Map(node->input()), frame_state,
-            ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
-                kNumberOrOddball,
+            Map(node->input()), frame_state, kind,
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
             ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kHoleyFloat64,
 #else
@@ -4595,6 +4620,8 @@ class GraphBuildingNodeProcessor {
         input_requirement =
             TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement::kNumber;
         break;
+      case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
+        UNREACHABLE();
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
         input_requirement = TruncateJSPrimitiveToUntaggedOrDeoptOp::
             InputRequirement::kNumberOrBoolean;
@@ -5181,21 +5208,21 @@ class GraphBuildingNodeProcessor {
       builder.AddUnusedRegister();
     }
 
-    // Parameters
+    // Parameters. For stubs, this is the parameters in the expected order (the
+    // first N parameters are in registers, then remaining parameters are stack
+    // parameters). For JS continuations, this is the stack parameters only,
+    // with the JS trampoline's register parameters handled second. This is
+    // because JS frame iteration requires the receiver to be the first
+    // parameter.
+    static_assert(TranslatedFrame::kReceiverIsFirstParameterInJSFrames);
     for (maglev::ValueNode* param : frame.parameters()) {
       AddDeoptInput(builder, virtual_objects, param);
     }
 
-    // Extra fixed JS frame parameters. These are at the end since JS builtins
-    // push their parameters in reverse order.
-    constexpr int kExtraFixedJSFrameParameters =
-        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3;
     if (frame.is_javascript()) {
-      DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(frame.builtin_id())
-                    .GetRegisterParameterCount(),
-                kExtraFixedJSFrameParameters);
-      static_assert(kExtraFixedJSFrameParameters ==
-                    3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0));
+      constexpr int kFixedJSFrameRegisterParameters =
+          JSTrampolineDescriptor::GetRegisterParameterCount();
+
       // kJavaScriptCallTargetRegister
       builder.AddInput(MachineType::AnyTagged(),
                        __ HeapConstant(frame.javascript_target().object()));
@@ -5211,6 +5238,9 @@ class GraphBuildingNodeProcessor {
       builder.AddInput(
           MachineType::AnyTagged(),
           __ SmiConstant(Smi::FromInt(kInvalidDispatchHandle.value())));
+      static_assert(kFixedJSFrameRegisterParameters == 4);
+#else
+      static_assert(kFixedJSFrameRegisterParameters == 3);
 #endif
     }
 
@@ -6374,7 +6404,7 @@ void RunMaglevOptimizations(PipelineData* data,
   // Non-eager inlining.
   if (v8_flags.turbolev_non_eager_inlining) {
     maglev::MaglevInliner inliner(maglev_graph);
-    inliner.Run(data->info()->trace_turbo_graph());
+    inliner.Run();
 
     maglev::GraphProcessor<maglev::SweepIdentityNodes,
                            /* visit_identity_nodes */ true>

@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/download/bubble/download_bubble_prefs.h"
@@ -21,10 +22,14 @@
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
+#include "chrome/browser/ui/breadcrumb_manager_browser_agent.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
 #include "chrome/browser/ui/browser_instant_controller.h"
+#include "chrome/browser/ui/browser_live_tab_context.h"
 #include "chrome/browser/ui/browser_location_bar_model_delegate.h"
 #include "chrome/browser/ui/browser_tab_menu_model_delegate.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -40,6 +45,7 @@
 #include "chrome/browser/ui/performance_controls/memory_saver_opt_in_iph_controller.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/sync/browser_synced_window_delegate.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
@@ -47,7 +53,6 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_scrim_controller.h"
-#include "chrome/browser/ui/tabs/split_tab_scrim_delegate.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
@@ -61,6 +66,7 @@
 #include "chrome/browser/ui/views/data_sharing/data_sharing_bubble_controller.h"
 #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
@@ -82,6 +88,7 @@
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/common/chrome_features.h"
+#include "components/breadcrumbs/core/breadcrumbs_status.h"
 #include "components/collaboration/public/collaboration_service.h"
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/commerce/core/feature_utils.h"
@@ -89,6 +96,7 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/location_bar_model.h"
 #include "components/omnibox/browser/location_bar_model_impl.h"
+#include "components/prefs/pref_service.h"
 #include "components/profile_metrics/browser_profile_type.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search/ntp_features.h"
@@ -104,6 +112,7 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
 #include "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
 #endif
 
@@ -125,6 +134,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   // This is used only for the controllers which will be created on demand
   // later.
   browser_ = browser;
+
+  // Initialize bookmark bar controller for all browser types.
+  bookmark_bar_controller_ = std::make_unique<BookmarkBarController>(
+      *browser, *browser->GetTabStripModel());
 
   // Avoid passing `browser` directly to features. Instead, pass the minimum
   // necessary state or controllers necessary.
@@ -180,6 +193,11 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(browser);
       glic_nudge_controller_ =
           std::make_unique<tabs::GlicNudgeController>(browser);
+
+      if (base::FeatureList::IsEnabled(features::kGlicActorTaskIcon)) {
+        glic_actor_task_icon_controller_ =
+            std::make_unique<tabs::GlicActorTaskIconController>(browser);
+      }
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
   }
@@ -238,8 +256,18 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
   }
 #endif
 
+#if BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(features::kOfferPinToTaskbarInfoBar)) {
+    pin_infobar_controller_ =
+        std::make_unique<default_browser::PinInfoBarController>(browser);
+  }
+#endif
+
   data_sharing_bubble_controller_ =
       std::make_unique<DataSharingBubbleController>(browser);
+
+  content_setting_bubble_model_delegate_ =
+      std::make_unique<BrowserContentSettingBubbleModelDelegate>(browser);
 
   tab_list_bridge_ = std::make_unique<TabListBridge>(
       *tab_strip_model_, browser->GetUnownedUserDataHost());
@@ -250,6 +278,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           browser->GetBrowserForMigrationOnly()->command_controller(),
           browser->GetTabStripModel(), browser->GetProfile());
 #endif
+
+  if (breadcrumbs::IsEnabled(g_browser_process->local_state())) {
+    breadcrumb_manager_browser_agent_ =
+        std::make_unique<BreadcrumbManagerBrowserAgent>(
+            browser->GetTabStripModel(), browser->GetProfile());
+  }
 
 #if defined(USE_AURA)
   overscroll_pref_manager_ = std::make_unique<OverscrollPrefManager>(
@@ -341,6 +375,13 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
         shared_tab_group_feedback_controller_->Init();
       }
     }
+
+    if (base::FeatureList::IsEnabled(features::kSideBySide)) {
+      if (browser_view) {
+        split_tab_scrim_controller_ =
+            std::make_unique<split_tabs::SplitTabScrimController>(browser_view);
+      }
+    }
   }
 
   synced_window_delegate_ =
@@ -363,6 +404,8 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
         std::make_unique<ColorProviderBrowserHelper>(
             browser->GetTabStripModel(), browser_view->GetWidget());
   }
+
+  live_tab_context_ = std::make_unique<BrowserLiveTabContext>(browser);
 
   if (browser->is_type_normal() || browser->is_type_app()) {
     toast_service_ = std::make_unique<ToastService>(browser);
@@ -399,6 +442,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           browser_view->browser(),
           side_panel_coordinator_->GetWindowRegistry());
 
+  immersive_mode_controller_ =
+      chrome::CreateImmersiveModeController(browser_view);
+
   // Memory Saver mode is default off but is available to turn on.
   // The controller relies on performance manager which isn't initialized in
   // some unit tests without browser view.
@@ -424,14 +470,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           std::make_unique<media_router::CastBrowserController>(
               browser_view->browser());
     }
-
-    if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-      split_tab_scrim_controller_ =
-          std::make_unique<split_tabs::SplitTabScrimController>(
-              std::make_unique<split_tabs::SplitTabScrimDelegateImpl>(
-                  browser_view),
-              browser_view->browser());
-    }
   }
 
   if (download::IsDownloadBubbleEnabled()) {
@@ -442,7 +480,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_controller_ =
         std::make_unique<new_tab_footer::NewTabFooterController>(
-            browser_view->browser(), browser_view->new_tab_footer_web_view());
+            browser_view->browser()->GetProfile(),
+            browser_view->GetContentsContainerViews());
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -454,6 +493,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
+  live_tab_context_.reset();
   upgrade_notification_controller_.reset();
   memory_saver_opt_in_iph_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
@@ -512,6 +552,10 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   if (user_education_) {
     user_education_->TearDown();
   }
+
+  immersive_mode_controller_.reset();
+
+  exclusive_access_manager_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
@@ -541,15 +585,16 @@ bool BrowserWindowFeatures::HasFindBarController() const {
 }
 
 // static
-UserDataFactoryWithOwner<BrowserWindowInterface>&
+ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
 BrowserWindowFeatures::GetUserDataFactoryForTesting() {
   return GetUserDataFactory();
 }
 
 // static
-UserDataFactoryWithOwner<BrowserWindowInterface>&
+ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
 BrowserWindowFeatures::GetUserDataFactory() {
-  static base::NoDestructor<UserDataFactoryWithOwner<BrowserWindowInterface>>
+  static base::NoDestructor<
+      ui::UserDataFactoryWithOwner<BrowserWindowInterface>>
       factory;
   return *factory;
 }

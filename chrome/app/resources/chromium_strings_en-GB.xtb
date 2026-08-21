@@ -211,6 +211,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="3790262771324122253">Learn why Chromium blocks some downloads</translation>
 <translation id="379589255253486813">Chromium will let you know if anything needs your review</translation>
 <translation id="3802055581630249637">Chrome preloads pages you're likely to visit, so that they load more quickly when you visit them</translation>
+<translation id="3810973564298564668">Manage</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Language picker</translation>
 <translation id="388648406173476553">Customise and control Chromium. Something needs your attention – click for details.</translation>
@@ -493,6 +494,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="7483335560992089831">Cannot install the same Chromium version that is currently running. Please close Chromium and try again.</translation>
 <translation id="751935028865900641">Sites will probably work as expected. You'll be signed out of most sites when you close all Chromium windows, except your Google Account if you're signed in to Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium will relaunch in 1 minute}other{Chromium will relaunch in # minutes}}</translation>
+<translation id="7565444033145385702">To protect your data, let Chromium remove permissions from sites that you haven't visited recently.</translation>
 <translation id="7582945390259497898">Chromium can estimate your interests. Later, a site that you visit can ask Chromium to see your interests in order to personalise the ads that you see.</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> installer</translation>
 <translation id="7585391435984513350">You haven't visited recently. Chromium removed <ph name="PERMISSION" /></translation>
@@ -578,6 +580,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="8648201657708811153">Google Chrome for testing cannot be made your default browser.</translation>
 <translation id="8697124171261953979">It also controls what page is shown when you start Chromium or search from the Omnibox.</translation>
 <translation id="8704119203788522458">This is your Chromium</translation>
+<translation id="8712637175834984815">Got it</translation>
 <translation id="8719993436687031146">Sign in to Chromium?</translation>
 <translation id="8747073452963259673">bottom-left corner of search area: left <ph name="LEFT" />%, bottom <ph name="BOTTOM" />%</translation>
 <translation id="8768722695577490596">Passwords can only be deleted outside Chromium</translation>

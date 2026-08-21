@@ -11,13 +11,17 @@
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
+#include <string>
+#include <vector>
 
 #include "api/numerics/samples_stats_counter.h"
+#include "api/scoped_refptr.h"
 #include "api/test/metrics/metric.h"
+#include "api/test/metrics/metrics_logger.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
+#include "rtc_tools/video_file_reader.h"
 #include "third_party/libyuv/include/libyuv/compare.h"
 
 namespace webrtc {

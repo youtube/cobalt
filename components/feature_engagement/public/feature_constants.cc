@@ -492,6 +492,9 @@ BASE_FEATURE(kIPHTabGroupShareNotificationBubbleOnStripFeature,
 BASE_FEATURE(kIPHTabGroupShareUpdateFeature,
              "IPH_TabGroupShareUpdate",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHTabGroupShareVersionUpdateFeature,
+             "IPH_TabGroupShareVersionUpdate",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTabGroupsRemoteGroupFeature,
              "IPH_TabGroupsRemoteGroup",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -832,7 +835,7 @@ BASE_FEATURE(kIPHAutofillCardInfoRetrievalSuggestionFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillCreditCardBenefitFeature,
              "IPH_AutofillCreditCardBenefit",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHAutofillDisabledVirtualCardSuggestionFeature,
              "IPH_AutofillDisabledVirtualCardSuggestion",
              base::FEATURE_DISABLED_BY_DEFAULT);

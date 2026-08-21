@@ -59,6 +59,11 @@ public class IceCandidate {
     return sdp;
   }
 
+  @CalledByNative
+  int getSdpMLineIndex() {
+    return sdpMLineIndex;
+  }
+
   /** equals() checks sdpMid, sdpMLineIndex, and sdp for equality. */
   @Override
   public boolean equals(@Nullable Object object) {

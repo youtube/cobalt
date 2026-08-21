@@ -1128,6 +1128,39 @@ func addSignatureAlgorithmTests() {
 			cipher: TLS_RSA_WITH_AES_128_GCM_SHA256,
 		},
 	})
+
+	// id-RSASSA-PSS certificates are not accepted for use with rsa_pss_rsae_*
+	// algorithms. There are separate codepoints, which we do not support, for
+	// id-RSASSA-PSS.
+	for _, ver := range tlsVersions {
+		testCases = append(testCases, testCase{
+			testType: clientTest,
+			name:     "RejectPSSKeyType-Client-" + ver.name,
+			config: Config{
+				MinVersion: ver.version,
+				MaxVersion: ver.version,
+				Credential: pssCertificate.WithSignatureAlgorithms(
+					signatureRSAPSSWithSHA256,
+				),
+			},
+			shouldFail:    true,
+			expectedError: ":UNSUPPORTED_ALGORITHM:",
+		})
+		testCases = append(testCases, testCase{
+			testType: serverTest,
+			name:     "RejectPSSKeyType-Server-" + ver.name,
+			config: Config{
+				MinVersion: ver.version,
+				MaxVersion: ver.version,
+				Credential: pssCertificate.WithSignatureAlgorithms(
+					signatureRSAPSSWithSHA256,
+				),
+			},
+			flags:         []string{"-require-any-client-certificate"},
+			shouldFail:    true,
+			expectedError: ":UNSUPPORTED_ALGORITHM:",
+		})
+	}
 }
 
 func addBadECDSASignatureTests() {

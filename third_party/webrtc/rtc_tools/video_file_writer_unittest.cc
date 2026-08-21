@@ -10,11 +10,10 @@
 
 #include "rtc_tools/video_file_writer.h"
 
-#include <stdint.h>
-
 #include <cstdio>
 #include <string>
 
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame_buffer.h"
 #include "rtc_tools/video_file_reader.h"
 #include "test/gtest.h"

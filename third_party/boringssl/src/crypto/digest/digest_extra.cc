@@ -22,6 +22,7 @@
 #include <openssl/md5.h>
 #include <openssl/nid.h>
 #include <openssl/obj.h>
+#include <openssl/sha.h>
 
 #include "../asn1/internal.h"
 #include "../fipsmodule/digest/internal.h"

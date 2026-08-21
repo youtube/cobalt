@@ -53,13 +53,16 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::ValuesIn;
 
-const int kWidth = 320;
-const int kHeight = 240;
-const int kNumCores = 2;
-const uint32_t kFramerate = 30;
-const size_t kMaxPayloadSize = 800;
-const int kLowThreshold = 10;
-const int kHighThreshold = 20;
+constexpr int kWidth = 320;
+constexpr int kHeight = 240;
+constexpr int kNumCores = 2;
+constexpr uint32_t kFramerate = 30;
+constexpr size_t kMaxPayloadSize = 800;
+constexpr int kLowThreshold = 10;
+constexpr int kHighThreshold = 20;
+constexpr int kBitrateKbps = 200;
+constexpr int kMinPixelsPerFrame = 1;
+constexpr char kFieldTrial[] = "WebRTC-VP8-Forced-Fallback-Encoder-v2";
 
 const VideoEncoder::Capabilities kCapabilities(false);
 const VideoEncoder::Settings kSettings(kCapabilities,
@@ -90,6 +93,7 @@ class FakeEncodedImageCallback : public EncodedImageCallback {
   }
   int callback_count_ = 0;
 };
+
 }  // namespace
 
 class VideoEncoderSoftwareFallbackWrapperTestBase : public ::testing::Test {
@@ -485,12 +489,6 @@ TEST_F(VideoEncoderSoftwareFallbackWrapperTest,
   EXPECT_EQ(native_frame.height(),
             fake_sw_encoder_->last_video_frame_->height());
 }
-
-namespace {
-const int kBitrateKbps = 200;
-const int kMinPixelsPerFrame = 1;
-const char kFieldTrial[] = "WebRTC-VP8-Forced-Fallback-Encoder-v2";
-}  // namespace
 
 class ForcedFallbackTest : public VideoEncoderSoftwareFallbackWrapperTestBase {
  public:

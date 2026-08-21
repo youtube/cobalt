@@ -26,7 +26,7 @@
 namespace webrtc {
 namespace testing {
 
-const double kRtpTimestampToMs = 1.0 / 90.0;
+constexpr double kRtpTimestampToMs = 1.0 / 90.0;
 
 class OveruseDetectorTest : public ::testing::Test {
  public:

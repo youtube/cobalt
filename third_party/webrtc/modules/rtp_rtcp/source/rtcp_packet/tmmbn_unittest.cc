@@ -26,13 +26,13 @@ using webrtc::rtcp::Tmmbn;
 
 namespace webrtc {
 namespace {
-const uint32_t kSenderSsrc = 0x12345678;
-const uint32_t kRemoteSsrc = 0x23456789;
-const uint32_t kBitrateBps = 312000;
-const uint16_t kOverhead = 0x1fe;
-const uint8_t kPacket[] = {0x84, 205,  0x00, 0x04, 0x12, 0x34, 0x56,
-                           0x78, 0x00, 0x00, 0x00, 0x00, 0x23, 0x45,
-                           0x67, 0x89, 0x0a, 0x61, 0x61, 0xfe};
+constexpr uint32_t kSenderSsrc = 0x12345678;
+constexpr uint32_t kRemoteSsrc = 0x23456789;
+constexpr uint32_t kBitrateBps = 312000;
+constexpr uint16_t kOverhead = 0x1fe;
+constexpr uint8_t kPacket[] = {0x84, 205,  0x00, 0x04, 0x12, 0x34, 0x56,
+                               0x78, 0x00, 0x00, 0x00, 0x00, 0x23, 0x45,
+                               0x67, 0x89, 0x0a, 0x61, 0x61, 0xfe};
 }  // namespace
 
 TEST(RtcpPacketTmmbnTest, Create) {

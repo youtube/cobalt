@@ -1939,7 +1939,8 @@ bool ConsumeFont(bool important,
   }
 
   // Font family must come now.
-  CSSValue* parsed_family_value = css_parsing_utils::ConsumeFontFamily(stream);
+  CSSValue* parsed_family_value =
+      css_parsing_utils::ConsumeFontFamily(stream, context);
   if (!parsed_family_value) {
     return false;
   }
@@ -3000,6 +3001,119 @@ const CSSValue* Marker::CSSValueFromComputedStyleInternal(
   return nullptr;
 }
 
+bool Masonry::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  String masonry_template_areas;
+  bool is_template_columns = true;
+  const CSSValue* template_areas =
+      GetCSSPropertyGridTemplateAreas().InitialValue();
+  const CSSValue* masonry_direction =
+      CSSIdentifierValue::Create(CSSValueID::kColumn);
+  const CSSValue* masonry_fill =
+      CSSIdentifierValue::Create(CSSValueID::kNormal);
+
+  // Retrieve the string of `masonry_template_areas`. We'll parse it into
+  // appropriate `grid-template-areas` based on the `masonry-direction`.
+  if (stream.Peek().GetType() == kStringToken) {
+    masonry_template_areas =
+        stream.ConsumeIncludingWhitespace().Value().ToString();
+  }
+
+  // Retrieve the `masonry_template_tracks`, which can be either
+  // `grid-template-columns` or `grid-template-rows`
+  const CSSValue* masonry_template_tracks =
+      css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(
+          stream, context,
+          /*is_masonry_shorthand=*/true);
+  if (!masonry_template_tracks) {
+    return false;
+  }
+  stream.ConsumeWhitespace();
+
+  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kRowReverse,
+                                      CSSValueID::kColumn,
+                                      CSSValueID::kColumnReverse>(
+          stream.Peek().Id())) {
+    if (css_parsing_utils::IdentMatches<CSSValueID::kRow,
+                                        CSSValueID::kRowReverse>(
+            stream.Peek().Id())) {
+      is_template_columns = false;
+    }
+    masonry_direction = css_parsing_utils::ConsumeIdent(stream);
+  }
+
+  if (css_parsing_utils::IdentMatches<CSSValueID::kNormal,
+                                      CSSValueID::kReverse>(
+          stream.Peek().Id())) {
+    masonry_fill = css_parsing_utils::ConsumeIdent(stream);
+  }
+
+  // At this point, we should be at the end of the stream or at an !important
+  // token. If not, we should return false.
+  if (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
+                           stream.Peek().Delimiter() == '!')) {
+    return false;
+  }
+
+  // Parse `masonry_template_areas` into the appropriate `grid-template-areas`
+  // value.
+  // - `masonry_template_areas` is a single space-separated string.
+  // - If `masonry-direction` is column, use the string as a single row (e.g.,
+  // "a b c d" -> "a b c d").
+  // - If `masonry-direction` is row, split the string into multiple rows, one
+  // per area name (e.g., "a b c d" -> "a" "b" "c" "d"). This ensures the
+  // correct mapping to the CSS `grid-template-areas` syntax based on the
+  // `masonry-direction`.
+  if (!masonry_template_areas.ContainsOnlyWhitespaceOrEmpty()) {
+    template_areas = css_parsing_utils::ParseMasonryTemplateAreasValue(
+        masonry_template_areas, is_template_columns);
+    if (!template_areas) {
+      return false;
+    }
+  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridTemplateAreas, CSSPropertyID::kMasonry,
+      *template_areas, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  if (is_template_columns) {
+    css_parsing_utils::AddProperty(
+        CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kMasonry,
+        *masonry_template_tracks, important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  } else {
+    // For `grid_template_rows`, since it is not included in the masonry
+    // shorthand's property list, we need to add it manually here rather than
+    // using the AddProperty helper.
+    properties.push_back(
+        CSSPropertyValue(CSSPropertyName(CSSPropertyID::kGridTemplateRows),
+                         *masonry_template_tracks, important));
+  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kMasonryDirection, CSSPropertyID::kMasonry,
+      *masonry_direction, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kMasonryFill, CSSPropertyID::kMasonry, *masonry_fill,
+      important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+      properties);
+
+  return true;
+}
+
+const CSSValue* Masonry::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForMasonryShorthand(
+      masonryShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
 bool MasonryFlow::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
@@ -4000,6 +4114,96 @@ const CSSValue* TextWrap::CSSValueFromComputedStyleInternal(
   list->Append(*CSSIdentifierValue::Create(mode));
   list->Append(*CSSIdentifierValue::Create(wrap_style));
   return list;
+}
+
+const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  if (const CSSAnimationData* animation_data = style.Animations()) {
+    CSSValueList* triggers_list = CSSValueList::CreateCommaSeparated();
+    for (wtf_size_t i = 0; i < animation_data->TimelineTriggerNameList().size();
+         ++i) {
+      CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+
+      std::optional<Persistent<const ScopedCSSName>> name =
+          animation_data->TimelineTriggerNameList().at(i);
+      list->Append(
+          name ? *ComputedStyleUtils::ValueForCustomIdentOrNone(name->Get())
+               : *CSSIdentifierValue::Create(CSSValueID::kNone));
+
+      list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
+          animation_data->TimelineTriggerTimelineList().at(i), style));
+
+      list->Append(*ComputedStyleUtils::ValueForAnimationTriggerBehavior(
+          animation_data->TimelineTriggerBehaviorList().at(i)));
+
+      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+          animation_data->TimelineTriggerRangeStartList().at(i), style,
+          Length::Percent(0.0)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+          animation_data->TimelineTriggerRangeEndList().at(i), style,
+          Length::Percent(100)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+          animation_data->TimelineTriggerExitRangeStartList().at(i), style,
+          Length::Percent(0.0)));
+      list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+          animation_data->TimelineTriggerExitRangeEndList().at(i), style,
+          Length::Percent(100)));
+
+      triggers_list->Append(*list);
+    }
+    return triggers_list;
+  }
+
+  CSSValueList* default_list = CSSValueList::CreateSpaceSeparated();
+  default_list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
+      CSSAnimationData::InitialTimelineTriggerTimeline(), style));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationTriggerBehavior(
+      CSSAnimationData::InitialTimelineTriggerBehavior()));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+      CSSAnimationData::InitialTimelineTriggerRangeStart(), style,
+      Length::Percent(0.0)));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationRange(
+      CSSAnimationData::InitialTimelineTriggerRangeEnd(), style,
+      Length::Percent(100)));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+      CSSAnimationData::InitialTimelineTriggerExitRangeStart(), style,
+      Length::Percent(0.0)));
+  default_list->Append(*ComputedStyleUtils::ValueForAnimationRangeOrAuto(
+      CSSAnimationData::InitialTimelineTriggerExitRangeEnd(), style,
+      Length::Percent(100)));
+
+  return default_list;
+}
+
+bool TimelineTrigger::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext& local_context,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  const StylePropertyShorthand& shorthand = timelineTriggerShorthand();
+  const unsigned longhand_count = shorthand.length();
+  HeapVector<Member<CSSValueList>,
+             css_parsing_utils::kMaxNumTimelineTriggerLonghands>
+      longhands(longhand_count);
+
+  if (!css_parsing_utils::ConsumeTimelineTriggerShorthand(shorthand, longhands,
+                                                          stream, context)) {
+    return false;
+  }
+
+  for (unsigned i = 0; i < longhand_count; ++i) {
+    css_parsing_utils::AddProperty(
+        shorthand.properties()[i]->PropertyID(), shorthand.id(), *longhands[i],
+        important, css_parsing_utils::IsImplicitProperty::kNotImplicit,
+        properties);
+  }
+
+  return true;
 }
 
 namespace {

@@ -104,7 +104,7 @@ class VideoSendStreamImpl : public webrtc::VideoSendStream,
                           video_stream_encoder_for_test = nullptr);
   ~VideoSendStreamImpl() override;
 
-  void DeliverRtcp(const uint8_t* packet, size_t length);
+  void DeliverRtcp(ArrayView<const uint8_t> packet);
 
   // webrtc::VideoSendStream implementation.
   void Start() override;

@@ -86,7 +86,9 @@
 #include "content/browser/dom_storage/session_storage_namespace_impl.h"
 #include "content/browser/download/mhtml_generation_manager.h"
 #include "content/browser/download/save_package.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/fenced_frame/fenced_frame.h"
+#endif
 #include "content/browser/find_request_manager.h"
 #include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #include "content/browser/gpu/gpu_data_manager_impl.h"
@@ -1400,7 +1402,13 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       is_overlay_content_(false),
       showing_context_menu_(false),
       prerender_host_registry_(std::make_unique<PrerenderHostRegistry>(*this)),
-      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()) {
+      compositor_frame_sink_grouping_id_(base::UnguessableToken::Create())
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+      ,
+      fenced_frame_viewport_observer_(
+          std::make_unique<FencedFrameViewportObserver>(this))
+#endif
+{
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
@@ -3704,15 +3712,19 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
   }
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+  bool is_request_android_desktop_site = false;
+#endif
+
   if (GetController().GetVisibleEntry() &&
       GetController().GetVisibleEntry()->GetIsOverridingUserAgent()) {
 #if BUILDFLAG(IS_ANDROID)
     // Only ignore viewport meta tag when Request Desktop Site is used, but not
     // in other situations where embedder changes to arbitrary mobile UA string.
-    bool is_request_desktop_site =
+    is_request_android_desktop_site =
         renderer_preferences_.user_agent_override.ua_metadata_override &&
         !renderer_preferences_.user_agent_override.ua_metadata_override->mobile;
-    prefs.viewport_meta_enabled = !is_request_desktop_site;
+    prefs.viewport_meta_enabled = !is_request_android_desktop_site;
 #else
     prefs.viewport_meta_enabled = false;
 #endif
@@ -3800,6 +3812,27 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
   if (base::FeatureList::IsEnabled(features::kWebauthnDisabledOnAuto) &&
       base::android::BuildInfo::GetInstance()->is_automotive()) {
     prefs.disable_webauthn = true;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  // For devices that have larger displays (e.g. tablets, desktops), they
+  // require a different set of webpref settings that is different from smaller
+  // form-factors such as phones in order to render appropriately (e.g.
+  // viewport)
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          blink::features::kAndroidDesktopWebPrefsLargeDisplays) &&
+      (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_DESKTOP ||
+       // Specific to large tablets (10"), by default they request desktop site,
+       // but can per-site optionally override it to request mobile instead.
+       (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET &&
+        is_request_android_desktop_site))) {
+    // Set page scale factors to be similar to desktop.
+    // The significant change compared to mobile is that we lock the min scale
+    // to 1, so that we don't allow for a birds-eye-view zoom-out (this matches
+    // desktop)
+    prefs.default_minimum_page_scale_factor = 1.f;
+    prefs.default_maximum_page_scale_factor = 4.f;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -10403,10 +10436,14 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
     ReattachOuterDelegateIfNeeded();
   }
 
-  SetHistoryIndexAndLengthForView(
-      render_view_host,
-      rvh_impl->frame_tree()->controller().GetLastCommittedEntryIndex(),
-      rvh_impl->frame_tree()->controller().GetEntryCount());
+  // With SetHistoryInfoOnViewCreation enabled, the history and index length are
+  // sent as part of the the CreateView() IPC via the CreateViewParams.
+  if (!base::FeatureList::IsEnabled(features::kSetHistoryInfoOnViewCreation)) {
+    SetHistoryIndexAndLengthForView(
+        render_view_host,
+        rvh_impl->frame_tree()->controller().GetLastCommittedEntryIndex(),
+        rvh_impl->frame_tree()->controller().GetEntryCount());
+  }
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
   // Force a ViewMsg_Resize to be sent, needed to make plugins show up on
@@ -11979,7 +12016,8 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
                                  const std::optional<UrlMatchType>&)>
         url_match_predicate,
     base::RepeatingCallback<void(NavigationHandle&)>
-        prerender_navigation_handle_callback) {
+        prerender_navigation_handle_callback,
+    bool allow_reuse) {
   PrerenderAttributes attributes(
       prerendering_url, trigger_type, embedder_histogram_suffix,
       /*speculation_rules_params=*/std::nullopt, content::Referrer(),
@@ -11989,7 +12027,8 @@ std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(
       std::move(url_match_predicate),
       std::move(prerender_navigation_handle_callback),
       base::WrapRefCounted(
-          static_cast<PreloadPipelineInfoImpl*>(preload_pipeline_info.get())));
+          static_cast<PreloadPipelineInfoImpl*>(preload_pipeline_info.get())),
+      allow_reuse);
 #if BUILDFLAG(IS_ANDROID)
   attributes.additional_headers = std::move(additional_headers);
 #else
@@ -12177,6 +12216,10 @@ void WebContentsImpl::GetMediaCaptureRawDeviceIdsOpened(
 
 void WebContentsImpl::WarmUpAndroidSpareRenderer() {
   if (GetBrowserContext()->ShutdownStarted()) {
+    return;
+  }
+  if (!GetLastCommittedURL().SchemeIsHTTPOrHTTPS() &&
+      features::kAndroidSpareRendererOnlyWarmupAfterWebPageLoaded.Get()) {
     return;
   }
   int renderer_timeout_seconds =

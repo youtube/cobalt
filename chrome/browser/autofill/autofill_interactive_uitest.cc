@@ -216,10 +216,9 @@ std::vector<FieldValue> GetFieldValues(
         )",
       control_elements->c_str());
   content::EvalJsResult r = content::EvalJs(execution_target, script);
-  DCHECK(r.value.is_list()) << r.error;
   std::vector<FieldValue> fields;
 
-  for (const base::Value& field : r.value.GetList()) {
+  for (const base::Value& field : r.ExtractList()) {
     const auto& field_dict = field.GetDict();
     fields.push_back({.id = *field_dict.FindString("id"),
                       .value = *field_dict.FindString("value")});
@@ -381,7 +380,7 @@ class ValueWaiter {
                                           waiterId_, timeout.InMilliseconds());
     content::EvalJsResult r =
         content::EvalJs(execution_target_, kFunction + call);
-    return !r.value.is_none() ? std::make_optional(r.ExtractString())
+    return r != base::Value() ? std::make_optional(r.ExtractString())
                               : std::nullopt;
   }
 
@@ -1169,7 +1168,14 @@ IN_PROC_BROWSER_TEST_F(AutofillInteractiveTest, Click) {
 
 // Makes sure that clicking outside the focused field doesn't activate
 // the popup.
-IN_PROC_BROWSER_TEST_F(AutofillInteractiveTest, DontAutofillForOutsideClick) {
+// TODO(crbug.com/430163188): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_DontAutofillForOutsideClick DISABLED_DontAutofillForOutsideClick
+#else
+#define MAYBE_DontAutofillForOutsideClick DontAutofillForOutsideClick
+#endif
+IN_PROC_BROWSER_TEST_F(AutofillInteractiveTest,
+                       MAYBE_DontAutofillForOutsideClick) {
   static const char kDisabledButton[] =
       R"(<button disabled id='disabled-button'>Cant click this</button>)";
   CreateTestProfile();

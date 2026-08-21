@@ -17,33 +17,6 @@ namespace base {
 class TimeDelta;
 }  // namespace base
 
-// Feature flag to enable personalized messaging for Default Browser First Run,
-// Set Up List, and video promos.
-BASE_DECLARE_FEATURE(kSegmentedDefaultBrowserPromo);
-
-// Name of the parameter that controls the experiment type for the Segmented
-// Default Browser promo, determining whether or not the Default Browser promo
-// is animated.
-extern const char kSegmentedDefaultBrowserExperimentType[];
-
-// Defines the different experiment arms for the Segmented Default Browser
-// promo, which determine if the Default Browser promo is animated.
-enum class SegmentedDefaultBrowserExperimentType {
-  // The experiment arm that shows the static Default Browser promo.
-  kStaticPromo = 0,
-  // The experiment arm that show the animated Default Browser promo.
-  kAnimatedPromo = 1,
-};
-
-// Whether personalized messaging for Default Browser First Run, Set Up List,
-// and video promos is enabled.
-bool IsSegmentedDefaultBrowserPromoEnabled();
-
-// Returns the experiment type for the Segmented Default Browser promo, which
-// determines whether or not the promo is animated.
-SegmentedDefaultBrowserExperimentType
-SegmentedDefaultBrowserExperimentTypeEnabled();
-
 // Feature flag to enable the Keyboard Accessory Upgrade for iPads.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad);
 
@@ -332,6 +305,10 @@ extern const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[];
 
 // Feature flag to change the MIA entrypoint in NTP.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
+
+// When enabled the AIM ZPS entrypoint will open the AIM prototype which
+// contains temporary UI exploration for AIM.
+BASE_DECLARE_FEATURE(kAIMPrototype);
 
 // Feature flag to enable UITraitCollection workaround for fixing incorrect
 // trait propagation.
@@ -1085,5 +1062,17 @@ bool IsFeedbackIncludeGWSVariationsEnabled();
 
 // Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
 bool IsDefaultBrowserPromoPropensityModelEnabled();
+
+// Feature flag to enable the trusted vault provisional notification.
+BASE_DECLARE_FEATURE(kIOSTrustedVaultNotification);
+
+// Returns whether `kIOSTrustedVaultNotification` is enabled.
+bool IsIOSTrustedVaultNotificationEnabled();
+
+// Feature flag for diamond prototype
+BASE_DECLARE_FEATURE(kDiamondPrototype);
+
+// Whether the diamond prototype is enabled.
+bool IsDiamondPrototypeEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

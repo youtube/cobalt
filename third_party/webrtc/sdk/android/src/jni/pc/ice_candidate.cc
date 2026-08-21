@@ -12,6 +12,7 @@
 
 #include <string>
 
+#include "api/jsep.h"
 #include "pc/webrtc_sdp.h"
 #include "sdk/android/generated_peerconnection_jni/IceCandidate_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
@@ -37,17 +38,15 @@ ScopedJavaLocalRef<jobject> CreateJavaIceCandidate(JNIEnv* env,
 
 }  // namespace
 
-Candidate JavaToNativeCandidate(JNIEnv* jni,
-                                const JavaRef<jobject>& j_candidate) {
+std::unique_ptr<IceCandidate> JavaToNativeCandidate(
+    JNIEnv* jni,
+    const JavaRef<jobject>& j_candidate) {
   std::string sdp_mid =
       JavaToStdString(jni, Java_IceCandidate_getSdpMid(jni, j_candidate));
   std::string sdp =
       JavaToStdString(jni, Java_IceCandidate_getSdp(jni, j_candidate));
-  Candidate candidate;
-  if (!SdpDeserializeCandidate(sdp_mid, sdp, &candidate, NULL)) {
-    RTC_LOG(LS_ERROR) << "SdpDescrializeCandidate failed with sdp " << sdp;
-  }
-  return candidate;
+  int sdp_mline_index = Java_IceCandidate_getSdpMLineIndex(jni, j_candidate);
+  return IceCandidate::Create(sdp_mid, sdp_mline_index, sdp, nullptr);
 }
 
 ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,

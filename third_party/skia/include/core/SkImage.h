@@ -43,8 +43,6 @@ enum class SkTileMode;
 struct SkIPoint;
 struct SkSamplingOptions;
 
-namespace skgpu::graphite { class Recorder; }
-
 namespace SkImages {
 
 /** Caller data passed to RasterReleaseProc; may be nullptr. */
@@ -435,8 +433,8 @@ public:
     virtual size_t textureSize() const = 0;
 
     /** Returns true if SkImage can be drawn on either raster surface or GPU surface.
-        If context is nullptr, tests if SkImage draws on raster surface;
-        otherwise, tests if SkImage draws on GPU surface associated with context.
+        If recorder is nullptr, tests if SkImage draws on raster surface;
+        otherwise, tests if SkImage draws on the associated GPU surface.
 
         SkImage backed by GPU texture may become invalid if associated context is
         invalid. lazy image may be invalid and may not draw to raster surface or
@@ -447,7 +445,9 @@ public:
 
         example: https://fiddle.skia.org/c/@Image_isValid
     */
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
     virtual bool isValid(GrRecordingContext* context) const = 0;
+#endif
     virtual bool isValid(SkRecorder*) const = 0;
 
     /** \enum SkImage::CachingHint
@@ -745,6 +745,7 @@ public:
     */
     sk_sp<SkData> refEncodedData() const;
 
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
     /** Returns subset of this image.
 
         Returns nullptr if any of the following are true:
@@ -764,10 +765,12 @@ public:
 
         example: https://fiddle.skia.org/c/@Image_makeSubset
     */
+
     virtual sk_sp<SkImage> makeSubset(GrDirectContext* direct, const SkIRect& subset) const = 0;
+#endif
 
     struct RequiredProperties {
-        bool fMipmapped;
+        bool fMipmapped = false;
 
         bool operator==(const RequiredProperties& other) const {
             return fMipmapped == other.fMipmapped;
@@ -798,7 +801,7 @@ public:
         @param RequiredProperties  properties the returned SkImage must possess (e.g. mipmaps)
         @return                    the subsetted image, or nullptr
     */
-    virtual sk_sp<SkImage> makeSubset(skgpu::graphite::Recorder*,
+    virtual sk_sp<SkImage> makeSubset(SkRecorder*,
                                       const SkIRect& subset,
                                       RequiredProperties) const = 0;
 
@@ -881,6 +884,7 @@ public:
     */
     virtual bool isLazyGenerated() const = 0;
 
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
     /** Creates SkImage in target SkColorSpace.
         Returns nullptr if SkImage could not be created.
 
@@ -899,6 +903,7 @@ public:
     */
     virtual sk_sp<SkImage> makeColorSpace(GrDirectContext* direct,
                                           sk_sp<SkColorSpace> target) const = 0;
+#endif
 
     /** Creates SkImage in target SkColorSpace.
         Returns nullptr if SkImage could not be created.
@@ -918,6 +923,7 @@ public:
                                           sk_sp<SkColorSpace> targetColorSpace,
                                           RequiredProperties) const = 0;
 
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
     /** Experimental.
         Creates SkImage in target SkColorType and SkColorSpace.
         Returns nullptr if SkImage could not be created.
@@ -935,6 +941,7 @@ public:
     virtual sk_sp<SkImage> makeColorTypeAndColorSpace(GrDirectContext* direct,
                                                       SkColorType targetColorType,
                                                       sk_sp<SkColorSpace> targetCS) const = 0;
+#endif
 
     /** Experimental.
         Creates SkImage in target SkColorType and SkColorSpace.

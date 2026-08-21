@@ -39,6 +39,7 @@
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "services/network/public/mojom/integrity_algorithm.mojom-blink.h"
+#include "services/network/public/mojom/integrity_metadata.mojom-blink.h"
 #include "services/network/public/mojom/web_sandbox_flags.mojom-blink.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/security_context/insecure_request_policy.h"
@@ -572,7 +573,7 @@ void ContentSecurityPolicy::SetOverrideAllowInlineStyle(bool value) {
 
 // static
 bool ContentSecurityPolicy::CheckHashAgainstPolicy(
-    Vector<network::mojom::blink::CSPHashSourcePtr>& csp_hash_values,
+    Vector<network::mojom::blink::IntegrityMetadataPtr>& csp_hash_values,
     const network::mojom::blink::ContentSecurityPolicy& csp,
     InlineType inline_type) {
   for (const auto& csp_hash_value : csp_hash_values) {
@@ -630,7 +631,7 @@ bool ContentSecurityPolicy::AllowInline(
     }
   }
 
-  Vector<network::mojom::blink::CSPHashSourcePtr> csp_hash_values;
+  Vector<network::mojom::blink::IntegrityMetadataPtr> csp_hash_values;
   FillInCSPHashValues(content, hash_algorithms_used_, csp_hash_values);
 
   // Step 2. Let result be "Allowed". [spec text]
@@ -679,7 +680,7 @@ bool ContentSecurityPolicy::AllowEval(
     ContentSecurityPolicy::ExceptionStatus exception_status,
     const String& script_content) {
   bool is_allowed = true;
-  Vector<network::mojom::blink::CSPHashSourcePtr> csp_hash_values;
+  Vector<network::mojom::blink::IntegrityMetadataPtr> csp_hash_values;
   FillInCSPHashValues(script_content, hash_algorithms_used_, csp_hash_values);
   for (const auto& policy : policies_) {
     is_allowed &= CSPDirectiveListAllowEval(
@@ -1153,7 +1154,8 @@ SourceLocation* GatherSecurityPolicyViolationEventData(
     ContentSecurityPolicyViolationType violation_type,
     SourceLocation* source_location,
     const String& script_source,
-    const String& sample_prefix) {
+    const String& sample_prefix,
+    const std::optional<String> eval_hash) {
   if (effective_type == CSPDirectiveName::FrameAncestors) {
     // If this load was blocked via 'frame-ancestors', then the URL of
     // |document| has not yet been initialized. In this case, we'll set both
@@ -1174,6 +1176,9 @@ SourceLocation* GatherSecurityPolicyViolationEventData(
         break;
       case ContentSecurityPolicyViolationType::kEvalViolation:
         init->setBlockedURI("eval");
+        if (eval_hash.has_value() && !eval_hash->IsNull()) {
+          init->setEvalHash(eval_hash.value());
+        }
         break;
       case ContentSecurityPolicyViolationType::kWasmEvalViolation:
         init->setBlockedURI("wasm-eval");
@@ -1293,7 +1298,8 @@ void ContentSecurityPolicy::ReportViolation(
     Element* element,
     const String& source,
     const String& source_prefix,
-    std::optional<base::UnguessableToken> issue_id) {
+    std::optional<base::UnguessableToken> issue_id,
+    std::optional<String> eval_hash) {
   CHECK(violation_type == kURLViolation || blocked_url.IsEmpty() ||
         violation_type == kSRIViolation);
 
@@ -1326,7 +1332,7 @@ void ContentSecurityPolicy::ReportViolation(
   source_location = GatherSecurityPolicyViolationEventData(
       violation_data, relevant_delegate, directive_text, effective_type,
       blocked_url, header, header_type, violation_type, source_location, source,
-      source_prefix);
+      source_prefix, eval_hash);
 
   // TODO(mkwst): Obviously, we shouldn't hit this check, as extension-loaded
   // resources should be allowed regardless. We apparently do, however, so
@@ -1336,7 +1342,6 @@ void ContentSecurityPolicy::ReportViolation(
       ShouldBypassContentSecurityPolicy(KURL(violation_data->sourceFile()))) {
     return;
   }
-
   PostViolationReport(violation_data, context_frame, report_endpoints,
                       use_reporting_api);
 
@@ -1394,6 +1399,9 @@ void ContentSecurityPolicy::PostViolationReport(
   csp_report->SetInteger("status-code", violation_data->statusCode());
 
   csp_report->SetString("script-sample", violation_data->sample());
+  if (violation_data->hasEvalHash() && !violation_data->evalHash().empty()) {
+    csp_report->SetString("eval-hash", violation_data->evalHash());
+  }
 
   auto report_object = std::make_unique<JSONObject>();
   report_object->SetObject("csp-report", std::move(csp_report));

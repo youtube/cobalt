@@ -4,13 +4,25 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #include "src/gpu/graphite/ClipStack.h"
 
-#include "include/core/SkMatrix.h"
+#include "include/core/SkBlendMode.h"
+#include "include/core/SkClipOp.h"
+#include "include/core/SkM44.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPoint.h"
+#include "include/core/SkRRect.h"
+#include "include/core/SkRect.h"
+#include "include/core/SkScalar.h"
 #include "include/core/SkShader.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkStrokeRec.h"
 #include "include/gpu/graphite/Recorder.h"
+#include "include/private/base/SkDebug.h"
+#include "include/private/base/SkFloatingPoint.h"
+#include "src/base/SkEnumBitMask.h"
+#include "src/base/SkVx.h"
 #include "src/core/SkPathPriv.h"
 #include "src/core/SkRRectPriv.h"
 #include "src/core/SkRectPriv.h"
@@ -19,8 +31,15 @@
 #include "src/gpu/graphite/Device.h"
 #include "src/gpu/graphite/DrawParams.h"
 #include "src/gpu/graphite/RecorderPriv.h"
+#include "src/gpu/graphite/TextureProxy.h"
 #include "src/gpu/graphite/geom/BoundsManager.h"
+#include "src/gpu/graphite/geom/EdgeAAQuad.h"
 #include "src/gpu/graphite/geom/Geometry.h"
+#include "src/gpu/graphite/geom/NonMSAAClip.h"
+
+#include <algorithm>
+#include <atomic>
+#include <utility>
 
 namespace skgpu::graphite {
 
@@ -107,16 +126,21 @@ bool intersect_shape(const Transform& otherToDevice, const Shape& otherShape,
     // There are only a subset of shape types that we can analytically intersect with each other,
     // assuming a simple fill style (always the case for clip shapes):
     //
-    //  rects, rrects
+    //  rects, rrects, flood-fills (empty+inverse-fill)
     //
-    // In theory, flood-fills (empty+inverse == infinite full coverage) and per-edge AA quads could
-    // also be included but they do not appear as clip shapes.
+    // Flood-fills only appear as part of a draw, so it's only checked for `shape` and not
+    // `otherShape`. In theory, per-edge AA quads could also be included but they do not appear as
+    // clip shapes.
     //
     // Paths and arcs have complex intersection logic, so are skipped under the assumption that
     // simple cases have already been mapped to a rect or rrect. Lines are only ever stroked, so
     // are incompatible with this function.
-    bool shapeIntersectable = shape->isRect() || shape->isRRect();
+    bool shapeIntersectable = shape->isRect() ||
+                              shape->isRRect() ||
+                              shape->isFloodFill();
     bool otherIntersectable = otherShape.isRect() || otherShape.isRRect();
+    // Only clip shapes are used for `otherShape`, so we shouldn't see any flood fills here
+    SkASSERT(!otherShape.isFloodFill());
 
     if (!shapeIntersectable || !otherIntersectable) {
         // Technically if shapeIntersectable was true for empty+inverse, we could turn the flood
@@ -178,6 +202,9 @@ bool intersect_shape(const Transform& otherToDevice, const Shape& otherShape,
             SkASSERT(!localOtherRect.isEmptyNegativeOrNaN());
             shape->setRect(localOtherRect);
             return true;
+        } else if (shape->isFloodFill()) {
+            shape->setRect(localOtherRect);
+            return true;
         } else {
             // Fall back to rrect+rrect intersection
             localOtherRRect = SkRRect::MakeRect(localOtherRect.asSkRect());
@@ -193,8 +220,14 @@ bool intersect_shape(const Transform& otherToDevice, const Shape& otherShape,
             localOtherRRect = otherShape.rrect();
         }
 
-        // Else continue with rrect+rrect intersection
+        if (shape->isFloodFill()) {
+            shape->setRRect(localOtherRRect);
+            return true;
+        } // Else continue with rrect+rrect intersection
     }
+
+    // `shape` can only be rect or rrect at this point, flood fill should already have returned.
+    SkASSERT(shape->isRect() || shape->isRRect());
 
     SkRRect localRRect = SkRRectPriv::ConservativeIntersect(
             localOtherRRect,
@@ -212,8 +245,6 @@ bool intersect_shape(const Transform& otherToDevice, const Shape& otherShape,
         return false;
     }
 }
-
-static constexpr Transform kIdentity = Transform::Identity();
 
 } // anonymous namespace
 
@@ -409,6 +440,25 @@ ClipStack::SimplifyResult ClipStack::Simplify(const TransformedShape& a,
     SkUNREACHABLE;
 }
 
+ClipStack::DrawInfluence ClipStack::SimplifyForDraw(const TransformedShape& clip,
+                                                    const TransformedShape& draw) {
+    // Given the asserts below, we can just recast the SimplifyResult returned from
+    // Simplify(A=clip, B=draw):
+    //
+    // If the result is kEmpty, the draw is clipped out.
+    static_assert((int) SimplifyResult::kEmpty == (int) DrawInfluence::kClipsOutDraw);
+    // If the result is kAOnly, only the clip's shape provides coverage and the draw could be
+    // replaced with something that just covers the clip bounds.
+    static_assert((int) SimplifyResult::kAOnly == (int) DrawInfluence::kReplacesDraw);
+    // If the result is kBOnly, the clip's shape doesn't impact the draw's coverage at all.
+    static_assert((int) SimplifyResult::kBOnly == (int) DrawInfluence::kNone);
+    // If the result is kBoth, the clip and the draw combine in a complex manner
+    static_assert((int) SimplifyResult::kBoth == (int) DrawInfluence::kComplexInteraction);
+
+    SimplifyResult result = Simplify(clip, draw);
+    return static_cast<DrawInfluence>(result);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // ClipStack::Element
 
@@ -447,7 +497,7 @@ ClipStack::RawElement::RawElement(const Rect& deviceBounds,
                 fOuterBounds.round();
             }
             fShape.setRect(fOuterBounds);
-            fLocalToDevice = kIdentity;
+            fLocalToDevice = Transform::Identity();
             fInnerBounds = fOuterBounds;
         } else if (fShape.isRRect()) {
             // Can't transform in place and must still check transform result since some very
@@ -461,7 +511,7 @@ ClipStack::RawElement::RawElement(const Rect& deviceBounds,
                                          xformed.radii().data());
                 }
                 fShape.setRRect(xformed);
-                fLocalToDevice = kIdentity;
+                fLocalToDevice = Transform::Identity();
                 // Refresh outer bounds to match the transformed round rect in case
                 // SkRRect::transform produces slightly different results from Transform::mapRect.
                 fOuterBounds = fShape.bounds().makeIntersect(deviceBounds);
@@ -633,34 +683,13 @@ void ClipStack::RawElement::updateForElement(RawElement* added, const SaveRecord
     }
 }
 
-ClipStack::RawElement::DrawInfluence
-ClipStack::RawElement::testForDraw(const TransformedShape& draw) const {
+ClipStack::DrawInfluence ClipStack::RawElement::testForDraw(const TransformedShape& draw) const {
     if (this->isInvalid()) {
         // Cannot affect the draw
         return DrawInfluence::kNone;
     }
 
-    // For this analysis, A refers to the Element and B refers to the draw
-    switch(Simplify(*this, draw)) {
-        case SimplifyResult::kEmpty:
-            // The more detailed per-element checks have determined the draw is clipped out.
-            return DrawInfluence::kClipOut;
-
-        case SimplifyResult::kBOnly:
-            // This element does not affect the draw
-            return DrawInfluence::kNone;
-
-        case SimplifyResult::kAOnly:
-            // If this were the only element, we could replace the draw's geometry but that only
-            // gives us a win if we know that the clip element would only be used by this draw.
-            // For now, just fall through to regular clip handling.
-            [[fallthrough]];
-
-        case SimplifyResult::kBoth:
-            return DrawInfluence::kIntersect;
-    }
-
-    SkUNREACHABLE;
+    return SimplifyForDraw(*this, draw);
 }
 
 CompressedPaintersOrder ClipStack::RawElement::updateForDraw(const BoundsManager* boundsManager,
@@ -789,35 +818,13 @@ ClipStack::ClipState ClipStack::SaveRecord::state() const {
     }
 }
 
-Rect ClipStack::SaveRecord::scissor(const Rect& deviceBounds, const Rect& drawBounds) const {
-    // This should only be called when the clip stack actually has something non-trivial to evaluate
-    // It is effectively a reduced version of Simplify() dealing only with device-space bounds and
-    // returning the intersection results.
-    SkASSERT(this->state() != ClipState::kEmpty && this->state() != ClipState::kWideOpen);
-    SkASSERT(deviceBounds.contains(drawBounds)); // This should have already been handled.
+ClipStack::DrawInfluence ClipStack::SaveRecord::testForDraw(const TransformedShape& draw) const {
+    Transform identity = Transform::Identity();
+    Shape outerSaveBounds{fOuterBounds};
+    TransformedShape save{identity, outerSaveBounds, fOuterBounds, fInnerBounds, fStackOp,
+                          /*containsChecksOnlyBounds=*/true};
 
-    if (fStackOp == SkClipOp::kDifference) {
-        // kDifference nominally uses the draw's bounds minus the save record's inner bounds as the
-        // scissor. However, if the draw doesn't intersect the clip at all then it doesn't have any
-        // visual effect and we can switch to the device bounds as the canonical scissor.
-        if (!fOuterBounds.intersects(drawBounds)) {
-            return deviceBounds;
-        } else {
-            // This automatically detects the case where the draw is contained in inner bounds and
-            // would be entirely clipped out.
-            return subtract(drawBounds, fInnerBounds, /*exact=*/true);
-        }
-    } else {
-        // kIntersect nominally uses the save record's outer bounds as the scissor. However, if the
-        // draw is contained entirely within those bounds, it doesn't have any visual effect so
-        // switch to using the device bounds as the canonical scissor to minimize state changes.
-        if (fOuterBounds.contains(drawBounds)) {
-            return deviceBounds;
-        } else {
-            // This automatically detects the case where the draw does not intersect the clip.
-            return fOuterBounds;
-        }
-    }
+    return SimplifyForDraw(save, draw);
 }
 
 void ClipStack::SaveRecord::removeElements(RawElement::Stack* elements, Device* device) {
@@ -882,7 +889,8 @@ bool ClipStack::SaveRecord::addElement(RawElement&& toAdd,
     // element, but we pass true to skip more detailed contains checks because the SaveRecord's
     // shape is potentially very different from its aggregate outer bounds.
     Shape outerSaveBounds{fOuterBounds};
-    TransformedShape save{kIdentity, outerSaveBounds, fOuterBounds, fInnerBounds, fStackOp,
+    Transform identity = Transform::Identity();
+    TransformedShape save{identity, outerSaveBounds, fOuterBounds, fInnerBounds, fStackOp,
                           /*containsChecksOnlyBounds=*/true};
 
     // In this invocation, 'A' refers to the existing stack's bounds and 'B' refers to the new
@@ -1087,6 +1095,176 @@ void ClipStack::SaveRecord::replaceWithElement(RawElement&& toAdd,
     // This invalidates all older elements that are owned by save records lower in the clip stack.
     fOldestValidIndex = fStartingElementIndex;
     fGenID = next_gen_id();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// ClipStack::DrawShape
+
+/**
+ * DrawShape represents the approximate shape that is being drawn in order to compare it against
+ * the clip stack's RawElements. It is able to map to a `TransformedShape` to be simplified with
+ * either the SaveRecord or each element. For non-Shape geometries and stroked shapes, it
+ * represents the oriented bounding box. For filled Shapes, it preserves the original shape for
+ * more accurate contains/intersect checks and geometrically combining RawElements into the
+ * shape.
+ */
+class ClipStack::DrawShape {
+public:
+    DrawShape(const Transform& localToDevice, const Geometry& geometry)
+            : fLocalToDevice(&localToDevice) {
+        if (geometry.isShape()) {
+            fShape = geometry.shape();
+            fShapeMatchesGeometry = true;
+        } else {
+            // The geometry is something special like text or vertices, in which case it's
+            // definitely not a shape that could simplify cleanly with the clip stack, so just track
+            // its bounds.
+            fShape.setRect(geometry.bounds());
+            fShapeMatchesGeometry = geometry.isEdgeAAQuad() &&
+                                    geometry.edgeAAQuad().isRect() &&
+                                    geometry.edgeAAQuad().edgeFlags() == EdgeAAQuad::Flags::kAll;
+            // If geometry is not a shape, it is not inverted.
+            SkASSERT(!fShape.inverted());
+        }
+    }
+
+    operator TransformedShape() const {
+        // A regular draw is a transformed shape that "intersects" the clip. An inverse-filled draw
+        // is equivalent to "difference". For simple convex shapes we provide an inner bounds
+        // because we can geometrically intersect clip elements with the draw geometry and not
+        // really impact the choice of Renderer (given the family of renderers used for simple
+        // shapes). In theory any convex shape could provide an inner bounds and/or use the detailed
+        // contains check, but that would cause path rendering draws to potentially change in hard
+        // to predict ways.
+        SkClipOp op = fShape.inverted() ? SkClipOp::kDifference : SkClipOp::kIntersect;
+        return TransformedShape{*fLocalToDevice, fShape, fOuterBounds, fInnerBounds, op,
+                                /*containsChecksOnlyBounds=*/!fShapeMatchesGeometry};
+    }
+
+    bool applyStyle(const SkStrokeRec& style, const Rect& deviceBounds);
+    void applyScissor(const Rect& scissor);
+
+    // Return a Clip object encapsulating the tracked bounds of the now-clipped draw.
+    Clip toClip(const Rect& scissor, const NonMSAAClip& analyticClip, const SkShader* clipShader);
+
+private:
+    const Transform* fLocalToDevice;
+
+    // When 'style' isn't fill, the original geometry describes the pre-stroked shape, so 'fShape'
+    // is updated to include the bounds post-stroking. `fShape` may also include local AA outsets
+    // under certain circumstances:
+    //  1. If it's a hairline, the AA outset can be added in local space to preserve a tighter
+    //     oriented bbox compared to device bounds outset by 1px.
+    //  2. If it's subpixel, the rendered geometry is often treated as a hairline with an adjusted
+    //     coverage ramp.
+    // Notably, the local AA outset is not included in `styledShape` for other cases to maximize the
+    // cases where a draw is contained in a clip, or can be clipped geometrically. This assumes that
+    // rendering an AA'ed non-hairline/subpixel edge produces a 1px feathered edge that's not
+    // qualitatively different from the 1px feathered edge a clip would enforce.
+    Shape fShape;
+
+    // Not valid until after applyStyle() and applyScissor() are called
+    Rect fTransformedShapeBounds;
+    Rect fOuterBounds;
+    Rect fInnerBounds;
+
+    // Whether or not the shape matches the original geometry to draw (with style)
+    bool fShapeMatchesGeometry;
+};
+
+bool ClipStack::DrawShape::applyStyle(const SkStrokeRec& style, const Rect& deviceBounds) {
+    // For overriding fLocalToDevice when the shape is only tracking device-space bounds
+    static const Transform kIdentity = Transform::Identity();
+
+    fTransformedShapeBounds = fShape.bounds(); // not scissor'ed, regular fill rule bounds
+    auto origSize = fTransformedShapeBounds.size();
+    if (!SkIsFinite(origSize.x(), origSize.y())) {
+        // Discard all non-finite geometry as if it were clipped out
+        return false;
+    }
+
+    // Discard fills and strokes that cannot produce any coverage: an empty fill, or a
+    // zero-length stroke that has butt caps. Otherwise the stroke style applies to a vertical
+    // or horizontal line (making it non-empty), or it's a zero-length path segment that
+    // must produce round or square caps (making it non-empty):
+    //     https://www.w3.org/TR/SVG11/implnote.html#PathElementImplementationNotes
+    if (!fShape.inverted() && (fShape.isLine() || any(origSize == 0.f))) {
+        if (style.isFillStyle() || (style.getCap() == SkPaint::kButt_Cap && all(origSize == 0.f))) {
+            return false;
+        }
+    }
+
+    // Anti-aliasing makes shapes larger than their original coordinates, but we only care about
+    // that for local clip checks in certain cases (see above).
+    // NOTE: After this if-else block, `transformedShapeBounds` will be in device space.
+    float localAAOutset = fLocalToDevice->localAARadius(fTransformedShapeBounds);
+    if (!SkIsFinite(localAAOutset)) SK_UNLIKELY {
+        // We cannot calculate an accurate local shape bounds, and transformedShapeBounds is meant
+        // to be unclipped. This is to maximize atlas reuse for mostly unclipped draws and to detect
+        // when a scissor state change is required. Setting transformedShapeBounds to deviceBounds
+        // is harmless in this case as these benefits are unlikely to apply for this transform.
+        fTransformedShapeBounds = deviceBounds;
+        fShape.setRect(deviceBounds);
+        fLocalToDevice = &kIdentity;
+        fShapeMatchesGeometry = false;
+    } else {
+        // SkStrokeRect::getInflationRadius() returns a device-space inflation for hairlines.
+        float localOutset = style.isHairlineStyle() ? 0.f : style.getInflationRadius();
+        if ((!style.isFillStyle() && style.getWidth() <= localAAOutset) ||
+            (style.isFillStyle() && !fShape.inverted() && any(origSize <= localAAOutset))) {
+            // The geometry is a hairline or projects to a subpixel shape, so rendering will not
+            // follow the typical 1/2px outset anti-aliasing that is compatible with clipping.
+            // In this case, apply the local AA radius to the shape to have a conservative clip
+            // query while preserving the oriented bounding box.
+            localOutset += localAAOutset;
+        }
+
+        if (localOutset > 0.f) {
+            // Propagate style and AA outset into styledShape so clip queries reflect style.
+            fTransformedShapeBounds.outset(localOutset);
+
+            bool inverted = fShape.inverted();
+            fShape.setRect(fTransformedShapeBounds); // it's still local at this point
+            fShape.setInverted(inverted);  // preserve original inversion state
+            fShapeMatchesGeometry = false;
+        }
+
+        fTransformedShapeBounds = fLocalToDevice->mapRect(fTransformedShapeBounds);
+    }
+
+     return true; // Something can be drawn based on style (might still be clipped out)
+}
+
+void ClipStack::DrawShape::applyScissor(const Rect& scissor) {
+    fInnerBounds = Rect::InfiniteInverted();
+    // Apply the scissor to the outer bounds because it restricts rasterization and will allow
+    // the SaveRecord::testForDraw() case to detect no clip influence if only the scissor is
+    // needed.
+    fOuterBounds = fTransformedShapeBounds.makeIntersect(scissor);
+    if (fShapeMatchesGeometry && fLocalToDevice->type() <= Transform::Type::kRectStaysRect) {
+        if (fShape.isRect()) {
+            // For a rect-stays-rect transform, this should be equivalent to
+            // fLocalToDevice.mapRect(fShape.rect()).makeIntersect(scissor)
+            fInnerBounds = fOuterBounds;
+        } else if (fShape.isRRect()) {
+            SkRect rrectInnerBounds = SkRRectPriv::InnerBounds(fShape.rrect());
+            if (!rrectInnerBounds.isEmpty()) {
+                fInnerBounds = fLocalToDevice->mapRect(rrectInnerBounds).makeIntersect(scissor);
+            }
+        }
+        // Otherwise it's a flood fill, but should have empty bounds anyways
+    }
+    // Otherwise we either don't need the inner bounds, or the inner bounds can't be computed
+    // for a non-axis-aligned transform
+}
+
+Clip ClipStack::DrawShape::toClip(const Rect& scissor,
+                                  const NonMSAAClip& analyticClip,
+                                  const SkShader* clipShader) {
+    Rect drawBounds = fShape.inverted() ? scissor : fOuterBounds;
+    SkASSERT(scissor.contains(drawBounds));
+    return Clip(drawBounds, fTransformedShapeBounds,
+                scissor.asSkIRect(), analyticClip, clipShader);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1330,130 +1508,48 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
     // the clip stack is known to be wide-open.
     const Rect deviceBounds = this->deviceBounds();
 
-    // When 'style' isn't fill, 'shape' describes the pre-stroke shape so we can't use it to check
-    // against clip elements and so 'styledShape' will be set to the bounds post-stroking.
-    // `styledShape` may also include local AA outsets under certain circumstances:
-    //  1. If it's a hairline, the AA outset can be added in local space to preserve a tighter
-    //     oriented bbox compared to device bounds outset by 1px.
-    //  2. If it's subpixel, the rendered geometry is often treated as a hairline with an adjusted
-    //     coverage ramp.
-    // Notably, the local AA outset is not included in `styledShape` for other cases to maximize the
-    // cases where a draw is contained in a clip, or can be clipped geometrically. This assumes that
-    // rendering an AA'ed non-hairline/subpixel edge produces a 1px feathered edge that's not
-    // qualitatively different from the 1px feathered edge a clip would enforce.
-    Shape styledShape;
-    if (geometry.isShape()) {
-        styledShape = geometry.shape();
-    } else {
-        // The geometry is something special like text or vertices, in which case it's definitely
-        // not a shape that could simplify cleanly with the clip stack, so just track its bounds.
-        styledShape.setRect(geometry.bounds());
-        // If geometry is not a shape, it is not inverted.
-        SkASSERT(!styledShape.inverted());
-    }
-
-    Rect drawBounds; // in device-space, respects fill rule and scissor
-    Rect transformedShapeBounds = styledShape.bounds(); // not scissor'ed, regular fill rule bounds
-    bool shapeInDeviceSpace = false; // true if styledShape has been mapped to device space already
-
-    auto origSize = transformedShapeBounds.size();
-    if (!SkIsFinite(origSize.x(), origSize.y())) {
-        // Discard all non-finite geometry as if it were clipped out
+    DrawShape draw{localToDevice, geometry};
+    if (!draw.applyStyle(style, deviceBounds)) {
         return kClippedOut;
     }
 
-    // Discard fills and strokes that cannot produce any coverage: an empty fill, or a
-    // zero-length stroke that has butt caps. Otherwise the stroke style applies to a vertical
-    // or horizontal line (making it non-empty), or it's a zero-length path segment that
-    // must produce round or square caps (making it non-empty):
-    //     https://www.w3.org/TR/SVG11/implnote.html#PathElementImplementationNotes
-    if (!styledShape.inverted() && (styledShape.isLine() || any(origSize == 0.f))) {
-        if (style.isFillStyle() || (style.getCap() == SkPaint::kButt_Cap && all(origSize == 0.f))) {
-            return kClippedOut;
-        }
-    }
-
-
-
-    // Anti-aliasing makes shapes larger than their original coordinates, but we only care about
-    // that for local clip checks in certain cases (see above).
-    // NOTE: After this if-else block, `transformedShapeBounds` will be in device space.
-    float localAAOutset = localToDevice.localAARadius(transformedShapeBounds);
-    if (!SkIsFinite(localAAOutset)) SK_UNLIKELY {
-        // We cannot calculate an accurate local shape bounds, and transformedShapeBounds is meant
-        // to be unclipped. This is to maximize atlas reuse for mostly unclipped draws and to detect
-        // when a scissor state change is required. Setting transformedShapeBounds to deviceBounds
-        // is harmless in this case as these benefits are unlikely to apply for this transform.
-        transformedShapeBounds = deviceBounds;
-        drawBounds = deviceBounds;
-        styledShape.setRect(deviceBounds);
-        shapeInDeviceSpace = true;
+    Rect scissor;
+    if (cs.op() == SkClipOp::kIntersect) {
+        // For intersect clips, the scissor rectangle is just the outer bounds. Cases where the draw
+        // can skip setting the scissor because it's contained entirely within it are handled
+        // automatically by command generation.
+        scissor = cs.outerBounds().makeRoundOut();
     } else {
-        // SkStrokeRect::getInflationRadius() returns a device-space inflation for hairlines.
-        float localOutset = style.isHairlineStyle() ? 0.f : style.getInflationRadius();
-        if ((!style.isFillStyle() && style.getWidth() <= localAAOutset) ||
-            (style.isFillStyle() && any(origSize <= localAAOutset))) {
-            // The geometry is a hairline or projects to a subpixel shape, so rendering will not
-            // follow the typical 1/2px outset anti-aliasing that is compatible with clipping.
-            // In this case, apply the local AA radius to the shape to have a conservative clip
-            // query while preserving the oriented bounding box.
-            localOutset += localAAOutset;
-        }
-
-        transformedShapeBounds.outset(localOutset);
-        if (localOutset > 0.f) {
-            // Propagate style and AA outset into styledShape so clip queries reflect style.
-            bool inverted = styledShape.inverted();
-            styledShape.setRect(transformedShapeBounds); // it's still local at this point
-            styledShape.setInverted(inverted);  // preserve original inversion state
-        }
-
-        transformedShapeBounds = localToDevice.mapRect(transformedShapeBounds);
-
-        // Inverse-filled shapes always fill the entire device (restricted to the clip).
-        if (styledShape.inverted()) {
-            drawBounds = deviceBounds;
-        } else {
-            drawBounds = transformedShapeBounds.makeIntersect(deviceBounds);
-        }
+        // For difference clips, a tight scissor could be `subtract(drawBounds, cs.innerBounds(),
+        // true)` but this can trigger scissor state thrashing when the draw has analytic AA that
+        // will later on outset `drawBounds` and make it appear as though the scissor was required.
+        // The limited scenario where the tight scissor restricts anything is for axis-aligned
+        // difference clipRects that span across the draw along one axis. That is not worth the
+        // complexity, so just `deviceBounds` as the scissor.
+        scissor = deviceBounds;
     }
 
-    if (drawBounds.isEmptyNegativeOrNaN() || cs.state() == ClipState::kWideOpen) {
-        // Either the draw is off screen, so it's clipped out regardless of the state of the
-        // SaveRecord, or there are no elements to apply to the draw. In both cases, 'drawBounds'
-        // has the correct value, the scissor is the device bounds (ignored if clipped-out).
-        return Clip(drawBounds, transformedShapeBounds, deviceBounds.asSkIRect(), {}, cs.shader());
-    }
+    draw.applyScissor(scissor);
 
-    // We don't evaluate Simplify() on the SaveRecord and the draw because a reduced version of
-    // Simplify is effectively performed in computing the scissor rect.
-    // Given that, we can skip iterating over the clip elements when:
-    //  - the draw's *scissored* bounds are empty, which happens when the draw was clipped out.
-    //  - the scissored bounds are contained in our inner bounds, which happens if all we need to
-    //    apply to the draw is the computed scissor rect.
-    // TODO: The Clip's scissor is defined in terms of integer pixel coords, but if we move to
-    // clip plane distances in the vertex shader, it can be defined in terms of the original float
-    // coordinates.
-    Rect scissor = cs.scissor(deviceBounds, drawBounds).makeRoundOut();
-    drawBounds.intersect(scissor);
-    if (drawBounds.isEmptyNegativeOrNaN() || cs.innerBounds().contains(drawBounds)) {
-        // Like above, in both cases drawBounds holds the right value.
-        return Clip(drawBounds, transformedShapeBounds, scissor.asSkIRect(), {}, cs.shader());
-    }
+    switch (cs.testForDraw(draw)) {
+        case DrawInfluence::kClipsOutDraw:
+            // The draw is offscreen or clipped out, so there is no need to visit the clip elements.
+            return kClippedOut;
 
-    // If we made it here, the clip stack affects the draw in a complex way so iterate each element.
-    // A regular draw is a transformed shape that "intersects" the clip. An inverse-filled draw is
-    // equivalent to "difference". We use empty inner bounds because
-    // there's currently no way to re-write the draw as the clip's geometry, so there's no need to
-    // check if the draw contains the clip (vice versa is still checked and represents an unclipped
-    // draw so is very useful to identify).
-    TransformedShape draw{shapeInDeviceSpace ? kIdentity : localToDevice,
-                          styledShape,
-                          /*outerBounds=*/drawBounds,
-                          /*innerBounds=*/Rect::InfiniteInverted(),
-                          /*op=*/styledShape.inverted() ? SkClipOp::kDifference
-                                                        : SkClipOp::kIntersect,
-                          /*containsChecksOnlyBounds=*/true};
+        case DrawInfluence::kNone:
+            // The draw is unaffected by the clip stack (except possibly `scissor`), and there's no
+            // need to visit each clip element.
+            return draw.toClip(scissor, {}, cs.shader());
+
+        case DrawInfluence::kReplacesDraw:
+            // The draw covers the clip entirely. We could replace the geometry being drawn with
+            // something similar, but for now fall through to per-element clipping like kIntersect
+            [[fallthrough]];
+
+        case DrawInfluence::kComplexInteraction:
+            // Check each element's influence on the draw below
+            break;
+    }
 
     SkASSERT(outEffectiveElements);
     SkASSERT(outEffectiveElements->empty());
@@ -1467,19 +1563,32 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
             break;
         }
 
-        auto influence = e.testForDraw(draw);
-        if (influence == RawElement::DrawInfluence::kClipOut) {
-            outEffectiveElements->clear();
-            return kClippedOut;
-        }
-        if (influence == RawElement::DrawInfluence::kIntersect) {
-            if (nonMSAAClip.fAnalyticClip.isEmpty()) {
-                nonMSAAClip.fAnalyticClip = can_apply_analytic_clip(e.shape(), e.localToDevice());
-                if (!nonMSAAClip.fAnalyticClip.isEmpty()) {
-                    continue;
+        switch (e.testForDraw(draw)) {
+            case DrawInfluence::kClipsOutDraw:
+                // Per-element check was able to completely reject the draw.
+                outEffectiveElements->clear();
+                return kClippedOut;
+
+            case DrawInfluence::kNone:
+                // This element does not interact, so continue to the next
+                continue;
+
+            case DrawInfluence::kReplacesDraw:
+                // This element is covered entirely by the draw so we could replace the draw with
+                // the clip's geometry. For now, fall through and treat as if it were kIntersect
+                [[fallthrough]];
+
+            case DrawInfluence::kComplexInteraction:
+                // First try to handle the clip analytically, otherwise add to outEffectiveElements
+                if (nonMSAAClip.fAnalyticClip.isEmpty()) {
+                    nonMSAAClip.fAnalyticClip = can_apply_analytic_clip(e.shape(),
+                                                                        e.localToDevice());
+                    if (!nonMSAAClip.fAnalyticClip.isEmpty()) {
+                        continue;
+                    }
                 }
-            }
-            outEffectiveElements->push_back(&e);
+                outEffectiveElements->push_back(&e);
+                break;
         }
     }
 
@@ -1509,7 +1618,7 @@ Clip ClipStack::visitClipStackForDraw(const Transform& localToDevice,
     }
 #endif
 
-    return Clip(drawBounds, transformedShapeBounds, scissor.asSkIRect(), nonMSAAClip, cs.shader());
+    return draw.toClip(scissor, nonMSAAClip, cs.shader());
 }
 
 CompressedPaintersOrder ClipStack::updateClipStateForDraw(const Clip& clip,

@@ -113,9 +113,8 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   std::map<uint32_t, RtpPayloadState> GetRtpPayloadStates() const
       RTC_LOCKS_EXCLUDED(mutex_) override;
 
-  void DeliverRtcp(const uint8_t* packet, size_t length)
+  void DeliverRtcp(ArrayView<const uint8_t> packet)
       RTC_LOCKS_EXCLUDED(mutex_) override;
-
   // Implements webrtc::VCMProtectionCallback.
   int ProtectionRequest(const FecProtectionParams* delta_params,
                         const FecProtectionParams* key_params,

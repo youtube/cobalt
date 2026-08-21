@@ -77,6 +77,7 @@ using ::testing::Field;
 using ::testing::Gt;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Pointwise;
 using ::testing::SizeIs;
 using ::testing::UnorderedElementsAreArray;
@@ -86,9 +87,9 @@ using ::webrtc::UniqueRandomIdGenerator;
 
 using Candidates = std::vector<Candidate>;
 
-const char kAudioMid[] = "0";
-const char kVideoMid[] = "1";
-const char kDataMid[] = "2";
+constexpr char kAudioMid[] = "0";
+constexpr char kVideoMid[] = "1";
+constexpr char kDataMid[] = "2";
 
 class CodecLookupHelperForTesting : public CodecLookupHelper {
  public:
@@ -143,11 +144,11 @@ const Codec kVideoCodecsAnswer[] = {CreateVideoCodec(97, "H264")};
 // H.265 level-id, according to H.265 spec, is calculated this way:
 // For any given H.265 level a.b, level-id = (a * 10 + b) * 3. For level 6.0,
 // level-id = (6 * 10 + 0) * 3 = 180. Similar for all other H.265 levels.
-const char kVideoCodecsH265Level6LevelId[] = "180";
-const char kVideoCodecsH265Level52LevelId[] = "156";
-const char kVideoCodecsH265Level5LevelId[] = "150";
-const char kVideoCodecsH265Level4LevelId[] = "120";
-const char kVideoCodecsH265Level31LevelId[] = "93";
+constexpr char kVideoCodecsH265Level6LevelId[] = "180";
+constexpr char kVideoCodecsH265Level52LevelId[] = "156";
+constexpr char kVideoCodecsH265Level5LevelId[] = "150";
+constexpr char kVideoCodecsH265Level4LevelId[] = "120";
+constexpr char kVideoCodecsH265Level31LevelId[] = "93";
 
 const SdpVideoFormat kH265MainProfileLevel31Sdp(
     "H265",
@@ -356,19 +357,19 @@ const RtpExtension kRtpExtensionGenericFrameDescriptorUri00[] = {
                  3),
 };
 
-const uint32_t kSimulcastParamsSsrc[] = {10, 11, 20, 21, 30, 31};
-const uint32_t kSimSsrc[] = {10, 20, 30};
-const uint32_t kFec1Ssrc[] = {10, 11};
-const uint32_t kFec2Ssrc[] = {20, 21};
-const uint32_t kFec3Ssrc[] = {30, 31};
+constexpr uint32_t kSimulcastParamsSsrc[] = {10, 11, 20, 21, 30, 31};
+constexpr uint32_t kSimSsrc[] = {10, 20, 30};
+constexpr uint32_t kFec1Ssrc[] = {10, 11};
+constexpr uint32_t kFec2Ssrc[] = {20, 21};
+constexpr uint32_t kFec3Ssrc[] = {30, 31};
 
-const char kMediaStream1[] = "stream_1";
-const char kMediaStream2[] = "stream_2";
-const char kVideoTrack1[] = "video_1";
-const char kVideoTrack2[] = "video_2";
-const char kAudioTrack1[] = "audio_1";
-const char kAudioTrack2[] = "audio_2";
-const char kAudioTrack3[] = "audio_3";
+constexpr char kMediaStream1[] = "stream_1";
+constexpr char kMediaStream2[] = "stream_2";
+constexpr char kVideoTrack1[] = "video_1";
+constexpr char kVideoTrack2[] = "video_2";
+constexpr char kAudioTrack1[] = "audio_1";
+constexpr char kAudioTrack2[] = "audio_2";
+constexpr char kAudioTrack3[] = "audio_3";
 
 const char* kMediaProtocols[] = {"RTP/AVP", "RTP/SAVP", "RTP/AVPF",
                                  "RTP/SAVPF"};
@@ -2017,7 +2018,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                                    RtpTransceiverDirection::kStopped),
       RtpHeaderExtensionCapability("uri3", 7,
                                    RtpTransceiverDirection::kSendOnly)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
   EXPECT_THAT(
       offer->contents(),
       ElementsAre(
@@ -2050,7 +2052,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                                    RtpTransceiverDirection::kSendRecv),
       RtpHeaderExtensionCapability("uri3", 7,
                                    RtpTransceiverDirection::kSendOnly)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
   EXPECT_THAT(
       offer->contents(),
       ElementsAre(
@@ -2085,7 +2088,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                                    RtpTransceiverDirection::kSendRecv),
       RtpHeaderExtensionCapability("uri3", 7,
                                    RtpTransceiverDirection::kStopped)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
   EXPECT_THAT(
       offer->contents(),
       ElementsAre(
@@ -2115,7 +2119,8 @@ TEST_F(MediaSessionDescriptionFactoryTest, AnswersUnstoppedExtensions) {
                                    RtpTransceiverDirection::kRecvOnly),
       RtpHeaderExtensionCapability("uri4", 1,
                                    RtpTransceiverDirection::kSendRecv)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
   opts.media_description_options.back().header_extensions = {
       RtpHeaderExtensionCapability("uri1", 4,
                                    RtpTransceiverDirection::kSendOnly),
@@ -2125,7 +2130,8 @@ TEST_F(MediaSessionDescriptionFactoryTest, AnswersUnstoppedExtensions) {
                                    RtpTransceiverDirection::kStopped),
       RtpHeaderExtensionCapability("uri4", 1,
                                    RtpTransceiverDirection::kSendRecv)};
-  auto answer = f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> answer =
+      f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
   EXPECT_THAT(
       answer->contents(),
       ElementsAre(Property(
@@ -2144,7 +2150,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   opts.media_description_options.back().header_extensions = {
       RtpHeaderExtensionCapability("uri1", 1,
                                    RtpTransceiverDirection::kSendRecv)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
   opts.media_description_options.back().header_extensions = {
       RtpHeaderExtensionCapability("uri1", 2,
                                    RtpTransceiverDirection::kSendRecv),
@@ -2176,7 +2183,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                                    RtpTransceiverDirection::kSendRecv),
       RtpHeaderExtensionCapability("uri2", 2,
                                    RtpTransceiverDirection::kSendRecv)};
-  auto offer = f1_.CreateOfferOrError(opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> offer =
+      f1_.CreateOfferOrError(opts, nullptr).MoveValue();
 
   // Check that a subsequent offer after setting "uri2" to stopped no longer
   // contains the extension.
@@ -3157,7 +3165,8 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                              &opts);
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  auto answer = f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
+  std::unique_ptr<SessionDescription> answer =
+      f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
 
   // Recycle the media section by changing its mid.
   opts.media_description_options[0].mid = "v1";
@@ -3584,7 +3593,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, AddSecondRtxInNewOffer) {
 
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   const VideoContentDescription* vcd =
       GetFirstVideoContentDescription(offer.get());
 
@@ -3993,7 +4002,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, TestOfferDtlsSavpfCreateAnswer) {
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), CreateAudioMediaSession(), nullptr)
           .MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
 
   const ContentInfo* answer_content = answer->GetContentByName(kAudioMid);
   ASSERT_TRUE(answer_content);
@@ -4128,7 +4137,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                                         &opts);
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
 
   ASSERT_EQ(4u, offer->contents().size());
   EXPECT_FALSE(offer->contents()[0].rejected);
@@ -4191,7 +4200,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
 
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
 
@@ -4237,7 +4246,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                              &offer_opts);
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   EXPECT_FALSE(offer->contents()[0].rejected);
   EXPECT_TRUE(offer->contents()[1].rejected);
@@ -4257,7 +4266,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                              &offer_opts);
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   EXPECT_FALSE(offer->contents()[0].rejected);
   EXPECT_TRUE(offer->contents()[1].rejected);
@@ -4291,7 +4300,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
                              &offer_opts);
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(offer_opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   ASSERT_FALSE(offer->contents()[0].rejected);
   ASSERT_FALSE(offer->contents()[1].rejected);
@@ -4331,7 +4340,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
 
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   EXPECT_EQ(kVideoMid, offer->contents()[0].mid());
   EXPECT_EQ(kAudioMid, offer->contents()[1].mid());
@@ -4351,7 +4360,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   const MediaContentDescription* vcd1 =
       offer->contents()[0].media_description();
@@ -4367,7 +4376,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   // Create answer and negotiate the codecs.
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ASSERT_EQ(2u, answer->contents().size());
   vcd1 = answer->contents()[0].media_description();
   vcd2 = answer->contents()[1].media_description();
@@ -4399,7 +4408,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, H265TxModeIsEqualRetainIt) {
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(1u, offer->contents().size());
   const MediaContentDescription* vcd1 =
       offer->contents()[0].media_description();
@@ -4409,7 +4418,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, H265TxModeIsEqualRetainIt) {
   // Create answer and negotiate the codecs.
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ASSERT_EQ(1u, answer->contents().size());
   vcd1 = answer->contents()[0].media_description();
   ASSERT_EQ(1u, vcd1->codecs().size());
@@ -4437,7 +4446,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, H265TxModeIsDifferentDropCodecs) {
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(1u, offer->contents().size());
   const VideoContentDescription* vcd1 =
       offer->contents()[0].media_description()->as_video();
@@ -4447,7 +4456,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, H265TxModeIsDifferentDropCodecs) {
   // Create answer and negotiate the codecs.
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ASSERT_EQ(1u, answer->contents().size());
   vcd1 = answer->contents()[0].media_description()->as_video();
   ASSERT_EQ(1u, vcd1->codecs().size());
@@ -4476,7 +4485,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, PacketizationIsEqual) {
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(1u, offer->contents().size());
   const MediaContentDescription* vcd1 =
       offer->contents()[0].media_description();
@@ -4486,7 +4495,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, PacketizationIsEqual) {
   // Create answer and negotiate the codecs.
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ASSERT_EQ(1u, answer->contents().size());
   vcd1 = answer->contents()[0].media_description();
   ASSERT_EQ(1u, vcd1->codecs().size());
@@ -4514,7 +4523,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, PacketizationIsDifferent) {
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(1u, offer->contents().size());
   const VideoContentDescription* vcd1 =
       offer->contents()[0].media_description()->as_video();
@@ -4524,7 +4533,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, PacketizationIsDifferent) {
   // Create answer and negotiate the codecs.
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   ASSERT_EQ(1u, answer->contents().size());
   vcd1 = answer->contents()[0].media_description()->as_video();
   ASSERT_EQ(1u, vcd1->codecs().size());
@@ -4545,7 +4554,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   MediaContentDescription* vcd1 = offer->contents()[0].media_description();
   const MediaContentDescription* vcd2 =
@@ -4581,7 +4590,7 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   // Create an offer with two video sections using same codecs.
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   ASSERT_EQ(2u, offer->contents().size());
   MediaContentDescription* vcd1 = offer->contents()[0].media_description();
   const MediaContentDescription* vcd2 =
@@ -4643,7 +4652,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, CreateAnswerWithLocalCodecParams) {
 
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
   auto offer_acd = offer->contents()[0].media_description();
   auto offer_vcd = offer->contents()[1].media_description();
   std::string value;
@@ -4654,7 +4663,7 @@ TEST_F(MediaSessionDescriptionFactoryTest, CreateAnswerWithLocalCodecParams) {
 
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
   auto answer_acd = answer->contents()[0].media_description();
   auto answer_vcd = answer->contents()[1].media_description();
   // Use the parameters from the local codecs.
@@ -4696,11 +4705,11 @@ TEST_F(MediaSessionDescriptionFactoryTest,
 
   std::unique_ptr<SessionDescription> offer =
       f1_.CreateOfferOrError(opts, nullptr).MoveValue();
-  ASSERT_TRUE(offer);
+  ASSERT_THAT(offer, NotNull());
 
   std::unique_ptr<SessionDescription> answer =
       f2_.CreateAnswerOrError(offer.get(), opts, nullptr).MoveValue();
-  ASSERT_TRUE(answer);
+  ASSERT_THAT(answer, NotNull());
 
   // Answer should have one negotiated codec with packetization-mode=1 using the
   // offered payload type.
@@ -4873,18 +4882,18 @@ const Codec kOfferAnswerCodecs[] = {CreateAudioCodec(40, "codec0", 16000, 1),
  *     6   | x    x    x |  x    x    x |  x    x    x    x    x
  */
 // Codecs used by offerer in the AudioCodecsAnswerTest
-const int kOfferSendCodecs[] = {0, 1, 3, 5, 6};
-const int kOfferRecvCodecs[] = {1, 2, 3, 4, 6};
+constexpr int kOfferSendCodecs[] = {0, 1, 3, 5, 6};
+constexpr int kOfferRecvCodecs[] = {1, 2, 3, 4, 6};
 // Codecs used in the answerer in the AudioCodecsAnswerTest.  The order is
 // jumbled to catch the answer not following the order in the offer.
-const int kAnswerSendCodecs[] = {6, 5, 2, 3, 4};
-const int kAnswerRecvCodecs[] = {6, 5, 4, 1, 0};
+constexpr int kAnswerSendCodecs[] = {6, 5, 2, 3, 4};
+constexpr int kAnswerRecvCodecs[] = {6, 5, 4, 1, 0};
 // The resulting sets of codecs in the answer in the AudioCodecsAnswerTest
-const int kResultSend_RecvCodecs[] = {0, 1, 5, 6};
-const int kResultRecv_SendCodecs[] = {2, 3, 4, 6};
-const int kResultSendrecv_SendCodecs[] = {3, 6};
-const int kResultSendrecv_RecvCodecs[] = {1, 6};
-const int kResultSendrecv_SendrecvCodecs[] = {6};
+constexpr int kResultSend_RecvCodecs[] = {0, 1, 5, 6};
+constexpr int kResultRecv_SendCodecs[] = {2, 3, 4, 6};
+constexpr int kResultSendrecv_SendCodecs[] = {3, 6};
+constexpr int kResultSendrecv_RecvCodecs[] = {1, 6};
+constexpr int kResultSendrecv_SendrecvCodecs[] = {6};
 
 template <typename T, int IDXS>
 std::vector<T> VectorFromIndices(const T* array, const int (&indices)[IDXS]) {

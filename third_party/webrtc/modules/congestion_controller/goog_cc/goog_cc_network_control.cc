@@ -220,7 +220,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
     congestion_window_pushback_controller_->UpdatePacingQueue(
         msg.pacer_queue->bytes());
   }
-  bandwidth_estimation_->OnPeriodicUpdate(msg.at_time);
+  bandwidth_estimation_->UpdateEstimate(msg.at_time);
   std::optional<int64_t> start_time_ms =
       alr_detector_->GetApplicationLimitedRegionStartTime();
   probe_controller_->SetAlrStartTimeMs(start_time_ms);
@@ -380,8 +380,10 @@ std::vector<ProbeClusterConfig> GoogCcNetworkController::ResetConstraints(
 
 NetworkControlUpdate GoogCcNetworkController::OnTransportLossReport(
     TransportLossReport msg) {
+  int64_t total_packets_delta =
+      msg.packets_received_delta + msg.packets_lost_delta;
   bandwidth_estimation_->UpdatePacketsLost(
-      msg.packets_lost_delta, msg.packets_received_delta, msg.receive_time);
+      msg.packets_lost_delta, total_packets_delta, msg.receive_time);
   return NetworkControlUpdate();
 }
 
@@ -452,7 +454,11 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
     probe_controller_->SetAlrEndedTimeMs(now_ms);
   }
   previously_in_alr_ = alr_start_time.has_value();
-
+  acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
+      report.SortedByReceiveTime());
+  auto acknowledged_bitrate = acknowledged_bitrate_estimator_->bitrate();
+  bandwidth_estimation_->SetAcknowledgedRate(acknowledged_bitrate,
+                                             report.feedback_time);
   for (const auto& feedback : report.SortedByReceiveTime()) {
     if (feedback.sent_packet.pacing_info.probe_cluster_id !=
         PacedPacketInfo::kNotAProbe) {
@@ -471,9 +477,6 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
       *probe_bitrate < estimate_->link_capacity_lower) {
     probe_bitrate.reset();
   }
-  acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
-      report.SortedByReceiveTime());
-  auto acknowledged_bitrate = acknowledged_bitrate_estimator_->bitrate();
   if (limit_probes_lower_than_throughput_estimate_ && probe_bitrate &&
       acknowledged_bitrate) {
     // Limit the backoff to something slightly below the acknowledged
@@ -497,9 +500,19 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
       report, acknowledged_bitrate, probe_bitrate, estimate_,
       alr_start_time.has_value());
 
-  bandwidth_estimation_->OnTransportPacketsFeedback(
-      report, delay_based_bwe_->last_estimate(), acknowledged_bitrate,
-      /*is_probe_rate=*/result.probe, alr_start_time.has_value());
+  if (result.updated) {
+    if (result.probe) {
+      bandwidth_estimation_->SetSendBitrate(result.target_bitrate,
+                                            report.feedback_time);
+    }
+    // Since SetSendBitrate now resets the delay-based estimate, we have to
+    // call UpdateDelayBasedEstimate after SetSendBitrate.
+    bandwidth_estimation_->UpdateDelayBasedEstimate(report.feedback_time,
+                                                    result.target_bitrate);
+  }
+  bandwidth_estimation_->UpdateLossBasedEstimator(
+      report, result.delay_detector_state, probe_bitrate,
+      alr_start_time.has_value());
   if (result.updated) {
     // Update the estimate in the ProbeController, in case we want to probe.
     MaybeTriggerOnNetworkChanged(&update, report.feedback_time);

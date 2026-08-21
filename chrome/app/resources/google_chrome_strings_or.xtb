@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">ସାଇନ ଇନ କରିବାରେ ଏକ ତ୍ରୁଟି ଯୋଗୁଁ ChromeOS Flex ଆପଣଙ୍କ ଡାଟାକୁ ସିଙ୍କ କରିପାରିଲା ନାହିଁ।</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome ପାଇଁ Windows 10 କିମ୍ୱା ତା'ପରର ସଂସ୍କରଣ ଆବଶ୍ୟକ।</translation>
+<translation id="3810973564298564668">ପରିଚାଳନା</translation>
 <translation id="383928141529488001">ବ୍ଲୁଟୁଥ ଡିଭାଇସଗୁଡ଼ିକୁ ଏକ୍ସପ୍ଲୋର କରିବା ପାଇଁ Chrome ବ୍ଲୁଟୁଥ ଆକ୍ସେସ ଆବଶ୍ୟକ କରେ। <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">ଦୟାକରି ସମସ୍ତ Google Chrome ୱିଣ୍ଡୋ ବନ୍ଦ କରନ୍ତୁ ଏବଂ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।</translation>
 <translation id="3873044882194371212">Chromeର ଇନ୍‍କ&amp;ଗ୍ନିଟୋ ୱିଣ୍ଡୋରେ ଲିଙ୍କ୍‍ ଖୋଲନ୍ତୁ</translation>
@@ -522,6 +523,7 @@
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ଇନଷ୍ଟଲର</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> ପାଇଁ ଆପଣଙ୍କୁ ଏହି ଡିଭାଇସକୁ ବ୍ୟବହାର କରିବା ପୂର୍ବରୁ ନିମ୍ନୋକ୍ତ ସେବାର ସର୍ତ୍ତାବଳୀକୁ ପଢ଼ି ସେଗୁଡ଼ିକୁ ଗ୍ରହଣ କରିବାର ଆବଶ୍ୟକତା ଅଛି। ଏହି ସର୍ତ୍ତାବଳୀ Google ChromeOSର ସର୍ତ୍ତାବଳୀକୁ ବିସ୍ତାର, ପରିବର୍ତ୍ତନ କିମ୍ବା ସୀମିତ କରେ ନାହିଁ।</translation>
+<translation id="7627609214560473136">ଆପଣଙ୍କ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖିବା ପାଇଁ Chromeକୁ ଆପଣ ବର୍ତ୍ତମାନ ଭିଜିଟ କରିନଥିବା ସାଇଟଗୁଡ଼ିକରୁ ଅନୁମତି କାଢ଼ି ଦେବାକୁ ଦିଅନ୍ତୁ।</translation>
 <translation id="7629695634924605473">ଆପଣଙ୍କର ପାସ୍‍ୱାର୍ଡଗୁଡ଼ିକ କେବେ ବି ଚୋରି ହୋଇଛି କି ନାହିଁ ତାହା Chrome ଆପଣଙ୍କୁ ଜାଣିବାକୁ ଦିଏ</translation>
 <translation id="7641148173327520642">ଆପଣଙ୍କର ସିଷ୍ଟମ୍ ଆଡ୍‌ମିନିଷ୍ଟ୍ରେଟର୍ <ph name="ALTERNATIVE_BROWSER_NAME" /> ଖୋଲିବା ପାଇଁ Google Chrome କନ୍‌ଫିଗର୍ କରିଛନ୍ତି, ଯାହା ଦ୍ୱାରା <ph name="TARGET_URL_HOSTNAME" />କୁ ଆକ୍ସେସ୍ କରାଯାଇପାରିବ।</translation>
 <translation id="7649070708921625228">ସହାୟତା</translation>
@@ -608,6 +610,7 @@
 <translation id="8649026945479135076">ଆପଣଙ୍କ ଅନୁଭୂତିକୁ ପର୍ସନାଲାଇଜ କରିବା ପାଇଁ, ଆପଣ ଭିଜିଟ କରୁଥିବା ସାଇଟଗୁଡ଼ିକ ସାଧାରଣତଃ ଆପଣଙ୍କ ରୁଚି ଥିବା ଜିନିଷଗୁଡ଼ିକୁ ମନେ ରଖେ। ସାଇଟଗୁଡ଼ିକ ମଧ୍ୟ ଆପଣଙ୍କ ରୁଚିଗୁଡ଼ିକ ବିଷୟରେ Chrome ସହ ସୂଚନା ଷ୍ଟୋର କରିପାରିବ।</translation>
 <translation id="8669527147644353129">Google Chrome ସାହାଯ୍ୟକାରୀ</translation>
 <translation id="8679801911857917785">ଏଥିରୁ ଏହା ମଧ୍ୟ ନିୟନ୍ତ୍ରଣ ହୋ‍ଇଥାଏ ଯେ ଯେତେବେଳେ ଆପଣ Chrome ଆରମ୍ଭ କରନ୍ତି, ସେତେବେଳେ କେଉଁ ପୃଷ୍ଠା ଦେଖାଯିବ।</translation>
+<translation id="8712637175834984815">ବୁଝିଗଲି</translation>
 <translation id="8712767363896337380">ପ୍ରାୟ ଅପ ଟୁ ଡେଟ! ଅପଡେଟ ସମ୍ପୂର୍ଣ୍ଣ କରିବା ପାଇଁ Chromeକୁ ପୁଣି ଲଞ୍ଚ କରନ୍ତୁ।</translation>
 <translation id="8718062187489036808">Chromeରୁ ସାଇନ ଆଉଟ କରନ୍ତୁ</translation>
 <translation id="873133009373065397">Google Chrome ଡିଫଲ୍ଟ ବ୍ରାଉଜର୍ ନିର୍ଦ୍ଧାରଣ କିମ୍ବା ସେଟ୍ କରିପାରିବ ନାହିଁ</translation>

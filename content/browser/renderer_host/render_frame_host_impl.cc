@@ -2994,7 +2994,7 @@ void RenderFrameHostImpl::WillLeaveBackForwardCacheInternal() {
 void RenderFrameHostImpl::StartBackForwardCacheEvictionTimer() {
   DCHECK(IsInBackForwardCache());
   base::TimeDelta evict_after =
-      BackForwardCacheImpl::GetTimeToLiveInBackForwardCache(
+      GetBackForwardCache().GetTimeToLiveInBackForwardCache(
           LoadedWithCacheControlNoStoreHeader()
               ? BackForwardCacheImpl::kInCCNSContext
               : BackForwardCacheImpl::kNotInCCNSContext);
@@ -4951,8 +4951,12 @@ void RenderFrameHostImpl::DidNavigate(
   //
   // The URL is set regardless of whether it's for a net error or not.
   SetLastCommittedUrl(params.url);
-  SetLastCommittedOrigin(params.origin,
-                         params.has_potentially_trustworthy_unique_origin);
+  // The origin is only updated for cross-document navigations.
+  if (!was_within_same_document ||
+      !features::IsEnforceSameDocumentOriginInvariantsEnabled()) {
+    SetLastCommittedOrigin(params.origin,
+                           params.has_potentially_trustworthy_unique_origin);
+  }
 
   // If the navigation was a cross-document navigation and it's not the
   // synchronous about:blank commit, then it committed a document that is not
@@ -5666,6 +5670,24 @@ void RenderFrameHostImpl::ResetChildren() {
   TRACE_EVENT("navigation", "RenderFrameHostImpl::ResetChildren",
               ChromeTrackEvent::kRenderFrameHost, this);
   base::ScopedUmaHistogramTimer histogram_timer("Navigation.ResetChildren");
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+  // If the outermost main frame is tearing down its FrameTree state, then we
+  // need to monitor how many of its child fenced frames were in the viewport
+  // right before they all unload. This may have already occurred prior to a
+  // navigation commit, in which case this block is a no-op. However, for
+  // non-navigation cases that close the primary page, like frames detaching,
+  // tabs closing, or renderer processes disappearing, we still need to monitor
+  // the correct metrics.
+  if (IsOutermostMainFrame()) {
+    auto* monitor =
+        PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(GetPage());
+    if (monitor) {
+      monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
+    }
+  }
+#endif
+
   // Remove child nodes from the tree, then delete them. This destruction
   // operation will notify observers. See https://crbug.com/612450 for
   // explanation why we don't just call the std::vector::clear method.
@@ -11476,6 +11498,13 @@ CanCommitStatus RenderFrameHostImpl::CanCommitOriginAndUrl(
     return CanCommitStatus::CANNOT_COMMIT_URL;
   }
 
+  // Same-document navigations cannot change origins.
+  if (features::IsEnforceSameDocumentOriginInvariantsEnabled() &&
+      is_same_document_navigation && origin != GetLastCommittedOrigin()) {
+    LogCanCommitOriginAndUrlFailureReason("cross_origin_same_document");
+    return CanCommitStatus::CANNOT_COMMIT_ORIGIN;
+  }
+
   // MHTML subframes can supply URLs at commit time that do not match the
   // process lock. For example, it can be either "cid:..." or arbitrary URL at
   // which the frame was at the time of generating the MHTML
@@ -11503,9 +11532,14 @@ CanCommitStatus RenderFrameHostImpl::CanCommitOriginAndUrl(
   // Same-document navigations cannot change origins, as long as these checks
   // aren't being bypassed in unusual modes. This check must be after the MHTML
   // check, as shown by NavigationMhtmlBrowserTest.IframeAboutBlankNotFound.
-  if (is_same_document_navigation && origin != GetLastCommittedOrigin()) {
-    LogCanCommitOriginAndUrlFailureReason("cross_origin_same_document");
-    return CanCommitStatus::CANNOT_COMMIT_ORIGIN;
+  // TODO(crbug.com/40580002): Remove this block in favor of the enforcement
+  // above once kEnforceSameDocumentOriginInvariants and
+  // kTreatMhtmlInitialDocumentLoadsAsCrossDocument finish launching.
+  if (!features::IsEnforceSameDocumentOriginInvariantsEnabled()) {
+    if (is_same_document_navigation && origin != GetLastCommittedOrigin()) {
+      LogCanCommitOriginAndUrlFailureReason("cross_origin_same_document");
+      return CanCommitStatus::CANNOT_COMMIT_ORIGIN;
+    }
   }
 
   // Give the client a chance to disallow URLs from committing.
@@ -12887,6 +12921,15 @@ void RenderFrameHostImpl::BindBlobUrlStoreAssociatedReceiver(
           },
           weak_ptr_factory_.GetWeakPtr()),
       std::move(top_level_blob_document_url),
+      /*context_type_for_debugging=*/"Frame",
+      base::BindRepeating(
+          [](base::WeakPtr<RenderFrameHostImpl> frame) -> std::string {
+            if (!frame) {
+              return "destroyed RenderFrameHost";
+            }
+            return frame->GetStorageKey().GetDebugString();
+          },
+          weak_ptr_factory_.GetWeakPtr()),
       !(GetContentClient()->browser()->IsBlobUrlPartitioningEnabled(
           GetBrowserContext())));
 }
@@ -12899,7 +12942,16 @@ void RenderFrameHostImpl::BindBlobUrlStoreReceiver(
 
   storage_partition_impl->GetBlobUrlRegistry()->AddReceiver(
       GetStorageKey(), GetLastCommittedOrigin(),
-      GetProcess()->GetDeprecatedID(), std::move(receiver));
+      GetProcess()->GetDeprecatedID(), std::move(receiver),
+      /*context_type_for_debugging=*/"ThreadedWorklet",
+      base::BindRepeating(
+          [](base::WeakPtr<RenderFrameHostImpl> frame) -> std::string {
+            if (!frame) {
+              return "destroyed RenderFrameHost (threaded worklet)";
+            }
+            return frame->GetStorageKey().GetDebugString();
+          },
+          weak_ptr_factory_.GetWeakPtr()));
 }
 
 bool RenderFrameHostImpl::IsFocused() {
@@ -15191,6 +15243,28 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                                 is_same_document_navigation,
                                 navigation_request.get());
     base::debug::DumpWithoutCrashing();
+  }
+
+  // For same-document navigations, the committed origin and insecure-request
+  // policy must be identical to the values that were already present in the
+  // FrameTreeNode / RenderFrameHost before this commit.
+  if (is_same_document_navigation &&
+      features::IsEnforceSameDocumentOriginInvariantsEnabled()) {
+    if (params->insecure_request_policy !=
+        frame_tree_node_->current_replication_state().insecure_request_policy) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(),
+          bad_message::RFH_SAME_DOC_INSECURE_REQUEST_POLICY_CHANGE);
+      return false;
+    }
+
+    if (params->insecure_navigations_set !=
+        frame_tree_node_->current_replication_state()
+            .insecure_navigations_set) {
+      bad_message::ReceivedBadMessage(
+          GetProcess(), bad_message::RFH_SAME_DOC_INSECURE_NAV_SET_CHANGE);
+      return false;
+    }
   }
 
   // A matching NavigationRequest should have been found, unless in a few very

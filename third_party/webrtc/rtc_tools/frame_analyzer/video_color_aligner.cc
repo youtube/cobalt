@@ -10,18 +10,21 @@
 
 #include "rtc_tools/frame_analyzer/video_color_aligner.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include "api/array_view.h"
 #include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_tools/frame_analyzer/linear_least_squares.h"
+#include "rtc_tools/video_file_reader.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
 

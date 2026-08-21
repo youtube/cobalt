@@ -19,7 +19,7 @@
 
 #include <sys/types.h>
 
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 #include <openssl/span.h>
 
 #include "../fipsmodule/ec/internal.h"

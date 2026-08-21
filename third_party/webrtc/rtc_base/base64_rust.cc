@@ -19,6 +19,19 @@
 
 namespace webrtc {
 
+namespace {
+
+Base64DecodeSetting ToRustDecodeSetting(Base64DecodeOptions options) {
+  switch (options) {
+    case Base64DecodeOptions::kStrict:
+      return Base64DecodeSetting::Strict;
+    case Base64DecodeOptions::kForgiving:
+      return Base64DecodeSetting::Forgiving;
+  }
+}
+
+}  // namespace
+
 std::string Base64Encode(absl::string_view data) {
   rust::Slice<const uint8_t> input_slice(
       reinterpret_cast<const uint8_t*>(data.data()), data.size());
@@ -32,7 +45,7 @@ std::optional<std::string> Base64Decode(absl::string_view data,
   rust::Slice<const uint8_t> input_slice(
       reinterpret_cast<const uint8_t*>(data.data()), data.size());
   std::string output;
-  if (!rs_base64_decode(input_slice, options, output)) {
+  if (!rs_base64_decode(input_slice, ToRustDecodeSetting(options), output)) {
     return std::nullopt;
   }
   return output;

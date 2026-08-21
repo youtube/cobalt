@@ -6,6 +6,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_DOM_ELEMENT_RARE_DATA_VECTOR_H_
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/css_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/element_rare_data_field.h"
 #include "third_party/blink/renderer/core/dom/explicitly_set_attr_elements_map.h"
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
@@ -91,8 +92,10 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
     kScrollMarkerGroupData = 33,
     kScrollMarkerGroupContainerData = 34,
     kExplicitlySetElementsForAttr = 35,
+    kCSSPseudoElementData = 36,
+    kCustomElementRegistry = 37,
 
-    kNumFields = 36,
+    kNumFields = 38,
   };
 
   ElementRareDataField* GetField(FieldId field_id) const;
@@ -307,6 +310,9 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
   void SetScrollMarkerGroupContainerData(ScrollMarkerGroupData*);
   ScrollMarkerGroupData* GetScrollMarkerGroupContainerData() const;
 
+  void CacheCSSPseudoElement(PseudoId, CSSPseudoElement&);
+  CSSPseudoElement* GetCSSPseudoElement(PseudoId) const;
+
   ExplicitlySetAttrElementsMap* GetExplicitlySetElementsForAttr() const;
   ExplicitlySetAttrElementsMap& EnsureExplicitlySetElementsForAttr();
 
@@ -316,6 +322,9 @@ class CORE_EXPORT ElementRareDataVector final : public NodeRareData {
 
   AnchorElementObserver& EnsureAnchorElementObserver(Element*);
   AnchorElementObserver* GetAnchorElementObserver() const;
+
+  CustomElementRegistry* GetCustomElementRegistry() const;
+  void SetCustomElementRegistry(CustomElementRegistry* registry);
 
   void IncrementImplicitlyAnchoredElementCount();
   void DecrementImplicitlyAnchoredElementCount();

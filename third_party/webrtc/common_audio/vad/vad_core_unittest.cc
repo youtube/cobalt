@@ -10,6 +10,9 @@
 
 #include <stdlib.h>
 
+#include <cstdint>
+#include <cstring>
+
 #include "common_audio/vad/vad_unittest.h"
 #include "test/gtest.h"
 

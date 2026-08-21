@@ -24,10 +24,10 @@ namespace webrtc {
 namespace test {
 
 namespace {
-const size_t kFrameWidth = 50;
-const size_t kFrameHeight = 20;
-const size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
-const size_t kFrameRate = 30;
+constexpr size_t kFrameWidth = 50;
+constexpr size_t kFrameHeight = 20;
+constexpr size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
+constexpr size_t kFrameRate = 30;
 
 const std::string kFileHeader = "YUV4MPEG2 W50 H20 F30:1 C420\n";
 const std::string kFrameHeader = "FRAME\n";

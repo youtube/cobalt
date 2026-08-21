@@ -2592,6 +2592,10 @@ void StoragePartitionImpl::OnAdAuctionEventRecordHeaderReceived(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+bool StoragePartitionImpl::IsStorageServiceRemoteValid() const {
+  return GetStorageServiceRemoteStorage().is_bound();
+}
+
 void StoragePartitionImpl::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderNetworkServiceObserver>
         observer) {

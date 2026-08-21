@@ -30,6 +30,7 @@ if (rtc_include_tests) {
       "../../../api:rtp_transceiver_direction",
       "../../../api:scoped_refptr",
       "../../../api/test/network_emulation",
+      "../../../api/test/network_emulation:network_queue",
       "../../../api/transport:ecn_marking",
       "../../../api/units:data_rate",
       "../../../api/units:time_delta",

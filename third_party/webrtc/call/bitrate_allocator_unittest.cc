@@ -100,7 +100,7 @@ class TestContributingBitrateObserver : public TestBitrateObserver {
 };
 
 constexpr int64_t kDefaultProbingIntervalMs = 3000;
-const double kDefaultBitratePriority = 1.0;
+constexpr double kDefaultBitratePriority = 1.0;
 
 TargetTransferRate CreateTargetRateMessage(uint32_t target_bitrate_bps,
                                            uint8_t fraction_loss,

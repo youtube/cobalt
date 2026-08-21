@@ -17,7 +17,6 @@
 #include <optional>
 #include <vector>
 
-#include "absl/strings/match.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/transport/network_types.h"
@@ -173,9 +172,8 @@ ProbeController::ProbeController(const FieldTrialsView* key_value_config,
                                  RtcEventLog* event_log)
     : network_available_(false),
       enable_periodic_alr_probing_(false),
-      in_rapid_recovery_experiment_(absl::StartsWith(
-          key_value_config->Lookup(kBweRapidRecoveryExperiment),
-          "Enabled")),
+      in_rapid_recovery_experiment_(
+          key_value_config->IsEnabled(kBweRapidRecoveryExperiment)),
       event_log_(event_log),
       config_(ProbeControllerConfig(key_value_config)) {
   Reset(Timestamp::Zero());

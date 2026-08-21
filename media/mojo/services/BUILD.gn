@@ -102,7 +102,6 @@ component("services") {
   deps = [
     "//gpu/ipc/service",
     "//media",
-    "//media:shared_memory_support",
     "//media/gpu",
     "//media/gpu:buildflags",
     "//media/gpu/ipc/service",
@@ -358,6 +357,10 @@ source_set("unit_tests") {
 
     deps += [ "//third_party/fuchsia-sdk/sdk/pkg/fit-promise" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   if (is_cobalt && use_starboard_media) {
     sources += [ "starboard/starboard_renderer_wrapper_unittest.cc" ]

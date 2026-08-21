@@ -22,6 +22,7 @@
 #include "absl/memory/memory.h"
 #include "api/audio_options.h"
 #include "api/candidate.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
@@ -460,7 +461,7 @@ void PeerScenarioClient::SetSdpAnswer(
       CreateSessionDescription(SdpType::kAnswer, remote_answer),
       make_ref_counted<LambdaSetRemoteDescriptionObserver>(
           [remote_answer, done_handler](RTCError) {
-            auto answer =
+            std::unique_ptr<SessionDescriptionInterface> answer =
                 CreateSessionDescription(SdpType::kAnswer, remote_answer);
             done_handler(*answer);
           }));

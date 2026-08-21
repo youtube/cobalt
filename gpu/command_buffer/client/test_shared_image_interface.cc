@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
 
 #include <GLES2/gl2.h>
@@ -24,6 +29,10 @@
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_fence.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include <fcntl.h>
+#endif
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "base/fuchsia/fuchsia_logging.h"
@@ -53,7 +62,6 @@ gfx::GpuMemoryBufferHandle CreateGMBHandle(
     const gfx::BufferFormat& buffer_format,
     const gfx::Size& size,
     gfx::BufferUsage buffer_usage) {
-  static int last_handle_id = 0;
   size_t buffer_size = 0u;
   CHECK(
       gfx::BufferSizeForBufferFormatChecked(size, buffer_format, &buffer_size));
@@ -62,12 +70,96 @@ gfx::GpuMemoryBufferHandle CreateGMBHandle(
   CHECK(shared_memory_region.IsValid());
 
   gfx::GpuMemoryBufferHandle handle(std::move(shared_memory_region));
-  handle.id = gfx::GpuMemoryBufferId(last_handle_id++);
   handle.offset = 0;
   handle.stride = static_cast<uint32_t>(
       gfx::RowSizeForBufferFormat(size.width(), buffer_format, 0));
 
   return handle;
+}
+
+class GpuMemoryBufferImpl : public gfx::GpuMemoryBuffer {
+ public:
+  GpuMemoryBufferImpl(const gfx::Size& size,
+                      gfx::BufferFormat format,
+                      base::UnsafeSharedMemoryRegion shared_memory_region,
+                      size_t offset,
+                      size_t stride)
+      : size_(size),
+        format_(format),
+        region_(std::move(shared_memory_region)),
+        offset_(offset),
+        stride_(stride),
+        mapped_(false) {}
+
+  ~GpuMemoryBufferImpl() override = default;
+
+  // Overridden from gfx::GpuMemoryBuffer:
+  bool Map() override {
+    DCHECK(!mapped_);
+    DCHECK_EQ(stride_, gfx::RowSizeForBufferFormat(size_.width(), format_, 0));
+    mapping_ = region_.MapAt(
+        0, offset_ + gfx::BufferSizeForBufferFormat(size_, format_));
+    if (!mapping_.IsValid()) {
+      return false;
+    }
+    mapped_ = true;
+    return true;
+  }
+  void* memory(size_t plane) override {
+    DCHECK(mapped_);
+    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
+    return reinterpret_cast<uint8_t*>(mapping_.memory()) + offset_ +
+           gfx::BufferOffsetForBufferFormat(size_, format_, plane);
+  }
+  void Unmap() override {
+    DCHECK(mapped_);
+    mapping_ = base::WritableSharedMemoryMapping();
+    mapped_ = false;
+  }
+  gfx::Size GetSize() const override { return size_; }
+  gfx::BufferFormat GetFormat() const override { return format_; }
+  int stride(size_t plane) const override {
+    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
+    return base::checked_cast<int>(gfx::RowSizeForBufferFormat(
+        size_.width(), format_, static_cast<int>(plane)));
+  }
+  gfx::GpuMemoryBufferType GetType() const override {
+    return gfx::SHARED_MEMORY_BUFFER;
+  }
+  gfx::GpuMemoryBufferHandle CloneHandle() const override {
+    gfx::GpuMemoryBufferHandle handle(region_.Duplicate());
+    handle.offset = base::checked_cast<uint32_t>(offset_);
+    handle.stride = base::checked_cast<uint32_t>(stride_);
+    return handle;
+  }
+
+ private:
+  const gfx::Size size_;
+  gfx::BufferFormat format_;
+  base::UnsafeSharedMemoryRegion region_;
+  base::WritableSharedMemoryMapping mapping_;
+  size_t offset_;
+  size_t stride_;
+  bool mapped_;
+};
+
+std::unique_ptr<gfx::GpuMemoryBuffer> CreateTestGpuMemoryBuffer(
+    const gfx::Size& size,
+    gfx::BufferFormat format,
+    gfx::BufferUsage usage,
+    gpu::SurfaceHandle surface_handle) {
+  const size_t buffer_size = gfx::BufferSizeForBufferFormat(size, format);
+  base::UnsafeSharedMemoryRegion shared_memory_region =
+      base::UnsafeSharedMemoryRegion::Create(buffer_size);
+  if (!shared_memory_region.IsValid()) {
+    return nullptr;
+  }
+
+  std::unique_ptr<gfx::GpuMemoryBuffer> result(new GpuMemoryBufferImpl(
+      size, format, std::move(shared_memory_region), 0,
+      base::checked_cast<int>(
+          gfx::RowSizeForBufferFormat(size.width(), format, 0))));
+  return result;
 }
 
 }  // namespace
@@ -146,6 +238,27 @@ TestSharedImageInterface::TestSharedImageInterface() {
 
 TestSharedImageInterface::~TestSharedImageInterface() = default;
 
+// static
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+gfx::GpuMemoryBufferHandle TestSharedImageInterface::CreatePixmapHandle(
+    const gfx::Size& size,
+    gfx::BufferFormat format) {
+  gfx::NativePixmapHandle native_pixmap_handle;
+  for (size_t i = 0; i < gfx::NumberOfPlanesForLinearBufferFormat(format);
+       i++) {
+    size_t height_in_pixels;
+    CHECK(gfx::PlaneHeightForBufferFormatChecked(size.height(), format, i,
+                                                 &height_in_pixels));
+    size_t stride = gfx::RowSizeForBufferFormat(size.width(), format, i);
+    native_pixmap_handle.planes.emplace_back(
+        stride, 0, height_in_pixels * stride,
+        base::ScopedFD(open("/dev/zero", O_RDWR)));
+  }
+
+  return gfx::GpuMemoryBufferHandle(std::move(native_pixmap_handle));
+}
+#endif
+
 scoped_refptr<ClientSharedImage> TestSharedImageInterface::CreateSharedImage(
     const SharedImageInfo& si_info,
     SurfaceHandle surface_handle,
@@ -199,10 +312,9 @@ scoped_refptr<ClientSharedImage> TestSharedImageInterface::CreateSharedImage(
   SharedImageInfo si_info_copy = si_info;
   // Set CPU read/write usage based on buffer usage.
   si_info_copy.meta.usage |= GetCpuSIUsage(buffer_usage);
-  if (test_gmb_manager_) {
-    auto gpu_memory_buffer = test_gmb_manager_->CreateGpuMemoryBuffer(
-        si_info.meta.size, buffer_format, buffer_usage, surface_handle,
-        nullptr);
+  if (use_test_gmb_) {
+    auto gpu_memory_buffer = CreateTestGpuMemoryBuffer(
+        si_info.meta.size, buffer_format, buffer_usage, surface_handle);
 
     // Since the |gpu_memory_buffer| here is always a shared memory, clear the
     // external sampler prefs if it is already set by client.
@@ -244,10 +356,9 @@ TestSharedImageInterface::CreateSharedImage(
   SharedImageInfo si_info_copy = si_info;
   // Set CPU read/write usage based on buffer usage.
   si_info_copy.meta.usage |= GetCpuSIUsage(buffer_usage);
-  if (test_gmb_manager_) {
-    auto gpu_memory_buffer = test_gmb_manager_->CreateGpuMemoryBuffer(
-        si_info.meta.size, buffer_format, buffer_usage, surface_handle,
-        nullptr);
+  if (use_test_gmb_) {
+    auto gpu_memory_buffer = CreateTestGpuMemoryBuffer(
+        si_info.meta.size, buffer_format, buffer_usage, surface_handle);
 
     // Since the |gpu_memory_buffer| here is always a shared memory, clear the
     // external sampler prefs if it is already set by client.
@@ -434,22 +545,12 @@ void TestSharedImageInterface::WaitSyncToken(const SyncToken& sync_token) {
 }
 
 scoped_refptr<ClientSharedImage>
-TestSharedImageInterface::CreateSharedImageWithMapCallbackController(
+TestSharedImageInterface::CreateSharedImageWithAsyncMapControl(
     const SharedImageInfo& si_info,
     gfx::BufferUsage buffer_usage,
     bool premapped,
-    ClientSharedImage::MapCallbackControllerForTesting* controller) {
-  CHECK(controller);
-
-  // Create a FakeGpuMemoryBuffer.
-  auto buffer_format =
-      viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-          si_info.meta.format);
-  auto fake_gmb = std::make_unique<FakeGpuMemoryBuffer>(
-      si_info.meta.size, buffer_format, premapped, controller);
-
+    const ClientSharedImage::AsyncMapInvokedCallback& callback) {
   Mailbox mailbox;
-  // Create a ClientSharedImage with a FakeGpuMemoryBuffer.
   {
     base::AutoLock locked(lock_);
     mailbox = Mailbox::Generate();
@@ -457,7 +558,7 @@ TestSharedImageInterface::CreateSharedImageWithMapCallbackController(
   }
 
   auto image = ClientSharedImage::CreateForTesting(
-      mailbox, si_info.meta, GenUnverifiedSyncToken(), std::move(fake_gmb),
+      mailbox, si_info.meta, GenUnverifiedSyncToken(), premapped, callback,
       buffer_usage, holder_);
   return image;
 }

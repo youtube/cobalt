@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include <openssl/mem.h>
 

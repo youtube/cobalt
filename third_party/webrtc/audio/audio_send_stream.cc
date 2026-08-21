@@ -20,6 +20,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_processing.h"
 #include "api/audio_codecs/audio_encoder.h"
@@ -489,9 +490,9 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   return stats;
 }
 
-void AudioSendStream::DeliverRtcp(const uint8_t* packet, size_t length) {
+void AudioSendStream::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  channel_send_->ReceivedRTCPPacket(packet, length);
+  channel_send_->ReceivedRTCPPacket(packet.data(), packet.size());
   // Poll if overhead has changed, which it can do if ack triggers us to stop
   // sending mid/rid.
   UpdateOverheadPerPacket();

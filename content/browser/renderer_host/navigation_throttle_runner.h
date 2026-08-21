@@ -51,19 +51,6 @@ class CONTENT_EXPORT NavigationThrottleRunner {
   // the navigation.
   void ResumeProcessingNavigationEvent(NavigationThrottle* resuming_throttle);
 
-  // Simulates the navigation resuming. Most callers should just let the
-  // deferring NavigationThrottle do the resuming.
-  void CallResumeForTesting();
-
-  // Returns the throttle that is currently deferring the navigation (i.e. the
-  // throttle at index |next_index_ -1|). If the handle is not deferred, returns
-  // nullptr;
-  NavigationThrottle* GetDeferringThrottle() const;
-
-  void set_first_deferral_callback_for_testing(base::OnceClosure callback) {
-    first_deferral_callback_for_testing_ = std::move(callback);
-  }
-
  private:
   void ProcessInternal();
   void InformRegistry(const NavigationThrottle::ThrottleCheckResult& result);
@@ -99,13 +86,8 @@ class CONTENT_EXPORT NavigationThrottleRunner {
   size_t defer_count_ = 0;
   size_t defer_count_for_request_ = 0;
 
-  // This test-only callback will be run the first time a NavigationThrottle
-  // defers this navigation.
-  base::OnceClosure first_deferral_callback_for_testing_;
-
   // The event currently being processed.
-  NavigationThrottleEvent current_event_ =
-      NavigationThrottleEvent::kNoEvent;
+  NavigationThrottleEvent current_event_ = NavigationThrottleEvent::kNoEvent;
 
   // Whether the navigation is in the primary main frame.
   bool is_primary_main_frame_ = false;

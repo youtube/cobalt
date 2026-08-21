@@ -1263,14 +1263,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // input.
   void JumpIfEqual(Register a, int32_t b, Label* dest) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    SignExtendWord(a, a);
 #endif
     Branch(dest, eq, a, Operand(b));
   }
 
   void JumpIfLessThan(Register a, int32_t b, Label* dest) {
 #ifdef V8_COMPRESS_POINTERS
-    Sll32(a, a, 0);
+    SignExtendWord(a, a);
 #endif
     Branch(dest, lt, a, Operand(b));
   }

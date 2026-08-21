@@ -10,8 +10,7 @@
 
 #include "examples/peerconnection/client/conductor.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,6 +22,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media.h"
 #include "api/environment/environment.h"
 #include "api/jsep.h"

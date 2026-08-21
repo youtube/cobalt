@@ -2887,26 +2887,6 @@ void MacroAssembler::SubPair(Register dst_low, Register dst_high,
   Move(dst_low, scratch1);
 }
 
-void MacroAssembler::AndPair(Register dst_low, Register dst_high,
-                             Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  And(dst_low, left_low, right_low);
-  And(dst_high, left_high, right_high);
-}
-
-void MacroAssembler::OrPair(Register dst_low, Register dst_high,
-                            Register left_low, Register left_high,
-                            Register right_low, Register right_high) {
-  Or(dst_low, left_low, right_low);
-  Or(dst_high, left_high, right_high);
-}
-void MacroAssembler::XorPair(Register dst_low, Register dst_high,
-                             Register left_low, Register left_high,
-                             Register right_low, Register right_high) {
-  Xor(dst_low, left_low, right_low);
-  Xor(dst_high, left_high, right_high);
-}
-
 void MacroAssembler::MulPair(Register dst_low, Register dst_high,
                              Register left_low, Register left_high,
                              Register right_low, Register right_high,
@@ -4553,7 +4533,9 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
     if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
         is_int12(ReadOnlyRootPtr(index))) {
       left = temps.Acquire();
-      Sll32(left, rs, 0);
+#if V8_TARGET_ARCH_RISCV64
+      SignExtendWord(left, rs);
+#endif
     }
     LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
@@ -4567,21 +4549,25 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
                                             Register r1, const Operand& r2,
                                             bool need_link) {
   if (COMPRESS_POINTERS_BOOL) {
+#if V8_TARGET_ARCH_RISCV64
     UseScratchRegisterScope temps(this);
     Register scratch0 = temps.Acquire();
-    Sll32(scratch0, r1, 0);
+    SignExtendWord(scratch0, r1);
     if (IsZero(r2)) {
       Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
       Register scratch1 = temps.Acquire();
       if (r2.is_reg()) {
-        Sll32(scratch1, r2.rm(), 0);
+        SignExtendWord(scratch1, r2.rm());
       } else {
         li(scratch1, r2);
-        Sll32(scratch1, scratch1, 0);
+        SignExtendWord(scratch1, scratch1);
       }
       Branch(label, cond, scratch0, Operand(scratch1));
     }
+#else
+    UNREACHABLE();
+#endif
   } else {
     Branch(label, cond, r1, r2);
   }
@@ -5128,6 +5114,38 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
   CompareTaggedRoot(obj, index, result);
 }
 #endif
+
+#if V8_STATIC_ROOTS_BOOL
+void MacroAssembler::BranchInstanceTypeWithUniqueCompressedMap(
+    Label* target, Condition cc, Register map, Register scratch,
+    InstanceType type) {
+  std::optional<RootIndex> expected =
+      InstanceTypeChecker::UniqueMapOfInstanceType(type);
+  CHECK(expected);
+  Tagged_t expected_ptr = ReadOnlyRootPtr(*expected);
+  UseScratchRegisterScope temps(this);
+  if (scratch == Register::no_reg()) {
+    // TODO(tpearson): Figure out why ScratchRegisterScope returns a
+    // register that is aliased with one of our other in-use registers
+    // For now, use r11 (kScratchReg in the code generator)
+    scratch = temps.Acquire();
+  }
+  DCHECK_NE(map, scratch);
+  li(scratch, Operand(expected_ptr));
+  CompareTaggedAndBranch(target, cc, map, Operand(scratch));
+}
+
+void MacroAssembler::BranchObjectTypeFast(Label* target, Condition cc,
+                                          Register object,
+                                          Register compressed_map_scratch,
+                                          InstanceType type) {
+  ASM_CODE_COMMENT(this);
+  CHECK(InstanceTypeChecker::UniqueMapOfInstanceType(type));
+  LoadCompressedMap(compressed_map_scratch, object);
+  BranchInstanceTypeWithUniqueCompressedMap(target, cc, compressed_map_scratch,
+                                            Register::no_reg(), type);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
@@ -6845,20 +6863,14 @@ void MacroAssembler::SmiUntag(Register dst, const MemOperand& src) {
   }
 }
 
-void MacroAssembler::SmiToInt32(Register smi) {
-  ASM_CODE_COMMENT(this);
-  if (v8_flags.enable_slow_asserts) {
-    AssertSmi(smi);
-  }
-  DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  SmiUntag(smi);
-}
+void MacroAssembler::SmiToInt32(Register smi) { SmiToInt32(smi, smi); }
 
 void MacroAssembler::SmiToInt32(Register dst, Register src) {
-  if (dst != src) {
-    Move(dst, src);
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.enable_slow_asserts) {
+    AssertSmi(src);
   }
-  SmiToInt32(dst);
+  SmiUntag(dst, src);
 }
 
 void MacroAssembler::JumpIfSmi(Register value, Label* smi_label,

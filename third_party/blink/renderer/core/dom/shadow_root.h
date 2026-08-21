@@ -126,8 +126,8 @@ class CORE_EXPORT ShadowRoot final : public DocumentFragment,
   V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* innerHTML() const;
   void setInnerHTML(const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML*,
                     ExceptionState&);
-  void setHTMLUnsafe(const String& html, ExceptionState&);
-  void setHTMLUnsafe(const String& html,
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html, ExceptionState&);
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                      SetHTMLUnsafeOptions*,
                      ExceptionState&);
   void setHTML(const String& html, SetHTMLOptions*, ExceptionState&);
@@ -182,13 +182,6 @@ class CORE_EXPORT ShadowRoot final : public DocumentFragment,
 
   void SetRegistry(CustomElementRegistry*);
   CustomElementRegistry* registry() const { return registry_.Get(); }
-
-  // Revamped scoped custom element registry renames
-  // `.registry` to `.customElementRegistry`, and it is read only.
-  CustomElementRegistry* customElementRegistry() const override {
-    DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
-    return registry_.Get();
-  }
 
   bool ContainsShadowRoots() const { return child_shadow_root_count_; }
 

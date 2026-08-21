@@ -12,15 +12,14 @@
 #define RTC_BASE_PLATFORM_THREAD_H_
 
 #include <functional>
-#include <string>
-#if !defined(WEBRTC_WIN)
-#include <pthread.h>
-#endif
-
 #include <optional>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/platform_thread_types.h"
+#include "rtc_base/platform_thread_types.h"  // IWYU pragma: keep
+
+#if !defined(WEBRTC_WIN)
+#include <pthread.h>  // IWYU pragma: keep
+#endif
 
 namespace webrtc {
 

@@ -26,7 +26,7 @@
 namespace webrtc {
 namespace {
 
-const int kNumFramesToProcess = 100;
+constexpr int kNumFramesToProcess = 100;
 
 void ProcessOneFrame(int sample_rate_hz,
                      AudioBuffer* render_audio_buffer,

@@ -19,13 +19,17 @@ class MaglevInliner {
  public:
   explicit MaglevInliner(Graph* graph) : graph_(graph) {}
 
-  void Run(bool is_tracing_maglev_graphs_enabled);
+  void Run();
 
  private:
+  int max_inlined_bytecode_size_cumulative() const;
+
   Graph* graph_;
 
   compiler::JSHeapBroker* broker() const { return graph_->broker(); }
   Zone* zone() const { return graph_->zone(); }
+
+  bool is_tracing_enabled() const { return graph_->is_tracing_enabled(); }
 
   MaglevCallSiteInfo* ChooseNextCallSite();
   MaybeReduceResult BuildInlineFunction(MaglevCallSiteInfo* call_site);

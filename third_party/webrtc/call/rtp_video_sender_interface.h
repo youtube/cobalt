@@ -40,7 +40,7 @@ class RtpVideoSenderInterface : public EncodedImageCallback,
   virtual std::map<uint32_t, RtpState> GetRtpStates() const = 0;
   virtual std::map<uint32_t, RtpPayloadState> GetRtpPayloadStates() const = 0;
 
-  virtual void DeliverRtcp(const uint8_t* packet, size_t length) = 0;
+  virtual void DeliverRtcp(ArrayView<const uint8_t> packet) = 0;
 
   virtual void OnBitrateAllocationUpdated(
       const VideoBitrateAllocation& bitrate) = 0;

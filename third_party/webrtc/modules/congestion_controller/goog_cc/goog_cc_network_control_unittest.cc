@@ -71,9 +71,9 @@ int CountBandwidthDips(std::queue<DataRate> bandwidth_history,
   return dips;
 }
 
-const uint32_t kInitialBitrateKbps = 60;
+constexpr uint32_t kInitialBitrateKbps = 60;
 const DataRate kInitialBitrate = DataRate::KilobitsPerSec(kInitialBitrateKbps);
-const float kDefaultPacingRate = 2.5f;
+constexpr float kDefaultPacingRate = 2.5f;
 
 CallClient* CreateVideoSendingClient(
     Scenario* s,

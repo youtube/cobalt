@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/modules/ai/language_model.h"
 
 #include "base/check.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
@@ -57,6 +58,36 @@ namespace {
 
 using AILanguageModelPromptContentOrError =
     std::variant<mojom::blink::AILanguageModelPromptContentPtr, DOMException*>;
+
+bool ValidateAndCanonicalizeExpectedInputLanguages(
+    v8::Isolate* isolate,
+    LanguageModelCreateCoreOptions* options) {
+  // Store the change intents, then apply them after everything is validated.
+  std::vector<std::tuple<LanguageModelExpected*, Vector<String>>> mutations;
+  for (auto& expected : options->getExpectedInputsOr({})) {
+    mutations.emplace_back(expected.Get(), Vector<String>());
+  }
+  for (auto& expected : options->getExpectedOutputsOr({})) {
+    mutations.emplace_back(expected.Get(), Vector<String>());
+  }
+  // Validate and canonicalize the languages.
+  for (auto& [original, mutation] : mutations) {
+    if (!original->hasLanguages()) {
+      continue;
+    }
+    std::optional<Vector<String>> canonical =
+        ValidateAndCanonicalizeBCP47Languages(isolate, original->languages());
+    if (!canonical.has_value()) {
+      return false;
+    }
+    mutation = *std::move(canonical);
+  }
+  // Mutate the original input.
+  for (const auto& [original, canonical] : mutations) {
+    original->setLanguages(canonical);
+  }
+  return true;
+}
 
 void RejectResolver(ScriptPromiseResolverBase* resolver,
                     const ScriptValue& value) {
@@ -416,6 +447,11 @@ ScriptPromise<LanguageModel> LanguageModel::create(
     return EmptyPromise();
   }
 
+  if (!ValidateAndCanonicalizeExpectedInputLanguages(script_state->GetIsolate(),
+                                                     options)) {
+    return EmptyPromise();
+  }
+
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<LanguageModel>>(script_state);
   auto promise = resolver->Promise();
@@ -430,9 +466,6 @@ ScriptPromise<LanguageModel> LanguageModel::create(
   }
 
   LogCreateOptionMetrics(*options, "create");
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kCreateSession);
   HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
       AIInterfaceProxy::GetAIManagerRemote(execution_context);
   if (!ai_manager_remote.is_connected()) {
@@ -473,10 +506,15 @@ ScriptPromise<LanguageModel> LanguageModel::create(
 // static
 ScriptPromise<V8Availability> LanguageModel::availability(
     ScriptState* script_state,
-    const LanguageModelCreateCoreOptions* options,
+    LanguageModelCreateCoreOptions* options,
     ExceptionState& exception_state) {
   if (!script_state->ContextIsValid()) {
     ThrowInvalidContextException(exception_state);
+    return EmptyPromise();
+  }
+
+  if (!ValidateAndCanonicalizeExpectedInputLanguages(script_state->GetIsolate(),
+                                                     options)) {
     return EmptyPromise();
   }
 
@@ -493,9 +531,6 @@ ScriptPromise<V8Availability> LanguageModel::availability(
   }
 
   LogCreateOptionMetrics(*options, "availability");
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kCanCreateSession);
   auto sampling_params_or_exception = ResolveSamplingParamsOption(options);
   if (!sampling_params_or_exception.has_value()) {
     resolver->Resolve(AvailabilityToV8(Availability::kUnavailable));
@@ -586,9 +621,6 @@ ScriptPromise<IDLString> LanguageModel::prompt(
   if (!processed_constraint.has_value()) {
     return EmptyPromise();
   }
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kSessionPrompt);
 
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
@@ -626,9 +658,6 @@ ReadableStream* LanguageModel::promptStreaming(
   if (!processed_constraint.has_value()) {
     return nullptr;
   }
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kSessionPromptStreaming);
 
   // Use WrapPersistent() to make sure LanguageModel is not garbage collected
   // during the response.
@@ -809,10 +838,6 @@ ScriptPromise<LanguageModel> LanguageModel::clone(
     return EmptyPromise();
   }
 
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kSessionClone);
-
   ScriptPromiseResolver<LanguageModel>* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<LanguageModel>>(script_state);
   auto promise = resolver->Promise();
@@ -843,10 +868,6 @@ ScriptPromise<IDLDouble> LanguageModel::measureInputUsage(
     ThrowInvalidContextException(exception_state);
     return EmptyPromise();
   }
-
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kSessionCountPromptTokens);
 
   ScriptPromiseResolver<IDLDouble>* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLDouble>>(script_state);
@@ -881,10 +902,6 @@ void LanguageModel::destroy(ScriptState* script_state,
     ThrowInvalidContextException(exception_state);
     return;
   }
-
-  base::UmaHistogramEnumeration(AIMetrics::GetAIAPIUsageMetricName(
-                                    AIMetrics::AISessionType::kLanguageModel),
-                                AIMetrics::AIAPI::kSessionDestroy);
 
   if (language_model_remote_) {
     language_model_remote_->Destroy();

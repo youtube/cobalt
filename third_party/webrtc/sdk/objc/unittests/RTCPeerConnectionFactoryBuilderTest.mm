@@ -51,6 +51,27 @@ extern "C" {
   OCMVerifyAll(factoryMock);
 }
 
+- (void)testAudioDeviceModuleBuilder {
+  id factoryMock =
+      OCMStrictClassMock([RTC_OBJC_TYPE(RTCPeerConnectionFactory) class]);
+  OCMExpect([factoryMock alloc]).andReturn(factoryMock);
+  webrtc::PeerConnectionFactoryDependencies default_deps;
+  RTC_UNUSED([[[[factoryMock expect] andReturn:factoryMock]
+      ignoringNonObjectArgs] initWithMediaAndDependencies:default_deps]);
+  RTCPeerConnectionFactoryBuilder* builder =
+      [RTCPeerConnectionFactoryBuilder builder];
+  __block int calledAdmBuilder = 0;
+  [builder setAudioDeviceModuleBuilder:^(const webrtc::Environment& env) {
+    calledAdmBuilder++;
+    return webrtc::scoped_refptr<webrtc::AudioDeviceModule>(nullptr);
+  }];
+  RTC_OBJC_TYPE(RTCPeerConnectionFactory)* peerConnectionFactory =
+      [builder createPeerConnectionFactory];
+  EXPECT_TRUE(peerConnectionFactory != nil);
+  EXPECT_EQ(calledAdmBuilder, 1);
+  OCMVerifyAll(factoryMock);
+}
+
 - (void)testDefaultComponentsBuilder {
   id factoryMock =
       OCMStrictClassMock([RTC_OBJC_TYPE(RTCPeerConnectionFactory) class]);

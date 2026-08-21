@@ -2,10 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+load("//lib/args.star", "args")
 load("//lib/branches.star", "branches")
 load("//lib/builder_config.star", "builder_config")
 load("//lib/builder_health_indicators.star", "health_spec")
-load("//lib/builders.star", "cpu", "os", "siso")
+load("//lib/builders.star", "cpu", "gardener_rotations", "os", "siso")
 load("//lib/ci.star", "ci")
 load("//lib/consoles.star", "consoles")
 load("//lib/gn_args.star", "gn_args")
@@ -704,13 +705,14 @@ coverage_builder(
         os_type = targets.os_type.ANDROID,
     ),
     os = os.LINUX_DEFAULT,
+    gardener_rotations = args.ignore_default(gardener_rotations.CRONET),
     console_view_entry = [
         consoles.console_view_entry(
             category = "cronet",
-            short_name = "x64",
+            short_name = "java",
         ),
     ],
-    contact_team_email = "woa-engprod@google.com",
+    contact_team_email = "cronet-team@google.com",
     coverage_test_types = ["overall", "unit"],
     export_coverage_to_zoss = True,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
@@ -772,13 +774,14 @@ coverage_builder(
         os_type = targets.os_type.ANDROID,
     ),
     os = os.LINUX_DEFAULT,
+    gardener_rotations = args.ignore_default(gardener_rotations.CRONET),
     console_view_entry = [
         consoles.console_view_entry(
             category = "cronet",
-            short_name = "x64",
+            short_name = "native",
         ),
     ],
-    contact_team_email = "woa-engprod@google.com",
+    contact_team_email = "cronet-team@google.com",
     coverage_test_types = ["overall", "unit"],
     export_coverage_to_zoss = True,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,

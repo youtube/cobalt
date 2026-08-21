@@ -10,6 +10,8 @@
 
 #include "common_audio/fir_filter_factory.h"
 
+#include <cstddef>
+
 #include "common_audio/fir_filter_c.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"

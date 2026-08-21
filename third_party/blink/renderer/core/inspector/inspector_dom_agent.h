@@ -57,6 +57,7 @@ class Document;
 class DocumentLoader;
 class DummyExceptionStateForTesting;
 class Element;
+class HTMLElement;
 class HTMLFrameOwnerElement;
 class HTMLSlotElement;
 class InspectedFrames;
@@ -148,6 +149,7 @@ class CORE_EXPORT InspectorDOMAgent final
   protocol::Response getOuterHTML(std::optional<int> node_id,
                                   std::optional<int> backend_node_id,
                                   std::optional<String> object_id,
+                                  std::optional<bool> include_shadow_dom,
                                   String* outer_html) override;
   protocol::Response setOuterHTML(int node_id,
                                   const String& outer_html) override;
@@ -271,6 +273,12 @@ class CORE_EXPORT InspectorDOMAgent final
   protocol::Response getAnchorElement(int node_id,
                                       std::optional<String> anchor_specifier,
                                       int* out_node_id) override;
+
+  protocol::Response forceShowPopover(
+      int node_id,
+      bool enable,
+      std::unique_ptr<protocol::Array<int>>* out_nodeIds) override;
+  void WillHidePopover(HTMLElement* element, bool* force_open);
 
   bool Enabled() const;
   IncludeWhitespaceEnum IncludeWhitespace() const;
@@ -400,6 +408,7 @@ class CORE_EXPORT InspectorDOMAgent final
   Node* NodeForPath(const String& path);
 
   void DiscardFrontendBindings();
+  void ReleaseForcedPopovers();
 
   InspectorRevalidateDOMTask* RevalidateTask();
 
@@ -419,6 +428,8 @@ class CORE_EXPORT InspectorDOMAgent final
   HashSet<int> children_requested_;
   HashSet<int> distributed_nodes_requested_;
   HashMap<int, int> cached_child_count_;
+  HeapHashSet<WeakMember<Node>> forced_popovers_;
+  HeapHashSet<WeakMember<Node>> popovers_currently_being_hidden_;
   int last_node_id_;
   Member<Document> document_;
   using SearchResults =

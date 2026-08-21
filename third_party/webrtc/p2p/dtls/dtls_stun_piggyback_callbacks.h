@@ -32,14 +32,14 @@ class DtlsStunPiggybackCallbacks {
       // Function invoked when sending a `request-type` (e.g.
       // STUN_BINDING_REQUEST). Returns a pair of data that will be sent:
       // - an optional DTLS_IN_STUN attribute
-      // - an optional DTLS_IN_STUN_ACK attribute
+      // - an optional std::vector<uint32_t> for the DTLS_IN_STUN_ACK attribute
       absl::AnyInvocable<std::pair<std::optional<absl::string_view>,
-                                   std::optional<absl::string_view>>(
+                                   std::optional<std::vector<uint32_t>>>(
           /* request-type */ StunMessageType)>&& send_data,
 
       // Function invoked when receiving a STUN_BINDING { REQUEST / RESPONSE }
-      // contains the optional ArrayViews of the DTLS_IN_STUN and
-      // DTLS_IN_STUN_ACK attributes.
+      // contains the optional ArrayView of the DTLS_IN_STUN attribute and the
+      // optional uint32_t vector DTLS_IN_STUN_ACK attribute.
       absl::AnyInvocable<void(
           std::optional<ArrayView<uint8_t>> /* recv_data */,
           std::optional<std::vector<uint32_t>> /* recv_acks */)>&& recv_data)
@@ -51,7 +51,8 @@ class DtlsStunPiggybackCallbacks {
         (send_data_ == nullptr && recv_data_ == nullptr));
   }
 
-  std::pair<std::optional<absl::string_view>, std::optional<absl::string_view>>
+  std::pair<std::optional<absl::string_view>,
+            std::optional<std::vector<uint32_t>>>
   send_data(StunMessageType request_type) {
     RTC_DCHECK(send_data_);
     return send_data_(request_type);
@@ -71,7 +72,7 @@ class DtlsStunPiggybackCallbacks {
 
  private:
   absl::AnyInvocable<std::pair<std::optional<absl::string_view>,
-                               std::optional<absl::string_view>>(
+                               std::optional<std::vector<uint32_t>>>(
       /* request-type */ StunMessageType)>
       send_data_;
   absl::AnyInvocable<void(std::optional<ArrayView<uint8_t>> /* recv_data */,

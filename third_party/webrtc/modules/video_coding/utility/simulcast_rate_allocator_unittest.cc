@@ -46,7 +46,7 @@ constexpr uint32_t kSimulcastScreenshareMinBitrateKbps = 600;
 constexpr uint32_t kSimulcastScreenshareMaxBitrateKbps = 1250;
 // Default video hysteresis factor: allocatable bitrate for next layer must
 // exceed 20% of min setting in order to be initially turned on.
-const double kDefaultHysteresis = 1.2;
+constexpr double kDefaultHysteresis = 1.2;
 
 class MockTemporalLayers : public Vp8FrameBufferController {
  public:

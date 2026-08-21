@@ -107,44 +107,10 @@ private:
 
 void RunTest(skgpu::graphite::PrecompileContext* precompileContext,
              skiatest::Reporter* reporter,
-             SkSpan<const PrecompileSettings> precompileSettings,
+             const PrecompileSettings& precompileSettings,
              int precompileSettingsIndex,
              SkSpan<const PipelineLabel> cases,
              PipelineLabelInfoCollector* collector);
-
-skgpu::graphite::PaintOptions SolidSrcover();
-skgpu::graphite::PaintOptions SolidMatrixCFSrcover();
-skgpu::graphite::PaintOptions LinearGradSmSrcover();
-skgpu::graphite::PaintOptions LinearGradSRGBSmMedDitherSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImagePremulHWAndClampSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImagePremulHWOnlyMatrixCFSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImagePremulHWOnlyMatrixCFDitherSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImageSRGBHWOnlyMatrixCFDitherSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImagePremulHWOnlySrcover();
-skgpu::graphite::PaintOptions TransparentPaintImageSRGBHWOnlySrcover();
-skgpu::graphite::PaintOptions TransparentPaintSrcover();
-skgpu::graphite::PaintOptions SolidClearSrcSrcover();
-skgpu::graphite::PaintOptions SolidSrcSrcover();
-skgpu::graphite::PaintOptions ImagePremulNoCubicSrcover();
-skgpu::graphite::PaintOptions ImagePremulHWOnlySrc();
-skgpu::graphite::PaintOptions ImagePremulHWOnlySrcover();
-skgpu::graphite::PaintOptions ImagePremulClampNoCubicDstin();
-skgpu::graphite::PaintOptions ImagePremulHWOnlyDstin();
-skgpu::graphite::PaintOptions YUVImageSRGBNoCubicSrcover();
-skgpu::graphite::PaintOptions YUVImageSRGBSrcover();
-skgpu::graphite::PaintOptions ImagePremulNoCubicSrcSrcover();
-skgpu::graphite::PaintOptions ImageSRGBNoCubicSrc();
-skgpu::graphite::PaintOptions ImageAlphaHWOnlySrcover();
-skgpu::graphite::PaintOptions ImageAlphaPremulHWOnlyMatrixCFSrcover();
-skgpu::graphite::PaintOptions ImageAlphaSRGBHWOnlyMatrixCFSrcover();
-skgpu::graphite::PaintOptions ImageAlphaNoCubicSrc();
-skgpu::graphite::PaintOptions ImageAlphaClampNoCubicSrc();
-skgpu::graphite::PaintOptions ImagePremulHWOnlyPorterDuffCFSrcover();
-skgpu::graphite::PaintOptions ImagePremulHWOnlyMatrixCFSrcover();
-skgpu::graphite::PaintOptions ImageSRGBHWOnlyMatrixCFSrcover();
-skgpu::graphite::PaintOptions ImagePremulHWOnlyMatrixCFDitherSrcover();
-skgpu::graphite::PaintOptions ImageSRGBHWOnlyMatrixCFDitherSrcover();
-skgpu::graphite::PaintOptions ImageHWOnlySRGBSrcover();
 
 skgpu::graphite::PaintOptions MouriMapCrosstalkAndChunk16x16Passthrough();
 skgpu::graphite::PaintOptions MouriMapCrosstalkAndChunk16x16Premul();
@@ -155,11 +121,9 @@ skgpu::graphite::PaintOptions KawaseBlurLowSrcSrcOver();
 skgpu::graphite::PaintOptions KawaseBlurHighSrc();
 skgpu::graphite::PaintOptions BlurFilterMix();
 
-skgpu::graphite::PaintOptions ImagePremulHWOnlyPlusColorSrcover();
-skgpu::graphite::PaintOptions TransparentPaintImagePremulHWOnlyPlusColorSrcover();
-
 skgpu::graphite::PaintOptions EdgeExtensionPassthroughSrcover();
 skgpu::graphite::PaintOptions EdgeExtensionPremulSrcover();
+skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPassthroughMatrixCFDitherSrcover();
 skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPassthroughSrcover();
 skgpu::graphite::PaintOptions TransparentPaintEdgeExtensionPremulSrcover();
 
@@ -180,7 +144,7 @@ skgpu::graphite::PaintOptions LinearEffect(const char* parameterStr,
                                            bool dither = false);
 
 #if defined(SK_VULKAN)
-skgpu::graphite::PaintOptions ImagePremulYCbCr238Srcover();
+skgpu::graphite::PaintOptions ImagePremulYCbCr238Srcover(bool narrow);
 skgpu::graphite::PaintOptions TransparentPaintImagePremulYCbCr238Srcover();
 skgpu::graphite::PaintOptions ImagePremulYCbCr240Srcover();
 skgpu::graphite::PaintOptions TransparentPaintImagePremulYCbCr240Srcover();
@@ -318,6 +282,14 @@ const skgpu::graphite::RenderPassProperties kRGBA16F_1_D_SRGB {
         skgpu::graphite::DepthStencilFlags::kDepth,
         kRGBA_F16_SkColorType,
         SkColorSpace::MakeSRGB(),
+        /* fRequiresMSAA= */ false
+};
+
+// The same as kRGBA16F_1_D but w/ a linear SRGB colorSpace
+const skgpu::graphite::RenderPassProperties kRGBA16F_1_D_Linear {
+        skgpu::graphite::DepthStencilFlags::kDepth,
+        kRGBA_F16_SkColorType,
+        SkColorSpace::MakeSRGBLinear(),
         /* fRequiresMSAA= */ false
 };
 

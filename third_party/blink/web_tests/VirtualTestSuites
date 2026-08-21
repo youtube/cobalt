@@ -102,7 +102,7 @@
   {
     "prefix": "attribution-reporting-debug-mode",
     "owners": [
-      "johnidel@chromium.org"
+      "apaseltiner@chromium.org"
     ],
     "platforms": [
       "Linux",
@@ -118,7 +118,7 @@
       "--enable-features=AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform%2Etest%3A8444%2Chttps%3A%2F%2Fwww1%2Eweb-platform%2Etest%3A8444,FencedFramesLocalUnpartitionedDataAccess,ExemptUrlFromNetworkRevocationForTesting",
       "--enable-blink-features=FencedFramesDefaultMode"
     ],
-    "expires": "Jul 2, 2025"
+    "expires": "Jul 2, 2026"
   },
   {
     "prefix": "attribution-reporting-in-browser-migration",
@@ -300,7 +300,7 @@
       "--enable-features=ForcedColors",
       "--force-high-contrast"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "cookie-deprecation-label",
@@ -316,7 +316,7 @@
     "args": [
       "--enable-features=CookieDeprecationFacilitatedTesting:label/label_test"
     ],
-    "expires": "Jul 6, 2025",
+    "expires": "Dec 6, 2025",
     "owners": [
       "linnan@chromium.org",
       "johnidel@chromium.org"
@@ -417,7 +417,11 @@
       "external/wpt/css/css-animations/responsive/column-rule-color-001.html",
       "external/wpt/web-animations/animation-model/animation-types/accumulation-per-property-001.html",
       "external/wpt/web-animations/animation-model/animation-types/addition-per-property-001.html",
-      "external/wpt/web-animations/animation-model/animation-types/interpolation-per-property-001.html"],
+      "external/wpt/web-animations/animation-model/animation-types/interpolation-per-property-001.html",
+      "external/wpt/css/css-multicol/multicol-nested-column-rule-002.html",
+      "external/wpt/css/css-break/out-of-flow-in-multicolumn-109.html",
+      "external/wpt/css/css-break/out-of-flow-in-multicolumn-098.html",
+      "external/wpt/css/css-break/out-of-flow-in-multicolumn-097.html"],
     "args": ["--disable-blink-features=CSSGapDecoration"],
     "expires": "June 1, 2026",
     "owners": ["samomekarajr@microsoft.com", "almaher@microsoft.com", "javiercon@microsoft.com"]
@@ -450,6 +454,7 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
       "fast/deprecated-flexbox/line-clamp-crash.html",
@@ -735,6 +740,7 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "fast/overflow"
     ],
@@ -1283,11 +1289,10 @@
       "--enable-threaded-compositing",
       "--disable-features=RasterInducingScroll"
     ],
-    "expires": "Jul 1, 2025",
+    "expires": "Jul 1, 2026",
     "owners": [
       "gastonr@microsoft.com",
-      "gerchiko@microsoft.com",
-      "yshalivskyy@microsoft.com"
+      "gerchiko@microsoft.com"
     ]
   },
   {
@@ -1668,24 +1673,6 @@
     "expires": "never"
   },
   {
-    "prefix": "interest-for-no-partial-interest",
-    "owners": [
-      "masonf@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/html/semantics/the-button-element/interest-for"
-    ],
-    "args": [
-      "--enable-blink-features=HTMLInterestForNoPartialInterest,HTMLInterestForAttribute"
-    ],
-    "expires": "Dec 1, 2025"
-  },
-  {
     "prefix": "isolated-context",
     "platforms": [
       "Linux",
@@ -1742,9 +1729,11 @@
       "Win"
     ],
     "bases": [
+      "external/wpt/wasm/webapi/esm-integration/reuse-wasm-loaded-as-classic-script.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/script-src-allows-source-phase-wasm.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/source-phase.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/source-phase-blocked-by-csp.tentative.html",
+      "external/wpt/wasm/webapi/esm-integration/source-phase-import-non-UTF8.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/source-phase-preload.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/wasm-import-wasm-export.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/worker-import-source-phase.tentative.html",
@@ -2046,19 +2035,6 @@
       "--use-gpu-in-tests"
     ],
     "expires": "Dec 1, 2024"
-  },
-  {
-    "prefix": "network-service-task-scheduler",
-    "owners": ["hayato@chromium.org"],
-    "platforms": ["Android", "Mac", "Win", "Linux"],
-    "bases": [
-      "external/wpt/fetch/api/",
-      "external/wpt/loading/"
-    ],
-    "args": [
-      "--enable-features=NetworkServiceTaskScheduler:url_loader/true"
-    ],
-    "expires": "Jun 20, 2026"
   },
   "This suite is incompatible with the default WPT Origin Isolation mode of ",
   "Site Isolation (see",
@@ -2928,7 +2904,9 @@
     "bases": [
       "fast/events/synthetic-events",
       "fast/events/wheel/wheelevent-in-scrolling-div.html",
-      "fast/hidpi/static"
+      "fast/hidpi/static",
+      "external/wpt/css/css-ui/caret-shape-block-zoom.html",
+      "external/wpt/css/css-ui/caret-shape-block-color-001.html"
     ],
     "exclusive_tests": [
       "fast/hidpi/static"
@@ -2963,7 +2941,9 @@
       "fast/hidpi/static",
       "http/tests/csspaint/hidpi",
       "http/tests/inspector-protocol/page/page-captureScreenshot-clip-emulation.js",
-      "inspector-protocol/emulation/device-emulation-no-size.js"
+      "inspector-protocol/emulation/device-emulation-no-size.js",
+      "external/wpt/css/css-ui/caret-shape-block-zoom.html",
+      "external/wpt/css/css-ui/caret-shape-block-color-001.html"
     ],
     "exclusive_tests": [
       "fast/hidpi/static"
@@ -4168,25 +4148,6 @@
     "expires": "Jul 1, 2025"
   },
   {
-    "prefix": "single-import-map",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/import-maps",
-      "wpt_internal/import-maps"
-    ],
-    "args": [
-      "--disable-blink-features=MultipleImportMaps"
-    ],
-    "owners": [
-      "yoavweiss@chromium.org"
-    ],
-    "expires": "Jul 1, 2025"
-  },
-  {
     "prefix": "single-renderer-process",
     "owners": [
       "nrosenthal@chromium.org",
@@ -4223,9 +4184,10 @@
       "--enable-blink-features=NonStandardAppearanceValueSliderVertical"
     ],
     "owners": [
-      "dizhangg@chromium.org"
+      "dizhangg@chromium.org",
+      "jarhar@chromium.org"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "soft-navigation-heuristics-pre-paint-attribution",
@@ -4407,6 +4369,20 @@
     ]
   },
   {
+    "prefix": "enable-shared-worker-bfcache",
+    "owners": ["annasato@chromium.org"],
+    "platforms": ["Mac", "Win", "Linux"],
+    "bases": [
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-allows-bfcache.window.js",
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-evict-on-message.window.js"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=BFCacheWithSharedWorker"
+    ],
+    "expires": "Jun 10, 2026"
+  },
+  {
     "prefix": "target-device-scale-factor-2",
     "owners": [
       "leimy@google.com"
@@ -4522,7 +4498,7 @@
       "--text-contrast=0.97",
       "--text-gamma=1.97"
     ],
-    "expires": "July 1, 2025"
+    "expires": "never"
   },
   {
     "prefix": "text-size-adjust",

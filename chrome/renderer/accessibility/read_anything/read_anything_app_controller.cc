@@ -41,7 +41,6 @@
 #include "content/public/renderer/render_thread.h"
 #include "gin/converter.h"
 #include "gin/dictionary.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
 #include "services/metrics/public/cpp/mojo_ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -71,7 +70,9 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/url_util.h"
+#include "v8/include/cppgc/allocation.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-microtask-queue.h"
 #include "v8/include/v8-typed-array.h"
 
@@ -390,8 +391,9 @@ std::optional<T> ToEnum(int value) {
 }  // namespace
 
 // static
-gin::DeprecatedWrapperInfo ReadAnythingAppController::kWrapperInfo = {
-    gin::kEmbedderNativeGin};
+gin::WrapperInfo ReadAnythingAppController::kWrapperInfo = {
+    {gin::kEmbedderNativeGin},
+    gin::kReadAnythingAppController};
 
 // static
 ReadAnythingAppController* ReadAnythingAppController::Install(
@@ -410,16 +412,17 @@ ReadAnythingAppController* ReadAnythingAppController::Install(
   v8::Context::Scope context_scope(context);
 
   ReadAnythingAppController* controller =
-      new ReadAnythingAppController(render_frame);
-  gin::Handle<ReadAnythingAppController> handle =
-      gin::CreateHandle(isolate, controller);
-  if (handle.IsEmpty()) {
+      cppgc::MakeGarbageCollected<ReadAnythingAppController>(
+          isolate->GetCppHeap()->GetAllocationHandle(), render_frame);
+
+  v8::Local<v8::Value> controller_v8;
+  if (!controller->GetWrapper(isolate).ToLocal(&controller_v8)) {
     return nullptr;
   }
 
   v8::Local<v8::Object> chrome =
       content::GetOrCreateChromeObject(isolate, context);
-  chrome->Set(context, gin::StringToV8(isolate, "readingMode"), handle.ToV8())
+  chrome->Set(context, gin::StringToV8(isolate, "readingMode"), controller_v8)
       .Check();
   return controller;
 }
@@ -449,6 +452,8 @@ ReadAnythingAppController::ReadAnythingAppController(
   }
 
   model_observer_.Observe(&model_);
+
+  self_ = this;
 }
 
 ReadAnythingAppController::~ReadAnythingAppController() {
@@ -457,7 +462,7 @@ ReadAnythingAppController::~ReadAnythingAppController() {
 }
 
 void ReadAnythingAppController::OnDestruct() {
-  delete this;
+  self_.Clear();
 }
 
 void ReadAnythingAppController::OnNodeDataChanged(
@@ -477,7 +482,7 @@ void ReadAnythingAppController::OnNodeDataChanged(
 void ReadAnythingAppController::OnNodeWillBeDeleted(ui::AXTree* tree,
                                                     ui::AXNode* node) {
   ui::AXNodeID node_id = CHECK_DEREF(node).id();
-  if (model_.display_node_ids().contains(node_id)) {
+  if (model_.GetCurrentlyVisibleNodes()->contains(node_id)) {
     displayed_nodes_pending_deletion_.insert(node_id);
     if (IsReadAloudEnabled() && !read_aloud_model_.speech_playing()) {
       ExecuteJavaScript("chrome.readingMode.onNodeWillBeDeleted(" +
@@ -511,6 +516,21 @@ void ReadAnythingAppController::OnNodeDeleted(ui::AXTree* tree,
         DrawSelection();
       }
     }
+  }
+}
+
+void ReadAnythingAppController::OnTreeDataChanged(
+    ui::AXTree* tree,
+    const ui::AXTreeData& old_data,
+    const ui::AXTreeData& new_data) {
+  // If we are waiting for the tree id of the active tree to be populated,
+  // distill once we have it.
+  if (waiting_for_tree_id_ && old_data.tree_id == ui::AXTreeIDUnknown() &&
+      new_data.tree_id != ui::AXTreeIDUnknown() &&
+      model_.active_tree_id() == tree->GetAXTreeID()) {
+    VLOG(1) << "OnTreeDataChanged populated the active tree ID: "
+            << new_data.tree_id;
+    Distill();
   }
 }
 
@@ -611,8 +631,10 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
     ukm::SourceId ukm_source_id,
     bool is_pdf) {
   if (tree_id == model_.active_tree_id() && !is_pdf) {
+    VLOG(1) << "On active tree changed with same id: " << tree_id;
     return;
   }
+  VLOG(1) << "On active tree changed with new id: " << tree_id;
   RecordNumSelections();
 
   // Cancel any running draw timers.
@@ -655,6 +677,7 @@ void ReadAnythingAppController::RecordNumSelections() {
 
 void ReadAnythingAppController::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
   // Cancel any running draw timers.
+  VLOG(1) << "OnAXTreeDestroyed: " << tree_id;
   post_user_entry_draw_timer_->Stop();
   model_.OnAXTreeDestroyed(tree_id);
 }
@@ -691,6 +714,12 @@ void ReadAnythingAppController::Distill(bool for_training_data) {
   model_.set_requires_distillation(false);
 
   ui::AXSerializableTree* tree = model_.GetActiveTree();
+  if (tree->GetAXTreeID() == ui::AXTreeIDUnknown()) {
+    VLOG(1)
+        << "Active tree's ID has not been populated yet, skipping distillation";
+    waiting_for_tree_id_ = true;
+    return;
+  }
   std::unique_ptr<
       ui::AXTreeSource<const ui::AXNode*, ui::AXTreeData*, ui::AXNodeData>>
       tree_source(tree->CreateTreeSource());
@@ -711,6 +740,7 @@ void ReadAnythingAppController::Distill(bool for_training_data) {
   }
   CHECK(serializer.SerializeChanges(tree->root(), &snapshot));
   model_.set_distillation_in_progress(true);
+  VLOG(1) << "Distilling tree with ID: " << tree->GetAXTreeID();
   distiller_->Distill(*tree, snapshot, model_.GetUkmSourceId());
 }
 
@@ -725,6 +755,8 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // model causes issues for read aloud.
   if (IsReadAloudEnabled() && !model_.distillation_in_progress() &&
       tree_id == ui::AXTreeIDUnknown() && content_node_ids.empty()) {
+    VLOG(1) << "Distillation terminated after the main content extractor "
+               "disconnected";
     return;
   }
   // If speech is playing, we don't want to redraw and disrupt speech. We will
@@ -732,6 +764,7 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   if (read_aloud_model_.speech_playing()) {
     model_.set_requires_distillation(true);
     model_.set_distillation_in_progress(false);
+    VLOG(1) << "Distillation terminated because speech is playing";
     return;
   }
   // Reset state, including the current side panel selection so we can update
@@ -751,6 +784,20 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   if (tree_id != model_.active_tree_id() ||
       model_.active_tree_id() == ui::AXTreeIDUnknown() ||
       !model_.ContainsTree(tree_id) || tree_id == ui::AXTreeIDUnknown()) {
+    // VLOG statements added to help with debugging issues with distillation
+    // on non-dev builds.
+    if (tree_id != model_.active_tree_id()) {
+      VLOG(1) << "Distillation terminated because not on active tree";
+    }
+    if (model_.active_tree_id() == ui::AXTreeIDUnknown()) {
+      VLOG(1) << "Distillation terminated because active tree is unknown";
+    }
+    if (!model_.ContainsTree(tree_id)) {
+      VLOG(1) << "Distillation terminated because current tree is missing";
+    }
+    if (tree_id == ui::AXTreeIDUnknown()) {
+      VLOG(1) << "Distillation terminated because current tree is unknown";
+    }
     return;
   }
 
@@ -776,7 +823,13 @@ void ReadAnythingAppController::OnAXTreeDistilled(
     // an empty display node list. If that happens and there are content nodes,
     // we should recompute the display nodes again.
     bool should_recompute_display_nodes =
-        !model_.content_node_ids().empty() && model_.display_node_ids().empty();
+        !model_.content_node_ids().empty() &&
+        model_.GetCurrentlyVisibleNodes()->empty();
+    VLOG(1) << "In OnAXTreeDistilled content node size: "
+            << model_.content_node_ids().size()
+            << " and display node size: " << model_.display_node_ids().size()
+            << " and selection node size: "
+            << model_.selection_node_ids().size();
     Draw(should_recompute_display_nodes);
   }
 
@@ -830,6 +883,11 @@ bool ReadAnythingAppController::PostProcessSelection() {
       // in the main panel, don't re-draw with the updated selection until
       // Read Aloud is paused.
       bool should_recompute_display_nodes = !model_.content_node_ids().empty();
+      VLOG(1) << "In PostProcessSelection content node size: "
+              << model_.content_node_ids().size()
+              << " and display node size: " << model_.display_node_ids().size()
+              << " and selection node size: "
+              << model_.selection_node_ids().size();
       Draw(should_recompute_display_nodes);
     }
   }
@@ -857,6 +915,9 @@ void ReadAnythingAppController::Draw(bool recompute_display_nodes) {
     if (IsReadAloudEnabled()) {
       read_aloud_model_.ResetReadAloudState();
     }
+  } else {
+    VLOG(1) << "Not recomputing display nodes, content node size: "
+            << model_.content_node_ids().size();
   }
   // This call should check that the active tree isn't in an undistilled state
   // -- that is, it is awaiting distillation or never requested distillation.
@@ -908,10 +969,14 @@ void ReadAnythingAppController::ScreenAIServiceReady() {
   distiller_->ScreenAIServiceReady();
 }
 
+const gin::WrapperInfo* ReadAnythingAppController::wrapper_info() const {
+  return &kWrapperInfo;
+}
+
 gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return gin::DeprecatedWrappable<
-             ReadAnythingAppController>::GetObjectTemplateBuilder(isolate)
+  return gin::Wrappable<ReadAnythingAppController>::GetObjectTemplateBuilder(
+             isolate)
       .SetProperty("rootId", &ReadAnythingAppController::RootId)
       .SetProperty("startNodeId", &ReadAnythingAppController::StartNodeId)
       .SetProperty("startOffset", &ReadAnythingAppController::StartOffset)
@@ -2045,8 +2110,8 @@ void ReadAnythingAppController::OnScrolledToBottom() {
   if (IsGoogleDocs()) {
     // Scroll to the last display node shown on the Reading Mode side panel
     // TODO (b/356935604): Investigate optimal scroll position
-    page_handler_->ScrollToTargetNode(model_.active_tree_id(),
-                                      *model_.display_node_ids().rbegin());
+    page_handler_->ScrollToTargetNode(
+        model_.active_tree_id(), *model_.GetCurrentlyVisibleNodes()->rbegin());
   }
 }
 

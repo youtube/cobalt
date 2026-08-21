@@ -312,6 +312,7 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="1521655867290435174">Google'i arvutustabelid</translation>
 <translation id="1524669537550112617">Möbleeritud kinnisvara üürimine</translation>
 <translation id="1527263332363067270">Ühenduse ootamine …</translation>
+<translation id="1527490370616010873">Google ei ole teie automaattäite teenusepakkuja. Nende seadete lubamiseks ja oma Google'i kontolt pärineva makseteabe kasutamiseks külastage <ph name="BEGIN_LINK" />automaattäite teenuste seadeid<ph name="END_LINK" />.</translation>
 <translation id="1528311629279578926">Ühendus on blokeeritud, kuna selle algatas avalik leht teie privaatvõrgus olevate seadmete või serveritega ühenduse loomiseks. Ühenduse lubamiseks laadige see leht uuesti.</translation>
 <translation id="1529789484829130889">Salv 8</translation>
 <translation id="1530707389502320859">Sait, mida üritasite külastada, näib olevat võltsitud. Ründajad imiteerivad mõnikord saite, tehes URL-is väikeseid raskestimärgatavaid muudatusi.</translation>
@@ -421,7 +422,6 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="1706625117072057435">Suumitasemed</translation>
 <translation id="1706922226983368260">Pääsuvõti • „<ph name="PHONE_NAME" />“</translation>
 <translation id="1706954506755087368">{1,plural, =1{Server ei suutnud tõestada, et tegemist on domeeniga <ph name="DOMAIN" />, selle turvasertifikaat hakkab väidetavalt kehtima homme. Selle põhjuseks võib olla vale seadistus või teie ühendust segav ründaja.}other{Server ei suutnud tõestada, et tegemist on domeeniga <ph name="DOMAIN" />, selle turvasertifikaat hakkab väidetavalt kehtima # päeva pärast. Selle põhjuseks võib olla vale seadistus või teie ühendust segav ründaja.}}</translation>
-<translation id="1709711942721576168">AI-režiimi nupp, vajutage AI-režiimi aktiveerimiseks</translation>
 <translation id="1710259589646384581">OS</translation>
 <translation id="1711234383449478798">Eirati, kuna reegel <ph name="POLICY_NAME" /> pole seadistatud väärtusele <ph name="VALUE" />.</translation>
 <translation id="1712552549805331520"><ph name="URL" /> soovib andmed alaliselt teie kohalikku arvutisse salvestada</translation>
@@ -1117,6 +1117,7 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="2902312830803030883">Veel toiminguid</translation>
 <translation id="2903493209154104877">Aadressid</translation>
 <translation id="290376772003165898">Kas leht ei ole <ph name="LANGUAGE" /> keeles?</translation>
+<translation id="2904180982022726666">Teie organisatsioon piirab jagamist</translation>
 <translation id="2905107382358353958">Uuest makseseadest teavitamine</translation>
 <translation id="2909946352844186028">Tuvastati võrgumuudatus.</translation>
 <translation id="2911255567212929079">Masinõpe ja tehisintellekt</translation>
@@ -1446,7 +1447,6 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="343474037147570563">Teie üles laaditud või manustatud failid saadetakse Google Cloudi või kolmandatele osapooltele analüüsimiseks. Näiteks võidakse neid skannida tundlike andmete või pahavara tuvastamiseks, talletada teie ettevõtte eeskirjade alusel ja need võivad olla teie administraatorile nähtavad.</translation>
 <translation id="3435557549311968410">Pidev (lühike)</translation>
 <translation id="3435738964857648380">Turvalisus</translation>
-<translation id="3436118221454753036">AI-le küsimuse esitamise režiim</translation>
 <translation id="3440783957068352691">ruut</translation>
 <translation id="3441653493275994384">Ekraan</translation>
 <translation id="3443504041532578451">Optiline andmekandja (satiin)</translation>
@@ -2415,6 +2415,7 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="5043753287208271200">Kollane 3</translation>
 <translation id="5045550434625856497">Vale salasõna</translation>
 <translation id="5048293684454354469">Reklaamiteemad on vaid üks paljudest asjadest, mida sait võib kasutada reklaamide isikupärastamiseks. Saidid võivad teile reklaame näidata ka ilma reklaamiteemadeta, kuid need ei pruugi olla nii isikupärastatud. Vaadake lisateavet <ph name="BEGIN_LINK" />oma reklaamide privaatsuse haldamise kohta<ph name="LINK_END" />.</translation>
+<translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />, vajutage tabulaatorit, et pärast seda otsingusoovitust teisi saadaval otsingu otseteid näha</translation>
 <translation id="5052517576853118371">Aktiivsed teemad</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Selle faili saatmiseks funktsiooni Läheduses jagamine kaudu vabastage seadmes ruumi (<ph name="DISK_SPACE_SIZE" />)}other{Nende failide saatmiseks funktsiooni Läheduses jagamine kaudu vabastage seadmes ruumi (<ph name="DISK_SPACE_SIZE" />)}}</translation>
 <translation id="505757197798929356">Esitage avamise põhjus (nõutav)</translation>
@@ -3035,7 +3036,6 @@ Vastasel korral blokeeritakse see teie privaatsusseadetes. See võimaldab teie k
 <translation id="6108849843016142864">Roomajad ja kahepaiksed</translation>
 <translation id="610911394827799129">Aadressil <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> võib teie Google'i kontol olla muus vormis sirvimisajalugu</translation>
 <translation id="611018310643025551">Teie otsingud, parimad vasted ja nende lehe sisu saadetakse Google'ile ning selle funktsiooni täiustamiseks võivad ülevaatajad neid näha.</translation>
-<translation id="6115793664998531464"><ph name="STARTER_PACK_AI_MODE_FOCUSED_FRIENDLY_MATCH_TEXT" />, vajutage sisestusklahvi, et AI-režiim aktiveerida</translation>
 <translation id="6116338172782435947">näha lõikelauale kopeeritud teksti ja kujutisi</translation>
 <translation id="6117833587752089929">Foto (satiin)</translation>
 <translation id="6118782133429281336">Lähtekohtade loend on tühi.</translation>
@@ -4707,6 +4707,7 @@ Lisateave:
 <translation id="8975263830901772334">Teie prinditavate failide nimed</translation>
 <translation id="8982884016487650216">PDF-i laadimine viidi lõpule</translation>
 <translation id="8983369100812962543">Teil on nüüd võimalik rakenduse suurust muuta</translation>
+<translation id="8984785270737450103">Jagamine on praegu välja lülitatud</translation>
 <translation id="8985112471026018799">Kiiremaks maksmiseks salvestage kaart</translation>
 <translation id="8987245424886630962"><ph name="VIEW_CHROME_HISTORY_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome'is oma sirvimisajaloo vaatamiseks vajutage tabulaatorit ja seejärel sisestusklahvi.</translation>
 <translation id="8987663052629670333">Fotode printimisteenused</translation>
@@ -4836,6 +4837,7 @@ Lisateave:
 <translation id="9174917557437862841">Vahelehe vahetamise nupp, vajutage selle vahelehe aktiveerimiseks sisestusklahvi</translation>
 <translation id="9177283544810807743">Sellele PDF-ile ei saa juurde pääseda. Teksti ekstraktimine, toimib Google'i AI platvormil.</translation>
 <translation id="9179703756951298733">Hallake oma maksete ja krediitkaardi teavet Chrome'i seadetes</translation>
+<translation id="9179766227052716237">Teie organisatsioon ütleb: „<ph name="CUSTOM_MESSAGE" />”</translation>
 <translation id="9179907736442194268">Saadetakse meiliteavitus, kui hind mõnel saidil langeb</translation>
 <translation id="9183302530794969518">Google'i dokumendid</translation>
 <translation id="9183425211371246419">Host <ph name="HOST_NAME" /> kasutab toetamata protokolli.</translation>

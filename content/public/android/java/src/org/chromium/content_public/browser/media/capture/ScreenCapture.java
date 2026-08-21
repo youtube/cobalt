@@ -20,6 +20,7 @@ import android.os.Looper;
 import android.view.WindowManager;
 
 import androidx.activity.result.ActivityResult;
+import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
@@ -32,6 +33,7 @@ import org.chromium.ui.base.WindowAndroid;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** See comments on `DesktopCapturerAndroid`. */
@@ -63,6 +65,29 @@ public class ScreenCapture implements ImageHandler.Delegate {
             this.dpi = dpi;
             this.format = format;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o instanceof CaptureState that) {
+                return width == that.width
+                        && height == that.height
+                        && dpi == that.dpi
+                        && format == that.format;
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(width, height, dpi, format);
+        }
+    }
+
+    @VisibleForTesting
+    interface ImageHandlerFactory {
+        ImageHandler create(
+                CaptureState captureState, ImageHandler.Delegate delegate, Handler handler);
     }
 
     // Starting a MediaProjection session involves plumbing the results from the content picker,
@@ -79,6 +104,7 @@ public class ScreenCapture implements ImageHandler.Delegate {
     private long mNativeDesktopCapturerAndroid;
 
     private final Handler mHandler;
+    private final ImageHandlerFactory mImageHandlerFactory;
 
     private @Nullable MediaProjection mMediaProjection;
 
@@ -92,8 +118,14 @@ public class ScreenCapture implements ImageHandler.Delegate {
     private @Nullable WebContents mWebContents;
 
     private ScreenCapture(long nativeDesktopCapturerAndroid) {
+        this(nativeDesktopCapturerAndroid, ImageHandler::new);
+    }
+
+    @VisibleForTesting
+    ScreenCapture(long nativeDesktopCapturerAndroid, ImageHandlerFactory imageHandlerFactory) {
         mNativeDesktopCapturerAndroid = nativeDesktopCapturerAndroid;
         mHandler = new Handler(assumeNonNull(Looper.myLooper()));
+        mImageHandlerFactory = imageHandlerFactory;
     }
 
     public static void onForegroundServiceRunning(boolean running) {
@@ -116,6 +148,11 @@ public class ScreenCapture implements ImageHandler.Delegate {
         final PickState oldPickState =
                 sNextPickState.getAndSet(new PickState(webContents, activityResult));
         assert oldPickState == null;
+    }
+
+    static void resetStaticStateForTesting() {
+        sLatch.close();
+        sNextPickState.set(null);
     }
 
     private @Nullable Context maybeGetContext() {
@@ -228,7 +265,7 @@ public class ScreenCapture implements ImageHandler.Delegate {
     }
 
     private ImageHandler createImageHandler(CaptureState captureState) {
-        final var imageHandler = new ImageHandler(captureState, this, mHandler);
+        final var imageHandler = mImageHandlerFactory.create(captureState, this, mHandler);
         mImageHandlerQueue.add(imageHandler);
         return imageHandler;
     }
@@ -243,6 +280,15 @@ public class ScreenCapture implements ImageHandler.Delegate {
     }
 
     private void recreateListener(CaptureState captureState) {
+        assert !mImageHandlerQueue.isEmpty();
+        // Don't recreate if the state hasn't changed.
+        if (mImageHandlerQueue
+                .get(mImageHandlerQueue.size() - 1)
+                .getCaptureState()
+                .equals(captureState)) {
+            return;
+        }
+
         final var imageHandler = createImageHandler(captureState);
 
         assert mVirtualDisplay != null;

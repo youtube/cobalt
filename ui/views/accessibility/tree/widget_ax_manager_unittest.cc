@@ -294,4 +294,64 @@ TEST_F(WidgetAXManagerTest, AccessibilityGetViewBounds_ReturnsWidgetBounds) {
   EXPECT_EQ(manager()->AccessibilityGetViewBounds(), test_bounds);
 }
 
+TEST_F(WidgetAXManagerTest, AccessibilityGetAcceleratedWidget) {
+  gfx::AcceleratedWidget aw = manager()->AccessibilityGetAcceleratedWidget();
+#if BUILDFLAG(IS_WIN)
+  // On Windows we should get a real HWND.
+  EXPECT_NE(aw, gfx::kNullAcceleratedWidget);
+#else
+  // Everywhere else it always returns the null widget.
+  EXPECT_EQ(aw, gfx::kNullAcceleratedWidget);
+#endif
+}
+
+TEST_F(WidgetAXManagerTest, AccessibilityGetNativeViewAccessible) {
+#if BUILDFLAG(IS_MAC)
+  // On macOS we get the NSView’s accessibility object.
+  auto view_acc = manager()->AccessibilityGetNativeViewAccessible();
+  EXPECT_NE(view_acc, gfx::NativeViewAccessible());
+#elif BUILDFLAG(IS_WIN)
+  // On Windows we should get a real IAccessible*.
+  auto win_acc = manager()->AccessibilityGetNativeViewAccessible();
+  EXPECT_NE(win_acc, nullptr);
+#else
+  // On other platforms it always falls back to empty.
+  EXPECT_EQ(manager()->AccessibilityGetNativeViewAccessible(),
+            gfx::NativeViewAccessible());
+#endif
+}
+
+// AccessibilityGetNativeViewAccessibleForWindow
+
+TEST_F(WidgetAXManagerTest, AccessibilityGetNativeViewAccessibleForWindow) {
+#if BUILDFLAG(IS_MAC)
+  // On macOS we get the NSWindow’s accessibility object.
+  auto win_acc = manager()->AccessibilityGetNativeViewAccessibleForWindow();
+  EXPECT_NE(win_acc, gfx::NativeViewAccessible());
+#else
+  // On other platforms it always returns empty.
+  EXPECT_EQ(manager()->AccessibilityGetNativeViewAccessibleForWindow(),
+            gfx::NativeViewAccessible());
+#endif
+}
+
+TEST_F(WidgetAXManagerTest, GetTopLevelNativeWindow) {
+  // Null widget should return nullptr.
+  WidgetAXManager null_manager(nullptr);
+  EXPECT_EQ(null_manager.GetTopLevelNativeWindow(), gfx::NativeWindow());
+
+  // Top-level widget should return its native window.
+  gfx::NativeWindow top_native = widget()->GetNativeWindow();
+  EXPECT_EQ(manager()->GetTopLevelNativeWindow(), top_native);
+
+  // Child widget should still return the top-level native window.
+  std::unique_ptr<Widget> child_widget =
+      base::WrapUnique(CreateChildNativeWidgetWithParent(
+          widget(), Widget::InitParams::CLIENT_OWNS_WIDGET));
+  auto* child_mgr = child_widget->ax_manager();
+  EXPECT_EQ(child_mgr->GetTopLevelNativeWindow(), top_native);
+
+  child_widget->CloseNow();
+}
+
 }  // namespace views::test

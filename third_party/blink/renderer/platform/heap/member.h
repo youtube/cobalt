@@ -101,7 +101,7 @@ struct IsTraceable<blink::WeakMember<T>> {
 // directly with any of those types.
 template <typename T>
 class ValuePeeker final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  public:
   // NOLINTNEXTLINE
@@ -137,6 +137,10 @@ class ValuePeeker final {
   T* ptr_;
 };
 
+}  // namespace WTF
+
+namespace blink {
+
 // Default hash for hash tables with Member<>-derived elements.
 template <typename T, typename MemberType>
 struct BaseMemberHashTraits : SimpleClassHashTraits<MemberType> {
@@ -154,17 +158,17 @@ struct BaseMemberHashTraits : SimpleClassHashTraits<MemberType> {
 #else
     cppgc::internal::RawPointer st(key);
 #endif
-    return WTF::GetHash(st.GetAsInteger());
+    return blink::GetHash(st.GetAsInteger());
   }
   template <typename Member>
     requires(WTF::IsAnyMemberType<Member>::value)
   static unsigned GetHash(const Member& m) {
-    return WTF::GetHash(m.GetRawStorage().GetAsInteger());
+    return blink::GetHash(m.GetRawStorage().GetAsInteger());
   }
 
   static constexpr bool kEmptyValueIsZero = true;
 
-  using PeekInType = ValuePeeker<T>;
+  using PeekInType = WTF::ValuePeeker<T>;
   using PeekOutType = T*;
   using IteratorGetType = MemberType*;
   using IteratorConstGetType = const MemberType*;
@@ -232,30 +236,30 @@ class MemberConstructTraits {
   }
 
   static void NotifyNewElement(T* element) {
-    blink::WriteBarrier::DispatchForObject(element);
+    WriteBarrier::DispatchForObject(element);
   }
 
   static void NotifyNewElements(base::span<T> members) {
     // Checking the first element is sufficient for determining whether a
     // marking or generational barrier is required.
     if (members.empty() ||
-               !blink::WriteBarrier::IsWriteBarrierNeeded(&members.front())) [[likely]] {
+        !WriteBarrier::IsWriteBarrierNeeded(&members.front())) [[likely]] {
       return;
     }
     for (auto& member : members) {
-      blink::WriteBarrier::DispatchForObject(&member);
+      WriteBarrier::DispatchForObject(&member);
     }
   }
 };
 
 template <typename T, typename Traits, typename Allocator>
-class ConstructTraits<blink::Member<T>, Traits, Allocator> final
-    : public MemberConstructTraits<blink::Member<T>> {};
+class ConstructTraits<Member<T>, Traits, Allocator> final
+    : public MemberConstructTraits<Member<T>> {};
 
 template <typename T, typename Traits, typename Allocator>
-class ConstructTraits<blink::WeakMember<T>, Traits, Allocator> final
-    : public MemberConstructTraits<blink::WeakMember<T>> {};
+class ConstructTraits<WeakMember<T>, Traits, Allocator> final
+    : public MemberConstructTraits<WeakMember<T>> {};
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_MEMBER_H_

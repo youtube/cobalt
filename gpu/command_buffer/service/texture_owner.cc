@@ -15,7 +15,6 @@
 #include "gpu/command_buffer/service/decoder_context.h"
 #include "gpu/command_buffer/service/feature_info.h"
 #include "gpu/command_buffer/service/image_reader_gl_owner.h"
-#include "gpu/command_buffer/service/surface_texture_gl_owner.h"
 #include "gpu/command_buffer/service/texture_base.h"
 #include "ui/gl/scoped_binders.h"
 #include "ui/gl/scoped_make_current.h"
@@ -100,20 +99,9 @@ scoped_refptr<TextureOwner> TextureOwner::Create(
     scoped_refptr<RefCountedLock> drdc_lock,
     TextureOwnerCodecType type_for_metrics) {
   auto texture = CreateTexture(context_state.get());
-  switch (mode) {
-    case Mode::kAImageReaderInsecure:
-    case Mode::kAImageReaderInsecureSurfaceControl:
-    case Mode::kAImageReaderSecureSurfaceControl:
-      return new ImageReaderGLOwner(std::move(texture), mode,
-                                    std::move(context_state),
-                                    std::move(drdc_lock), type_for_metrics);
-    case Mode::kSurfaceTextureInsecure:
-      DCHECK(!drdc_lock);
-      return new SurfaceTextureGLOwner(std::move(texture),
-                                       std::move(context_state));
-  }
-
-  NOTREACHED();
+  return new ImageReaderGLOwner(std::move(texture), mode,
+                                std::move(context_state), std::move(drdc_lock),
+                                type_for_metrics);
 }
 
 GLuint TextureOwner::GetTextureId() const {

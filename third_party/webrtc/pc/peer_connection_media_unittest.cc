@@ -387,7 +387,8 @@ TEST_F(PeerConnectionMediaTestPlanB, SimulcastOffer) {
   auto caller_video_track = caller->AddVideoTrack("v");
   RTCOfferAnswerOptions options;
   options.num_simulcast_layers = 3;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   auto* description =
       GetFirstMediaContent(offer->description(), MediaType::VIDEO)
           ->media_description();
@@ -408,13 +409,14 @@ TEST_F(PeerConnectionMediaTestPlanB, SimulcastOffer) {
 TEST_F(PeerConnectionMediaTestPlanB, SimulcastAnswer) {
   auto caller = CreatePeerConnection();
   caller->AddVideoTrack("v0");
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto callee = CreatePeerConnection();
   auto callee_video_track = callee->AddVideoTrack("v1");
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
   RTCOfferAnswerOptions options;
   options.num_simulcast_layers = 3;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
   auto* description =
       GetFirstMediaContent(answer->description(), MediaType::VIDEO)
           ->media_description();
@@ -551,7 +553,7 @@ TEST_P(PeerConnectionMediaTest,
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnection();
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
 
   const auto* audio_content = GetFirstAudioContent(answer->description());
   ASSERT_TRUE(audio_content);
@@ -574,7 +576,8 @@ TEST_P(PeerConnectionMediaTest, RawPacketizationNotSetInOffer) {
   caller_fake_engine->SetVideoCodecs(fake_codecs);
 
   auto caller = CreatePeerConnectionWithVideo(std::move(caller_fake_engine));
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   auto* offer_description =
       GetFirstVideoContentDescription(offer->description());
   for (const auto& codec : offer_description->codecs()) {
@@ -600,7 +603,8 @@ TEST_P(PeerConnectionMediaTest, RawPacketizationSetInOfferAndAnswer) {
   options.raw_packetization_for_video = true;
 
   auto caller = CreatePeerConnectionWithVideo(std::move(caller_fake_engine));
-  auto offer = caller->CreateOfferAndSetAsLocal(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal(options);
   auto* offer_description =
       GetFirstVideoContentDescription(offer->description());
   for (const auto& codec : offer_description->codecs()) {
@@ -611,7 +615,8 @@ TEST_P(PeerConnectionMediaTest, RawPacketizationSetInOfferAndAnswer) {
 
   auto callee = CreatePeerConnectionWithVideo(std::move(callee_fake_engine));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
-  auto answer = callee->CreateAnswerAndSetAsLocal(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal(options);
   auto* answer_description =
       GetFirstVideoContentDescription(answer->description());
   for (const auto& codec : answer_description->codecs()) {
@@ -644,11 +649,13 @@ TEST_P(PeerConnectionMediaTest,
   callee_options.raw_packetization_for_video = true;
 
   auto caller = CreatePeerConnectionWithVideo(std::move(caller_fake_engine));
-  auto offer = caller->CreateOfferAndSetAsLocal(caller_options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal(caller_options);
 
   auto callee = CreatePeerConnectionWithVideo(std::move(callee_fake_engine));
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
-  auto answer = callee->CreateAnswerAndSetAsLocal(callee_options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal(callee_options);
 
   auto* answer_description =
       GetFirstVideoContentDescription(answer->description());
@@ -688,7 +695,8 @@ TEST_P(PeerConnectionMediaOfferDirectionTest, VerifyDirection) {
 
   RTCOfferAnswerOptions options;
   options.offer_to_receive_audio = offer_to_receive_;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
 
   auto* content = GetFirstMediaContent(offer->description(), MediaType::AUDIO);
   if (expected_direction_ == RtpTransceiverDirection::kInactive) {
@@ -744,7 +752,7 @@ TEST_P(PeerConnectionMediaAnswerDirectionTest, VerifyDirection) {
   caller->AddAudioTrack("a");
 
   // Create the offer with an audio section and set its direction.
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   GetFirstAudioContentDescription(offer->description())
       ->set_direction(offer_direction_);
 
@@ -757,7 +765,8 @@ TEST_P(PeerConnectionMediaAnswerDirectionTest, VerifyDirection) {
   // Create the answer according to the test parameters.
   RTCOfferAnswerOptions options;
   options.offer_to_receive_audio = offer_to_receive_;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
 
   // The expected direction in the answer is the intersection of each side's
   // capability to send/recv media.
@@ -794,7 +803,7 @@ TEST_P(PeerConnectionMediaAnswerDirectionTest, VerifyRejected) {
   caller->AddAudioTrack("a");
 
   // Create the offer with an audio section and set its direction.
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   GetFirstAudioContentDescription(offer->description())
       ->set_direction(offer_direction_);
 
@@ -807,7 +816,8 @@ TEST_P(PeerConnectionMediaAnswerDirectionTest, VerifyRejected) {
   // Create the answer according to the test parameters.
   RTCOfferAnswerOptions options;
   options.offer_to_receive_audio = offer_to_receive_;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
 
   // The media section is rejected if and only if offer_to_receive is explicitly
   // set to 0 and there is no media to send.
@@ -834,7 +844,8 @@ TEST_P(PeerConnectionMediaTest, OfferHasDifferentDirectionForAudioVideo) {
   RTCOfferAnswerOptions options;
   options.offer_to_receive_audio = 1;
   options.offer_to_receive_video = 0;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
 
   EXPECT_EQ(RtpTransceiverDirection::kRecvOnly,
             GetMediaContentDirection(offer.get(), MediaType::AUDIO));
@@ -858,7 +869,8 @@ TEST_P(PeerConnectionMediaTest, AnswerHasDifferentDirectionsForAudioVideo) {
   RTCOfferAnswerOptions options;
   options.offer_to_receive_audio = 1;
   options.offer_to_receive_video = 0;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
 
   EXPECT_EQ(RtpTransceiverDirection::kRecvOnly,
             GetMediaContentDirection(answer.get(), MediaType::AUDIO));
@@ -919,7 +931,8 @@ TEST_P(PeerConnectionMediaTest,
 
   RTCOfferAnswerOptions options;
   options.voice_activity_detection = false;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
 
   EXPECT_FALSE(HasAnyComfortNoiseCodecs(offer->description()));
 }
@@ -932,7 +945,8 @@ TEST_P(PeerConnectionMediaTest,
 
   RTCOfferAnswerOptions options;
   options.voice_activity_detection = true;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
 
   EXPECT_TRUE(HasAnyComfortNoiseCodecs(offer->description()));
 }
@@ -950,7 +964,8 @@ TEST_P(PeerConnectionMediaTest,
 
   RTCOfferAnswerOptions options;
   options.voice_activity_detection = true;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
 
   EXPECT_FALSE(HasAnyComfortNoiseCodecs(answer->description()));
 }
@@ -971,7 +986,8 @@ TEST_P(PeerConnectionMediaTest,
 
   RTCOfferAnswerOptions options;
   options.voice_activity_detection = false;
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
 
   EXPECT_FALSE(HasAnyComfortNoiseCodecs(answer->description()));
 }
@@ -1004,7 +1020,7 @@ TEST_P(PeerConnectionMediaInvalidMediaTest, FailToSetRemoteAnswer) {
 
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   mutator_(answer->description());
 
   std::string error;
@@ -1018,7 +1034,7 @@ TEST_P(PeerConnectionMediaInvalidMediaTest, FailToSetLocalAnswer) {
 
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   mutator_(answer->description());
 
   std::string error;
@@ -1151,12 +1167,12 @@ TEST_P(PeerConnectionMediaTest, AnswerHasSameMidsAsOffer) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   RenameContent(offer->description(), MediaType::AUDIO, kAudioMid);
   RenameContent(offer->description(), MediaType::VIDEO, kVideoMid);
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   EXPECT_EQ(kAudioMid, GetFirstAudioContent(answer->description())->mid());
   EXPECT_EQ(kVideoMid, GetFirstVideoContent(answer->description())->mid());
 }
@@ -1170,7 +1186,7 @@ TEST_P(PeerConnectionMediaTest, ReOfferHasSameMidsAsFirstOffer) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   RenameContent(offer->description(), MediaType::AUDIO, kAudioMid);
   RenameContent(offer->description(), MediaType::VIDEO, kVideoMid);
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
@@ -1187,7 +1203,7 @@ TEST_P(PeerConnectionMediaTest, SetRemoteDescriptionFailsWithDuplicateMids) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   RenameContent(offer->description(), MediaType::AUDIO, "same");
   RenameContent(offer->description(), MediaType::VIDEO, "same");
 
@@ -1221,9 +1237,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadTypeReassigned) {
   auto callee = CreatePeerConnectionWithAudio(std::move(callee_fake_engine));
 
   // Offer from the caller establishes 100 as the "foo" payload type.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   ASSERT_EQ(1u, answer_description->codecs().size());
@@ -1267,9 +1285,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadTypeNoFmtpMatchNoFmtp) {
 
   // Offer from the caller establishes 100 as the "foo" payload type.
   // Red (without fmtp) is negotiated.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   ASSERT_EQ(2u, answer_description->codecs().size());
@@ -1313,9 +1333,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadTypeNoFmtpNoMatchFmtp) {
 
   // Offer from the caller establishes 100 as the "foo" payload type.
   // It should not negotiate RED.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   ASSERT_EQ(1u, answer_description->codecs().size());
@@ -1365,9 +1387,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadTypeMustMatchBaseCodecs) {
 
   // Offer from the caller establishes 100 as the "foo" payload type.
   // It should not negotiate RED since RED is associated with foo, not bar.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   ASSERT_EQ(1u, answer_description->codecs().size());
@@ -1401,9 +1425,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadMixed) {
   auto callee = CreatePeerConnectionWithAudio(std::move(callee_fake_engine));
 
   // Offer from the caller establishes 100 as the "foo" payload type.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   // RED is not negotiated.
@@ -1436,9 +1462,11 @@ TEST_P(PeerConnectionMediaTest, RedFmtpPayloadDifferentRedundancy) {
   auto callee = CreatePeerConnectionWithAudio(std::move(callee_fake_engine));
 
   // Offer from the caller establishes 100 as the "foo" payload type.
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   auto answer_description =
       GetFirstAudioContentDescription(answer->description());
   // RED is negotiated.
@@ -1571,7 +1599,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan, SetCodecPreferencesAllAudioCodecs) {
 
   // Normal case, set all capabilities as preferences
   EXPECT_TRUE(audio_transceiver->SetCodecPreferences(sender_audio_codecs).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_TRUE(CompareCodecs(sender_audio_codecs, codecs));
@@ -1589,7 +1617,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
 
   // Normal case, reset codec preferences
   EXPECT_TRUE(audio_transceiver->SetCodecPreferences(empty_codecs).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_TRUE(CompareCodecs(sender_audio_codecs, codecs));
@@ -1649,7 +1677,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan, SetCodecPreferencesAllVideoCodecs) {
 
   // Normal case, setting preferences to normal capabilities
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(sender_video_codecs).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_TRUE(CompareCodecs(sender_video_codecs, codecs));
@@ -1668,7 +1696,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
 
   // Normal case, resetting preferences with empty list of codecs
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(empty_codecs).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_TRUE(CompareCodecs(sender_video_codecs, codecs));
@@ -1692,7 +1720,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   duplicate_codec.push_back(duplicate_codec.front());
 
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(duplicate_codec).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_TRUE(CompareCodecs(single_codec, codecs));
@@ -1731,7 +1759,7 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan, SetCodecPreferencesVideoWithRtx) {
   EXPECT_EQ(video_codecs_vpx_rtx.size(), 3u);  // VP8, VP9, RTX
   EXPECT_TRUE(
       video_transceiver->SetCodecPreferences(video_codecs_vpx_rtx).ok());
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
 
@@ -1774,7 +1802,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   EXPECT_EQ(video_codecs_vpx.size(), 2u);  // VP8, VP9
   EXPECT_TRUE(send_transceiver->SetCodecPreferences(video_codecs_vpx).ok());
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
 
@@ -1795,7 +1824,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   EXPECT_EQ(video_codecs_vp8_rtx.size(), 2u);  // VP8, RTX
   recv_transceiver->SetCodecPreferences(video_codecs_vp8_rtx);
 
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
 
   auto recv_codecs =
       answer->description()->contents()[0].media_description()->codecs();
@@ -1840,7 +1870,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   auto video_codecs_vpx_reverse = video_codecs_vpx;
   absl::c_reverse(video_codecs_vpx_reverse);
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   auto codecs =
       offer->description()->contents()[0].media_description()->codecs();
   EXPECT_EQ(codecs.size(), 2u);  // VP9, VP8
@@ -1851,7 +1882,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   auto recv_transceiver = callee->pc()->GetTransceivers().front();
   recv_transceiver->SetCodecPreferences(video_codecs_vpx_reverse);
 
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
 
   auto recv_codecs =
       answer->description()->contents()[0].media_description()->codecs();
@@ -1866,7 +1898,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   auto caller = CreatePeerConnectionWithAudio(std::move(fake_engine));
 
   RTCOfferAnswerOptions options;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_TRUE(HasAnyComfortNoiseCodecs(offer->description()));
 
   auto transceiver = caller->pc()->GetTransceivers().front();
@@ -1913,7 +1946,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(capabilities.codecs).ok());
 
   RTCOfferAnswerOptions options;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_FALSE(HasPayloadTypeConflict(offer->description()));
   // Sanity check that we got the primary codec and RTX.
   EXPECT_EQ(
@@ -1958,7 +1992,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan,
       caller->pc_factory()->GetRtpSenderCapabilities(MediaType::VIDEO);
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(capabilities.codecs).ok());
 
-  auto answer = caller->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      caller->CreateAnswer(options);
 
   EXPECT_FALSE(HasPayloadTypeConflict(answer->description()));
   // Sanity check that we got the primary codec and RTX.
@@ -2077,7 +2112,8 @@ TEST_F(PeerConnectionMediaTestUnifiedPlan, SetCodecPreferencesVideoNoRtx) {
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(capabilities.codecs).ok());
 
   RTCOfferAnswerOptions options;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   const auto& content = offer->description()->contents()[0];
   auto& codecs = content.media_description()->codecs();
   ASSERT_EQ(codecs.size(), 2u);

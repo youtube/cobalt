@@ -19,6 +19,7 @@
 #include "components/permissions/android/permissions_reprompt_controller_android.h"
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/permissions_client.h"
+#include "components/permissions/resolvers/content_setting_permission_resolver.h"
 #include "content/public/browser/web_contents.h"
 #if BUILDFLAG(ENABLE_VR)
 #include "base/feature_list.h"
@@ -96,13 +97,12 @@ void WebXrPermissionContext::NotifyPermissionSet(
     // status may have changed in the meantime.
     auto previous_setting = GetContentSettingStatusInternal(
         rfh, request_data.requesting_origin, request_data.embedding_origin);
-    auto new_setting = content_settings::ValueToContentSetting(
+    auto new_content_setting = std::get<ContentSetting>(
         request_data.resolver->ComputePermissionDecisionResult(
-            base::Value(previous_setting), decision,
-            request_data.prompt_options));
+            previous_setting, decision, request_data.prompt_options));
 
     ContentSettingPermissionContextBase::UpdateContentSetting(
-        request_data, new_setting,
+        request_data, new_content_setting,
         decision == PermissionDecision::kAllowThisTime);
   }
 
@@ -148,10 +148,12 @@ void WebXrPermissionContext::NotifyPermissionSet(
               base::BindOnce(
                   &WebXrPermissionContext::OnAndroidPermissionDecided,
                   weak_ptr_factory_.GetWeakPtr(),
-                  PermissionRequestData(this, request_data.id,
-                                        request_data.user_gesture,
-                                        request_data.requesting_origin,
-                                        request_data.embedding_origin),
+                  PermissionRequestData(
+                      std::make_unique<ContentSettingPermissionResolver>(
+                          request_data.resolver->GetContentSettingsType()
+                              .value()),
+                      request_data.user_gesture, request_data.requesting_origin,
+                      request_data.embedding_origin),
                   std::move(callback)));
       return;
   }

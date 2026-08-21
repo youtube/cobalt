@@ -198,7 +198,6 @@
 #endif
 
 #if defined(ENABLE_IPC_FUZZER)
-#include "content/common/external_ipc_dumper.h"
 #include "mojo/public/cpp/bindings/message_dumper.h"
 #endif
 
@@ -292,7 +291,6 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
   // This is for an offscreen context, so the default framebuffer doesn't need
   // alpha, depth, stencil, antialiasing.
   gpu::ContextCreationAttribs attributes;
-  attributes.bind_generates_resource = false;
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = support_gles2_interface;
   attributes.enable_raster_interface = support_raster_interface;
@@ -605,9 +603,6 @@ void RenderThreadImpl::Init() {
   if (command_line.HasSwitch(switches::kIpcDumpDirectory)) {
     base::FilePath dump_directory =
         command_line.GetSwitchValuePath(switches::kIpcDumpDirectory);
-    IPC::ChannelProxy::OutgoingMessageFilter* filter =
-        LoadExternalIPCDumper(dump_directory);
-    GetChannel()->set_outgoing_message_filter(filter);
     mojo::MessageDumper::SetMessageDumpDirectory(dump_directory);
   }
 #endif

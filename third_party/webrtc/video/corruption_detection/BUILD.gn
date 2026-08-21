@@ -32,6 +32,7 @@ rtc_library("frame_instrumentation_evaluation") {
     "../../api:array_view",
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
+    "../../api/video:video_rtp_headers",
     "../../common_video:frame_instrumentation_data",
     "../../rtc_base:checks",
     "../../rtc_base:logging",
@@ -162,6 +163,7 @@ if (rtc_include_tests) {
       ":frame_instrumentation_evaluation",
       "../../api:scoped_refptr",
       "../../api/video:video_frame",
+      "../../api/video:video_rtp_headers",
       "../../common_video:frame_instrumentation_data",
       "../../test:test_support",
     ]

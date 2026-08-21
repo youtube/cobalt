@@ -21,7 +21,7 @@
 #include <openssl/mem.h>
 #include <openssl/nid.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../ec/internal.h"
 #include "../fipsmodule/ec/internal.h"

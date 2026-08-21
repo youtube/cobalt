@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/quic/quic_test_packet_maker.h"
 
 #include <list>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -131,7 +127,7 @@ void QuicTestPacketMaker::ConnectionState::Reset() {
 QuicTestPacketMaker::QuicTestPacketMaker(quic::ParsedQuicVersion version,
                                          quic::QuicConnectionId connection_id,
                                          const quic::QuicClock* clock,
-                                         const std::string& host,
+                                         std::string_view host,
                                          quic::Perspective perspective,
                                          bool client_priority_uses_incremental,
                                          bool use_priority_header)
@@ -402,7 +398,7 @@ void QuicTestPacketMaker::RemoveSavedStreamFrames(
           it->stream_frame.stream_id == stream_id) {
         it = kv.second.erase(it);
       } else {
-        ++it;
+        UNSAFE_TODO(++it);
       }
     }
   }

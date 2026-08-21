@@ -390,6 +390,18 @@ func addCipherSuiteTests() {
 		expectedError: ":WRONG_CERTIFICATE_TYPE:",
 	})
 
+	// id-RSASSA-PSS keys should not match RSA decryption cipher suites.
+	testCases = append(testCases, testCase{
+		name: "CertificateCipherMismatch-PSS",
+		config: Config{
+			MaxVersion:   VersionTLS12,
+			CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			Credential:   &pssCertificate,
+		},
+		shouldFail:    true,
+		expectedError: ":UNSUPPORTED_ALGORITHM:",
+	})
+
 	// Test that servers decline to select a cipher suite which is
 	// inconsistent with their configured certificate.
 	testCases = append(testCases, testCase{

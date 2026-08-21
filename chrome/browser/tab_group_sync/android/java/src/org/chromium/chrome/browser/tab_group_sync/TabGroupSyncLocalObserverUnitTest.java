@@ -125,8 +125,8 @@ public class TabGroupSyncLocalObserverUnitTest {
 
         when(mTabGroupModelFilter.isTabInTabGroup(mTab1)).thenReturn(true);
         when(mTabGroupModelFilter.isTabInTabGroup(mTab2)).thenReturn(true);
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(eq(TOKEN_1))).thenReturn(ROOT_ID_1);
-        when(mTabGroupModelFilter.getTabGroupIdFromRootId(eq(ROOT_ID_1))).thenReturn(TOKEN_1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(TOKEN_1)).thenReturn(ROOT_ID_1);
+        when(mTabGroupModelFilter.tabGroupExists(TOKEN_1)).thenReturn(true);
 
         mTabModel = spy(new MockTabModel(mProfile, null));
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
@@ -596,18 +596,14 @@ public class TabGroupSyncLocalObserverUnitTest {
     @Test
     public void testDidChangeTitle() {
         // Valid title.
-        when(mTabGroupModelFilter.getTabGroupTitle(ROOT_ID_1)).thenReturn(TITLE_1);
-        mTabGroupModelFilterObserverCaptor
-                .getValue()
-                .didChangeTabGroupTitle(ROOT_ID_1, TOKEN_1, TITLE_1);
+        when(mTabGroupModelFilter.getTabGroupTitle(TOKEN_1)).thenReturn(TITLE_1);
+        mTabGroupModelFilterObserverCaptor.getValue().didChangeTabGroupTitle(TOKEN_1, TITLE_1);
         verify(mTabGroupSyncService, times(1))
                 .updateVisualData(eq(LOCAL_TAB_GROUP_ID_1), eq(TITLE_1), anyInt());
 
         // Null title.
-        when(mTabGroupModelFilter.getTabGroupTitle(ROOT_ID_1)).thenReturn(null);
-        mTabGroupModelFilterObserverCaptor
-                .getValue()
-                .didChangeTabGroupTitle(ROOT_ID_1, TOKEN_1, null);
+        when(mTabGroupModelFilter.getTabGroupTitle(TOKEN_1)).thenReturn(null);
+        mTabGroupModelFilterObserverCaptor.getValue().didChangeTabGroupTitle(TOKEN_1, null);
         verify(mTabGroupSyncService, times(1))
                 .updateVisualData(eq(LOCAL_TAB_GROUP_ID_1), eq(new String()), anyInt());
     }
@@ -615,28 +611,26 @@ public class TabGroupSyncLocalObserverUnitTest {
     @Test
     public void testDidChangeColor() {
         // Mock that we have a stored color (red) stored with reference to ROOT_ID_1.
-        when(mTabGroupModelFilter.getTabGroupColor(ROOT_ID_1)).thenReturn(TabGroupColorId.RED);
+        when(mTabGroupModelFilter.getTabGroupColor(TOKEN_1)).thenReturn(TabGroupColorId.RED);
 
         mTabGroupModelFilterObserverCaptor
                 .getValue()
-                .didChangeTabGroupColor(ROOT_ID_1, TOKEN_1, TabGroupColorId.RED);
+                .didChangeTabGroupColor(TOKEN_1, TabGroupColorId.RED);
         verify(mTabGroupSyncService, times(1))
                 .updateVisualData(eq(LOCAL_TAB_GROUP_ID_1), any(), eq(TabGroupColorId.RED));
     }
 
     @Test
     public void testDidChangeTitleAndColorForNonExistingGroup() {
+        when(mTabGroupModelFilter.tabGroupExists(TOKEN_1)).thenReturn(false);
         // Handle updates for non-existing groups.
-        when(mTabGroupModelFilter.getTabGroupTitle(12)).thenReturn(null);
-        mTabGroupModelFilterObserverCaptor.getValue().didChangeTabGroupTitle(12, TOKEN_1, TITLE_1);
+        mTabGroupModelFilterObserverCaptor.getValue().didChangeTabGroupTitle(TOKEN_1, TITLE_1);
         verify(mTabGroupSyncService, never()).updateVisualData(any(), any(), anyInt());
 
         // Handle updates for non-existing groups.
-        when(mTabGroupModelFilter.getTabGroupColorWithFallback(12))
-                .thenReturn(TabGroupColorId.BLUE);
         mTabGroupModelFilterObserverCaptor
                 .getValue()
-                .didChangeTabGroupColor(12, new Token(437289L, 783492L), TabGroupColorId.BLUE);
+                .didChangeTabGroupColor(new Token(437289L, 783492L), TabGroupColorId.BLUE);
         verify(mTabGroupSyncService, never()).updateVisualData(any(), any(), anyInt());
     }
 

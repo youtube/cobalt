@@ -334,11 +334,7 @@ class MemorySaverChipInteractiveTest
 
   auto WaitForPageActionButtonVisible() {
     MultiStep steps;
-    if (IsPageActionMigrationEnabled()) {
-      steps += WaitForPageActionButtonVisible(kActionShowMemorySaverChip);
-    } else {
-      steps += WaitForShow(kMemorySaverChipElementId);
-    }
+    steps += WaitForPageActionButtonVisible(kActionShowMemorySaverChip);
     return steps;
   }
 
@@ -804,7 +800,7 @@ IN_PROC_BROWSER_TEST_P(MemorySaverImprovedFaviconTreatmentTest,
       discard_ring_treatment_setting = {
           "settings-ui",
           "settings-main",
-          "settings-basic-page",
+          "settings-performance-page-index",
           "settings-performance-page",
           "settings-toggle-button#discardRingTreatmentToggleButton",
           "cr-toggle#control"};

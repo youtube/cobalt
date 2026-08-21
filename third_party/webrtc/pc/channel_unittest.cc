@@ -88,14 +88,14 @@ const webrtc::Codec kIsacCodec =
     webrtc::CreateAudioCodec(103, "ISAC", 40000, 1);
 const webrtc::Codec kH264Codec = webrtc::CreateVideoCodec(97, "H264");
 const webrtc::Codec kH264SvcCodec = webrtc::CreateVideoCodec(99, "H264-SVC");
-const uint32_t kSsrc1 = 0x1111;
-const uint32_t kSsrc2 = 0x2222;
-const uint32_t kSsrc3 = 0x3333;
-const uint32_t kSsrc4 = 0x4444;
-const int kAudioPts[] = {0, 8};
-const int kVideoPts[] = {97, 99};
-const char kAudioMid[] = "0";
-const char kVideoMid[] = "1";
+constexpr uint32_t kSsrc1 = 0x1111;
+constexpr uint32_t kSsrc2 = 0x2222;
+constexpr uint32_t kSsrc3 = 0x3333;
+constexpr uint32_t kSsrc4 = 0x4444;
+constexpr int kAudioPts[] = {0, 8};
+constexpr int kVideoPts[] = {97, 99};
+constexpr char kAudioMid[] = "0";
+constexpr char kVideoMid[] = "1";
 enum class NetworkIsWorker { Yes, No };
 
 template <class ChannelT,

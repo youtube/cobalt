@@ -161,12 +161,10 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
 };
 
 // Error codes used by MoQT to reset streams.
-// TODO: update with spec-defined error codes once those are available, see
-// <https://github.com/moq-wg/moq-transport/issues/481>.
 inline constexpr webtransport::StreamErrorCode kResetCodeUnknown = 0x00;
-inline constexpr webtransport::StreamErrorCode kResetCodeSubscriptionGone =
-    0x01;
-inline constexpr webtransport::StreamErrorCode kResetCodeTimedOut = 0x02;
+inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
+inline constexpr webtransport::StreamErrorCode kResetCodeDeliveryTimeout = 0x02;
+inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
 
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
@@ -622,22 +620,29 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {
+  uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceError {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtUnannounce {
   TrackNamespace track_namespace;
+};
+
+struct QUICHE_EXPORT MoqtAnnounceCancel {
+  TrackNamespace track_namespace;
+  RequestErrorCode error_code;
+  std::string error_reason;
 };
 
 enum class QUICHE_EXPORT MoqtTrackStatusCode : uint64_t {
@@ -661,22 +666,16 @@ inline bool DoesTrackStatusImplyHavingData(MoqtTrackStatusCode code) {
   return false;
 }
 
-struct QUICHE_EXPORT MoqtTrackStatus {
+struct QUICHE_EXPORT MoqtTrackStatusRequest {
+  uint64_t request_id;
   FullTrackName full_track_name;
-  MoqtTrackStatusCode status_code;
-  uint64_t last_group;
-  uint64_t last_object;
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceCancel {
-  TrackNamespace track_namespace;
-  RequestErrorCode error_code;
-  std::string reason_phrase;
-};
-
-struct QUICHE_EXPORT MoqtTrackStatusRequest {
-  FullTrackName full_track_name;
+struct QUICHE_EXPORT MoqtTrackStatus {
+  uint64_t request_id;
+  MoqtTrackStatusCode status_code;
+  Location largest_location;
   VersionSpecificParameters parameters;
 };
 
@@ -685,18 +684,19 @@ struct QUICHE_EXPORT MoqtGoAway {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnounces {
+  uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
@@ -766,7 +766,7 @@ struct JoiningFetchAbsolute {
 };
 
 struct QUICHE_EXPORT MoqtFetch {
-  uint64_t fetch_id;
+  uint64_t request_id;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
   std::variant<StandaloneFetch, JoiningFetchRelative, JoiningFetchAbsolute>
@@ -774,21 +774,22 @@ struct QUICHE_EXPORT MoqtFetch {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtFetchCancel {
-  uint64_t subscribe_id;
-};
-
 struct QUICHE_EXPORT MoqtFetchOk {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   MoqtDeliveryOrder group_order;
-  Location largest_id;
+  bool end_of_track;
+  Location end_location;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchError {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
+};
+
+struct QUICHE_EXPORT MoqtFetchCancel {
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtRequestsBlocked {

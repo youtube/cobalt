@@ -108,7 +108,7 @@ PeerConnectionWrapper::CreateOfferAndSetAsLocal() {
 std::unique_ptr<SessionDescriptionInterface>
 PeerConnectionWrapper::CreateOfferAndSetAsLocal(
     const PeerConnectionInterface::RTCOfferAnswerOptions& options) {
-  auto offer = CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer = CreateOffer(options);
   if (!offer) {
     return nullptr;
   }
@@ -140,7 +140,7 @@ PeerConnectionWrapper::CreateAnswerAndSetAsLocal() {
 std::unique_ptr<SessionDescriptionInterface>
 PeerConnectionWrapper::CreateAnswerAndSetAsLocal(
     const PeerConnectionInterface::RTCOfferAnswerOptions& options) {
-  auto answer = CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer = CreateAnswer(options);
   if (!answer) {
     return nullptr;
   }
@@ -244,7 +244,8 @@ bool PeerConnectionWrapper::ExchangeOfferAnswerWith(
     RTC_LOG(LS_ERROR) << "Cannot exchange offer/answer with ourself!";
     return false;
   }
-  auto offer = CreateOffer(offer_options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateOffer(offer_options);
   EXPECT_TRUE(offer);
   if (!offer) {
     return false;
@@ -260,7 +261,8 @@ bool PeerConnectionWrapper::ExchangeOfferAnswerWith(
   if (!set_remote_offer) {
     return false;
   }
-  auto answer = answerer->CreateAnswer(answer_options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      answerer->CreateAnswer(answer_options);
   EXPECT_TRUE(answer);
   if (!answer) {
     return false;

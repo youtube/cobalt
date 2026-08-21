@@ -646,6 +646,108 @@ struct MEDIA_EXPORT XDateRangeTag {
   base::flat_map<ResolvedSourceString, ResolvedSourceString> attributes;
 };
 
+// The EXT-X-SESSION-DATA tag allows arbitrary session data to be carried in a
+// Multivariant Playlist.
+struct MEDIA_EXPORT XSessionDataTag {
+  static constexpr auto kName = MultivariantPlaylistTagName::kXSessionData;
+  static ParseStatus::Or<XSessionDataTag> Parse(
+      TagItem item,
+      const VariableDictionary& variables,
+      VariableDictionary::SubstitutionBuffer& buffer);
+
+  // Use reverse DNS naming convention.
+  ResolvedSourceString data_id;
+
+  // Must contain VALUE or URI, but not both.
+
+  // If LANGUAGE is specified, VALUE should contain a human readable string.
+  std::optional<ResolvedSourceString> value;
+  std::optional<ResolvedSourceString> language;
+
+  // FORMAT must be JSON or RAW. URI should be ignored when FORMAT is missing.
+  // if URI is present and FORMAT is not, FORMAT is implied to be JSON.
+  std::optional<ResolvedSourceString> uri;
+  bool format_is_json;
+};
+
+// A Multivariant Playlist that specifies alternative VIDEO Renditions and
+// I-frame Playlists SHOULD include an alternative I-frame VIDEO Rendition for
+// each regular VIDEO Rendition, with the same NAME and LANGUAGE attributes.
+struct MEDIA_EXPORT XIFrameStreamInfTag {
+  static constexpr auto kName = MultivariantPlaylistTagName::kXIFrameStreamInf;
+
+  static ParseStatus::Or<XIFrameStreamInfTag> Parse(
+      TagItem item,
+      const VariableDictionary& vars,
+      VariableDictionary::SubstitutionBuffer& subs);
+
+  struct CtorArgs;
+  ~XIFrameStreamInfTag();
+  explicit XIFrameStreamInfTag(CtorArgs);
+  XIFrameStreamInfTag(const XIFrameStreamInfTag&);
+
+  ResolvedSourceString uri;
+
+  // The peak segment bitrate of the stream this tag applies to, in bits per
+  // second.
+  types::DecimalInteger bandwidth;
+
+  // The average segment bitrate of the stream this tag applies to, in bits per
+  // second.
+  std::optional<types::DecimalInteger> average_bandwidth;
+
+  // An abstract, relative measure of the quality-of-experience of the stream
+  // this tag applies to. The determination of this number is up to the playlist
+  // author, however higher scores must indicate a better playback experience.
+  std::optional<types::DecimalFloatingPoint> score;
+
+  // A list of formats, where each format specifies a media
+  // sample type that is present is one or more renditions of the variant stream
+  // this tag applies to. According to the spec this *should* be present on
+  // every instance of this tag, but in practice it's not. It's represented as
+  // optional here to differentiate an empty list, ie CODECS="", vs the absence
+  // of the CODECS property.
+  std::optional<std::vector<std::string>> codecs;
+
+  // The optimal pixel resolution at which to display all video in this variant
+  // stream.
+  std::optional<types::DecimalResolution> resolution;
+
+  // The id of a video rendition group that should be used when playing this
+  // variant.
+  std::optional<ResolvedSourceString> video;
+};
+
+// The EXT-X-START tag indicates a preferred point at which to start playing a
+// Playlist. By default, clients SHOULD start playback at this point when
+// beginning a playback session.
+struct MEDIA_EXPORT XStartTag {
+  static constexpr auto kName = CommonTagName::kXStart;
+
+  static ParseStatus::Or<XStartTag> Parse(
+      TagItem item,
+      const VariableDictionary& vars,
+      VariableDictionary::SubstitutionBuffer& subs);
+
+  types::DecimalFloatingPoint time_offset;
+  bool precise;
+};
+
+// The EXT-X-CONTENT-STEERING tag allows a server to provide a Content Steering
+// (Section 7) Manifest. It is OPTIONAL. It MUST NOT appear more than once in a
+// Multivariant Playlist.
+struct MEDIA_EXPORT XContentSteeringTag {
+  static constexpr auto kName = MultivariantPlaylistTagName::kXContentSteering;
+
+  static ParseStatus::Or<XContentSteeringTag> Parse(
+      TagItem item,
+      const VariableDictionary& vars,
+      VariableDictionary::SubstitutionBuffer& subs);
+
+  ResolvedSourceString server_uri;
+  std::optional<ResolvedSourceString> pathway_id;
+};
+
 }  // namespace media::hls
 
 #endif  // MEDIA_FORMATS_HLS_TAGS_H_

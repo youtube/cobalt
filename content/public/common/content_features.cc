@@ -76,6 +76,12 @@ const base::FeatureParam<bool> kAndroidSpareRendererKillWhenBackgrounded{
 const base::FeatureParam<bool> kAndroidSpareRendererOnlyForNavigation{
     &kAndroidWarmUpSpareRendererWithTimeout, "only_for_navigation", false};
 
+// Only allow the navigation related allocation to use the spare renderer.
+const base::FeatureParam<bool>
+    kAndroidSpareRendererOnlyWarmupAfterWebPageLoaded{
+        &kAndroidWarmUpSpareRendererWithTimeout,
+        "only_warmup_after_web_page_loaded", false};
+
 // Whether to allow attaching an inner WebContents not owned by the outer
 // WebContents. This is for prototyping purposes and should not be enabled in
 // production.
@@ -183,6 +189,12 @@ BASE_FEATURE(kBlockInsecurePrivateNetworkRequestsDeprecationTrial,
 BASE_FEATURE(kBrokerFileOperationsOnDiskCacheInNetworkService,
              "BrokerFileOperationsOnDiskCacheInNetworkService",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Allows the decision to bypass redirect checks to be made based on the
+// specific request.
+BASE_FEATURE(kBypassRedirectChecksPerRequest,
+             "BypassRedirectChecksPerRequest",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows pages with cache-control:no-store to enter the back/forward cache.
 // Feature params can specify whether pages with cache-control:no-store can be
@@ -326,9 +338,7 @@ const base::FeatureParam<base::TimeDelta> kBtmInteractionTtl{
 constexpr base::FeatureParam<content::BtmTriggeringAction>::Option
     kBtmTriggeringActionOptions[] = {
         {content::BtmTriggeringAction::kNone, "none"},
-        {content::BtmTriggeringAction::kStorage, "storage"},
-        {content::BtmTriggeringAction::kBounce, "bounce"},
-        {content::BtmTriggeringAction::kStatefulBounce, "stateful_bounce"}};
+        {content::BtmTriggeringAction::kBounce, "bounce"}};
 
 // Sets the actions which will trigger BTM clearing for a site. The default is
 // to set to |kBounce|, but can be overridden by Finch experiment groups,
@@ -709,6 +719,12 @@ BASE_FEATURE(kPrefetchPrerenderIntegration,
 // If explicitly disabled, prefetch proxy is not used.
 BASE_FEATURE(kPrefetchProxy, "PrefetchProxy", base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, the feature allows the prerender host to be reused for the
+// future same-site page prerender if marked as reusable.
+BASE_FEATURE(kPrerender2ReuseHost,
+             "Prerender2ReuseHost",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, browser-initiated prefetch is allowed.
 // Please see crbug.com/40946257 for more details.
 BASE_FEATURE(kPrefetchBrowserInitiatedTriggers,
@@ -859,6 +875,13 @@ BASE_FEATURE(kRenderDocument,
 BASE_FEATURE(kRestrictThreadPoolInBackground,
              "RestrictThreadPoolInBackground",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Feature that stops broadcasting the history index and length when
+// CreateRenderViewForRenderManager() is invoked, and instead passes the
+// information in the CreateViewParams, saving some IPC calls.
+BASE_FEATURE(kSetHistoryInfoOnViewCreation,
+             "SetHistoryInfoOnViewCreation",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Set a tri-state priority on v8 isolates reflecting the renderer priority.
 BASE_FEATURE(kSetIsolatesPriority,
@@ -1046,11 +1069,10 @@ BASE_FEATURE(kUserMediaCaptureOnFocus,
              "UserMediaCaptureOnFocus",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// A feature to enable using the update token in the manifest or icon url
-// changes to detect app updates. When this is enabled, automatic icon
-// downloading is disabled.
-BASE_FEATURE(kWebAppEnableUpdateTokenParsing,
-             "WebAppEnableUpdateTokenParsing",
+// A feature to enabled updating installed PWAs more predictably by considering
+// changes in icon urls.
+BASE_FEATURE(kWebAppPredictableAppUpdating,
+             "WebAppPredictableAppUpdating",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This is intended as a kill switch for the WebOTP Service feature. To enable

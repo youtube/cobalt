@@ -519,7 +519,9 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
       received_packet_callback_;
 
   void MaybeAddDtlsPiggybackingAttributes(StunMessage* msg);
-  void MaybeHandleDtlsPiggybackingAttributes(const StunMessage* msg);
+  void MaybeHandleDtlsPiggybackingAttributes(
+      const StunMessage* msg,
+      const StunRequest* original_request);
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
 };
 

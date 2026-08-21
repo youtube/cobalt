@@ -5,8 +5,9 @@
 #include "third_party/blink/renderer/core/workers/cross_thread_global_scope_creation_params_copier.h"
 
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
+#include "services/network/public/mojom/integrity_metadata.mojom-blink.h"
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -21,11 +22,11 @@ network::mojom::blink::CSPSourcePtr CSPSourceIsolatedCopy(
       in->is_port_wildcard);
 }
 
-network::mojom::blink::CSPHashSourcePtr CSPHashSourceIsolatedCopy(
-    const network::mojom::blink::CSPHashSourcePtr& in) {
+network::mojom::blink::IntegrityMetadataPtr IntegrityMetadataIsolatedCopy(
+    const network::mojom::blink::IntegrityMetadataPtr& in) {
   if (!in)
     return nullptr;
-  return network::mojom::blink::CSPHashSource::New(
+  return network::mojom::blink::IntegrityMetadata::New(
       in->algorithm, CrossThreadCopier<Vector<uint8_t>>::Copy(in->value));
 }
 
@@ -47,18 +48,19 @@ network::mojom::blink::CSPSourceListPtr CSPSourceListIsolatedCopy(
   for (const auto& source : in->sources)
     sources.push_back(CSPSourceIsolatedCopy(source));
 
-  Vector<network::mojom::blink::CSPHashSourcePtr> hashes;
-  for (const auto& hash : in->hashes)
-    hashes.push_back(CSPHashSourceIsolatedCopy(hash));
-
-  Vector<network::mojom::blink::CSPHashSourcePtr> url_hashes;
-  for (const auto& hash : in->url_hashes) {
-    url_hashes.push_back(CSPHashSourceIsolatedCopy(hash));
+  Vector<network::mojom::blink::IntegrityMetadataPtr> hashes;
+  for (const auto& hash : in->hashes) {
+    hashes.push_back(IntegrityMetadataIsolatedCopy(hash));
   }
 
-  Vector<network::mojom::blink::CSPHashSourcePtr> eval_hashes;
+  Vector<network::mojom::blink::IntegrityMetadataPtr> url_hashes;
+  for (const auto& hash : in->url_hashes) {
+    url_hashes.push_back(IntegrityMetadataIsolatedCopy(hash));
+  }
+
+  Vector<network::mojom::blink::IntegrityMetadataPtr> eval_hashes;
   for (const auto& hash : in->eval_hashes) {
-    eval_hashes.push_back(CSPHashSourceIsolatedCopy(hash));
+    eval_hashes.push_back(IntegrityMetadataIsolatedCopy(hash));
   }
 
   return network::mojom::blink::CSPSourceList::New(
@@ -66,7 +68,8 @@ network::mojom::blink::CSPSourceListPtr CSPSourceListIsolatedCopy(
       std::move(hashes), std::move(url_hashes), std::move(eval_hashes),
       in->allow_self, in->allow_star, in->allow_inline,
       in->allow_inline_speculation_rules, in->allow_eval, in->allow_wasm_eval,
-      in->allow_wasm_unsafe_eval, in->allow_dynamic, in->allow_unsafe_hashes,
+      in->allow_wasm_unsafe_eval, in->allow_dynamic, in->allow_dynamic_url,
+      in->allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
       in->report_sample, in->report_hash_algorithm,
       in->cobalt_insecure_local_network,
@@ -139,4 +142,4 @@ CrossThreadCopier<std::unique_ptr<blink::GlobalScopeCreationParams>>::Copy(
   return pointer;
 }
 
-}  // namespace WTF
+}  // namespace blink

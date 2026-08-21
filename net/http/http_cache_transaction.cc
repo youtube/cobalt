@@ -1047,6 +1047,7 @@ int HttpCache::Transaction::DoGetBackendComplete(int result) {
     } else if (effective_load_flags_ & LOAD_BYPASS_CACHE) {
       mode_ = WRITE;
     } else {
+      CHECK(!done_headers_create_new_entry_);
       mode_ = READ_WRITE;
     }
 
@@ -1129,13 +1130,14 @@ int HttpCache::Transaction::DoInitEntry() {
         first_nvs_cache_lookup_end_time_.is_null()) {
       first_nvs_cache_lookup_end_time_ = base::TimeTicks::Now();
     }
-  } else if (!first_nvs_cache_lookup_end_time_.is_null()) {
+  } else if (!first_nvs_cache_lookup_end_time_.is_null() &&
+             no_vary_search_use_result_ != NoVarySearchUseResult::kUsed) {
     // A NoVarySearchCache lookup succeeded earlier for this transaction, but
     // then for some reason the result was unusable. Record the time lost as a
     // result. See the histogram "HttpCache.NoVarySearch.UseResult" for
     // information about what went wrong.
     base::UmaHistogramTimes(
-        "HttpCache.NoVarySearch.NotUsableLostTime",
+        "HttpCache.NoVarySearch.NotUsableLostTime2",
         base::TimeTicks::Now() - first_nvs_cache_lookup_end_time_);
     first_nvs_cache_lookup_end_time_ = base::TimeTicks();
   }
@@ -1204,6 +1206,8 @@ int HttpCache::Transaction::DoOpenOrCreateEntry() {
   // READ_WRITE).
   // READ, UPDATE, certain READ_WRITEs, and some methods shouldn't create, so
   // try only opening.
+  CHECK_NE(mode_, NONE);
+  CHECK_NE(mode_, WRITE);
   if (mode_ != READ_WRITE || ShouldOpenOnlyMethods()) {
     if (entry_not_suitable) {
       // The entry isn't suitable and we can't create a new one.

@@ -928,6 +928,7 @@ rtc_library("data_channel_controller") {
     "../rtc_base:timeutils",
     "../rtc_base:weak_ptr",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
 
@@ -959,6 +960,7 @@ rtc_source_set("peer_connection_internal") {
     "../rtc_base:ssl",
     "../rtc_base:ssl_adapter",
     "../rtc_base:threading",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -1153,6 +1155,7 @@ rtc_library("sdp_offer_answer") {
     "../rtc_base:weak_ptr",
     "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1279,6 +1282,7 @@ rtc_library("peer_connection") {
     "../rtc_base:weak_ptr",
     "../system_wrappers:metrics",
     "//third_party/abseil-cpp/absl/algorithm:container",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -1699,6 +1703,7 @@ rtc_library("rtp_transmission_manager") {
     "../rtc_base:threading",
     "../rtc_base:unique_id_generator",
     "../rtc_base:weak_ptr",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
   ]
 }
 

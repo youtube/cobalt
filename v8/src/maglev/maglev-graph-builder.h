@@ -204,8 +204,6 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
-  bool TopLevelFunctionPassMaglevPrintFilter();
-
   void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs);
   void RecordUseReprHint(Phi* phi, UseRepresentation repr);
   void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr);
@@ -244,6 +242,14 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_small;
     }
   }
+  int max_inlined_bytecode_size_small_with_heapnum_in_out() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
+    } else {
+      return v8_flags
+          .max_maglev_inlined_bytecode_size_small_with_heapnum_in_out;
+    }
+  }
   float min_inlining_frequency() {
     if (is_turbolev()) {
       return v8_flags.min_inlining_frequency;
@@ -267,6 +273,10 @@ class MaglevGraphBuilder {
     } else {
       return v8_flags.max_maglev_inline_depth;
     }
+  }
+
+  bool is_tracing_enabled() const {
+    return compilation_unit_->info()->is_tracing_enabled();
   }
 
   KnownNodeAspects& known_node_aspects() {
@@ -445,10 +455,6 @@ class MaglevGraphBuilder {
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
-  template <typename NodeT>
-  void AttachDeoptCheckpoint(NodeT* node);
-  template <typename NodeT>
-  void AttachEagerDeoptInfo(NodeT* node);
 
   // Bytecode iterator of the current graph builder is inside a try-block
   // region.
@@ -488,12 +494,12 @@ class MaglevGraphBuilder {
                                      int slot_index, ValueNode* value,
                                      ContextMode context_mode);
 
-  void BuildStoreMap(ValueNode* object, compiler::MapRef map,
-                     StoreMap::Kind kind);
+  ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
+                             StoreMap::Kind kind);
 
-  ValueNode* BuildExtendPropertiesBackingStore(compiler::MapRef map,
-                                               ValueNode* receiver,
-                                               ValueNode* property_array);
+  ReduceResult BuildExtendPropertiesBackingStore(compiler::MapRef map,
+                                                 ValueNode* receiver,
+                                                 ValueNode* property_array);
 
   template <Builtin kBuiltin>
   CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs);
@@ -680,7 +686,9 @@ class MaglevGraphBuilder {
   ValueNode* GetFloat64(ValueNode* value);
   ValueNode* GetFloat64(interpreter::Register reg);
 
-  ValueNode* GetHoleyFloat64(ValueNode* value, bool convert_hole_to_undefined);
+  ValueNode* GetHoleyFloat64(ValueNode* value,
+                             TaggedToFloat64ConversionType conversion_type,
+                             bool convert_hole_to_undefined);
 
   // Get a Float64 representation node whose value is the result of ToNumber on
   // the given node. Only trivial ToNumber is allowed -- values that are already
@@ -839,25 +847,6 @@ class MaglevGraphBuilder {
   BasicBlock* FinishBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args);
 
-  template <typename NodeT>
-  void SetNodeInputs(NodeT* node, std::initializer_list<ValueNode*> inputs);
-
-  template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
-  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
-
-  template <typename NodeT>
-  static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
-    // We do not record a Tagged use on Return, since they are never on the hot
-    // path, and will lead to a maximum of one additional Tagging operation in
-    // the worst case. This allows loop accumulator to be untagged even if they
-    // are later returned.
-    if constexpr (std::is_same_v<NodeT, Return>) {
-      return UseReprHintRecording::kDoNotRecord;
-    } else {
-      return UseReprHintRecording::kRecord;
-    }
-  }
-
   ValueNode* GetValueOrUndefined(ValueNode* maybe_value) {
     if (maybe_value == nullptr) {
       return GetRootConstant(RootIndex::kUndefinedValue);
@@ -900,6 +889,7 @@ class MaglevGraphBuilder {
   V(ArrayIsArray)                              \
   V(ArrayIteratorPrototypeNext)                \
   V(ArrayMap)                                  \
+  V(ArrayPrototypeAt)                          \
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
@@ -933,6 +923,7 @@ class MaglevGraphBuilder {
   V(MathFloor)                                 \
   V(MathAbs)                                   \
   V(MathRound)                                 \
+  V(MathSqrt)                                  \
   V(MathClz32)                                 \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
@@ -1038,7 +1029,8 @@ class MaglevGraphBuilder {
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
-  bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared);
+  bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
+                             CallArguments& args);
   ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,
                                     ValueNode* new_target,
                                     compiler::SharedFunctionInfoRef shared,
@@ -1227,35 +1219,39 @@ class MaglevGraphBuilder {
   ValueNode* BuildLoadTaggedField(ValueNode* object, uint32_t offset,
                                   Args&&... args);
 
-  Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
-                              StoreTaggedMode store_mode);
-  Node* BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
-                                            int offset,
-                                            StoreTaggedMode store_mode);
-  void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
-                                     int offset, IndirectPointerTag tag,
-                                     StoreTaggedMode store_mode);
+  ReduceResult BuildStoreTaggedField(ValueNode* object, ValueNode* value,
+                                     int offset, StoreTaggedMode store_mode,
+                                     Node** store = nullptr);
+  ReduceResult BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object,
+                                                   ValueNode* value, int offset,
+                                                   StoreTaggedMode store_mode,
+                                                   Node** store = nullptr);
+  ReduceResult BuildStoreTrustedPointerField(ValueNode* object,
+                                             ValueNode* value, int offset,
+                                             IndirectPointerTag tag,
+                                             StoreTaggedMode store_mode);
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
-  void BuildStoreFixedArrayElement(ValueNode* elements, ValueNode* index,
-                                   ValueNode* value);
+  ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
+                                           ValueNode* index, ValueNode* value);
 
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements,
                                               ValueNode* index);
-  void BuildStoreFixedDoubleArrayElement(ValueNode* elements, ValueNode* index,
-                                         ValueNode* value);
+  ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
+                                                 ValueNode* index,
+                                                 ValueNode* value);
 
   ValueNode* BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
                                                    ValueNode* index,
                                                    bool convert_hole);
 
-  ValueNode* GetInt32ElementIndex(interpreter::Register reg) {
+  ReduceResult GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
     return GetInt32ElementIndex(index_object);
   }
-  ValueNode* GetInt32ElementIndex(ValueNode* index_object);
+  ReduceResult GetInt32ElementIndex(ValueNode* index_object);
 
   ReduceResult GetUint32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -1340,14 +1336,14 @@ class MaglevGraphBuilder {
 
   ReduceResult BuildLoadTypedArrayLength(ValueNode* object,
                                          ElementsKind elements_kind);
-  ValueNode* BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
-                                        ElementsKind elements_kind);
+  ReduceResult BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
+                                          ElementsKind elements_kind);
   ValueNode* BuildLoadConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
-  void BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
-                                   ElementsKind elements_kind);
-  void BuildStoreConstantTypedArrayElement(
+  ReduceResult BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
+                                           ElementsKind elements_kind);
+  ReduceResult BuildStoreConstantTypedArrayElement(
       compiler::JSTypedArrayRef typed_array, ValueNode* index,
       ElementsKind elements_kind);
 
@@ -1398,6 +1394,8 @@ class MaglevGraphBuilder {
   std::optional<ContinuationOffsets>
   FindContinuationForPolymorphicPropertyLoad();
   ReduceResult BuildContinuationForPolymorphicPropertyLoad(
+      const ContinuationOffsets& offsets);
+  void AdvanceThroughContinuationForPolymorphicPropertyLoad(
       const ContinuationOffsets& offsets);
 
   // Load elimination -- when loading or storing a simple property without
@@ -1523,14 +1521,14 @@ class MaglevGraphBuilder {
       compiler::MapRef map, compiler::ScopeInfoRef scope, int context_length);
 
   template <Operation kOperation>
-  void BuildGenericUnaryOperationNode();
+  ReduceResult BuildGenericUnaryOperationNode();
   template <Operation kOperation>
-  void BuildGenericBinaryOperationNode();
+  ReduceResult BuildGenericBinaryOperationNode();
   template <Operation kOperation>
-  void BuildGenericBinarySmiOperationNode();
+  ReduceResult BuildGenericBinarySmiOperationNode();
 
   template <Operation kOperation>
-  bool TryReduceCompareEqualAgainstConstant();
+  MaybeReduceResult TryReduceCompareEqualAgainstConstant();
 
   template <Operation kOperation>
   ReduceResult BuildInt32UnaryOperationNode();
@@ -2031,7 +2029,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
   // once we finish the inlined function.
 
   if constexpr (IsElementsArrayWrite(Node::opcode_of<NodeT>)) {
-    node->ClearElementsProperties(known_node_aspects());
+    node->ClearElementsProperties(is_tracing_enabled(), known_node_aspects());
     if (is_loop_effect_tracking()) {
       loop_effects_->keys_cleared.insert(
           KnownNodeAspects::LoadedPropertyMapKey::Elements());
@@ -2042,7 +2040,7 @@ void MaglevGraphBuilder::MarkPossibleSideEffect(NodeT* node) {
     // relevant side effect on these is writes to objects which invalidate
     // loaded properties and context slots, and we invalidate these already as
     // part of emitting the store.
-    node->ClearUnstableNodeAspects(known_node_aspects());
+    node->ClearUnstableNodeAspects(is_tracing_enabled(), known_node_aspects());
     if (is_loop_effect_tracking()) {
       loop_effects_->unstable_aspects_cleared = true;
     }

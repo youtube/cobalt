@@ -2684,15 +2684,52 @@ void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
 }
 
 void PreparseData::PreparseDataVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::PreparseDataVerify(*this, isolate);
+  CHECK(IsPreparseData(this));
   CHECK_LE(0, data_length());
   CHECK_LE(0, children_length());
 
   for (int i = 0; i < children_length(); ++i) {
-    Tagged<Object> child = get_child_raw(i);
+    Tagged<Object> child = children()[i].Relaxed_Load();
+    // Preparse data is created recursively, depth first, so if there is a heap
+    // verification during preparse data tree creation, it will observe a
+    // partially initialized preparse data with null values.
     CHECK(IsNull(child) || IsPreparseData(child));
     Object::VerifyPointer(isolate, child);
   }
+}
+
+void UncompiledData::UncompiledDataVerify(Isolate* isolate) {
+  CHECK(IsUncompiledData(this, isolate));
+  {
+    Tagged<Object> inferred_name = this->inferred_name();
+    Object::VerifyPointer(isolate, inferred_name);
+    CHECK(IsString(inferred_name));
+  }
+}
+void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
+    Isolate* isolate) {
+  UncompiledDataVerify(isolate);
+  CHECK(IsUncompiledDataWithoutPreparseData(this, isolate));
+}
+void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataVerify(
+    Isolate* isolate) {
+  UncompiledDataVerify(isolate);
+  CHECK(IsUncompiledDataWithPreparseData(this, isolate));
+  {
+    Tagged<Object> preparse_data = this->preparse_data();
+    Object::VerifyPointer(isolate, preparse_data);
+    CHECK(IsPreparseData(preparse_data));
+  }
+}
+void UncompiledDataWithoutPreparseDataWithJob::
+    UncompiledDataWithoutPreparseDataWithJobVerify(Isolate* isolate) {
+  UncompiledDataWithoutPreparseDataVerify(isolate);
+  CHECK(IsUncompiledDataWithoutPreparseDataWithJob(this, isolate));
+}
+void UncompiledDataWithPreparseDataAndJob::
+    UncompiledDataWithPreparseDataAndJobVerify(Isolate* isolate) {
+  UncompiledDataWithPreparseDataVerify(isolate);
+  CHECK(IsUncompiledDataWithPreparseDataAndJob(this, isolate));
 }
 
 void CallSiteInfo::CallSiteInfoVerify(Isolate* isolate) {

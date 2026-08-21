@@ -26,7 +26,7 @@ namespace {
 
 // TODO(peah): Increase the number of frames to proces when the issue of
 // non repeatable test results have been found.
-const int kNumFramesToProcess = 200;
+constexpr int kNumFramesToProcess = 200;
 
 void SetupComponent(int sample_rate_hz,
                     EchoControlMobileImpl::RoutingMode routing_mode,

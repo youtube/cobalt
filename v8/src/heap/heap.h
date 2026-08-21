@@ -379,7 +379,6 @@ class Heap final {
 
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
-  static inline void CopyBlock(Address dst, Address src, int byte_size);
   static inline void CopyBlock(Address dst, Address src, size_t byte_size);
 
   enum class StackScanMode { kNone, kFull, kSelective };
@@ -1991,6 +1990,8 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
+  void NotifyBackgrounded();
+
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
   void NotifyLoadingStarted();
   void NotifyLoadingEnded();
@@ -2058,6 +2059,7 @@ class Heap final {
     size_t global_allocation_limit;
   };
   static LimitsCompuatationResult ComputeNewAllocationLimits(Heap* heap);
+  V8_EXPORT_PRIVATE void ComputeAndSetNewAllocationLimits();
 
   // ===========================================================================
   // GC Tasks. =================================================================

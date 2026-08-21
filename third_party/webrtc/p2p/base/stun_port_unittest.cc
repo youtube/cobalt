@@ -95,13 +95,14 @@ const SocketAddress kValidHostnameAddr("valid-hostname", 5000);
 const SocketAddress kBadHostnameAddr("not-a-real-hostname", 5000);
 // STUN timeout (with all retries) is webrtc::STUN_TOTAL_TIMEOUT.
 // Add some margin of error for slow bots.
-const int kTimeoutMs = webrtc::STUN_TOTAL_TIMEOUT;
+constexpr int kTimeoutMs = webrtc::STUN_TOTAL_TIMEOUT;
 // stun prio = 100 (srflx) << 24 | 30 (IPv4) << 8 | 256 - 1 (component)
-const uint32_t kStunCandidatePriority = (100 << 24) | (30 << 8) | (256 - 1);
+constexpr uint32_t kStunCandidatePriority = (100 << 24) | (30 << 8) | (256 - 1);
 // stun prio = 100 (srflx) << 24 | 40 (IPv6) << 8 | 256 - 1 (component)
-const uint32_t kIPv6StunCandidatePriority = (100 << 24) | (40 << 8) | (256 - 1);
-const int kInfiniteLifetime = -1;
-const int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
+constexpr uint32_t kIPv6StunCandidatePriority =
+    (100 << 24) | (40 << 8) | (256 - 1);
+constexpr int kInfiniteLifetime = -1;
+constexpr int kHighCostPortKeepaliveLifetimeMs = 2 * 60 * 1000;
 
 constexpr uint64_t kTiebreakerDefault = 44444;
 

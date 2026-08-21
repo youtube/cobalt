@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -1577,6 +1578,12 @@ void PeerConnection::AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                                 });
 }
 
+bool PeerConnection::RemoveIceCandidate(const IceCandidate* candidate) {
+  TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidate");
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  return sdp_handler_->RemoveIceCandidate(candidate);
+}
+
 bool PeerConnection::RemoveIceCandidates(
     const std::vector<Candidate>& candidates) {
   TRACE_EVENT0("webrtc", "PeerConnection::RemoveIceCandidates");
@@ -1774,11 +1781,17 @@ void PeerConnection::Close() {
   legacy_stats_->UpdateStats(kStatsOutputLevelStandard);
 
   ice_connection_state_ = PeerConnectionInterface::kIceConnectionClosed;
-  Observer()->OnIceConnectionChange(ice_connection_state_);
+  RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnIceConnectionChange(ice_connection_state_);
+  });
   standardized_ice_connection_state_ =
       PeerConnectionInterface::IceConnectionState::kIceConnectionClosed;
   connection_state_ = PeerConnectionInterface::PeerConnectionState::kClosed;
-  Observer()->OnConnectionChange(connection_state_);
+  RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnConnectionChange(connection_state_);
+  });
 
   sdp_handler_->Close();
 
@@ -1866,7 +1879,10 @@ void PeerConnection::SetIceConnectionState(IceConnectionState new_state) {
              PeerConnectionInterface::kIceConnectionClosed);
 
   ice_connection_state_ = new_state;
-  Observer()->OnIceConnectionChange(ice_connection_state_);
+  RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnIceConnectionChange(ice_connection_state_);
+  });
 }
 
 void PeerConnection::SetStandardizedIceConnectionState(
@@ -1883,7 +1899,9 @@ void PeerConnection::SetStandardizedIceConnectionState(
                    << standardized_ice_connection_state_ << " => " << new_state;
 
   standardized_ice_connection_state_ = new_state;
-  Observer()->OnStandardizedIceConnectionChange(new_state);
+  RunWithObserver([&](auto observer) {
+    observer->OnStandardizedIceConnectionChange(new_state);
+  });
 }
 
 void PeerConnection::SetConnectionState(
@@ -1893,7 +1911,8 @@ void PeerConnection::SetConnectionState(
   if (IsClosed())
     return;
   connection_state_ = new_state;
-  Observer()->OnConnectionChange(new_state);
+  RunWithObserver(
+      [&](auto observer) { observer->OnConnectionChange(new_state); });
 
   // The first connection state change to connected happens once per
   // connection which makes it a good point to report metrics.
@@ -2029,7 +2048,10 @@ void PeerConnection::OnIceGatheringChange(
     return;
   }
   ice_gathering_state_ = new_state;
-  Observer()->OnIceGatheringChange(ice_gathering_state_);
+  RunWithObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    observer->OnIceGatheringChange(ice_gathering_state_);
+  });
 }
 
 void PeerConnection::OnIceCandidate(std::unique_ptr<IceCandidate> candidate) {
@@ -2038,7 +2060,8 @@ void PeerConnection::OnIceCandidate(std::unique_ptr<IceCandidate> candidate) {
   }
   ReportIceCandidateCollected(candidate->candidate());
   ClearStatsCache();
-  Observer()->OnIceCandidate(candidate.get());
+  RunWithObserver(
+      [&](auto observer) { observer->OnIceCandidate(candidate.get()); });
 }
 
 void PeerConnection::OnIceCandidateError(const std::string& address,
@@ -2049,7 +2072,9 @@ void PeerConnection::OnIceCandidateError(const std::string& address,
   if (IsClosed()) {
     return;
   }
-  Observer()->OnIceCandidateError(address, port, url, error_code, error_text);
+  RunWithObserver([&](auto observer) {
+    observer->OnIceCandidateError(address, port, url, error_code, error_text);
+  });
 }
 
 void PeerConnection::OnIceCandidatesRemoved(
@@ -2057,7 +2082,8 @@ void PeerConnection::OnIceCandidatesRemoved(
   if (IsClosed()) {
     return;
   }
-  Observer()->OnIceCandidatesRemoved(candidates);
+  RunWithObserver(
+      [&](auto observer) { observer->OnIceCandidatesRemoved(candidates); });
 }
 
 void PeerConnection::OnSelectedCandidatePairChanged(
@@ -2071,7 +2097,9 @@ void PeerConnection::OnSelectedCandidatePairChanged(
     NoteUsageEvent(UsageEvent::DIRECT_CONNECTION_SELECTED);
   }
 
-  Observer()->OnIceSelectedCandidatePairChanged(event);
+  RunWithObserver([&](auto observer) {
+    observer->OnIceSelectedCandidatePairChanged(event);
+  });
 }
 
 bool PeerConnection::CreateDataChannelTransport(absl::string_view mid) {
@@ -2684,7 +2712,10 @@ void PeerConnection::AddRemoteCandidate(absl::string_view mid,
 }
 
 void PeerConnection::ReportUsagePattern() const {
-  usage_pattern_.ReportUsagePattern(observer_);
+  RunWithMaybeNullObserver([&](auto observer) {
+    RTC_DCHECK_RUN_ON(signaling_thread());
+    usage_pattern_.ReportUsagePattern(observer);
+  });
 }
 
 void PeerConnection::ReportRemoteIceCandidateAdded(const Candidate& candidate) {
@@ -2908,10 +2939,17 @@ bool PeerConnection::OnTransportChanged(
   return ret;
 }
 
-PeerConnectionObserver* PeerConnection::Observer() const {
+void PeerConnection::RunWithObserver(
+    absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&> task) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(observer_);
-  return observer_;
+  std::move(task)(observer_);
+}
+
+void PeerConnection::RunWithMaybeNullObserver(
+    absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&> task) const {
+  RTC_DCHECK_RUN_ON(signaling_thread());
+  std::move(task)(observer_);
 }
 
 RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {

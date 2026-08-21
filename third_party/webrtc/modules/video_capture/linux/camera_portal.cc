@@ -12,10 +12,22 @@
 
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
+#include <glib-object.h>
+#include <glib.h>
+#include <glibconfig.h>
+
+#include <cstdint>
+#include <memory>
+#include <string>
 
 #include "modules/portal/pipewire_utils.h"
+#include "modules/portal/portal_request_response.h"
+#include "modules/portal/scoped_glib.h"
 #include "modules/portal/xdg_desktop_portal_utils.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 

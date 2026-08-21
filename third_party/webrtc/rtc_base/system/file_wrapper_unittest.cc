@@ -10,7 +10,13 @@
 
 #include "rtc_base/system/file_wrapper.h"
 
-#include "rtc_base/checks.h"
+#include <stdio.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
+#include <string>
+
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 

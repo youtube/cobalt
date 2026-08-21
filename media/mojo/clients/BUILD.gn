@@ -209,6 +209,10 @@ source_set("unit_tests") {
     ]
   }
 
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
   if (is_cobalt && use_starboard_media) {
     sources += [ "starboard/starboard_renderer_client_unittest.cc" ]
   }

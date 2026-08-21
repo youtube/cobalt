@@ -22,7 +22,7 @@ mojom_component("mojom") {
     "//sandbox/policy/mojom",
   ]
 
-  if (!is_nacl && use_blink) {
+  if (use_blink) {
     enabled_features += [ "is_perfetto_supported_os" ]
     sources += [
       "constants.mojom",
@@ -49,7 +49,7 @@ mojom_component("mojom") {
             cpp = "::perfetto::CommitDataRequest::ChunkToPatch::Patch"
           },
           {
-            mojom = "tracing.mojom.ChunkToPatch"
+            mojom = "tracing.mojom.ChunksToPatch"
             cpp = "::perfetto::CommitDataRequest::ChunkToPatch"
           },
           {

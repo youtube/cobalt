@@ -50,10 +50,10 @@ namespace {
 using ::testing::DoubleEq;
 
 const TimeDelta kFreqOffsetProcessInterval = TimeDelta::Seconds(40);
-const uint32_t kRemoteSsrc = 456;
-const int kMinRequiredSamples = 200;
-const int kWidth = 1280;
-const int kHeight = 720;
+constexpr uint32_t kRemoteSsrc = 456;
+constexpr int kMinRequiredSamples = 200;
+constexpr int kWidth = 1280;
+constexpr int kHeight = 720;
 }  // namespace
 
 // TODO(sakal): ReceiveStatisticsProxy is lacking unittesting.

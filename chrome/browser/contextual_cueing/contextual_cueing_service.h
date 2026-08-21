@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/containers/lru_cache.h"
 #include "base/containers/queue.h"
 #include "base/memory/weak_ptr.h"
@@ -16,13 +17,12 @@
 #include "base/time/time.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_enums.h"
 #include "chrome/browser/contextual_cueing/nudge_cap_tracker.h"
-#include "chrome/browser/contextual_cueing/zero_state_suggestions_page_data.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "url/gurl.h"
 #include "url/origin.h"
 
-class GURL;
 class OptimizationGuideKeyedService;
 class PrefService;
 class TemplateURLService;
@@ -40,6 +40,12 @@ enum class GlicNudgeActivity;
 }  // namespace tabs
 
 namespace contextual_cueing {
+
+class ZeroStateSuggestionsRequest;
+
+using GlicSuggestionsCallbackList =
+    base::OnceCallbackList<void(std::optional<std::vector<std::string>>)>;
+using GlicSuggestionsCallback = GlicSuggestionsCallbackList::CallbackType;
 
 class ContextualCueingService
     : public KeyedService,
@@ -95,6 +101,14 @@ class ContextualCueingService
       std::optional<std::vector<std::string>> supported_tools,
       GlicSuggestionsCallback callback);
 
+  // Returns zero state suggestions for pinned tabs as represented by
+  // `pinned_web_contents`. Virtual for testing.
+  virtual void GetContextualGlicZeroStateSuggestionsForPinnedTabs(
+      std::vector<content::WebContents*> pinned_web_contents,
+      bool is_fre,
+      std::optional<std::vector<std::string>> supported_tools,
+      GlicSuggestionsCallback callback);
+
  private:
   // page_content_annotations::PageContentExtractionService::Observer:
   void OnPageContentExtracted(
@@ -102,19 +116,19 @@ class ContextualCueingService
       const optimization_guide::proto::AnnotatedPageContent& page_content)
       override;
 
-  // Called when suggestions are received. Cleans up after suggestions
-  // generation.
-  void OnSuggestionsReceived(
-      base::TimeTicks fetch_begin_time,
-      GlicSuggestionsCallback callback,
-      std::optional<std::vector<std::string>> suggestions);
-
   // Returns true if nudge should not be shown due to the backoff rule.
   bool IsNudgeBlockedByBackoffRule() const;
 
   // Returns true if the given url is of a page type eligible for contextual
   // suggestions.
   bool IsPageTypeEligibleForContextualSuggestions(GURL url) const;
+
+  // Utility method to create the initial zero state suggestions request.
+  std::unique_ptr<ZeroStateSuggestionsRequest> MakeZeroStateSuggestionsRequest(
+      const std::vector<content::WebContents*>& web_contents_list,
+      bool is_fre,
+      std::optional<std::vector<std::string>> supported_tools,
+      bool is_focused_tab);
 
   // Tracker to limit the number of nudges shown over a certain duration.
   NudgeCapTracker recent_nudge_tracker_;
@@ -136,6 +150,10 @@ class ContextualCueingService
 
   // Maintains the recently visited origins along with their nudge cap tracking.
   base::LRUCache<url::Origin, NudgeCapTracker> recent_visited_origins_;
+
+  // Holds the latest pinned tabs zero state suggestions request.
+  std::unique_ptr<ZeroStateSuggestionsRequest>
+      pinned_tabs_zero_state_suggestions_request_;
 
   raw_ptr<page_content_annotations::PageContentExtractionService>
       page_content_extraction_service_ = nullptr;

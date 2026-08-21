@@ -930,9 +930,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         DIRTY_BIT_INDEX_BUFFER,
         DIRTY_BIT_UNIFORMS,
         DIRTY_BIT_DRIVER_UNIFORMS,
-        // Shader resources excluding textures, which are handled separately.
-        DIRTY_BIT_SHADER_RESOURCES,
         DIRTY_BIT_UNIFORM_BUFFERS,
+        // Shader resources excluding uniform buffers and textures, which are handled separately.
+        DIRTY_BIT_SHADER_RESOURCES,
         DIRTY_BIT_TRANSFORM_FEEDBACK_BUFFERS,
         DIRTY_BIT_TRANSFORM_FEEDBACK_RESUME,
         DIRTY_BIT_DESCRIPTOR_SETS,
@@ -1006,9 +1006,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_SHADER_RESOURCES > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
-    static_assert(
-        DIRTY_BIT_UNIFORM_BUFFERS > DIRTY_BIT_SHADER_RESOURCES,
-        "Uniform buffer using dirty bit must be handled after the shader resource dirty bit");
     static_assert(DIRTY_BIT_TRANSFORM_FEEDBACK_BUFFERS > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_TRANSFORM_FEEDBACK_RESUME > DIRTY_BIT_RENDER_PASS,
@@ -1332,15 +1329,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     void updateUniformBufferBlocksOffset();
 
-    enum class Submit
-    {
-        OutsideRenderPassCommandsOnly,
-        AllCommands,
-    };
-
+    void prepareToSubmitAllCommands();
     angle::Result submitCommands(const vk::Semaphore *signalSemaphore,
-                                 const vk::SharedExternalFence *externalFence,
-                                 Submit submission);
+                                 const vk::SharedExternalFence *externalFence);
     angle::Result flushImpl(const gl::Context *context);
 
     angle::Result synchronizeCpuGpuTime();
@@ -1439,6 +1430,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     // An alternative could have been to set the static state unconditionally to non-zero.  This is
     // avoided however, as on the affected driver that would disable certain optimizations.
     void updateStencilWriteWorkaround();
+
+    void updateUniformBuffersWithSharedCacheKey(
+        const vk::SharedDescriptorSetCacheKey &sharedCacheKey);
 
     void updateShaderResourcesWithSharedCacheKey(
         const vk::SharedDescriptorSetCacheKey &sharedCacheKey);
@@ -1578,10 +1572,6 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
 
     // This info is used in the descriptor update step.
     gl::ActiveTextureArray<TextureVk *> mActiveTextures;
-
-    vk::DescriptorSetDescBuilder mShaderBuffersDescriptorDesc;
-    // The WriteDescriptorDescs from ProgramExecutableVk with InputAttachment update.
-    vk::WriteDescriptorDescs mShaderBufferWriteDescriptorDescs;
 
     gl::ActiveTextureArray<TextureVk *> mActiveImages;
 

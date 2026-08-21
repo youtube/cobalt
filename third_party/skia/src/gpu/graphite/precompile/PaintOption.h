@@ -8,6 +8,7 @@
 #ifndef skgpu_graphite_precompile_PaintOption_DEFINED
 #define skgpu_graphite_precompile_PaintOption_DEFINED
 
+#include "include/core/SkBlendMode.h"
 #include "include/core/SkColorType.h"
 #include "include/core/SkRefCnt.h"
 #include "src/gpu/graphite/Caps.h"
@@ -30,6 +31,7 @@ public:
                 const std::pair<sk_sp<PrecompileColorFilter>, int>& colorFilter,
                 bool hasPrimitiveBlender,
                 SkBlendMode primitiveBlendMode,
+                bool skipColorXform,
                 const std::pair<sk_sp<PrecompileShader>, int>& clipShader,
                 bool dstReadRequired,
                 bool dither,

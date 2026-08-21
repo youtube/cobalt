@@ -1,0 +1,16 @@
+Name: RxAndroid
+Short Name: rxandroid
+URL: https://github.com/ReactiveX/RxAndroid
+Version: 2.1.1
+Update Mechanism: Autoroll
+License: Apache-2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: yes
+Shipped: yes
+
+Description:
+RxAndroid
+
+Local Modifications:
+No modifications.

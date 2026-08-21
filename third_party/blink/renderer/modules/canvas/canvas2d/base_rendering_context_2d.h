@@ -274,7 +274,11 @@ class MODULES_EXPORT BaseRenderingContext2D : public CanvasRenderingContext,
   void TryRestoreContextEvent(TimerBase*);
   void RestoreFromInvalidSizeIfNeeded() override;
 
+  virtual CanvasResourceProvider* GetResourceProviderForCanvas2D() const = 0;
   virtual CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() = 0;
+  virtual std::unique_ptr<CanvasResourceProvider>
+      ReplaceResourceProviderForCanvas2D(
+          std::unique_ptr<CanvasResourceProvider>) = 0;
 
   static const char kInheritString[];
 

@@ -15,6 +15,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
+#import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/earl_grey/scoped_disable_timer_tracking.h"
@@ -71,8 +72,13 @@ id<GREYAction> PageSheetScrollDown() {
   CGFloat menu_scroll_displacement = 500;
 
   // But for very small devices (like the SE), this is too big.
-  UIWindow* currentWindow = chrome_test_util::GetAnyKeyWindow();
+  UIWindow* currentWindow = [ChromeEarlGreyAppInterface keyWindow];
   if (currentWindow.rootViewController.view.frame.size.height < 600) {
+    menu_scroll_displacement = 250;
+  }
+
+  // And for iOS 26, the updated table view layout also makes this too big.
+  if (@available(iOS 19.0, *)) {
     menu_scroll_displacement = 250;
   }
   return grey_scrollInDirection(kGREYDirectionDown, menu_scroll_displacement);
@@ -192,6 +198,15 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
          usingSearchAction:grey_swipeSlowInDirection(kGREYDirectionDown)
       onElementWithMatcher:chrome_test_util::WebStateScrollViewMatcher()]
       performAction:grey_longPress()];
+
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore.
+    // On iOS 26, the keyboard appears when the new tab button is tapped and it
+    // hides the elements behind. Close the keyboard by typing a return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
+
   // TODO(crbug.com/41271101): Add webViewScrollView matcher so we don't have
   // to always find it.
 }

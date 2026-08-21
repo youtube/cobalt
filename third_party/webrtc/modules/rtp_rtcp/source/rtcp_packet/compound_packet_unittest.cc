@@ -40,9 +40,9 @@ using webrtc::test::RtcpPacketParser;
 
 namespace webrtc {
 
-const uint32_t kSenderSsrc = 0x12345678;
-const uint32_t kRemoteSsrc = 0x23456789;
-const uint8_t kSeqNo = 13;
+constexpr uint32_t kSenderSsrc = 0x12345678;
+constexpr uint32_t kRemoteSsrc = 0x23456789;
+constexpr uint8_t kSeqNo = 13;
 
 TEST(RtcpCompoundPacketTest, AppendPacket) {
   CompoundPacket compound;

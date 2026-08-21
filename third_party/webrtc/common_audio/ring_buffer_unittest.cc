@@ -14,6 +14,7 @@
 #include <time.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <memory>
 
 #include "test/gtest.h"

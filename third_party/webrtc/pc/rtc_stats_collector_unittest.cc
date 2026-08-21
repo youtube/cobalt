@@ -105,7 +105,7 @@ namespace webrtc {
 
 namespace {
 
-const int64_t kGetStatsReportTimeoutMs = 1000;
+constexpr int64_t kGetStatsReportTimeoutMs = 1000;
 
 // Fake data used by `SetupExampleStatsVoiceGraph()` to fill in remote outbound
 // stats.

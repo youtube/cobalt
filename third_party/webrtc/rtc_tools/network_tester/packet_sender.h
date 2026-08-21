@@ -11,13 +11,16 @@
 #ifndef RTC_TOOLS_NETWORK_TESTER_PACKET_SENDER_H_
 #define RTC_TOOLS_NETWORK_TESTER_PACKET_SENDER_H_
 
-#include <memory>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "api/task_queue/task_queue_factory.h"
+#include "api/task_queue/task_queue_base.h"
 #include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread_annotations.h"
 
 #ifdef WEBRTC_NETWORK_TESTER_PROTO
 #include "rtc_tools/network_tester/network_tester_packet.pb.h"

@@ -39,9 +39,9 @@ enum : int {  // The first valid value is 1.
   kAbsoluteCaptureTimeExtensionId = 2,
 };
 
-const uint16_t kSeqNum = 33;
-const uint32_t kSsrc = 725242;
-const uint64_t kStartTime = 123456789;
+constexpr uint16_t kSeqNum = 33;
+constexpr uint32_t kSsrc = 725242;
+constexpr uint64_t kStartTime = 123456789;
 
 using ::testing::ElementsAreArray;
 

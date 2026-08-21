@@ -14,9 +14,7 @@
 #include <stdint.h>
 #include <time.h>
 
-#include "rtc_base/checks.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/system_time.h"
 
 namespace webrtc {
 

@@ -34,6 +34,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "cc/base/math_util.h"
 #include "cc/slim/layer.h"
+#include "components/input/cursor_manager.h"
 #include "components/input/events_helper.h"
 #include "components/input/input_router.h"
 #include "components/input/render_widget_host_input_event_router.h"
@@ -121,6 +122,7 @@ namespace {
 static const base::TimeDelta kClickCountInterval = base::Seconds(0.5);
 static const float kClickCountRadiusSquaredDIP = 25;
 static const base::TimeDelta kThrottleTimeout = base::Milliseconds(200);
+static const size_t kMaxTooltipLength = 1024;
 
 std::unique_ptr<ui::TouchSelectionController> CreateSelectionController(
     ui::TouchSelectionControllerClient* client,
@@ -708,6 +710,10 @@ RenderWidgetHostViewAndroid::RenderWidgetHostViewAndroid(
     // visible to the user.
     widget_host->input_router()->MakeActive();
   }
+
+  if (base::FeatureList::IsEnabled(kTooltips)) {
+    cursor_manager_ = std::make_unique<input::CursorManager>(this);
+  }
 }
 
 RenderWidgetHostViewAndroid::~RenderWidgetHostViewAndroid() {
@@ -1248,7 +1254,8 @@ gfx::Size RenderWidgetHostViewAndroid::GetRequestedRendererSizeDevicePx() {
                      default_bounds_dip_.height() * scale_factor);
   }
 
-  return view_.GetSizeDevicePx();
+  const float scale_factor = GetDeviceScaleFactor() / view_.GetDipScale();
+  return gfx::ScaleToCeiledSize(view_.GetSizeDevicePx(), scale_factor);
 }
 
 gfx::Size RenderWidgetHostViewAndroid::GetVisibleViewportSize() {
@@ -1300,7 +1307,14 @@ int RenderWidgetHostViewAndroid::GetMouseWheelMinimumGranularity() const {
 }
 
 void RenderWidgetHostViewAndroid::UpdateCursor(const ui::Cursor& cursor) {
+  if (base::FeatureList::IsEnabled(kTooltips)) {
+    GetCursorManager()->UpdateCursor(this, cursor);
+  }
   view_.OnCursorChanged(cursor);
+}
+
+input::CursorManager* RenderWidgetHostViewAndroid::GetCursorManager() {
+  return cursor_manager_.get();
 }
 
 void RenderWidgetHostViewAndroid::SetIsLoading(bool is_loading) {
@@ -1754,17 +1768,42 @@ void RenderWidgetHostViewAndroid::Destroy() {
 
 void RenderWidgetHostViewAndroid::UpdateTooltipUnderCursor(
     const std::u16string& tooltip_text) {
-  // Tooltips don't make sense on Android.
+  if (!base::FeatureList::IsEnabled(kTooltips)) {
+    return;
+  }
+
+  if (GetCursorManager()->IsViewUnderCursor(this)) {
+    UpdateTooltip(tooltip_text);
+  }
+}
+
+void RenderWidgetHostViewAndroid::UpdateTooltip(
+    const std::u16string& tooltip_text) {
+  if (!base::FeatureList::IsEnabled(kTooltips)) {
+    return;
+  }
+  if (tooltip_observer_for_testing_) {
+    tooltip_observer_for_testing_->OnTooltipTextUpdated(tooltip_text);
+  }
+  // Keep a local cache to avoid too many calls.
+  if (tooltip_text == tooltip_text_) {
+    return;
+  }
+  tooltip_text_ = tooltip_text;
+  // Limit size to something reasonable.
+  view_.SetTooltip(tooltip_text_.length() > kMaxTooltipLength
+                       ? tooltip_text_.substr(0, kMaxTooltipLength)
+                       : tooltip_text_);
 }
 
 void RenderWidgetHostViewAndroid::UpdateTooltipFromKeyboard(
     const std::u16string& tooltip_text,
     const gfx::Rect& bounds) {
-  // Tooltips don't make sense on Android.
+  // Keyboard tooltips not supported on Android.
 }
 
 void RenderWidgetHostViewAndroid::ClearKeyboardTriggeredTooltip() {
-  // Tooltips don't make sense on Android.
+  // Keyboard tooltips not supported on Android.
 }
 
 void RenderWidgetHostViewAndroid::UpdateFrameSinkIdRegistration() {

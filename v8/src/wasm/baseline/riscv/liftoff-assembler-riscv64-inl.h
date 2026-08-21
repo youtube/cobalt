@@ -268,7 +268,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
-  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+  Assembler::BlockPoolsScope blocked_pools_scope_(this);
   LoadTaggedField(dst, src_op, [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = offset;
   });
@@ -348,7 +348,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         i64_offset, shift_amount);
-  Assembler::BlockPoolsScope blocked_pools_scope_(this, 4 * kInstrSize);
+  Assembler::BlockPoolsScope blocked_pools_scope_(this);
   auto trapper = [protected_load_pc](int offset) {
     if (protected_load_pc) *protected_load_pc = static_cast<uint32_t>(offset);
   };
@@ -922,7 +922,7 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   UseScratchRegisterScope temps(this);
   if (COMPRESS_POINTERS_BOOL) {
     Register scratch = temps.Acquire();
-    Sll32(scratch, expected.gp(), 0);
+    SignExtendWord(scratch, expected.gp());
     AtomicCompareExchange(dst_addr, offset_reg, offset_imm,
                           LiftoffRegister(scratch), new_value, result,
                           StoreType::kI32Store, protected_load_pc, false);
@@ -1632,7 +1632,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
     if (kind == kI32) {
       UseScratchRegisterScope temps(this);
       Register scratch0 = temps.Acquire();
-      slliw(scratch0, lhs, 0);
+      SignExtendWord(scratch0, lhs);
       MacroAssembler::Branch(label, cond, scratch0, Operand(zero_reg));
     } else {
       DCHECK(kind == kI64);
@@ -1661,7 +1661,7 @@ void LiftoffAssembler::emit_ptrsize_cond_jumpi(Condition cond, Label* label,
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  MacroAssembler::slliw(dst, src, 0);
+  MacroAssembler::SignExtendWord(dst, src);
   MacroAssembler::Sltu(dst, src, 1);
 }
 
@@ -1670,8 +1670,8 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   UseScratchRegisterScope temps(this);
   Register scratch0 = temps.Acquire();
   Register scratch1 = kScratchReg;
-  MacroAssembler::slliw(scratch0, lhs, 0);
-  MacroAssembler::slliw(scratch1, rhs, 0);
+  MacroAssembler::SignExtendWord(scratch0, lhs);
+  MacroAssembler::SignExtendWord(scratch1, rhs);
   MacroAssembler::CompareI(dst, scratch0, Operand(scratch1), cond);
 }
 

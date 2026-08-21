@@ -105,11 +105,6 @@ extern "C" {
         sizeof(x) / sizeof(BN_ULONG), 0, BN_FLG_STATIC_DATA \
   }
 
-#if defined(BN_ULLONG)
-#define Lw(t) ((BN_ULONG)(t))
-#define Hw(t) ((BN_ULONG)((t) >> BN_BITS2))
-#endif
-
 // bn_minimal_width returns the minimal number of words needed to represent
 // |bn|.
 int bn_minimal_width(const BIGNUM *bn);
@@ -268,10 +263,11 @@ int bn_rand_secret_range(BIGNUM *r, int *out_is_uniform, BN_ULONG min_inclusive,
 // |BIGNUM|s, in |bn_wexpand|, but the exactfloat library needs to create 8 MiB
 // values for other operations.
 //
-// TODO(crbug.com/402677800): This is not quite tight enough to limit the
-// |bn_mul_mont| allocation to under a page. Lower the maximum RSA key and then
-// lower this to match.
-#define BN_MONTGOMERY_MAX_WORDS (16384 / BN_BITS2)
+// This limit is set so that one number fits within 1 KiB, giving room to
+// allocate a few of them on the stack in |bn_mul_mont_words| without exceeding
+// a page (4 KiB). It is also set to limit the DoS impact of large RSA, DH, and
+// DSA keys, which scale cubically.
+#define BN_MONTGOMERY_MAX_WORDS (8192 / BN_BITS2)
 
 struct bn_mont_ctx_st {
   // RR is R^2, reduced modulo |N|. It is used to convert to Montgomery form. It
@@ -287,7 +283,7 @@ struct bn_mont_ctx_st {
     (defined(OPENSSL_X86) || defined(OPENSSL_X86_64) || \
      defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64))
 #define OPENSSL_BN_ASM_MONT
-// bn_mul_mont writes |ap| * |bp| mod |np| to |rp|, each |num| words
+// bn_mul_mont_words writes |ap| * |bp| mod |np| to |rp|, each |num| words
 // long. Inputs and outputs are in Montgomery form. |n0| is a pointer to the
 // corresponding field in |BN_MONT_CTX|.
 //
@@ -305,9 +301,9 @@ struct bn_mont_ctx_st {
 //
 // See also discussion in |ToWord| in abi_test.h for notes on smaller-than-word
 // inputs.
-void bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
-                 const BN_ULONG *np, const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS],
-                 size_t num);
+void bn_mul_mont_words(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,
+                       const BN_ULONG *np,
+                       const BN_ULONG n0[BN_MONT_CTX_N0_LIMBS], size_t num);
 
 #if defined(OPENSSL_X86_64)
 inline int bn_mulx_adx_capable(void) {

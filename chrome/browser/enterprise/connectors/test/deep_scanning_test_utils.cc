@@ -474,6 +474,14 @@ void EventReportValidator::ExpectDangerousDownloadEvent(
           });
 }
 
+void EventReportValidator::ExpectActiveUser(const std::string& user) {
+  active_content_area_user_ = user;
+}
+
+void EventReportValidator::ExpectSourceActiveUser(const std::string& user) {
+  source_active_content_area_user_ = user;
+}
+
 void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
   DCHECK(report);
 
@@ -519,6 +527,12 @@ void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
                 is_federated_);
   ValidateField(event, SafeBrowsingPrivateEventRouter::kKeyLoginUserName,
                 login_user_name_);
+  ValidateField(event,
+                SafeBrowsingPrivateEventRouter::kKeyWebAppSignedInAccount,
+                active_content_area_user_);
+  ValidateField(event,
+                SafeBrowsingPrivateEventRouter::kKeySourceWebAppSignedInAccount,
+                source_active_content_area_user_);
   ValidateFederatedOrigin(event);
   ValidateIdentities(event);
   ValidateMimeType(event);
@@ -723,10 +737,6 @@ void EventReportValidator::ValidateDataMaskingAttributes(
   }
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-void EventReportValidator::SetDoneClosure(base::RepeatingClosure closure) {
-  done_closure_ = std::move(closure);
-}
 
 EventReportValidatorHelper::EventReportValidatorHelper(Profile* profile,
                                                        bool browser_test)

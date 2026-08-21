@@ -18,6 +18,7 @@
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/geometry/rect.h"
 
 class LensOverlayController;
@@ -55,6 +56,9 @@ class LensSearchController {
  public:
   explicit LensSearchController(tabs::TabInterface* tab);
   virtual ~LensSearchController();
+
+  DECLARE_USER_DATA(LensSearchController);
+  static LensSearchController* From(tabs::TabInterface* tab);
 
   // Initializes all the necessary dependencies for the LensSearchController.
   void Initialize(variations::VariationsClient* variations_client,
@@ -450,6 +454,8 @@ class LensSearchController {
 
   // Owns this class.
   raw_ptr<tabs::TabInterface> tab_;
+
+  ui::ScopedUnownedUserData<LensSearchController> scoped_unowned_user_data_;
 
   // Must be the last member.
   base::WeakPtrFactory<LensSearchController> weak_ptr_factory_{this};

@@ -705,9 +705,16 @@ static jboolean JNI_PeerConnection_RemoveIceCandidates(
     JNIEnv* jni,
     const jni_zero::JavaParamRef<jobject>& j_pc,
     const jni_zero::JavaParamRef<jobjectArray>& j_candidates) {
-  std::vector<Candidate> candidates =
-      JavaToNativeVector<Candidate>(jni, j_candidates, &JavaToNativeCandidate);
-  return ExtractNativePC(jni, j_pc)->RemoveIceCandidates(candidates);
+  std::vector<std::unique_ptr<IceCandidate>> candidates_owned =
+      JavaToNativeVector<std::unique_ptr<IceCandidateInterface>>(
+          jni, j_candidates, &JavaToNativeCandidate);
+  bool ret = false;
+  for (const auto& c : candidates_owned) {
+    if (ExtractNativePC(jni, j_pc)->RemoveIceCandidate(c.get())) {
+      ret = true;
+    }
+  }
+  return ret;
 }
 
 static jboolean JNI_PeerConnection_AddLocalStream(

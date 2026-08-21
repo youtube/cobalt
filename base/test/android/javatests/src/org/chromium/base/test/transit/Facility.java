@@ -18,7 +18,7 @@ import org.chromium.build.annotations.Nullable;
  * that determine its enter and exit {@link Condition}s.
  *
  * <p>Leaving the host {@link Station} causes this state to be left as well, and exit {@link
- * Condition}s will be waited upon for the {@link StationToStationTrip} to be complete.
+ * Condition}s will be waited upon for the {@link Trip} to be complete.
  *
  * <p>Transitions into and out of a Facility while the host {@link Station} is ACTIVE should be done
  * with:
@@ -82,10 +82,5 @@ public class Facility<HostStationT extends Station<?>> extends ConditionalState 
                 mHostStation == null ? "-unset" : mHostStation.getId(),
                 mId,
                 mCustomName != null ? mCustomName : getClass().getSimpleName());
-    }
-
-    @Override
-    public String toString() {
-        return getName();
     }
 }

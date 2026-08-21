@@ -494,6 +494,12 @@ PasswordManagerDelegate* ChromeAutofillClient::GetPasswordManagerDelegate(
   return client ? client->GetAutofillDelegate(field_id) : nullptr;
 }
 
+OtpSuggestionDelegate* ChromeAutofillClient::GetOtpSuggestionDelegate() {
+  ChromePasswordManagerClient* client =
+      ChromePasswordManagerClient::FromWebContents(web_contents());
+  return client ? client->GetOtpManager() : nullptr;
+}
+
 void ChromeAutofillClient::GetAiPageContent(GetAiPageContentCallback callback) {
   blink::mojom::AIPageContentOptionsPtr extraction_options =
       optimization_guide::DefaultAIPageContentOptions();
@@ -757,7 +763,9 @@ void ChromeAutofillClient::ShowAutofillSettings(
         CHECK(base::FeatureList::IsEnabled(
             features::kAutofillEnableLoyaltyCardsFilling));
         static constexpr std::string_view kValuableManagementUrl =
-            "https://wallet.google.com/wallet/passes";
+            "https://wallet.google.com/"
+            "wallet?p=loyalty&utm_source=chrome&utm_medium=redirect&utm_"
+            "campaign=loyalty";
         ShowSingletonTab(browser, GURL(kValuableManagementUrl));
         return;
       default:
@@ -779,6 +787,7 @@ void ChromeAutofillClient::ConfirmSaveAddressProfile(
 #else
   AddressBubblesController::SetUpAndShowSaveOrUpdateAddressBubble(
       web_contents(), profile, original_profile, is_migration_to_account,
+      !GetPersonalDataManager().address_data_manager().GetProfiles().empty(),
       std::move(callback));
 #endif
 }
@@ -919,6 +928,19 @@ void ChromeAutofillClient::TriggerUserPerceptionOfAutofillSurvey(
 #endif
 }
 
+void ChromeAutofillClient::TriggerDeclinedSaveAddressReasonSurvey() {
+#if !BUILDFLAG(IS_ANDROID)
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  auto* hats_service =
+      HatsServiceFactory::GetForProfile(profile, /*create_if_necessary=*/true);
+  CHECK(hats_service);
+  hats_service->LaunchDelayedSurveyForWebContents(
+      kHatsSurveyTriggerAutofillAddressUserDeclinedSave, web_contents(),
+      /*timeout_ms=*/5000);
+#endif
+}
+
 bool ChromeAutofillClient::IsAutofillEnabled() const {
   return IsAutofillProfileEnabled() || IsAutofillPaymentMethodsEnabled();
 }
@@ -948,8 +970,7 @@ void ChromeAutofillClient::DidFillForm(AutofillTriggerSource trigger_source,
 #if BUILDFLAG(IS_ANDROID)
   if (trigger_source == AutofillTriggerSource::kTouchToFillCreditCard &&
       !is_refill) {
-    // TODO(crbug.com/40900538): Test that the message was announced.
-    autofill::AnnounceTextForA11y(
+    autofill::AutofillAccessibilityHelper::GetInstance()->AnnounceTextForA11y(
         l10n_util::GetStringUTF16(IDS_AUTOFILL_A11Y_ANNOUNCE_FILLED_FORM));
   }
 #endif  // BUILDFLAG(IS_ANDROID)

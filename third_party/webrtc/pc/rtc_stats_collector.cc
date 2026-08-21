@@ -10,11 +10,9 @@
 
 #include "pc/rtc_stats_collector.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <optional>
@@ -86,8 +84,8 @@ namespace webrtc {
 
 namespace {
 
-const char kDirectionInbound = 'I';
-const char kDirectionOutbound = 'O';
+constexpr char kDirectionInbound = 'I';
+constexpr char kDirectionOutbound = 'O';
 
 constexpr char kAudioPlayoutSingletonId[] = "AP";
 
@@ -1972,8 +1970,11 @@ void RTCStatsCollector::ProduceTransportStats_n(
           channel_stats.ice_transport_stats.selected_candidate_pair_changes;
       channel_transport_stats->ice_role =
           IceRoleToRTCIceRole(channel_stats.ice_transport_stats.ice_role);
-      channel_transport_stats->ice_local_username_fragment =
-          channel_stats.ice_transport_stats.ice_local_username_fragment;
+      if (!channel_stats.ice_transport_stats.ice_local_username_fragment
+               .empty()) {
+        channel_transport_stats->ice_local_username_fragment =
+            channel_stats.ice_transport_stats.ice_local_username_fragment;
+      }
       channel_transport_stats->ice_state =
           IceTransportStateToRTCIceTransportState(
               channel_stats.ice_transport_stats.ice_state);

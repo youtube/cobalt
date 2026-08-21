@@ -87,23 +87,25 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
-const char kStunIceServer[] = "stun:stun.l.google.com:19302";
-const char kTurnIceServer[] = "turn:test.com:1234";
-const char kTurnIceServerWithTransport[] = "turn:hello.com?transport=tcp";
-const char kSecureTurnIceServer[] = "turns:hello.com?transport=tcp";
-const char kSecureTurnIceServerWithoutTransportParam[] = "turns:hello.com:443";
-const char kSecureTurnIceServerWithoutTransportAndPortParam[] =
+constexpr char kStunIceServer[] = "stun:stun.l.google.com:19302";
+constexpr char kTurnIceServer[] = "turn:test.com:1234";
+constexpr char kTurnIceServerWithTransport[] = "turn:hello.com?transport=tcp";
+constexpr char kSecureTurnIceServer[] = "turns:hello.com?transport=tcp";
+constexpr char kSecureTurnIceServerWithoutTransportParam[] =
+    "turns:hello.com:443";
+constexpr char kSecureTurnIceServerWithoutTransportAndPortParam[] =
     "turns:hello.com";
-const char kTurnIceServerWithNoUsernameInUri[] = "turn:test.com:1234";
-const char kTurnPassword[] = "turnpassword";
-const int kDefaultStunPort = 3478;
-const int kDefaultStunTlsPort = 5349;
-const char kTurnUsername[] = "test";
-const char kStunIceServerWithIPv4Address[] = "stun:1.2.3.4:1234";
-const char kStunIceServerWithIPv4AddressWithoutPort[] = "stun:1.2.3.4";
-const char kStunIceServerWithIPv6Address[] = "stun:[2401:fa00:4::]:1234";
-const char kStunIceServerWithIPv6AddressWithoutPort[] = "stun:[2401:fa00:4::]";
-const char kTurnIceServerWithIPv6Address[] = "turn:[2401:fa00:4::]:1234";
+constexpr char kTurnIceServerWithNoUsernameInUri[] = "turn:test.com:1234";
+constexpr char kTurnPassword[] = "turnpassword";
+constexpr int kDefaultStunPort = 3478;
+constexpr int kDefaultStunTlsPort = 5349;
+constexpr char kTurnUsername[] = "test";
+constexpr char kStunIceServerWithIPv4Address[] = "stun:1.2.3.4:1234";
+constexpr char kStunIceServerWithIPv4AddressWithoutPort[] = "stun:1.2.3.4";
+constexpr char kStunIceServerWithIPv6Address[] = "stun:[2401:fa00:4::]:1234";
+constexpr char kStunIceServerWithIPv6AddressWithoutPort[] =
+    "stun:[2401:fa00:4::]";
+constexpr char kTurnIceServerWithIPv6Address[] = "turn:[2401:fa00:4::]:1234";
 
 class NullPeerConnectionObserver : public PeerConnectionObserver {
  public:

@@ -79,6 +79,7 @@ rtc_library("video_file_writer") {
     "../api:scoped_refptr",
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
+    "../rtc_base:checks",
     "../rtc_base:logging",
     "//third_party/abseil-cpp/absl/strings",
   ]
@@ -414,6 +415,7 @@ if (!build_with_chromium) {
       "../api/video_codecs:scalability_mode",
       "../rtc_base:checks",
       "../rtc_base:stringutils",
+      "../rtc_base/system:file_wrapper",
       "//api:create_frame_generator",
       "//api:frame_generator_api",
       "//api/environment",
@@ -599,6 +601,7 @@ if (rtc_include_tests) {
 
         deps = [
           "../api:function_view",
+          "../api/audio:audio_frame_api",
           "../common_audio",
           "../modules/audio_processing",
           "../modules/audio_processing:audioproc_debug_proto",

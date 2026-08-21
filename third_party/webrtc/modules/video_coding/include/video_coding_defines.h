@@ -58,7 +58,6 @@ class VCMReceiveCallback {
     TimeDelta decode_time;
     VideoContentType content_type;
     VideoFrameType frame_type;
-    std::optional<double> corruption_score;
   };
 
   virtual int32_t OnFrameToRender(const FrameToRender& arguments) = 0;

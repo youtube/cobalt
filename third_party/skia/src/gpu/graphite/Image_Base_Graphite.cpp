@@ -19,6 +19,7 @@
 #include "src/gpu/graphite/RecorderPriv.h"
 #include "src/gpu/graphite/Surface_Graphite.h"
 #include "src/gpu/graphite/TextureUtils.h"
+#include "src/gpu/graphite/task/Task.h"
 
 namespace skgpu::graphite {
 
@@ -174,9 +175,13 @@ TextureProxy* get_base_proxy_for_label(const Image_Base* baseImage) {
 
 } // anonymous namespace
 
-sk_sp<SkImage> Image_Base::onMakeSubset(Recorder* recorder,
+sk_sp<SkImage> Image_Base::onMakeSubset(SkRecorder* recorder,
                                         const SkIRect& subset,
                                         RequiredProperties requiredProps) const {
+    auto gRecorder = AsGraphiteRecorder(recorder);
+    if (!gRecorder) {
+        return nullptr;
+    }
     // optimization : return self if the subset == our bounds and requirements met and the image's
     // texture is immutable
     if (this->bounds() == subset &&
@@ -196,7 +201,7 @@ sk_sp<SkImage> Image_Base::onMakeSubset(Recorder* recorder,
 
     // The copied image is not considered budgeted because this is a client-invoked API and they
     // will own the image.
-    return this->copyImage(recorder,
+    return this->copyImage(gRecorder,
                            subset,
                            Budgeted::kNo,
                            requiredProps.fMipmapped ? Mipmapped::kYes : Mipmapped::kNo,
@@ -252,6 +257,7 @@ sk_sp<SkImage> Image_Base::makeColorTypeAndColorSpace(SkRecorder* recorder,
 
 // Ganesh APIs are no-ops
 
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
 sk_sp<SkImage> Image_Base::onMakeSubset(GrDirectContext*, const SkIRect&) const {
     SKGPU_LOG_W("Cannot convert Graphite-backed image to Ganesh");
     return nullptr;
@@ -263,6 +269,7 @@ sk_sp<SkImage> Image_Base::onMakeColorTypeAndColorSpace(SkColorType,
     SKGPU_LOG_W("Cannot convert Graphite-backed image to Ganesh");
     return nullptr;
 }
+#endif
 
 void Image_Base::onAsyncRescaleAndReadPixels(const SkImageInfo& info,
                                              SkIRect srcRect,

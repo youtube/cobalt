@@ -14,9 +14,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
+#include "components/content_settings/core/common/pref_names.h"
 #include "components/permissions/features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
@@ -122,7 +122,7 @@ class WebKioskDeviceAttributesTest : public MixinBasedInProcessBrowserTest {
 
   void AllowDeviceAttributesForOrigin(const std::string& origin) {
     browser()->profile()->GetPrefs()->SetList(
-        prefs::kDeviceAttributesAllowedForOrigins,
+        prefs::kManagedDeviceAttributesAllowedForOrigins,
         base::Value::List().Append(origin));
   }
 
@@ -162,10 +162,8 @@ IN_PROC_BROWSER_TEST_F(WebKioskDeviceAttributesTest,
 
   // All methods should return the same error.
   for (const std::string& attribute : kAttributeNames) {
-    content::EvalJsResult result =
-        CallDeviceAttributesApi(web_contents, attribute);
-    EXPECT_EQ(result.error, kNotAllowedOriginExpectedError);
-    EXPECT_TRUE(result.value.is_none());
+    EXPECT_EQ(CallDeviceAttributesApi(web_contents, attribute).error,
+              kNotAllowedOriginExpectedError);
   }
 }
 
@@ -178,10 +176,7 @@ IN_PROC_BROWSER_TEST_F(WebKioskDeviceAttributesTest,
 
   // All methods should return null and no error.
   for (const std::string& attribute : kAttributeNames) {
-    content::EvalJsResult result =
-        CallDeviceAttributesApi(web_contents, attribute);
-    EXPECT_TRUE(result.error.empty());
-    EXPECT_TRUE(result.value.is_none());
+    EXPECT_EQ(CallDeviceAttributesApi(web_contents, attribute), base::Value());
   }
 }
 
@@ -242,7 +237,6 @@ IN_PROC_BROWSER_TEST_F(
     content::EvalJsResult result =
         CallDeviceAttributesApi(web_contents, attribute);
     EXPECT_EQ(result.error, kNotTrustedOriginExpectedError);
-    EXPECT_TRUE(result.value.is_none());
   }
 }
 

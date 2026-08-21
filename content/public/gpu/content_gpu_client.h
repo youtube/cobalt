@@ -32,6 +32,7 @@ class BinderMap;
 
 namespace viz {
 class VizCompositorThreadRunner;
+class GpuServiceImpl;
 }
 
 namespace content {
@@ -48,6 +49,7 @@ class CONTENT_EXPORT ContentGpuClient {
   // the browser. Binders registered here will never run until the GPU process
   // has received a |CreateGpuService()| call from the browser.
   virtual void ExposeInterfacesToBrowser(
+      viz::GpuServiceImpl* gpu_service,
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
       mojo::BinderMap* binders) {}

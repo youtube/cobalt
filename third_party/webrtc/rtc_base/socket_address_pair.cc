@@ -10,6 +10,10 @@
 
 #include "rtc_base/socket_address_pair.h"
 
+#include <cstddef>
+
+#include "rtc_base/socket_address.h"
+
 namespace webrtc {
 
 SocketAddressPair::SocketAddressPair(const SocketAddress& src,

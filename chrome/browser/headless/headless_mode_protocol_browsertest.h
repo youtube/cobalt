@@ -11,6 +11,7 @@
 #include "base/command_line.h"
 #include "base/values.h"
 #include "chrome/browser/headless/headless_mode_devtooled_browsertest.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "components/headless/test/test_meta_info.h"
 
 namespace headless {
@@ -35,7 +36,12 @@ class HeadlessModeProtocolBrowserTest
   // Returns absolute script file path.
   base::FilePath GetScriptPath();
 
+  // Returns absolute expectations file path.
+  base::FilePath GetTestExpectationFilePath();
+
   bool IsSharedTestScript();
+
+  void LoadTestMetaInfo();
 
   void SetUp() override;
   void SetUpCommandLine(base::CommandLine* command_line) override;
@@ -52,9 +58,10 @@ class HeadlessModeProtocolBrowserTest
 
   void ProcessTestResult(const std::string& test_result);
 
- protected:
-  void LoadTestMetaInfo();
-
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   TestMetaInfo test_meta_info_;
 };
 

@@ -40,8 +40,8 @@ namespace {
 
 using ::testing::Eq;
 
-const int kDefaultFrameRate = 30;
-const int kDefaultFrameSize = 1280 * 720;
+constexpr int kDefaultFrameRate = 30;
+constexpr int kDefaultFrameSize = 1280 * 720;
 constexpr TimeDelta kDefaultTimeout = TimeDelta::Seconds(5);
 
 class VideoSourceRestrictionsListenerForTesting

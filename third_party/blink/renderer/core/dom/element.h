@@ -82,6 +82,7 @@ class ContainerQueryData;
 class ContainerQueryEvaluator;
 class CSSPropertyName;
 class CSSPropertyValueSet;
+class CSSPseudoElement;
 class CSSStyleDeclaration;
 class CustomElementDefinition;
 class CustomElementRegistry;
@@ -135,6 +136,7 @@ class StyleScopeData;
 class TextVisitor;
 class V8UnionBooleanOrScrollIntoViewOptions;
 class V8UnionStringLegacyNullToEmptyStringOrTrustedHTML;
+class V8UnionStringOrTrustedHTML;
 class ComputedStyleBuilder;
 class StyleAdjuster;
 
@@ -1074,14 +1076,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     kAssertNoLayoutUpdates,
   };
 
-  // Whether the element is clickable. This checks for whether the node is
-  // a clickable control (e.g. form control elements) or has activation
-  // behavior. It also checks for whether the node has a click handler.
-  // Note: this should not be taken as a guarantee that the element is
-  // clickable; this is used as a heuristic to determine whether the element
-  // is likely to be clickable.
-  bool IsMaybeClickable();
-
   // Focusability logic:
   //   IsFocusable: true if the element can be focused via element.focus().
   //   IsMouseFocusable: true if clicking on the element will focus it.
@@ -1176,18 +1170,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   enum class InterestState {
     // No interest.
     kNoInterest,
-    // This is a transient interest state, used for an interest invoker pointing
-    // to a popover that has been activated via keyboard focus. It potentially
-    // has partial interest, but that can only be determined once the popover
-    // actually opens, so that focusability can be tested. Once the popover is
-    // open, the invoker's interest_state will be updated to one of the other
-    // states. It can actually get to any of the states:
-    //  - partial interest if there are focusable elements
-    //  - full interest otherwise
-    //  - no interest if the showPopover is cancelled for any reason
-    kPotentialPartialInterest,
-    // Invoker has partial interest (for sure).
-    kPartialInterest,
     // Invoker has full interest.
     kFullInterest,
   };
@@ -1209,10 +1191,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // Returns the current state of "interest" in an element that is an interest
   // invoker.
   InterestState GetInterestState();
-  // Returns true if this element is (inclusively) contained within an open
-  // popover that is the target of an interest invoker that has partial
-  // interest.
-  bool IsInPartialInterestPopover() const;
   // Used in some situations (e.g. mobile device context menu activation) to
   // immediately show interest in an element, ignoring any show delays that may
   // be set on the element. If the element is not an interest invoker, nothing
@@ -1250,8 +1228,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void insertAdjacentText(const String& where,
                           const String& text,
                           ExceptionState&);
+  void InsertAdjacentHTMLWithoutTrustedTypes(const String& where,
+                                             const String& html,
+                                             ExceptionState&);
   void insertAdjacentHTML(const String& where,
-                          const String& html,
+                          const V8UnionStringOrTrustedHTML* html,
                           ExceptionState&);
 
   String GetInnerHTMLString() const;
@@ -1272,8 +1253,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   // declarative shadow DOM by default, and b) will eventually have a second
   // argument to set Sanitizer parameters.
   // See https://github.com/whatwg/html/pull/9538.
-  void setHTMLUnsafe(const String& html, ExceptionState& = ASSERT_NO_EXCEPTION);
-  void setHTMLUnsafe(const String& html,
+  void SetHTMLUnsafeWithoutTrustedTypes(const String& html,
+                                        ExceptionState& = ASSERT_NO_EXCEPTION);
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html, ExceptionState&);
+  void setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                      SetHTMLUnsafeOptions*,
                      ExceptionState&);
   void setHTML(const String& html, SetHTMLOptions*, ExceptionState&);
@@ -1320,6 +1303,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       PseudoId,
       const AtomicString& view_transition_name = g_null_atom) const;
   LayoutObject* PseudoElementLayoutObject(PseudoId) const;
+  CSSPseudoElement* pseudo(const AtomicString& type);
+
+  // Used to cache CSSPseudoElement objects.
+  void CacheCSSPseudoElement(PseudoId, CSSPseudoElement&);
+  CSSPseudoElement* GetCSSPseudoElement(PseudoId) const;
 
   // Returns true if this element contains any ::scroll-button or
   // ::scroll-marker-group pseudos.
@@ -1690,7 +1678,6 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   void RemoveInterestInvokerTargetData();
   InterestInvokerTargetData& EnsureInterestInvokerTargetData();
   InterestInvokerTargetData* GetInterestInvokerTargetData() const;
-  static String GetPartialInterestForActivationHotkey();
 
   void DefaultEventHandler(Event&) override;
 
@@ -1772,7 +1759,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   GCedHeapVector<Member<Element>>* ElementsFromAttributeOrInternals(
       const QualifiedName& attribute) const;
 
-  bool IsClickableFormControlNode();
+  bool IsClickableFormControlNode() const;
 
  protected:
   bool HasElementData() const { return static_cast<bool>(element_data_); }

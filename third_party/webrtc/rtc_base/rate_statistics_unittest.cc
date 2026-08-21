@@ -21,7 +21,7 @@ namespace {
 
 using webrtc::RateStatistics;
 
-const int64_t kWindowMs = 500;
+constexpr int64_t kWindowMs = 500;
 
 class RateStatisticsTest : public ::testing::Test {
  protected:

@@ -23,8 +23,9 @@
 namespace webrtc {
 namespace jni {
 
-Candidate JavaToNativeCandidate(JNIEnv* jni,
-                                const JavaRef<jobject>& j_candidate);
+std::unique_ptr<IceCandidate> JavaToNativeCandidate(
+    JNIEnv* jni,
+    const JavaRef<jobject>& j_candidate);
 
 ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
                                                   const Candidate& candidate);

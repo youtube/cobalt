@@ -40,7 +40,7 @@ ABSL_FLAG(std::string,
 
 ABSL_FLAG(bool,
           export_perf_results_new_api,
-          false,
+          true,
           "Tells to initialize new API for exporting performance metrics");
 
 ABSL_FLAG(bool,

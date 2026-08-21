@@ -31,6 +31,7 @@ import org.chromium.base.Log;
 import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.PackageUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.IRelroLibInfo;
@@ -57,6 +58,8 @@ public class ChildProcessConnection {
     private static final boolean SUPPORT_NOT_PERCEPTIBLE_BINDING =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
     private static final String HISTOGRAM_NAME = "Android.ChildProcessConectionEventCounts";
+
+    private static @Nullable Boolean sSupportNotPerceptibleBindingForTesting;
 
     /**
      * Used to notify the consumer about the process start. These callbacks will be invoked before
@@ -196,6 +199,9 @@ public class ChildProcessConnection {
 
     /** Run time check if not perceptible binding is supported. */
     public static boolean supportNotPerceptibleBinding() {
+        if (sSupportNotPerceptibleBindingForTesting != null) {
+            return sSupportNotPerceptibleBindingForTesting;
+        }
         // Note that we need to keep this in sync with IsPerceptibleImportanceSupported() in
         // content/browser/android/child_process_importance.cc
         return SUPPORT_NOT_PERCEPTIBLE_BINDING;
@@ -208,6 +214,12 @@ public class ChildProcessConnection {
         // this could still collide in theory.
         ClassLoader cl = ChildProcessConnection.class.getClassLoader();
         return cl.toString() + cl.hashCode();
+    }
+
+    @VisibleForTesting
+    public static void setSupportNotPerceptibleBindingForTesting(boolean supported) {
+        sSupportNotPerceptibleBindingForTesting = supported;
+        ResettersForTesting.register(() -> sSupportNotPerceptibleBindingForTesting = null);
     }
 
     private static boolean useBackgroundNotPerceptibleBinding() {
@@ -260,15 +272,11 @@ public class ChildProcessConnection {
     private static class ConnectionParams {
         final IChildProcessArgs mChildProcessArgs;
         final @Nullable List<IBinder> mClientInterfaces;
-        final @Nullable IBinder mBinderBox;
 
         ConnectionParams(
-                IChildProcessArgs childProcessArgs,
-                @Nullable List<IBinder> clientInterfaces,
-                @Nullable IBinder binderBox) {
+                IChildProcessArgs childProcessArgs, @Nullable List<IBinder> clientInterfaces) {
             mChildProcessArgs = childProcessArgs;
             mClientInterfaces = clientInterfaces;
-            mBinderBox = binderBox;
         }
     }
 
@@ -645,7 +653,6 @@ public class ChildProcessConnection {
      *     process connection.
      * @param clientInterfaces optional client specified interfaces that the child can use to
      *     communicate with the parent process
-     * @param binderBox optional binder box the child can use to unpack additional binders
      * @param connectionCallback will be called exactly once after the connection is set up or the
      *     setup fails
      * @param zygoteInfoCallback will be called exactly once after the connection is set up
@@ -653,7 +660,6 @@ public class ChildProcessConnection {
     public void setupConnection(
             IChildProcessArgs childProcessArgs,
             @Nullable List<IBinder> clientInterfaces,
-            @Nullable IBinder binderBox,
             ConnectionCallback connectionCallback,
             ZygoteInfoCallback zygoteInfoCallback) {
         assert isRunningOnLauncherThread();
@@ -667,7 +673,7 @@ public class ChildProcessConnection {
             mConnectionCallback = connectionCallback;
             mZygoteInfoCallback = zygoteInfoCallback;
             childProcessArgs.bindToCaller = mBindToCaller;
-            mConnectionParams = new ConnectionParams(childProcessArgs, clientInterfaces, binderBox);
+            mConnectionParams = new ConnectionParams(childProcessArgs, clientInterfaces);
             // Run the setup if the service is already connected. If not, doConnectionSetup() will
             // be called from onServiceConnected().
             if (mServiceConnectComplete) {
@@ -951,8 +957,7 @@ public class ChildProcessConnection {
                 mService.setupConnection(
                         mConnectionParams.mChildProcessArgs,
                         parentProcess,
-                        mConnectionParams.mClientInterfaces,
-                        mConnectionParams.mBinderBox);
+                        mConnectionParams.mClientInterfaces);
             } catch (RemoteException re) {
                 Log.e(TAG, "Failed to setup connection.", re);
             }

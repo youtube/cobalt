@@ -4623,8 +4623,10 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
             PeerConnectionInterface::kStable);
 }
 
+// TODO: issues.webrtc.org/425336456 - figure out correct behavior and reenable.
+// TODO: issues.webrtc.org/383078466 - should pass when this bug is fixed.
 TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
-       OnlyOnePairWantsCorruptionScorePlumbing) {
+       DISABLED_OnlyOnePairWantsCorruptionScorePlumbingShouldFailToGetIt) {
   // In order for corruption score to be logged, encryption of RTP header
   // extensions must be allowed.
   CryptoOptions crypto_options;
@@ -4636,23 +4638,23 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ConnectFakeSignaling();
 
   // Do normal offer/answer and wait for some frames to be received in each
-  // direction, and `corruption_score` to be aggregated.
+  // direction.
   caller()->AddAudioVideoTracks();
   callee()->AddAudioVideoTracks();
-  // Negotiate the corruption detection header extension in SDP.
-  // If caller adds corruption detection header extension to its SDP offer, it
-  // will receive it from the callee.
+
+  // Negotiate the corruption detection header extension in SDP only in one
+  // direction.
   caller()->NegotiateCorruptionDetectionHeader();
 
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(
       WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
       IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return caller()->GetCorruptionScoreCount(); },
-                        ::testing::Gt(0), {.timeout = kMaxWaitForStats}),
+  ASSERT_THAT(WaitUntil([&] { return caller()->GetReceivedFrameCount(); },
+                        ::testing::Eq(3), {.timeout = kMaxWaitForStats}),
               IsRtcOk());
-  ASSERT_THAT(WaitUntil([&] { return callee()->GetCorruptionScoreCount(); },
-                        ::testing::Eq(0), {.timeout = kMaxWaitForStats}),
+  ASSERT_THAT(WaitUntil([&] { return callee()->GetReceivedFrameCount(); },
+                        ::testing::Eq(3), {.timeout = kMaxWaitForStats}),
               IsRtcOk());
 
   for (const auto& pair : {caller(), callee()}) {
@@ -4662,22 +4664,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
         report->GetStatsOfType<RTCInboundRtpStreamStats>();
     for (const auto& stat : inbound_stream_stats) {
       if (*stat->kind == "video") {
-        if (pair == caller()) {
-          EXPECT_TRUE(stat->total_corruption_probability.has_value());
-          EXPECT_TRUE(stat->total_squared_corruption_probability.has_value());
-
-          double average_corruption_score =
-              (*stat->total_corruption_probability) /
-              static_cast<int32_t>(*stat->corruption_measurements);
-          EXPECT_GE(average_corruption_score, 0.0);
-          EXPECT_LE(average_corruption_score, 1.0);
-        }
-        if (pair == callee()) {
-          // Since only `caller` requests corruption score calculation the
-          // callee should not aggregate it.
           EXPECT_FALSE(stat->total_corruption_probability.has_value());
           EXPECT_FALSE(stat->total_squared_corruption_probability.has_value());
-        }
       }
     }
   }
@@ -4876,7 +4864,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
       WaitUntil([&] { return SignalingStateStable(); }, ::testing::IsTrue()),
       IsRtcOk());
   caller()->SetGeneratedSdpMunger(nullptr);
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   ASSERT_NE(nullptr, offer);
   // The offer should be acceptable.
   EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
@@ -4955,8 +4944,9 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_EQ(transceivers.size(), 1u);
   transceivers[0]->SetCodecPreferences(codecs);
 
-  auto offer = caller()->CreateOfferAndWait();
-  ASSERT_NE(offer, nullptr);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
+  ASSERT_THAT(offer, NotNull());
   // The offer should be acceptable.
   EXPECT_TRUE(caller()->SetLocalDescriptionAndSendSdpMessage(std::move(offer)));
 
@@ -5027,7 +5017,7 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   // associated RTX codec.
   std::unique_ptr<SessionDescriptionInterface> answer =
       caller()->CreateAnswerForTest();
-  ASSERT_NE(answer, nullptr);
+  ASSERT_THAT(answer, NotNull());
   RTC_LOG(LS_ERROR) << "Answer is " << *answer;
   ASSERT_THAT(answer->description()->contents().size(), Eq(1));
   auto codecs =
@@ -5054,7 +5044,8 @@ TEST_F(PeerConnectionIntegrationTestUnifiedPlan,
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   // Add first video track.
   caller()->AddVideoTrack();
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   EXPECT_EQ(offer->description()->contents().size(), 1U);
   // Observe that packetization is NOT raw.
   for (const auto& content : offer->description()->contents()) {

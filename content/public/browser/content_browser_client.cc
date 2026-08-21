@@ -36,7 +36,6 @@
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/devtools_manager_delegate.h"
 #include "content/public/browser/digital_identity_provider.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/browser/legacy_tech_cookie_issue_details.h"
 #include "content/public/browser/login_delegate.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -56,6 +55,7 @@
 #include "content/public/browser/web_authentication_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "content/public/common/alternative_error_page_override_info.mojom.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/url_utils.h"
@@ -515,6 +515,11 @@ bool ContentBrowserClient::AllowCompressionDictionaryTransport(
 }
 
 bool ContentBrowserClient::AllowServiceWorkerToControlSrcdocIframe(
+    BrowserContext* context) {
+  return true;
+}
+
+bool ContentBrowserClient::IsServiceWorkerAutoPreloadAllowed(
     BrowserContext* context) {
   return true;
 }

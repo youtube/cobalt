@@ -61,30 +61,21 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
+
 using ::testing::_;
 using ::testing::AtMost;
 using ::testing::Eq;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
-using ::webrtc::ConnectionInfo;
-using ::webrtc::SsrcReceiverInfo;
-using ::webrtc::TransportChannelStats;
-using ::webrtc::VideoMediaInfo;
-using ::webrtc::VideoReceiverInfo;
-using ::webrtc::VideoSenderInfo;
-using ::webrtc::VoiceMediaInfo;
-using ::webrtc::VoiceReceiverInfo;
-using ::webrtc::VoiceSenderInfo;
-
-namespace webrtc {
 
 // Error return values
-const char kNotFound[] = "NOT FOUND";
+constexpr char kNotFound[] = "NOT FOUND";
 
 // Constant names for track identification.
-const char kLocalTrackId[] = "local_track_id";
-const char kRemoteTrackId[] = "remote_track_id";
-const uint32_t kSsrcOfTrack = 1234;
+constexpr char kLocalTrackId[] = "local_track_id";
+constexpr char kRemoteTrackId[] = "remote_track_id";
+constexpr uint32_t kSsrcOfTrack = 1234;
 
 class FakeAudioProcessor : public AudioProcessorInterface {
  public:

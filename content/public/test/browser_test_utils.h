@@ -5,6 +5,7 @@
 #ifndef CONTENT_PUBLIC_TEST_BROWSER_TEST_UTILS_H_
 #define CONTENT_PUBLIC_TEST_BROWSER_TEST_UTILS_H_
 
+#include <compare>
 #include <memory>
 #include <optional>
 #include <string>
@@ -30,6 +31,7 @@
 #include "base/types/optional_ref.h"
 #include "base/types/strong_alias.h"
 #include "base/types/to_address.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "cc/test/pixel_test_utils.h"
 #include "content/public/browser/commit_deferring_condition.h"
@@ -740,6 +742,12 @@ struct JsLiteralHelper {
   }
 
   static base::Value Convert(const base::Value& value) { return value.Clone(); }
+  static base::Value Convert(const base::Value::List& value) {
+    return base::Value(value.Clone());
+  }
+  static base::Value Convert(const base::Value::Dict& value) {
+    return base::Value(value.Clone());
+  }
 };
 
 // Specialization allowing GURL to be passed to StringifyJsLiteral.
@@ -836,9 +844,12 @@ std::string JsReplace(std::string_view script_template, Args&&... args) {
 //      by calling ExtractString(), ExtractInt(), etc. This will produce a
 //      CHECK failure if the execution didn't result in the appropriate type
 //      of result, or if an exception was thrown.
-struct EvalJsResult {
-  const base::Value value;  // Value; if things went well.
-  const std::string error;  // Error; if things went badly.
+class EvalJsResult {
+ public:
+  // TODO(https://crbug.com/431787497): rename the `error` field, per style
+  // guide rules.
+  // Error; if things went badly.
+  const std::string error;
 
   // Creates an EvalJs result. If |error| is non-empty, |value| will be
   // ignored.
@@ -848,8 +859,10 @@ struct EvalJsResult {
   EvalJsResult(const EvalJsResult& value);
 
   // Matchers for successful & unsuccessful runs.
-  static auto IsOk() {
-    return testing::Field(&EvalJsResult::error, testing::Eq(""));
+  static auto IsOk() { return testing::Property(&EvalJsResult::is_ok, true); }
+  template <typename M>
+  static auto IsOkAndHolds(M m) {
+    return testing::AllOf(IsOk(), testing::Field(&EvalJsResult::value_, m));
   }
   static auto IsError() { return testing::Not(IsOk()); }
 
@@ -864,80 +877,50 @@ struct EvalJsResult {
   [[nodiscard]] bool ExtractBool() const;
   [[nodiscard]] double ExtractDouble() const;
   [[nodiscard]] base::Value::List ExtractList() const;
+  [[nodiscard]] base::Value::Dict ExtractDict() const;
+
+  bool is_ok() const { return error.empty(); }
+
+  bool is_string() const { return is_ok() && value_.is_string(); }
+  bool is_bool() const { return is_ok() && value_.is_bool(); }
+  bool is_list() const { return is_ok() && value_.is_list(); }
+  bool is_dict() const { return is_ok() && value_.is_dict(); }
+
+  // Enables EvalJsResult to be used directly in ASSERT/EXPECT macros:
+  //
+  //    ASSERT_EQ("ab", EvalJs(rfh, "'a' + 'b'"))
+  //    ASSERT_EQ(2, EvalJs(rfh, "1 + 1"))
+  //    ASSERT_EQ(base::Value(), EvalJs(rfh, "var a = 1 + 1"))
+  //
+  // Error values are incomparable to other values (including other errors).
+  template <typename T>
+  bool operator==(const T& t) const {
+    return is_ok() && (JsLiteralHelper<T>::Convert(t) == value_);
+  }
+
+  template <typename T>
+  std::partial_ordering operator<=>(const T& t) const {
+    if (!is_ok()) {
+      return std::partial_ordering::unordered;
+    }
+    return value_ <=> JsLiteralHelper<T>::Convert(t);
+  }
+
+  // Takes the underlying `base::Value`, presuming no error occurred.
+  [[nodiscard]] base::Value TakeValue() && {
+    CHECK(is_ok());
+    return std::move(value_);
+  }
+
+ private:
+  // Provides informative failure messages when the result of EvalJs() is
+  // used in a failing ASSERT_EQ or EXPECT_EQ.
+  friend std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar);
+
+  // Value; if things went well. (If an error occurred, `value_.is_none()` is
+  // true.)
+  base::Value value_;
 };
-
-// Enables EvalJsResult to be used directly in ASSERT/EXPECT macros:
-//
-//    ASSERT_EQ("ab", EvalJs(rfh, "'a' + 'b'"))
-//    ASSERT_EQ(2, EvalJs(rfh, "1 + 1"))
-//    ASSERT_EQ(nullptr, EvalJs(rfh, "var a = 1 + 1"))
-//
-// Error values never return true for any comparison operator.
-template <typename T>
-bool operator==(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) == b.value);
-}
-template <typename T>
-bool operator==(const EvalJsResult& a, const T& b) {
-  return b == a;
-}
-
-template <typename T>
-bool operator!=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) != b.value);
-}
-template <typename T>
-bool operator!=(const EvalJsResult& a, const T& b) {
-  return b != a;
-}
-
-template <typename T>
-bool operator>=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) >= b.value);
-}
-template <typename T>
-bool operator>=(const EvalJsResult& a, const T& b) {
-  return b < a;
-}
-
-template <typename T>
-bool operator<=(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) <= b.value);
-}
-template <typename T>
-bool operator<=(const EvalJsResult& a, const T& b) {
-  return b > a;
-}
-
-template <typename T>
-bool operator<(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) < b.value);
-}
-template <typename T>
-bool operator<(const EvalJsResult& a, const T& b) {
-  return b >= a;
-}
-
-template <typename T>
-bool operator>(const T& a, const EvalJsResult& b) {
-  return b.error.empty() && (JsLiteralHelper<T>::Convert(a) > b.value);
-}
-template <typename T>
-bool operator>(const EvalJsResult& a, const T& b) {
-  return b <= a;
-}
-
-inline bool operator==(std::nullptr_t a, const EvalJsResult& b) {
-  return b.error.empty() && (base::Value() == b.value);
-}
-template <typename T>
-inline bool operator==(const EvalJsResult& a, std::nullptr_t b) {
-  return nullptr == a;
-}
-
-// Provides informative failure messages when the result of EvalJs() is
-// used in a failing ASSERT_EQ or EXPECT_EQ.
-std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar);
 
 enum EvalJsOptions {
   EXECUTE_SCRIPT_DEFAULT_OPTIONS = 0,
@@ -2254,9 +2237,6 @@ class BlobURLStoreInterceptor
   void Register(
       mojo::PendingRemote<blink::mojom::Blob> blob,
       const GURL& url,
-      // TODO(crbug.com/40775506): Remove these once experiment is over.
-      const base::UnguessableToken& unsafe_agent_cluster_id,
-      const std::optional<net::SchemefulSite>& unsafe_top_level_site,
       RegisterCallback callback) override;
 
  private:

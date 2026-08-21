@@ -20,7 +20,7 @@
 #include <openssl/evp.h>
 #include <openssl/pki/signature_verify_cache.h>
 #include <openssl/rsa.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "cert_errors.h"
 #include "input.h"

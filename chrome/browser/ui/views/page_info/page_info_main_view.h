@@ -59,7 +59,7 @@ class PageInfoMainView : public views::View,
     METADATA_HEADER(ContainerView, views::View)
 
    public:
-    ContainerView();
+    explicit ContainerView(bool set_extra_right_margin = true);
 
     // Notifies that preferred size changed and updates the layout.
     void Update();
@@ -79,7 +79,7 @@ class PageInfoMainView : public views::View,
   void SetIdentityInfo(const IdentityInfo& identity_info) override;
   void SetPageFeatureInfo(const PageFeatureInfo& info) override;
   void SetAdPersonalizationInfo(const AdPersonalizationInfo& info) override;
-  void SetCookieInfo(const CookiesNewInfo& cookie_info) override;
+  void SetCookieInfo(const CookiesInfo& cookie_info) override;
 
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
@@ -111,7 +111,8 @@ class PageInfoMainView : public views::View,
 
   // Creates a view with vertical box layout that will used a container for
   // other views.
-  [[nodiscard]] std::unique_ptr<views::View> CreateContainerView();
+  [[nodiscard]] std::unique_ptr<views::View> CreateContainerView(
+      bool set_extra_right_margin = true);
 
   // Creates bubble header view for this page, contains the title and the close
   // button.

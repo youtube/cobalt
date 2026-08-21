@@ -60,10 +60,6 @@ class MockPeerConnectionFactoryInterface
               (override));
   MOCK_METHOD(scoped_refptr<VideoTrackInterface>,
               CreateVideoTrack,
-              (const std::string&, VideoTrackSourceInterface*),
-              (override));
-  MOCK_METHOD(scoped_refptr<VideoTrackInterface>,
-              CreateVideoTrack,
               (scoped_refptr<VideoTrackSourceInterface>, absl::string_view),
               (override));
   MOCK_METHOD(scoped_refptr<AudioTrackInterface>,

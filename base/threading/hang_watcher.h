@@ -308,6 +308,9 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // since.
   bool IsStarted() const { return thread_started_; }
 
+  // Returns `true` if this HangWatcher watches threads.
+  bool IsWatchingThreads() LOCKS_EXCLUDED(watch_state_lock_);
+
   // Returns the value of the crash key with the time since last system power
   // resume.
   std::string GetTimeSinceLastSystemPowerResumeCrashKeyValue() const;
@@ -332,12 +335,10 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
 
-#if !BUILDFLAG(IS_NACL)
   // Returns a ScopedCrashKeyString that sets the crash key with the time since
   // last critical memory pressure signal.
   [[nodiscard]] debug::ScopedCrashKeyString
   GetTimeSinceLastCriticalMemoryPressureCrashKey();
-#endif
 
   // Invoke base::debug::DumpWithoutCrashing() insuring that the stack frame
   // right under it in the trace belongs to HangWatcher for easier attribution.
@@ -432,8 +433,6 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Use to make the HangWatcher thread wake or sleep to schedule the
   // appropriate monitoring frequency.
   WaitableEvent should_monitor_;
-
-  bool IsWatchListEmpty() LOCKS_EXCLUDED(watch_state_lock_);
 
   // Stops hang watching on the calling thread by removing the entry from the
   // watch list.

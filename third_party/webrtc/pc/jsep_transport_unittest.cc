@@ -61,11 +61,11 @@
 namespace webrtc {
 namespace {
 
-const char kIceUfrag1[] = "U001";
-const char kIcePwd1[] = "TESTICEPWD00000000000001";
-const char kIceUfrag2[] = "U002";
-const char kIcePwd2[] = "TESTIEPWD00000000000002";
-const char kTransportName[] = "Test Transport";
+constexpr char kIceUfrag1[] = "U001";
+constexpr char kIcePwd1[] = "TESTICEPWD00000000000001";
+constexpr char kIceUfrag2[] = "U002";
+constexpr char kIcePwd2[] = "TESTIEPWD00000000000002";
+constexpr char kTransportName[] = "Test Transport";
 
 struct NegotiateRoleParams {
   ConnectionRole local_role;

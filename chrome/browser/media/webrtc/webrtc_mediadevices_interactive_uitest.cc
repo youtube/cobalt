@@ -211,8 +211,14 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
   }
 }
 
+// TODO(crbug.com/430164064): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_GetUserMediaOnUnFocusedTab DISABLED_GetUserMediaOnUnFocusedTab
+#else
+#define MAYBE_GetUserMediaOnUnFocusedTab GetUserMediaOnUnFocusedTab
+#endif
 IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
-                       GetUserMediaOnUnFocusedTab) {
+                       MAYBE_GetUserMediaOnUnFocusedTab) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url(embedded_test_server()->GetURL(kMainWebrtcTestHtmlPage));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
@@ -229,7 +235,8 @@ IN_PROC_BROWSER_TEST_F(WebRtcMediaDevicesInteractiveUITest,
 }
 
 // Flakes on Linux TSan Tests; crbug.com/1396123.
-#if BUILDFLAG(IS_LINUX) && defined(THREAD_SANITIZER)
+// Flakes on Mac. crbug.com/430093040.
+#if (BUILDFLAG(IS_LINUX) && defined(THREAD_SANITIZER)) || BUILDFLAG(IS_MAC)
 #define MAYBE_GetUserMediaTabRegainsFocus DISABLED_GetUserMediaTabRegainsFocus
 #else
 #define MAYBE_GetUserMediaTabRegainsFocus GetUserMediaTabRegainsFocus

@@ -3,6 +3,8 @@
 # found in the LICENSE file.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@v8_python_deps//:requirements.bzl", "requirement")
 load(
@@ -2445,7 +2447,6 @@ filegroup(
         "src/runtime/runtime-test.cc",
         "src/runtime/runtime-trace.cc",
         "src/runtime/runtime-typedarray.cc",
-        "src/runtime/runtime-utils.cc",
         "src/runtime/runtime-utils.h",
         "src/runtime/runtime-weak-refs.cc",
         "src/sandbox/bounded-size.h",
@@ -2569,9 +2570,6 @@ filegroup(
         "src/tasks/operations-barrier.h",
         "src/tasks/task-utils.cc",
         "src/tasks/task-utils.h",
-        # Temporal is currently gn-only
-        # "src/temporal/temporal-parser.cc",
-        # "src/temporal/temporal-parser.h",
         "src/torque/runtime-macro-shims.h",
         "src/tracing/trace-event.cc",
         "src/tracing/trace-event.h",

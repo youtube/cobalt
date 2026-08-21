@@ -16,7 +16,7 @@
 
 namespace webrtc {
 namespace {
-const uint32_t kBucketIntervalMs = 100;
+constexpr uint32_t kBucketIntervalMs = 100;
 }  // namespace
 
 class RateTrackerForTest : public RateTracker {

@@ -54,6 +54,7 @@
 namespace mojo {
 
 using V8Context = blink::V8IdentityCredentialRequestOptionsContext;
+using blink::Vector;
 using blink::mojom::blink::RpContext;
 
 const uint8_t kSample[] = {1, 2, 3, 4, 5, 6};
@@ -444,7 +445,7 @@ TEST(CredentialManagerTypeConvertersTest,
       /*device_scope_requested=*/true,
       /*provider_scope_requested=*/true,
       blink::mojom::blink::AttestationConveyancePreference::INDIRECT,
-      Vector<WTF::String>({WTF::String::FromUTF8(attestation_format)}));
+      Vector<blink::String>({blink::String::FromUTF8(attestation_format)}));
   ASSERT_EQ(*(mojo_type->supplemental_pub_keys), *expected);
 }
 

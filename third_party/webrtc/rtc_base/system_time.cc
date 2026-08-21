@@ -11,16 +11,22 @@
 // If WEBRTC_EXCLUDE_SYSTEM_TIME is set, an implementation of
 // webrtc::SystemTimeNanos() must be provided externally.
 #ifndef WEBRTC_EXCLUDE_SYSTEM_TIME
+#include "rtc_base/system_time.h"
 
-#include <stdint.h>
+#include <time.h>
+
+#include <cstdint>
+#include <ctime>
+
+#include "rtc_base/time_utils.h"
+
+#if defined(WEBRTC_MAC)
+#include <mach/mach_time.h>
 
 #include <limits>
 
-#if defined(WEBRTC_POSIX)
-#include <sys/time.h>
-#if defined(WEBRTC_MAC)
-#include <mach/mach_time.h>
-#endif
+#include "rtc_base/checks.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #endif
 
 #if defined(WEBRTC_WIN)
@@ -32,11 +38,6 @@
 #include <sys/timeb.h>
 // clang-format on
 #endif
-
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
-#include "rtc_base/system_time.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 

@@ -85,7 +85,7 @@ using ::testing::WithoutArgs;
 
 // All sample rates used by APM internally during processing. Other input /
 // output rates are resampled to / from one of these.
-const int kProcessSampleRates[] = {16000, 32000, 48000};
+constexpr int kProcessSampleRates[] = {16000, 32000, 48000};
 
 enum StreamDirection { kForward = 0, kReverse };
 

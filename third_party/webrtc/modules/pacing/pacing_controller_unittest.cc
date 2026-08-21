@@ -54,7 +54,7 @@ constexpr DataRate kSecondClusterRate = DataRate::KilobitsPerSec(1800);
 // For 1.8 Mbps, this comes to be about 120 kbps with 1200 probe packets.
 constexpr DataRate kProbingErrorMargin = DataRate::KilobitsPerSec(150);
 
-const float kPaceMultiplier = 2.5f;
+constexpr float kPaceMultiplier = 2.5f;
 
 constexpr uint32_t kAudioSsrc = 12345;
 constexpr uint32_t kVideoSsrc = 234565;

@@ -471,16 +471,6 @@ class WasmRunnerBase : public InitializedHandleScope {
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
   int32_t main_fn_index_ = 0;
-
-  static void SetThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        true;
-  }
-
-  static void ClearThreadInWasmFlag() {
-    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
-        false;
-  }
 };
 
 template <typename T>
@@ -539,6 +529,10 @@ class WasmRunner : public WasmRunnerBase {
   }
 
   ReturnType Call(ParamTypes... p) {
+    // We should only call code after having built it (via one of the
+    // `Build(...)` methods).
+    CHECK(compiled_);
+
     std::array<DirectHandle<Object>, sizeof...(p)> param_objs = {
         MakeParam(p)...};
     MaybeDirectHandle<Object> retval =

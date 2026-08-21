@@ -82,7 +82,9 @@ if (!build_with_chromium) {
       if (use_libfuzzer) {
         deps += [ "test/fuzzers" ]
       }
-      if (!is_asan) {
+
+      # TODO(bugs.webrtc.org/430260876): Remove once rust links with libwebrtc.
+      if (!is_asan && !rtc_rusty_base64) {
         # Do not build :webrtc_lib_link_test because lld complains on some OS
         # (e.g. when target_os = "mac") when is_asan=true. For more details,
         # see bugs.webrtc.org/11027#c5.
@@ -521,6 +523,7 @@ if (!build_with_chromium) {
     ]
 
     sources = []
+
     complete_static_lib = true
     suppressed_configs += [ "//build/config/compiler:thin_archive" ]
     defines = []
@@ -584,7 +587,9 @@ if (!build_with_chromium) {
     }
   }
 
-  if (rtc_include_tests && !is_asan) {
+  # TODO(bugs.webrtc.org/430260876): Compile webrtc lib with rust once toolchain
+  # is working.
+  if (rtc_include_tests && !is_asan && !rtc_rusty_base64) {
     rtc_executable("webrtc_lib_link_test") {
       testonly = true
 
@@ -635,6 +640,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "api/numerics:numerics_unittests",
       "api/task_queue:pending_task_safety_flag_unittests",
       "api/test/metrics:metrics_unittests",
+      "api/test/network_emulation:network_queue_unittests",
       "api/transport:stun_unittest",
       "api/transport/rtp:corruption_detection_message_unittest",
       "api/video/test:rtc_api_video_unittests",
@@ -645,6 +651,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "call:fake_network_pipe_unittests",
       "rtc_base:async_dns_resolver_unittests",
       "rtc_base:async_packet_socket_unittest",
+      "rtc_base:async_tcp_socket_unittest",
       "rtc_base:async_udp_socket_unittest",
       "rtc_base:callback_list_unittests",
       "rtc_base:rtc_base_approved_unittests",

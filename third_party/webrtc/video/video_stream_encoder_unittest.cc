@@ -143,21 +143,21 @@ using ::testing::SizeIs;
 using ::testing::StrictMock;
 
 namespace {
-const int kMinPixelsPerFrame = 320 * 180;
-const int kQpLow = 1;
-const int kQpHigh = 2;
-const int kMinFramerateFps = 2;
-const int kMinBalancedFramerateFps = 7;
+constexpr int kMinPixelsPerFrame = 320 * 180;
+constexpr int kQpLow = 1;
+constexpr int kQpHigh = 2;
+constexpr int kMinFramerateFps = 2;
+constexpr int kMinBalancedFramerateFps = 7;
 constexpr TimeDelta kFrameTimeout = TimeDelta::Millis(100);
-const size_t kMaxPayloadLength = 1440;
+constexpr size_t kMaxPayloadLength = 1440;
 const DataRate kTargetBitrate = DataRate::KilobitsPerSec(1000);
 const DataRate kLowTargetBitrate = DataRate::KilobitsPerSec(100);
 const DataRate kStartBitrate = DataRate::KilobitsPerSec(600);
 const DataRate kSimulcastTargetBitrate = DataRate::KilobitsPerSec(3150);
-const int kMaxInitialFramedrop = 4;
-const int kDefaultFramerate = 30;
-const int64_t kFrameIntervalMs = kNumMillisecsPerSec / kDefaultFramerate;
-const int64_t kProcessIntervalMs = 1000;
+constexpr int kMaxInitialFramedrop = 4;
+constexpr int kDefaultFramerate = 30;
+constexpr int64_t kFrameIntervalMs = kNumMillisecsPerSec / kDefaultFramerate;
+constexpr int64_t kProcessIntervalMs = 1000;
 const VideoEncoder::ResolutionBitrateLimits
     kEncoderBitrateLimits540p(960 * 540, 100 * 1000, 100 * 1000, 2000 * 1000);
 const VideoEncoder::ResolutionBitrateLimits
@@ -168,7 +168,7 @@ uint8_t kOptimalSps[] = {0,    0,    0,    1,    H264::NaluType::kSps,
                          0x05, 0x03, 0xC7, 0xE0, 0x1B,
                          0x41, 0x10, 0x8D, 0x00};
 
-const uint8_t kCodedFrameVp8Qp25[] = {
+constexpr uint8_t kCodedFrameVp8Qp25[] = {
     0x10, 0x02, 0x00, 0x9d, 0x01, 0x2a, 0x10, 0x00, 0x10, 0x00,
     0x02, 0x47, 0x08, 0x85, 0x85, 0x88, 0x85, 0x84, 0x88, 0x0c,
     0x82, 0x00, 0x0c, 0x0d, 0x60, 0x00, 0xfe, 0xfc, 0x5c, 0xd0};

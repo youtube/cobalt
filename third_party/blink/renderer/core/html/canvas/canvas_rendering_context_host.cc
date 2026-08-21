@@ -170,19 +170,7 @@ PlainTextPainter& CanvasRenderingContextHost::GetPlainTextPainter() {
 
 RasterMode CanvasRenderingContextHost::GetRasterModeForCanvas2D() const {
   CHECK(IsRenderingContext2D());
-  if (IsHibernating()) {
-    return RasterMode::kCPU;
-  }
-  CanvasResourceProvider* resource_provider = GetResourceProviderForCanvas2D();
-
-  if (resource_provider) {
-    return resource_provider->IsAccelerated() ? RasterMode::kGPU
-                                              : RasterMode::kCPU;
-  }
-
-  // Whether or not to accelerate is not yet resolved, the canvas cannot be
-  // accelerated if the gpu context is lost.
-  return ShouldTryToUseGpuRaster() ? RasterMode::kGPU : RasterMode::kCPU;
+  return IsAccelerated() ? RasterMode::kGPU : RasterMode::kCPU;
 }
 
 bool CanvasRenderingContextHost::IsOffscreenCanvas() const {
@@ -266,13 +254,6 @@ void CanvasRenderingContextHost::SetPreferred2DRasterMode(RasterModeHint hint) {
 
 bool CanvasRenderingContextHost::ShouldTryToUseGpuRaster() const {
   return preferred_2d_raster_mode_ == RasterModeHint::kPreferGPU && CanUseGPU();
-}
-
-void CanvasRenderingContextHost::FlushRecordingForCanvas2D(FlushReason reason) {
-  CHECK(IsRenderingContext2D());
-  if (auto* provider = GetResourceProviderForCanvas2D()) {
-    provider->FlushCanvas(reason);
-  }
 }
 
 }  // namespace blink

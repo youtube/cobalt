@@ -42,9 +42,9 @@
 #include "content/browser/webid/test/webid_test_content_browser_client.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/identity_request_account.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/identity_request_account.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -2412,7 +2412,8 @@ IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, IdpLoginClosed) {
   EXPECT_EQ("true", metrics_parameters_["did_show_ui"]);
 }
 
-IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, Failure) {
+// TODO(crbug.com/431760416): Re-enable this test
+IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, DISABLED_Failure) {
   base::RunLoop run_loop;
   SetMetricsConfigDetails(&run_loop, kAccountsFailure);
 

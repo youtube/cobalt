@@ -54,14 +54,14 @@ using ::testing::SizeIs;
 
 using GenericDescriptorInfo = RTPVideoHeader::GenericDescriptorInfo;
 
-const uint32_t kSsrc1 = 12345;
-const uint32_t kSsrc2 = 23456;
-const int16_t kPictureId = 123;
-const int16_t kTl0PicIdx = 20;
-const uint8_t kTemporalIdx = 1;
-const int16_t kInitialPictureId1 = 222;
-const int16_t kInitialTl0PicIdx1 = 99;
-const int64_t kDontCare = 0;
+constexpr uint32_t kSsrc1 = 12345;
+constexpr uint32_t kSsrc2 = 23456;
+constexpr int16_t kPictureId = 123;
+constexpr int16_t kTl0PicIdx = 20;
+constexpr uint8_t kTemporalIdx = 1;
+constexpr int16_t kInitialPictureId1 = 222;
+constexpr int16_t kInitialTl0PicIdx1 = 99;
+constexpr int64_t kDontCare = 0;
 
 TEST(RtpPayloadParamsTest, InfoMappedToRtpVideoHeader_Vp8) {
   RtpPayloadState state2;

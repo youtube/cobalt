@@ -32,15 +32,15 @@ namespace webrtc {
 namespace test {
 namespace {
 
-const size_t kFrameWidth = 50;
-const size_t kFrameHeight = 20;
-const size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
-const size_t kFrameRate = 30;
+constexpr size_t kFrameWidth = 50;
+constexpr size_t kFrameHeight = 20;
+constexpr size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
+constexpr size_t kFrameRate = 30;
 
 // Size of header: "YUV4MPEG2 W50 H20 F30:1 C420\n"
-const size_t kFileHeaderSize = 29;
+constexpr size_t kFileHeaderSize = 29;
 // Size of header: "FRAME\n"
-const size_t kFrameHeaderSize = 6;
+constexpr size_t kFrameHeaderSize = 6;
 
 scoped_refptr<I420Buffer> CreateI420Buffer(int width, int height) {
   scoped_refptr<I420Buffer> buffer(I420Buffer::Create(width, height));

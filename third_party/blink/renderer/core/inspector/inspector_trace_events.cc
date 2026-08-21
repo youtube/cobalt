@@ -364,6 +364,8 @@ const char* NotStreamedReasonString(ScriptStreamer::NotStreamingReason reason) {
       return "an error occurred (background)";
     case ScriptStreamer::NotStreamingReason::kEncodingNotSupportedBackground:
       return "encoding not supported (background)";
+    case ScriptStreamer::NotStreamingReason::kNonModuleWithWasmMimeType:
+      return "non-module script with wasm MIME type";
     case ScriptStreamer::NotStreamingReason::kDidntTryToStartStreaming:
     case ScriptStreamer::NotStreamingReason::kAlreadyLoaded:
     case ScriptStreamer::NotStreamingReason::kInvalid:
@@ -561,6 +563,8 @@ void inspector_style_invalidator_invalidate_event::SelectorPart(
   } else if (reason == kInvalidationSetMatchedAttribute) {
     feature_type =
         InvalidationSetToSelectorMap::SelectorFeatureType::kAttribute;
+  } else if (reason == kInvalidationSetMatchedPart) {
+    feature_type = InvalidationSetToSelectorMap::SelectorFeatureType::kPart;
   } else if (reason == kInvalidationSetInvalidatesSubtree) {
     feature_type =
         InvalidationSetToSelectorMap::SelectorFeatureType::kWholeSubtree;

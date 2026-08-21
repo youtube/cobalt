@@ -10,8 +10,17 @@
 
 #include "rtc_base/ip_address.h"
 
+#include <cstring>
+#include <string>
+
 #include "absl/strings/string_view.h"
+#include "rtc_base/byte_order.h"
+#include "rtc_base/net_helpers.h"
 #include "test/gtest.h"
+
+#if defined(WEBRTC_POSIX)
+#include <netdb.h>
+#endif
 
 namespace webrtc {
 

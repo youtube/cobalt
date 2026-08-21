@@ -22,10 +22,8 @@
 #include "api/array_view.h"
 #include "api/audio/audio_device.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
-#include "api/task_queue/task_queue_factory.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_device/audio_device_impl.h"
 #include "modules/audio_device/test_audio_device_impl.h"
@@ -423,15 +421,6 @@ class RawFileWriter : public TestAudioDeviceModule::Renderer {
 
 size_t TestAudioDeviceModule::SamplesPerFrame(int sampling_frequency_in_hz) {
   return CheckedDivExact(sampling_frequency_in_hz, kFramesPerSecond);
-}
-
-scoped_refptr<AudioDeviceModule> TestAudioDeviceModule::Create(
-    TaskQueueFactory* task_queue_factory,
-    std::unique_ptr<TestAudioDeviceModule::Capturer> capturer,
-    std::unique_ptr<TestAudioDeviceModule::Renderer> renderer,
-    float speed) {
-  return Create(CreateEnvironment(task_queue_factory), std::move(capturer),
-                std::move(renderer), speed);
 }
 
 scoped_refptr<AudioDeviceModule> TestAudioDeviceModule::Create(

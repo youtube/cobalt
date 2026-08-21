@@ -24,7 +24,6 @@ namespace scheduler {
 class TaskAttributionInfo;
 }  // namespace scheduler
 
-class ScriptState;
 class SoftNavigationContext;
 class SoftNavigationPaintAttributionTracker;
 
@@ -107,7 +106,7 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   void SameDocumentNavigationCommitted(const String& url,
                                        SoftNavigationContext*);
-  bool ModifiedDOM(Node* node);
+  void ModifiedDOM(Node* node);
   uint32_t SoftNavigationCount() { return soft_navigation_count_; }
 
   // TaskAttributionTracker::Observer's implementation.
@@ -126,8 +125,8 @@ class CORE_EXPORT SoftNavigationHeuristics
 
   // Returns an `EventScope` suitable for navigation. Used for navigations not
   // yet associated with an event.
-  EventScope CreateNavigationEventScope(ScriptState* script_state) {
-    return CreateEventScope(EventScope::Type::kNavigate, script_state);
+  EventScope CreateNavigationEventScope() {
+    return CreateEventScope(EventScope::Type::kNavigate);
   }
 
   // Returns an `EventScope` for the given `Event` if the event is relevant to
@@ -143,6 +142,10 @@ class CORE_EXPORT SoftNavigationHeuristics
   // collection to remove items from `potential_soft_navigations_`.
   void ProcessCustomWeakness(const LivenessBroker& info);
 
+  bool IsTrackingSoftNavigationsForTest() const {
+    return !potential_soft_navigations_.empty();
+  }
+
  private:
   void ReportSoftNavigationToMetrics(SoftNavigationContext*) const;
   void SetIsTrackingSoftNavigationHeuristicsOnDocument(bool value) const;
@@ -156,9 +159,8 @@ class CORE_EXPORT SoftNavigationHeuristics
   SoftNavigationContext* GetSoftNavigationContextForCurrentTask() const;
 
   void EmitSoftNavigationEntryIfAllConditionsMet(SoftNavigationContext*);
-  LocalFrame* GetLocalFrameIfOutermostAndNotDetached() const;
   void OnSoftNavigationEventScopeDestroyed(const EventScope&);
-  EventScope CreateEventScope(EventScope::Type type, ScriptState*);
+  EventScope CreateEventScope(EventScope::Type type);
   uint64_t CalculateRequiredPaintArea() const;
   uint64_t CalculateViewportArea() const;
 

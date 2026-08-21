@@ -13,7 +13,6 @@
 #if defined(WEBRTC_WIN)
 #include <windows.h>
 #else
-#include <sched.h>
 #include <time.h>
 #endif
 

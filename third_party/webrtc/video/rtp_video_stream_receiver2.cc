@@ -1322,15 +1322,15 @@ void RtpVideoStreamReceiver2::NotifyReceiverOfEmptyPacket(
   }
 }
 
-bool RtpVideoStreamReceiver2::DeliverRtcp(const uint8_t* rtcp_packet,
-                                          size_t rtcp_packet_length) {
+bool RtpVideoStreamReceiver2::DeliverRtcp(
+    ArrayView<const uint8_t> rtcp_packet) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
 
   if (!receiving_) {
     return false;
   }
 
-  rtp_rtcp_->IncomingRtcpPacket(MakeArrayView(rtcp_packet, rtcp_packet_length));
+  rtp_rtcp_->IncomingRtcpPacket((rtcp_packet));
 
   std::optional<TimeDelta> rtt = rtp_rtcp_->LastRtt();
   if (!rtt.has_value()) {

@@ -134,7 +134,9 @@ def _parse_java_classes(contents, package_prefix, package_prefix_filter):
   package = _parse_package(contents).replace('.', '/')
   outer_class = None
   null_marked = False
-  nested_classes = []
+  # Use a set to avoid duplicates, which can happen due to method-scoped
+  # classes (which JNI Zero would ideally ignore, but that's harder).
+  nested_classes = set()
   for m in _CLASSES_REGEX.finditer(contents):
     preamble, class_name = m.groups()
     # Ignore annotations like @Foo("contains the words class Bar")
@@ -147,12 +149,12 @@ def _parse_java_classes(contents, package_prefix, package_prefix_filter):
           outer_class.package_with_dots, package_prefix_filter):
         outer_class = outer_class.make_prefixed(package_prefix)
     else:
-      nested_classes.append(outer_class.make_nested(class_name))
+      nested_classes.add(outer_class.make_nested(class_name))
 
   if outer_class is None:
     raise ParseError('No classes found.')
 
-  return outer_class, nested_classes, null_marked
+  return outer_class, sorted(nested_classes), null_marked
 
 
 _ANNOTATION_REGEX = re.compile(

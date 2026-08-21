@@ -4,7 +4,6 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #ifndef skgpu_graphite_BufferManager_DEFINED
 #define skgpu_graphite_BufferManager_DEFINED
 
@@ -12,14 +11,14 @@
 #include "include/private/base/SkTArray.h"
 #include "src/gpu/BufferWriter.h"
 #include "src/gpu/graphite/Buffer.h"
-#include "src/gpu/graphite/DrawTypes.h"
-#include "src/gpu/graphite/GlobalCache.h"
 #include "src/gpu/graphite/ResourceTypes.h"
 #include "src/gpu/graphite/UploadBufferManager.h"
 
 #include <array>
-#include <optional>
-#include <tuple>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <utility>
 
 namespace skgpu::graphite {
 
@@ -123,7 +122,11 @@ public:
     };
 
     DrawBufferManager(ResourceProvider* resourceProvider, const Caps* caps,
-                      UploadBufferManager* uploadManager, DrawBufferManagerOptions dbmOpts = {});
+                      UploadBufferManager* uploadManager,
+                      int* maxUsedBufferCount,       // TODO(b/407062399): Remove post debugging
+                      uint32_t* maxUniformByteCount, //   ""
+                      uint32_t* maxVertexByteCount,  //   ""
+                      DrawBufferManagerOptions dbmOpts = {});
     ~DrawBufferManager();
 
     // Let possible users check if the manager is already in a bad mapping state and skip any extra
@@ -268,6 +271,13 @@ private:
     // transfer buffers from the UploadManager, remember so that the next Recording will fail.
     bool fMappingFailed = false;
 
+    // TODO(b/407062399): Debugging fields to track pathologic resource situations.
+    // Cloud dumps don't always fetch the DrawBufferManager, but reliably include the Recorder,
+    // so these point to storage fields in the Recorder.
+    int* fMaxUsedBufferCount;
+    uint32_t* fMaxUsedUniformBytes;
+    uint32_t* fMaxUsedVertexBytes;
+
 #if defined(GPU_TEST_UTILS)
     const bool fUseExactBuffSizes;
     const bool fAllowCopyingGpuOnly;
@@ -355,6 +365,10 @@ private:
     // If mapping failed on Buffers created/managed by this StaticBufferManager or by the mapped
     // transfer buffers from the UploadManager, remember so that finalize() will fail.
     bool fMappingFailed = false;
+
+    // TODO(b/407062399): Unused storage to satisfy tracking in UploadBufferManager, but we
+    // don't care about the static uploads.
+    int fTrackingStorage;
 };
 
 } // namespace skgpu::graphite

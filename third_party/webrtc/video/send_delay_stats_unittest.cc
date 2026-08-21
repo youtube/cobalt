@@ -24,14 +24,14 @@
 
 namespace webrtc {
 namespace {
-const uint32_t kSsrc1 = 17;
-const uint32_t kSsrc2 = 42;
-const uint32_t kRtxSsrc1 = 18;
-const uint32_t kRtxSsrc2 = 43;
-const uint16_t kPacketId = 2345;
+constexpr uint32_t kSsrc1 = 17;
+constexpr uint32_t kSsrc2 = 42;
+constexpr uint32_t kRtxSsrc1 = 18;
+constexpr uint32_t kRtxSsrc2 = 43;
+constexpr uint16_t kPacketId = 2345;
 const TimeDelta kMaxPacketDelay = TimeDelta::Seconds(11);
-const int kMinRequiredPeriodicSamples = 5;
-const int kProcessIntervalMs = 2000;
+constexpr int kMinRequiredPeriodicSamples = 5;
+constexpr int kProcessIntervalMs = 2000;
 }  // namespace
 
 class SendDelayStatsTest : public ::testing::Test {

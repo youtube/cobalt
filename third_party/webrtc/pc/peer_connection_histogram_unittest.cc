@@ -48,8 +48,14 @@
 #include "test/wait_until.h"
 
 namespace webrtc {
-
 namespace {
+
+using ::testing::NiceMock;
+using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
+using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
+
+class PeerConnectionWrapperForUsageHistogramTest;
+typedef PeerConnectionWrapperForUsageHistogramTest* RawWrapperPtr;
 
 constexpr const char kBasicRemoteDescription[] = R"(v=0
 o=- 0 0 IN IP4 127.0.0.1
@@ -68,11 +74,7 @@ a=rtcp-mux
 a=rtpmap:101 fake_audio_codec/8000
 )";
 
-using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
-using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
-using ::testing::NiceMock;
-
-const char kUsagePatternMetric[] = "WebRTC.PeerConnection.UsagePattern";
+constexpr char kUsagePatternMetric[] = "WebRTC.PeerConnection.UsagePattern";
 constexpr TimeDelta kDefaultTimeout = TimeDelta::Millis(10000);
 const SocketAddress kLocalAddrs[2] = {SocketAddress("1.1.1.1", 0),
                                       SocketAddress("2.2.2.2", 0)};
@@ -86,10 +88,6 @@ int MakeUsageFingerprint(std::set<UsageEvent> events) {
   }
   return signature;
 }
-
-class PeerConnectionWrapperForUsageHistogramTest;
-
-typedef PeerConnectionWrapperForUsageHistogramTest* RawWrapperPtr;
 
 class ObserverForUsageHistogramTest : public MockPeerConnectionObserver {
  public:
@@ -189,7 +187,8 @@ class PeerConnectionWrapperForUsageHistogramTest
   }
 
   bool GenerateOfferAndCollectCandidates() {
-    auto offer = CreateOffer(RTCOfferAnswerOptions());
+    std::unique_ptr<SessionDescriptionInterface> offer =
+        CreateOffer(RTCOfferAnswerOptions());
     if (!offer) {
       return false;
     }
@@ -698,7 +697,7 @@ TEST_F(PeerConnectionUsageHistogramTest,
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   // By default, the Answer created does not contain ICE candidates.
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   callee->SetLocalDescription(CloneSessionDescription(answer.get()));
   caller->SetRemoteDescription(std::move(answer));
   EXPECT_THAT(
@@ -811,5 +810,4 @@ TEST_F(PeerConnectionUsageHistogramTest,
 #endif
 
 }  // namespace
-
 }  // namespace webrtc

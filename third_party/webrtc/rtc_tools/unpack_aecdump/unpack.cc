@@ -13,20 +13,21 @@
 // The debug files are dumped as protobuf blobs. For analysis, it's necessary
 // to unpack the file into its component parts: audio and other data.
 
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
+#include <cinttypes>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "api/audio/audio_view.h"
 #include "api/function_view.h"
 #include "common_audio/channel_buffer.h"
-#include "common_audio/include/audio_util.h"
 #include "common_audio/wav_file.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
 #include "rtc_base/checks.h"

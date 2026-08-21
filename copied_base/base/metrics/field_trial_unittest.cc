@@ -1167,7 +1167,7 @@ TEST_F(FieldTrialListTest, DumpAndFetchFromSharedMemory) {
   EXPECT_EQ("value2", shm_params["key2"]);
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
 MULTIPROCESS_TEST_MAIN(SerializeSharedMemoryRegionMetadata) {
   std::string serialized =
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII("field_trials");
@@ -1220,12 +1220,12 @@ TEST_F(FieldTrialListTest, SerializeSharedMemoryRegionMetadata) {
       process, TestTimeouts::action_timeout(), &exit_code));
   EXPECT_EQ(0, exit_code);
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_IOS)
 
 // Verify that the field trial shared memory handle is really read-only, and
 // does not allow writable mappings. Test disabled on NaCl, Fuchsia, and Mac,
 // which don't support/implement shared memory configuration.
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC)
 TEST_F(FieldTrialListTest, CheckReadOnlySharedMemoryRegion) {
   test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithEmptyFeatureAndFieldTrialLists();
@@ -1242,7 +1242,7 @@ TEST_F(FieldTrialListTest, CheckReadOnlySharedMemoryRegion) {
       base::ReadOnlySharedMemoryRegion::TakeHandleForSerialization(
           std::move(region))));
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_MAC)
+#endif  // !BUILDFLAG(IS_MAC)
 
 TEST_F(FieldTrialListTest, TestGetRandomizedFieldTrialCount) {
   EXPECT_EQ(0u, FieldTrialList::GetFieldTrialCount());

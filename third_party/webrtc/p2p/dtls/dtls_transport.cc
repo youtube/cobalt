@@ -640,7 +640,7 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
       DtlsStunPiggybackCallbacks(
           [&](auto stun_message_type) {
             std::optional<absl::string_view> data;
-            std::optional<absl::string_view> ack;
+            std::optional<std::vector<uint32_t>> ack;
             if (dtls_in_stun_) {
               data = dtls_stun_piggyback_controller_.GetDataToPiggyback(
                   stun_message_type);

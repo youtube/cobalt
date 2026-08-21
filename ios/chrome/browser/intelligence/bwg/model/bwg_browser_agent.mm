@@ -18,6 +18,9 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -60,6 +63,8 @@ void BwgBrowserAgent::PresentBwgOverlay(
     UIViewController* base_view_controller,
     base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
                    PageContextWrapperError> expected_page_context) {
+  SetSessionCommandHandlers();
+
   web::WebState* web_state = browser_->GetWebStateList()->GetActiveWebState();
 
   BWGConfiguration* config = [[BWGConfiguration alloc] init];
@@ -80,6 +85,8 @@ void BwgBrowserAgent::PresentBwgOverlay(
   config.shouldAnimatePresentation =
       !bwg_tab_helper->GetIsBwgSessionActiveInBackground();
   config.shouldShowZeroState = bwg_tab_helper->ShouldShowZeroState();
+  config.shouldShowSuggestionChips =
+      bwg_tab_helper->ShouldShowSuggestionChips();
 
   // Set the page context and page state for the current web state. If the page
   // context is unavailable, the page state represents the error.
@@ -114,4 +121,16 @@ void BwgBrowserAgent::PresentBwgOverlay(
   // Start the overlay and update the tab helper to reflect this.
   ios::provider::StartBwgOverlay(config);
   bwg_tab_helper->SetBwgUiShowing(true);
+}
+
+#pragma mark - Private
+
+void BwgBrowserAgent::SetSessionCommandHandlers() {
+  id<SettingsCommands> settings_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), SettingsCommands);
+  id<BWGCommands> bwg_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(), BWGCommands);
+
+  bwg_session_handler_.settingsHandler = settings_handler;
+  bwg_session_handler_.BWGHandler = bwg_handler;
 }

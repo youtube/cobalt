@@ -25,7 +25,7 @@ namespace webrtc {
 namespace test {
 
 namespace {
-const int kHeaderLengthBytes = 12;
+constexpr int kHeaderLengthBytes = 12;
 
 void MakeRtpHeader(int payload_type,
                    int seq_number,

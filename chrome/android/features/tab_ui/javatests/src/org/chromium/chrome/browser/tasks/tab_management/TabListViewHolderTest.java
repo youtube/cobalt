@@ -91,6 +91,7 @@ import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFavicon;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconFetcher;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
 import org.chromium.chrome.browser.tab_ui.ThumbnailProvider;
+import org.chromium.chrome.browser.tab_ui.ThumbnailProvider.MultiThumbnailMetadata;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.AnimationStatus;
@@ -196,7 +197,7 @@ public class TabListViewHolderTest {
                     new ThumbnailProvider() {
                         @Override
                         public void getTabThumbnailWithCallback(
-                                int tabId,
+                                MultiThumbnailMetadata metadata,
                                 Size thumbnailSize,
                                 boolean isSelected,
                                 Callback<Drawable> callback) {
@@ -209,7 +210,8 @@ public class TabListViewHolderTest {
                             callback.onResult(new BitmapDrawable(bitmap));
                         }
                     },
-                    Tab.INVALID_TAB_ID);
+                    MultiThumbnailMetadata.createMetadataWithoutUrls(
+                            Tab.INVALID_TAB_ID, false, false, null));
     private final AtomicInteger mThumbnailFetchedCount = new AtomicInteger();
 
     private final TabListMediator.TabActionListener mMockCloseListener =
@@ -694,7 +696,7 @@ public class TabListViewHolderTest {
         mGridModel.set(TabProperties.IS_SELECTED, isSelected);
         ColorStateList unselectedColorStateList =
                 TabCardThemeUtil.getActionButtonTintList(
-                        sActivity, isIncognito, isSelected, /* colorId */ null);
+                        sActivity, isIncognito, isSelected, /* colorId= */ null);
 
         Assert.assertEquals(
                 unselectedColorStateList, ImageViewCompat.getImageTintList(gridActionButton));
@@ -703,7 +705,7 @@ public class TabListViewHolderTest {
         mGridModel.set(TabProperties.IS_SELECTED, isSelected);
         ColorStateList selectedColorStateList =
                 TabCardThemeUtil.getActionButtonTintList(
-                        sActivity, isIncognito, isSelected, /* colorId */ null);
+                        sActivity, isIncognito, isSelected, /* colorId= */ null);
         Assert.assertEquals(
                 selectedColorStateList, ImageViewCompat.getImageTintList(gridActionButton));
     }

@@ -278,7 +278,6 @@
 #include "components/webapps/browser/android/install_prompt_prefs.h"
 #else  // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/contextual_cueing/contextual_cueing_prefs.h"
-#include "chrome/browser/device_api/device_service_impl.h"
 #include "chrome/browser/gcm/gcm_product_util.h"
 #include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/intranet_redirect_detector.h"
@@ -309,6 +308,7 @@
 #include "chrome/browser/ui/webui/certificate_manager/certificate_manager_handler.h"
 #include "chrome/browser/ui/webui/cr_components/theme_color_picker/theme_color_picker_handler.h"
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
+#include "chrome/browser/ui/webui/management/management_ui.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
@@ -1027,6 +1027,14 @@ inline constexpr char kFirstSyncCompletedInFullSyncMode[] =
 inline constexpr char kGoogleServicesSecondLastSyncingGaiaId[] =
     "google.services.second_last_gaia_id";
 
+#if BUILDFLAG(IS_CHROMEOS)
+// Deprecated 07/2025.
+inline constexpr char kAssistantNumSessionsWhereOnboardingShown[] =
+    "ash.assistant.num_sessions_where_onboarding_shown";
+inline constexpr char kAssistantTimeOfLastInteraction[] =
+    "ash.assistant.time_of_last_interaction";
+#endif
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1431,6 +1439,12 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterBooleanPref(kFirstSyncCompletedInFullSyncMode, false);
   registry->RegisterStringPref(kGoogleServicesSecondLastSyncingGaiaId,
                                std::string());
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Deprecated 07/2025.
+  registry->RegisterIntegerPref(kAssistantNumSessionsWhereOnboardingShown, 0);
+  registry->RegisterTimePref(kAssistantTimeOfLastInteraction, base::Time());
+#endif
 }
 
 }  // namespace
@@ -1930,7 +1944,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ChromeAuthenticatorRequestDelegate::RegisterProfilePrefs(registry);
   commerce::CommerceUiTabHelper::RegisterProfilePrefs(registry);
   contextual_cueing::prefs::RegisterProfilePrefs(registry);
-  DeviceServiceImpl::RegisterProfilePrefs(registry);
   DriveService::RegisterProfilePrefs(registry);
   extensions::TabsCaptureVisibleTabFunction::RegisterProfilePrefs(registry);
   first_run::RegisterProfilePrefs(registry);
@@ -1939,6 +1952,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   HatsServiceDesktop::RegisterProfilePrefs(registry);
   lens::prefs::RegisterProfilePrefs(registry);
   NtpCustomBackgroundService::RegisterProfilePrefs(registry);
+  ManagementUI::RegisterProfilePrefs(registry);
   media_router::RegisterAccessCodeProfilePrefs(registry);
   media_router::RegisterProfilePrefs(registry);
   MicrosoftAuthPageHandler::RegisterProfilePrefs(registry);
@@ -1996,9 +2010,12 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(prefs::kFloatingSsoEnabled, false);
   registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklist);
   registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklistExceptions);
+  registry->RegisterBooleanPref(prefs::kFloatingSsoSessionCookiesIncluded,
+                                false);
 #if BUILDFLAG(USE_CUPS)
   extensions::PrintingAPIHandler::RegisterProfilePrefs(registry);
 #endif  // BUILDFLAG(USE_CUPS)
+
   app_list::AppListSyncableService::RegisterProfilePrefs(registry);
   apps::AlmanacFetcher::RegisterProfilePrefs(registry);
   apps::AppPlatformMetricsService::RegisterProfilePrefs(registry);
@@ -2675,6 +2692,12 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 07/2025.
   profile_prefs->ClearPref(kFirstSyncCompletedInFullSyncMode);
   profile_prefs->ClearPref(kGoogleServicesSecondLastSyncingGaiaId);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  // Added 07/2025.
+  profile_prefs->ClearPref(kAssistantNumSessionsWhereOnboardingShown);
+  profile_prefs->ClearPref(kAssistantTimeOfLastInteraction);
+#endif
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

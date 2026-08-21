@@ -293,8 +293,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)                                   \
-  V(js_base_64, "Uint8Array to/from base64 and hex")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                    \
@@ -311,16 +310,17 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #define HARMONY_SHIPPING_BASE(V) \
   V(harmony_import_attributes, "harmony import attributes")
 
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                           \
-  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups") \
-  V(js_regexp_modifiers, "RegExp modifiers")                           \
-  V(js_promise_try, "Promise.try")                                     \
-  V(js_atomics_pause, "Atomics.pause")                                 \
-  V(js_error_iserror, "Error.isError")                                 \
-  V(js_regexp_escape, "RegExp.escape")                                 \
-  V(js_explicit_resource_management, "explicit resource management")   \
-  V(js_float16array,                                                   \
-    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16")
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)                                 \
+  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")       \
+  V(js_regexp_modifiers, "RegExp modifiers")                                 \
+  V(js_promise_try, "Promise.try")                                           \
+  V(js_atomics_pause, "Atomics.pause")                                       \
+  V(js_error_iserror, "Error.isError")                                       \
+  V(js_regexp_escape, "RegExp.escape")                                       \
+  V(js_explicit_resource_management, "explicit resource management")         \
+  V(js_float16array,                                                         \
+    "Float16Array, Math.f16round, DataView.getFloat16, DataView.setFloat16") \
+  V(js_base_64, "Uint8Array to/from base64 and hex")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -633,6 +633,9 @@ DEFINE_INT(max_maglev_inlined_bytecode_size_cumulative, 920,
            "small functions")
 DEFINE_INT(max_maglev_inlined_bytecode_size_small, 27,
            "maximum size of bytecode considered for small function inlining")
+DEFINE_INT(max_maglev_inlined_bytecode_size_small_with_heapnum_in_out, 75,
+           "maximum size of bytecode considered for small function inlining, "
+           "when the function call has a HeapNumber as input or output")
 DEFINE_FLOAT(min_maglev_inlining_frequency, 0.10,
              "minimum frequency for inlining")
 DEFINE_WEAK_VALUE_IMPLICATION(turbofan, max_maglev_inline_depth, 1)
@@ -659,12 +662,6 @@ DEFINE_EXPERIMENTAL_FEATURE(turbolev_non_eager_inlining,
                             "enable Turbolev non-eager inlining")
 DEFINE_WEAK_IMPLICATION(turbolev_future, turbolev_non_eager_inlining)
 
-DEFINE_BOOL(maglev_inlining_following_eager_order, false,
-            "enable Maglev non-eager inlining using the same order as eager "
-            "inlining (for testing)")
-DEFINE_IMPLICATION(maglev_inlining_following_eager_order,
-                   maglev_non_eager_inlining)
-
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_STRING(maglev_print_filter, "*",
               "filter for maglev's tracing/printing options")
@@ -672,27 +669,32 @@ DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
 DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
                   "insert stack size checks before every IR node")
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
+DEFINE_BOOL(maglev_print_bytecode, false,
+            "print bytecode for maglev compiled code")
 DEFINE_BOOL(maglev_print_feedback, true,
             "print feedback vector for maglev compiled code")
 DEFINE_BOOL(maglev_print_inlined, true,
             "print bytecode / feedback vectors also for inlined code")
 
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
+DEFINE_WEAK_IMPLICATION(print_maglev_code, maglev_print_bytecode)
+
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_loop_speeling, false, "trace maglev loop SPeeling")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, trace_maglev_loop_speeling)
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
-DEFINE_BOOL(trace_maglev_inlining_verbose, false,
-            "trace maglev inlining (verbose)")
-DEFINE_IMPLICATION(trace_maglev_inlining_verbose, trace_maglev_inlining)
 
 #ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
 DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
 DEFINE_WEAK_IMPLICATION(trace_deopt_verbose, print_maglev_deopt_verbose)
 DEFINE_BOOL(print_maglev_graph, false, "print the final maglev graph")
 DEFINE_BOOL(print_maglev_graphs, false, "print maglev graph across all phases")
+DEFINE_WEAK_IMPLICATION(print_maglev_graph, maglev_print_bytecode)
+DEFINE_IMPLICATION(print_maglev_graphs, print_maglev_graph)
 DEFINE_BOOL(trace_maglev_phi_untagging, false, "trace maglev phi untagging")
+DEFINE_WEAK_IMPLICATION(trace_maglev_phi_untagging, maglev_print_bytecode)
 DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
+DEFINE_WEAK_IMPLICATION(trace_maglev_regalloc, maglev_print_bytecode)
 #else
 DEFINE_BOOL_READONLY(print_maglev_deopt_verbose, false,
                      "print verbose deopt info")
@@ -1437,6 +1439,7 @@ DEFINE_BOOL(trace_maglev_object_tracking, false,
             "trace load/stores from maglev virtual objects")
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building,
                         trace_maglev_object_tracking)
+DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, maglev_print_bytecode)
 
 // TODO(dmercadier): fix and re-enable string builder.
 DEFINE_BOOL_READONLY(turbo_string_builder, false,
@@ -1617,10 +1620,16 @@ DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 DEFINE_IMPLICATION(experimental_wasm_shared, shared_string_table)
 #endif
 
+DEFINE_BOOL(
+    deduplicate_heap_number_requests, false,
+    "avoid duplicated HeapNumber materializations in HeapNumberRequests")
+
 #ifdef DEBUG
 
 DEFINE_BOOL(turboshaft_verify_load_elimination, false,
             "insert runtime checks to verify Late Load Elimination")
+DEFINE_IMPLICATION(turboshaft_verify_load_elimination,
+                   deduplicate_heap_number_requests)
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
               "of steps, useful for bisecting optimization bugs")
@@ -2167,6 +2176,8 @@ DEFINE_SIZE_T(preconfigured_old_space_size, 0,
               "preconfigured old space size (in Mbytes)")
 DEFINE_WEAK_VALUE_IMPLICATION(future, preconfigured_old_space_size, size_t{32})
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
+DEFINE_BOOL(gc_on_background_notification, false,
+            "Perform a GC after being backgrounded.")
 
 // TODO(12950): The next three flags only have an effect if
 // V8_ENABLE_ALLOCATION_TIMEOUT is set, so we should only define them in that
@@ -3064,7 +3075,7 @@ DEFINE_BOOL(
 //
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 DEFINE_BOOL(
-    strict_pkey_sandbox, false,
+    strict_pkey_sandbox, true,
     "Enable strict pkey-based hardware sandboxing for the V8 Sandbox. When "
     "this is enabled, sandboxed code does not have write access to any "
     "out-of-sandbox memory, except for \"sandbox extension\" memory "
@@ -3378,6 +3389,8 @@ DEFINE_BOOL(log_function_events, false,
 
 DEFINE_BOOL(detailed_line_info, false,
             "Always generate detailed line information for CPU profiling.")
+
+DEFINE_BOOL(prof_include_idle, false, "Include idle samples in the profile")
 
 DEFINE_BOOL(perfetto_code_logger, false,
             "Enable the Perfetto code data source.")

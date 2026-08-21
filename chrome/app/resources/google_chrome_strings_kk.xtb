@@ -232,6 +232,7 @@
 <translation id="3785324443014631273">Кіру кезіндегі қате салдарынан ChromeOS Flex деректеріңізді синхрондай алмады.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome браузері Windows 10 жүйесін не одан кейінгі нұсқасын қажет етеді.</translation>
+<translation id="3810973564298564668">Басқару</translation>
 <translation id="383928141529488001">Bluetooth құрылғыларын іздеу үшін Google Chrome-ға Bluetooth пайдалану рұқсаты қажет. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Барлық Google Chrome терезелерін жауып, әрекетті қайталап көріңіз.</translation>
 <translation id="3873044882194371212">Сілтемені Chrome инкогнито терезесінде ашу</translation>
@@ -317,6 +318,7 @@
 <translation id="4895437082222824641">Сілтемені жаңа Chrome қойындысында ашу</translation>
 <translation id="4918844574251943176">Сурет көшірілді.</translation>
 <translation id="492720062778050435">Chrome осы кеңейтімді қарап шығуды ұсынады</translation>
+<translation id="4946912144186040233">Chrome үлгілерді жақсы түсінеді және сізден де жылдам толтыра алады. Бұл параметр өшірулі.</translation>
 <translation id="4953650215774548573">Әдепкі браузеріңіз ретінде Google Chrome орнату</translation>
 <translation id="495931528404527476">Chrome ішінде</translation>
 <translation id="4969674060580488087">ChromeOS Flex деректеріңізді синхрондай алмайды, себебі аккаунтыңызға кіру мәліметтері ескірген.</translation>
@@ -325,6 +327,7 @@
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">"Google Password Manager" түймесін басыңыз.</translation>
 <translation id="504867494566807945">Кез келген қолданба сілтемесін Chrome-нан ашыңыз. Оңай қол жеткізу үшін ол тапсырмалар жолағына бекітіледі.</translation>
+<translation id="5049567194145991071">"Түсінікті" түймесін бассаңыз, Chrome-ға кірген жағдайда құпия сөздерді және т.б. ақпаратты Google аккаунтына сақтап, пайдалануға болады. <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644">Chrome деректерін <ph name="USER_EMAIL" /> аккаунтында қолдану және сақтау үшін құпия фразаны енгізіңіз.</translation>
 <translation id="5120334927898581447">Басқа Google қызметтеріне кірген кезде, Chrome-ға де кіресіз</translation>
 <translation id="5126049312684316860">Chrome сіз кіруіңіз мүмкін көбірек бетті алдын ала жүктейді, сонда оларға кірген кезіңізде, тезірек жүктеледі.</translation>
@@ -513,6 +516,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7481213027396403996">Chrome браузерінің ең күшті қорғанысын қолданыңыз</translation>
 <translation id="749228101751499733">Аккаунтқа кірсеңіз, Chrome-нан Google аккаунтыңыздағы құпия сөздер мен т.б. ақпаратты пайдалана аласыз. <ph name="SHORTCUT" /> тіркесімі арқылы Google қызметтерінің параметрлерін өзгертуге болады.</translation>
 <translation id="7496017508659652909">Chrome беттерді алдын ала жүктейді, осылайша браузерді пайдалану және іздеу әрекеті тез жүреді. <ph name="BEGIN_LINK" />Беттерді алдын ала жүктеу туралы толық ақпарат<ph name="END_LINK" /></translation>
+<translation id="7510927761955779701">Chrome үлгілерді жақсы түсінеді және сізден де жылдам толтыра алады. Бұл параметр қосулы.</translation>
 <translation id="7514258452813684157">"Google-ды жаңарту құралы" қызметі</translation>
 <translation id="7515191208480168435">Google Lens-ге оңай қол жеткізу үшін оны бекітуге болады.</translation>
 <translation id="7535429826459677826">Google Chrome Dev</translation>
@@ -522,6 +526,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> орнату құралы</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474">Бұл құрылғыны пайдаланбас бұрын, <ph name="MANAGER" /> келесі Қызмет көрсету шарттарын оқып, қабылдауыңызды талап етеді. Бұл шарттар Google ChromeOS Шарттарын толықтырмайды, өзгертпейді және шектемейді.</translation>
+<translation id="7627609214560473136">Деректеріңізді қорғау үшін Chrome-ға сіз соңғы уақытта кірмеген сайттардың рұқсаттарын өшіруге рұқсат беріңіз.</translation>
 <translation id="7629695634924605473">Құпия сөздеріңіз ұрланған жағдайда, Chrome бұл туралы хабарлайды.</translation>
 <translation id="7641148173327520642">Жүйе әкімшісі Google Chrome браузерін <ph name="TARGET_URL_HOSTNAME" /> бетіне кіру кезінде <ph name="ALTERNATIVE_BROWSER_NAME" /> ашылатын етіп конфигурациялады.</translation>
 <translation id="7649070708921625228">Анықтама</translation>
@@ -544,6 +549,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7801699035218095297">Google Chrome құпия сөздерді көшіргісі келеді. Бұған рұқсат беру үшін Windows құпия сөзіңізді теріңіз.</translation>
 <translation id="7808348361785373670">Chrome ішінен жою…</translation>
 <translation id="7825851276765848807">Орнату анықталмаған қате себебінен сәтсіз аяқталды. Google Chrome браузерін қайта жүктеңіз.</translation>
+<translation id="7826342993930002256">Chrome-ды кез келген жерде пайдаланыңыз</translation>
 <translation id="7827099906024714326">Chrome браузері деректерді Google аккаунтыңызға сақтау және барлық құрылғыңызда пайдалануға рұқсат беру үшін жеке басыңызды растауы қажет. Қазір шықсаңыз, бұл деректер жойылады.</translation>
 <translation id="7845233973568007926">Орнатқаныңыз үшін рақмет. <ph name="BUNDLE_NAME" /> пайдаланбас бұрын компьютерді өшіріп қосуыңыз керек.</translation>
 <translation id="7872446069773932638">Жүктеп алынып жатыр… <ph name="SECONDS" /> секунд қалды.</translation>
@@ -608,6 +614,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8649026945479135076">Әдетте кіретін сайттарыңыз тәжірибені жекелендіру үшін сізді қызықтыратын нәрселерді есте сақтайды. Сондай-ақ сайттар Chrome браузерінде қызығушылықтарыңыз туралы ақпаратты сақтай алады.</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Сонымен қатар Chrome бастапқы бетін де бақылайды.</translation>
+<translation id="8712637175834984815">Түсінікті</translation>
 <translation id="8712767363896337380">Дайын болып қалды. Жаңартуды аяқтау үшін Chrome браузерін қайта іске қосыңыз.</translation>
 <translation id="8718062187489036808">Chrome жүйесінен шығу</translation>
 <translation id="873133009373065397">Google Chrome әдепкі браузерді анықтай не орната алмайды</translation>

@@ -26,7 +26,7 @@ using ::testing::MockFunction;
 using ::webrtc::rtcp::ReceiverReport;
 using ::webrtc::rtcp::ReportBlock;
 
-const uint32_t kSenderSsrc = 0x12345678;
+constexpr uint32_t kSenderSsrc = 0x12345678;
 
 TEST(RtcpPacketTest, BuildWithTooSmallBuffer) {
   ReportBlock rb;

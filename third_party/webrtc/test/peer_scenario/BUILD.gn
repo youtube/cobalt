@@ -31,6 +31,7 @@ if (rtc_include_tests) {
       "../../api:array_view",
       "../../api:audio_options_api",
       "../../api:candidate",
+      "../../api:create_modular_peer_connection_factory",
       "../../api:enable_media_with_defaults",
       "../../api:field_trials",
       "../../api:libjingle_peerconnection_api",

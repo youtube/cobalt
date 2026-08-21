@@ -42,7 +42,7 @@ constexpr double kDelayGradientThreshold = 0.01;
 constexpr double kDelayGradientNegativeBound = 10;
 
 const DataRate kTargetSendingRate = DataRate::KilobitsPerSec(300);
-const double kEpsilon = 0.05;
+constexpr double kEpsilon = 0.05;
 const Timestamp kStartTime = Timestamp::Micros(0);
 const TimeDelta kPacketsDelta = TimeDelta::Millis(1);
 const TimeDelta kIntervalDuration = TimeDelta::Millis(1000);

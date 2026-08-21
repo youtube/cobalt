@@ -10,6 +10,7 @@
 
 #include "rtc_base/test_echo_server.h"
 
+#include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
 
 namespace webrtc {

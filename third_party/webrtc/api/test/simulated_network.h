@@ -21,6 +21,8 @@
 #include "absl/functional/any_invocable.h"
 #include "api/transport/ecn_marking.h"
 #include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/timestamp.h"
 
 namespace webrtc {
 
@@ -33,10 +35,23 @@ struct PacketInFlightInfo {
         send_time_us(send_time_us),
         packet_id(packet_id),
         ecn(ecn) {}
+  PacketInFlightInfo(DataSize size,
+                     Timestamp send_time,
+                     uint64_t packet_id,
+                     EcnMarking ecn)
+      : PacketInFlightInfo(size.bytes(), send_time.us(), packet_id, ecn) {}
+  PacketInFlightInfo(DataSize size, Timestamp send_time, uint64_t packet_id)
+      : PacketInFlightInfo(size.bytes(),
+                           send_time.us(),
+                           packet_id,
+                           EcnMarking::kNotEct) {}
 
   PacketInFlightInfo(size_t size, int64_t send_time_us, uint64_t packet_id)
       : PacketInFlightInfo(size, send_time_us, packet_id, EcnMarking::kNotEct) {
   }
+
+  DataSize packet_size() const { return DataSize::Bytes(size); }
+  Timestamp send_time() const { return Timestamp::Micros(send_time_us); }
 
   size_t size;
   int64_t send_time_us;

@@ -314,8 +314,8 @@ struct URLResponseHead {
 
   // List of content decoding algorithms to attempt. The client needs to decode
   // the response body using these algorithms, in the reverse order.
-  // This is only non-empty if `client_size_content_decoding_enabled` was set to
-  // true on the request?
+  // This is only non-empty if `client_side_content_decoding_enabled` was set to
+  // true on the request.
   array<SourceType> client_side_content_decoding_types;
 
   // Whether the request is in the scope of a device bound session.
@@ -325,4 +325,7 @@ struct URLResponseHead {
   // True if the synthetic response is used. This indicates the response headers
   // are returned with the locally storead headers. See crbug.com/352578800.
   bool from_synthetic_response = false;
+
+  // True when a proxy will handle the redirect checks.
+  bool bypass_redirect_checks = false;
 };

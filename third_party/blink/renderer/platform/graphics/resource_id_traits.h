@@ -12,7 +12,7 @@
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<viz::ResourceId>
@@ -21,7 +21,7 @@ struct CrossThreadCopier<viz::ResourceId>
 template <>
 struct HashTraits<viz::ResourceId> : GenericHashTraits<viz::ResourceId> {
   static uint32_t GetHash(const viz::ResourceId& id) {
-    return WTF::GetHash(id.GetUnsafeValue());
+    return blink::GetHash(id.GetUnsafeValue());
   }
   static const bool kEmptyValueIsZero = false;
   static viz::ResourceId EmptyValue() {
@@ -32,6 +32,6 @@ struct HashTraits<viz::ResourceId> : GenericHashTraits<viz::ResourceId> {
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_RESOURCE_ID_TRAITS_H_

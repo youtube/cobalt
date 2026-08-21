@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Google-aðgangsorðastjórnun gat ekki athugað aðgangsorðin þín. Athugaðu nettenginguna þína.</translation>
 <translation id="1394995526009609883">Þú getur uppfært valið þitt hvenær sem er í stillingum Chrome.</translation>
 <translation id="1407843355326180937">Skráðu þig inn á þetta vefsvæði og Chrome til að fá bókamerkin þín og fleira í öll tækin þín.</translation>
-<translation id="1426599484714342603">Nýttu þér mátt Chrome þegar þú verslar</translation>
 <translation id="1462727070346936664">Skráðu þig inn til að fá sem mest út úr Chrome.</translation>
 <translation id="1493827051843127077">Notaðu Chrome sem sjálfgefinn kost til að samstilla flipa, aðgangsorð og greiðsluupplýsingar í öllum tækjunum þínum</translation>
 <translation id="1504372625950710826">Chrome gat ekki leitað að uppfærslum. Athugaðu nettenginguna þína.</translation>
@@ -33,7 +32,6 @@ Hafðu í huga:
 <translation id="1554731936187952550">Þú ert með öflugustu öryggisráðstafanir Chrome gegn skaðlegum vefsvæðum</translation>
 <translation id="155816064895200734">Stilla Chrome sem sjálfgefinn vafra</translation>
 <translation id="1580570086594302477">Opnar nýjan huliðsflipa í Chrome.</translation>
-<translation id="1634522710245925681">Notaðu Chrome sem sjálfgefinn vafra til að fá verðinnsýn í hvelli</translation>
 <translation id="1646463005043273333">Opnar stillingar Chrome til að stilla Chrome sem sjálfgefinn vafra.</translation>
 <translation id="1670609221633730681">Chrome-ábending: Veldu staðsetningu veffangastikunnar</translation>
 <translation id="1683863426423719967">Til að fá flipaáminningar frá Chrome skaltu kveikja á tilkynningum í iOS stillingum.</translation>
@@ -65,14 +63,12 @@ Hafðu í huga:
 <translation id="2423077901494354337">Nú mun Chrome nýtast þér sem best í tækinu.</translation>
 <translation id="2427791862912929107">Chrome inniheldur eiginleika sem hjálpa þér að stjórna netgögnunum þínum og hleðsluhraða vefsíðna.
 <ph name="BEGIN_LINK" />Frekari upplýsingar<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">Notaðu Chrome fyrir sjálfvirka útfyllingu til að fá aðgang að vistuðum aðgangsorðum í öðrum forritum á einfaldan hátt</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mín. Þetta getur falið í sér feril og sjálfvirka útfyllingu.}one{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mín. Þetta getur falið í sér feril og sjálfvirka útfyllingu.}other{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mín. Þetta getur falið í sér feril og sjálfvirka útfyllingu.}}</translation>
 <translation id="2561231791489583059">Notaðu Chrome sem sjálfgefinn vafra til að njóta verndar gegn hættulegum vefsvæðum og tryggja öryggi aðgangsorðanna þinna</translation>
 <translation id="2574249610672786438">Skráðu þig inn í öllum tækjunum þínum til að sjá flipana þína hvar sem þú notar Chrome</translation>
 <translation id="2576431527583832481">Chrome er nú enn betra! Ný útgáfa er í boði.</translation>
 <translation id="257708665678654955">Viltu að Google Chrome bjóðist til að þýða síður á <ph name="LANGUAGE_NAME" /> næst á þessu vefsvæði?</translation>
 <translation id="2668242166988961773">Leita með röddinni í Chrome.</translation>
-<translation id="2671426118752779020">Þú getur notað aðgangsorðin sem þú vistaðir í aðgangsorðastjórnun Google í öðrum forritum í iPhone.</translation>
 <translation id="2689064829982324496">Til að skrá þig út af Google reikningnum þínum á öllum vefsvæðum skaltu <ph name="BEGIN_LINK" />skrá þig út af Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome gat ekki leitað að uppfærslum. Reyndu aftur síðar.</translation>
 <translation id="2703746758996815929">Til að fá gagnleg ráð um Chrome skaltu kveikja á tilkynningum í iOS-stillingum.</translation>
@@ -222,7 +218,6 @@ Gögnin þín eru dulkóðuð með aðgangsorði. Sláðu það inn til að nota
 <translation id="6684809838922667136">Bættu Chrome</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mínútu. Gögnum sem voru eingöngu vistuð í þessu tæki á meðan þú varst skráð(ur) inn verður eytt. Það gæti m.a. átt við um feril og aðgangsorð.}one{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mínútu. Gögnum sem voru eingöngu vistuð í þessu tæki á meðan þú varst skráð(ur) inn verður eytt. Það gæti m.a. átt við um feril og aðgangsorð.}other{Þetta gerist þegar Chrome er ekki í notkun í {THRESHOLD} mínútur. Gögnum sem voru eingöngu vistuð í þessu tæki á meðan þú varst skráð(ur) inn verður eytt. Það gæti m.a. átt við um feril og aðgangsorð.}}</translation>
 <translation id="6709398533399187136">Aðgangsorðið þitt var afhjúpað vegna öryggisbrots. Aðgangsorðastjórnun Google mælir með að þú breytir því núna.</translation>
-<translation id="6788035488757621217">Opnaðu „<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />“ og veldu „Chrome“ í stillingum tækisins</translation>
 <translation id="6820553595690137150">Dulkóðun aðgangsorða felur ekki í sér greiðslumáta og vefföng.
 
 Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-gögnunum á reikningnum þínum<ph name="END_LINK" />.</translation>
@@ -242,7 +237,6 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="7175129790242719365">Chrome-ráð: Skráðu þig inn í Chrome</translation>
 <translation id="7187993566681480880">Tryggir öryggi þitt í Chrome og kann að vera notað til að auka öryggi þitt í öðrum Google forritum þegar þú hefur skráð þig inn.</translation>
 <translation id="7200524487407690471">Chrome keyrir öryggisathugun sjálfkrafa daglega til að verja þig gegn öryggisbrotum, ótraustum vefsvæðum og fleiru. Þú færð frekari upplýsingar um öryggisathugun í stillingunum.</translation>
-<translation id="72119412072970160">Þú getur notað aðgangsorðin sem þú vistaðir í aðgangsorðastjórnun Google í öðrum forritum í iPad.</translation>
 <translation id="7214019116829172458">Opna huliðsflipa í Chrome</translation>
 <translation id="722167379782941918">Chrome mælir með aukinni vörn</translation>
 <translation id="723787869754590019">Notaðu Chrome fyrir sjálfvirka útfyllingu</translation>
@@ -288,7 +282,6 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="8018153653741938705">Gættu að öryggi þínu með Google Chrome</translation>
 <translation id="8022947259858476807">Notaðu Chrome sem sjálfgefinn valkost til að opna tengla, leita í græjum og til sjálfvirkrar útfyllingar aðgangsorða í öðrum forritum</translation>
 <translation id="804638182476029347">Leyfa Chrome-tilkynningar til að fá tilkynningar um verðlækkanir</translation>
-<translation id="804756029368067824">Stilltu Chrome sem sjálfgefinn vafra til að rekja verð á auðveldan hátt og fá verðinnsýn fyrir hluti sem þú vilt kaupa.</translation>
 <translation id="8065292699993359127">Opna vefslóðir í Chrome í huliðsstillingu</translation>
 <translation id="8069507567842347179">Þegar er búið að rekja þennan pakka í Chrome.</translation>
 <translation id="8136856065410661948">Þetta verður notað til að búa til viðburði í Apple Calendar frá Chrome og Google-linsu.</translation>

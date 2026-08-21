@@ -175,6 +175,7 @@ android_library("content_full_java") {
     "//components/download/public/common:public_java",
     "//components/origin_matcher/android:java",
     "//components/payments/mojom:mojom_java",
+    "//content/common:common_java",
     "//content/public/common:common_java",
     "//device/bluetooth:java",
     "//device/gamepad:java",
@@ -763,6 +764,8 @@ robolectric_binary("content_junit_tests") {
     "junit/src/org/chromium/content/browser/webcontents/WebContentsImplTest.java",
     "junit/src/org/chromium/content/browser/webcontents/WebContentsObserverProxyTest.java",
     "junit/src/org/chromium/content_public/browser/MessagePayloadTest.java",
+    "junit/src/org/chromium/content_public/browser/media/capture/ImageHandlerTest.java",
+    "junit/src/org/chromium/content_public/browser/media/capture/ScreenCaptureTest.java",
   ]
 
   deps = [
@@ -772,6 +775,7 @@ robolectric_binary("content_junit_tests") {
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
     "//cc/mojom:mojom_java",
+    "//content/common:common_java",
     "//content/public/common:common_java",
     "//content/public/test/android:content_java_test_support",
     "//media/mojo/mojom:mojom_java",
@@ -780,6 +784,7 @@ robolectric_binary("content_junit_tests") {
     "//mojo/public/mojom/base:base_java",
     "//services/device/public/mojom:mojom_java",
     "//skia/public/mojom:mojom_java",
+    "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/blink/public/mojom:android_mojo_bindings_java",

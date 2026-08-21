@@ -36,11 +36,11 @@ using ::testing::_;
 using ::testing::InvokeWithoutArgs;
 
 namespace {
-const int kWidth = 640;
-const int kHeight = 480;
+constexpr int kWidth = 640;
+constexpr int kHeight = 480;
 // Corresponds to load of 15%
-const int kFrameIntervalUs = 33 * kNumMicrosecsPerMillisec;
-const int kProcessTimeUs = 5 * kNumMicrosecsPerMillisec;
+constexpr int kFrameIntervalUs = 33 * kNumMicrosecsPerMillisec;
+constexpr int kProcessTimeUs = 5 * kNumMicrosecsPerMillisec;
 }  // namespace
 
 class MockCpuOveruseObserver : public OveruseFrameDetectorObserverInterface {

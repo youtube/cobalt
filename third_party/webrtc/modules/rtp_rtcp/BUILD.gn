@@ -9,8 +9,10 @@
 import("../../webrtc.gni")
 
 rtc_library("leb128") {
-  public = [ "source/leb128.h" ]
-  sources = [ "source/leb128.cc" ]
+  sources = [
+    "source/leb128.cc",
+    "source/leb128.h",
+  ]
 }
 
 rtc_library("rtp_rtcp_format") {
@@ -416,15 +418,13 @@ rtc_library("ntp_time_util") {
 
 rtc_library("rtcp_transceiver") {
   visibility = [ "*" ]
-  public = [
-    "source/rtcp_transceiver.h",
-    "source/rtcp_transceiver_config.h",
-    "source/rtcp_transceiver_impl.h",
-  ]
   sources = [
     "source/rtcp_transceiver.cc",
+    "source/rtcp_transceiver.h",
     "source/rtcp_transceiver_config.cc",
+    "source/rtcp_transceiver_config.h",
     "source/rtcp_transceiver_impl.cc",
+    "source/rtcp_transceiver_impl.h",
   ]
   deps = [
     ":ntp_time_util",
@@ -507,7 +507,7 @@ rtc_library("fec_test_helper") {
 
 rtc_library("mock_rtp_rtcp") {
   testonly = true
-  public = [
+  sources = [
     "mocks/mock_network_link_rtcp_observer.h",
     "mocks/mock_network_state_estimator_observer.h",
     "mocks/mock_recovered_packet_receiver.h",

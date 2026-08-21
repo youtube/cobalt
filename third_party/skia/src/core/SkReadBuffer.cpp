@@ -396,7 +396,7 @@ static sk_sp<SkImage> add_mipmaps(sk_sp<SkImage> img, sk_sp<SkData> data,
     if (!buffer.isValid()) {
         return img;
     }
-    sk_sp<SkImage> raster = img->makeRasterImage();
+    sk_sp<SkImage> raster = img->makeRasterImage(nullptr);
     if (!raster) {
         return img;
     }
@@ -430,7 +430,7 @@ sk_sp<SkImage> SkReadBuffer::readImage() {
         SkIRect subset;
         this->readIRect(&subset);
         if (image) {
-            image = image->makeSubset(nullptr, subset);
+            image = image->makeSubset(nullptr, subset, {});
         }
     }
 

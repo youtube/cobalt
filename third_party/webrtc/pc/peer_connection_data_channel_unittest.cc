@@ -41,12 +41,14 @@
 
 namespace webrtc {
 
-using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
-using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Values;
+
+using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
+using RTCOfferAnswerOptions = PeerConnectionInterface::RTCOfferAnswerOptions;
 
 namespace {
 
@@ -206,7 +208,7 @@ TEST_P(PeerConnectionDataChannelTest, SctpContentAndTransportNameSetCorrectly) {
   caller->AddVideoTrack("v");
   caller->pc()->CreateDataChannelOrError("dc", nullptr);
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   const auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(MediaType::AUDIO, offer_contents[0].media_description()->type());
   auto audio_mid = offer_contents[0].mid();
@@ -238,7 +240,7 @@ TEST_P(PeerConnectionDataChannelTest, SctpContentAndTransportNameSetCorrectly) {
 TEST_P(PeerConnectionDataChannelTest,
        CreateOfferWithNoDataChannelsGivesNoDataSection) {
   auto caller = CreatePeerConnection();
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   EXPECT_THAT(offer->description()->contents(), IsEmpty());
 }
 
@@ -249,8 +251,8 @@ TEST_P(PeerConnectionDataChannelTest,
 
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
 
-  auto answer = callee->CreateAnswer();
-  ASSERT_TRUE(answer);
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
+  ASSERT_THAT(answer, NotNull());
   auto* data_content = GetFirstDataContent(answer->description());
   ASSERT_TRUE(data_content);
   EXPECT_FALSE(data_content->rejected);
@@ -265,11 +267,11 @@ TEST_P(PeerConnectionDataChannelTest, SctpPortPropagatedFromSdpToTransport) {
   auto caller = CreatePeerConnectionWithDataChannel();
   auto callee = CreatePeerConnectionWithDataChannel();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   ChangeSctpPortOnDescription(offer->description(), kNewSendPort);
   ASSERT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   ChangeSctpPortOnDescription(answer->description(), kNewRecvPort);
   std::string sdp;
   answer->ToString(&sdp);
@@ -284,7 +286,8 @@ TEST_P(PeerConnectionDataChannelTest, SctpPortPropagatedFromSdpToTransport) {
 TEST_P(PeerConnectionDataChannelTest, ModernSdpSyntaxByDefault) {
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   auto caller = CreatePeerConnectionWithDataChannel();
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_FALSE(
       GetFirstSctpDataContentDescription(offer->description())->use_sctpmap());
   std::string sdp;
@@ -298,7 +301,8 @@ TEST_P(PeerConnectionDataChannelTest, ObsoleteSdpSyntaxIfSet) {
   PeerConnectionInterface::RTCOfferAnswerOptions options;
   options.use_obsolete_sctp_sdp = true;
   auto caller = CreatePeerConnectionWithDataChannel();
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_TRUE(
       GetFirstSctpDataContentDescription(offer->description())->use_sctpmap());
   std::string sdp;

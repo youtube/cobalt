@@ -28,6 +28,8 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kUserInteractiveCompositingMac);
 #endif
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kEnableHangWatcher);
+BASE_EXPORT BASE_DECLARE_FEATURE(kEnableHangWatcherOnGpuProcess);
+BASE_EXPORT extern const char kHangWatcherMonitoringPeriodParam[];
 
 // Hang watcher log levels.
 BASE_EXPORT extern const char kBrowserProcessIoThreadLogLevelParam[];
@@ -36,6 +38,7 @@ BASE_EXPORT extern const char kBrowserProcessThreadPoolLogLevelParam[];
 
 BASE_EXPORT extern const char kGpuProcessIoThreadLogLevelParam[];
 BASE_EXPORT extern const char kGpuProcessMainThreadLogLevelParam[];
+BASE_EXPORT extern const char kGpuProcessCompositorThreadLogLevelParam[];
 BASE_EXPORT extern const char kGpuProcessThreadPoolLogLevelParam[];
 
 BASE_EXPORT extern const char kRendererProcessIoThreadLogLevelParam[];

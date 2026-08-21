@@ -31,7 +31,7 @@
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 #include <openssl/trust_token.h>
 
 #include "../ec/internal.h"

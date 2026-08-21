@@ -4,25 +4,34 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
-#include "src/gpu/graphite/BufferManager.h"
-
+#include "include/gpu/GpuTypes.h"
 #include "include/gpu/graphite/Recording.h"
+#include "include/private/base/SkAlign.h"
+#include "include/private/base/SkAssert.h"
+#include "include/private/base/SkMath.h"
+#include "include/private/base/SkTemplates.h"
+#include "include/private/base/SkTo.h"
+#include "src/gpu/graphite/BufferManager.h"
 #include "src/gpu/graphite/Caps.h"
-#include "src/gpu/graphite/ContextPriv.h"
+#include "src/gpu/graphite/GlobalCache.h"
 #include "src/gpu/graphite/Log.h"
 #include "src/gpu/graphite/QueueManager.h"
 #include "src/gpu/graphite/RecordingPriv.h"
+#include "src/gpu/graphite/Resource.h"
 #include "src/gpu/graphite/ResourceProvider.h"
-#include "src/gpu/graphite/SharedContext.h"
 #include "src/gpu/graphite/UploadBufferManager.h"
 #include "src/gpu/graphite/task/ClearBuffersTask.h"
 #include "src/gpu/graphite/task/CopyTask.h"
+#include "src/gpu/graphite/task/Task.h"
 #include "src/gpu/graphite/task/TaskList.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
 #include <limits>
 #include <numeric>
 #include <optional>
+#include <tuple>
 
 namespace skgpu::graphite {
 
@@ -171,6 +180,9 @@ void ScratchBuffer::returnToPool() {
 DrawBufferManager::DrawBufferManager(ResourceProvider* resourceProvider,
                                      const Caps* caps,
                                      UploadBufferManager* uploadManager,
+                                     int* maxUsedBuffers,
+                                     uint32_t* maxUniformByteCount,
+                                     uint32_t* maxVertexByteCount,
                                      DrawBufferManagerOptions dbmOpts)
         : fResourceProvider(resourceProvider)
         , fCaps(caps)
@@ -193,6 +205,9 @@ DrawBufferManager::DrawBufferManager(ResourceProvider* resourceProvider,
                             dbmOpts.fIndexBufferSize, dbmOpts.fIndexBufferSize, caps},
                            {BufferType::kIndirect,
                             dbmOpts.fStorageBufferMinSize, dbmOpts.fStorageBufferMinSize, caps}}}
+        , fMaxUsedBufferCount(maxUsedBuffers)
+        , fMaxUsedUniformBytes(maxUniformByteCount)
+        , fMaxUsedVertexBytes(maxVertexByteCount)
 #if defined(GPU_TEST_UTILS)
         , fUseExactBuffSizes(dbmOpts.fUseExactBuffSizes)
         , fAllowCopyingGpuOnly(dbmOpts.fAllowCopyingGpuOnly)
@@ -458,6 +473,7 @@ bool DrawBufferManager::transferToRecording(Recording* recording) {
     }
     fReusableScratchStorageBuffers.clear();
 
+    int usedCount = fUsedBuffers.size();
     for (auto& [buffer, transferBuffer] : fUsedBuffers) {
         if (transferBuffer) {
             SkASSERT(buffer);
@@ -508,12 +524,21 @@ bool DrawBufferManager::transferToRecording(Recording* recording) {
         // For each buffer type, update the block size to use for new buffers, based on the total
         // storage used since the last flush.
         const uint32_t reqSize = SkAlignTo(info.fUsedSize + info.fOffset, info.fMinBlockSize);
+        if (info.fType == BufferType::kVertex || info.fType == BufferType::kVertexStorage) {
+            *fMaxUsedVertexBytes = std::max(*fMaxUsedVertexBytes, reqSize);
+        } else if (info.fType == BufferType::kUniform || info.fType == BufferType::kStorage) {
+            *fMaxUsedUniformBytes = std::max(*fMaxUsedUniformBytes, reqSize);
+        }
         info.fCurBlockSize = std::clamp(reqSize, info.fMinBlockSize, info.fMaxBlockSize);
         info.fUsedSize = 0;
 
         info.fTransferBuffer = {};
         info.fOffset = 0;
+
+        usedCount++;
     }
+
+    *fMaxUsedBufferCount = std::max(*fMaxUsedBufferCount, usedCount);
 
     return true;
 }
@@ -669,7 +694,7 @@ sk_sp<Buffer> DrawBufferManager::findReusableSbo(size_t bufferSize) {
 StaticBufferManager::StaticBufferManager(ResourceProvider* resourceProvider,
                                          const Caps* caps)
         : fResourceProvider(resourceProvider)
-        , fUploadManager(resourceProvider, caps)
+        , fUploadManager(resourceProvider, caps, &fTrackingStorage, &fTrackingStorage)
         , fRequiredTransferAlignment(SkTo<uint32_t>(caps->requiredTransferBufferAlignment()))
         , fVertexBufferInfo(BufferType::kVertex, caps)
         , fIndexBufferInfo(BufferType::kIndex, caps) {}

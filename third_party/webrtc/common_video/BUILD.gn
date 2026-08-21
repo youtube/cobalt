@@ -29,6 +29,7 @@ rtc_library("corruption_score_calculator") {
   deps = [
     ":frame_instrumentation_data",
     "../api/video:video_frame",
+    "../api/video:video_rtp_headers",
   ]
 }
 

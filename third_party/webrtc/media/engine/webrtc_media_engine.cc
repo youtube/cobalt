@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/field_trials_view.h"
@@ -144,8 +143,7 @@ std::vector<RtpExtension> FilterRtpExtensions(
     result.erase(it, result.end());
 
     // Keep just the highest priority extension of any in the following lists.
-    if (absl::StartsWith(trials.Lookup("WebRTC-FilterAbsSendTimeExtension"),
-                         "Enabled")) {
+    if (trials.IsEnabled("WebRTC-FilterAbsSendTimeExtension")) {
       static const char* const kBweExtensionPriorities[] = {
           RtpExtension::kTransportSequenceNumberUri,
           RtpExtension::kAbsSendTimeUri, RtpExtension::kTimestampOffsetUri};

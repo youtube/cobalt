@@ -407,14 +407,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   bool HasDocumentPictureInPictureWindow() const;
 
-  void SetIsTrackingSoftNavigationHeuristics(bool value) {
-    is_tracking_soft_navigation_heuristics_ = value;
-  }
-
-  bool IsTrackingSoftNavigationHeuristics() const {
-    return is_tracking_soft_navigation_heuristics_;
-  }
-
   network::mojom::ReferrerPolicy GetReferrerPolicy() const;
 
   bool DocumentPolicyFeatureObserved(
@@ -511,8 +503,6 @@ class CORE_EXPORT Document : public ContainerNode,
       const AtomicString& qualified_name,
       const V8UnionElementCreationOptionsOrString* string_or_options,
       ExceptionState& exception_state);
-
-  CustomElementRegistry* customElementRegistry() const override;
 
   // Creates an element without custom element processing.
   Element* CreateRawElement(const QualifiedName&,
@@ -2161,7 +2151,7 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // https://github.com/whatwg/html/pull/9538
   static Document* parseHTMLUnsafe(ExecutionContext* context,
-                                   const String& html,
+                                   const V8UnionStringOrTrustedHTML* html,
                                    ExceptionState& exception_state);
 
   // https://wicg.github.io/sanitizer-api/#framework
@@ -2170,7 +2160,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // the |options| parameter. Long-term, the two parseHTMLUnsage methods
   // should be merged.
   static Document* parseHTMLUnsafe(ExecutionContext* context,
-                                   const String& html,
+                                   const V8UnionStringOrTrustedHTML* html,
                                    SetHTMLUnsafeOptions* options,
                                    ExceptionState& exception_state);
   static Document* parseHTML(ExecutionContext* context,
@@ -2610,8 +2600,6 @@ class CORE_EXPORT Document : public ContainerNode,
   Member<HttpRefreshScheduler> http_refresh_scheduler_;
 
   bool well_formed_ = false;
-
-  bool is_tracking_soft_navigation_heuristics_ = false;
 
   // Document URLs.
   KURL url_;  // Document.URL: The URL from which this document was retrieved.

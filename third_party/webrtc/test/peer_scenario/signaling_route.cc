@@ -69,7 +69,8 @@ void StartSdpNegotiation(
     std::function<void(const SessionDescriptionInterface&)> exchange_finished) {
   caller->CreateAndSetSdp(munge_offer, [=](std::string sdp_offer) {
     if (modify_offer) {
-      auto offer = CreateSessionDescription(SdpType::kOffer, sdp_offer);
+      std::unique_ptr<SessionDescriptionInterface> offer =
+          CreateSessionDescription(SdpType::kOffer, sdp_offer);
       modify_offer(offer.get());
       RTC_CHECK(offer->ToString(&sdp_offer));
     }

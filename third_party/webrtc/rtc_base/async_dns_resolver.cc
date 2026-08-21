@@ -31,6 +31,10 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 
+#if defined(WEBRTC_POSIX)
+#include <netdb.h>
+#endif
+
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
 #include <dispatch/dispatch.h>
 #endif

@@ -27,6 +27,13 @@
 #include "modules/desktop_capture/full_screen_application_handler.h"
 #include "rtc_base/logging.h"  // For RTC_LOG_GLE
 #include "rtc_base/string_utils.h"
+#include "system_wrappers/include/metrics.h"
+
+void RecordFullScreenDetectorResult(FullScreenDetectorResult result) {
+  RTC_HISTOGRAM_ENUMERATION(
+      "WebRTC.Screenshare.FullScreenDetectorResult", static_cast<int>(result),
+      static_cast<int>(FullScreenDetectorResult::kMaxValue));
+}
 
 namespace webrtc {
 namespace {
@@ -101,7 +108,8 @@ DesktopCapturer::SourceList GetProcessWindows(
 
 FullScreenPowerPointHandler::FullScreenPowerPointHandler(
     DesktopCapturer::SourceId sourceId)
-    : FullScreenApplicationHandler(sourceId) {}
+    : FullScreenApplicationHandler(sourceId),
+      full_screen_detector_result_(FullScreenDetectorResult::kUnknown) {}
 
 DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     const DesktopCapturer::SourceList& window_list,
@@ -127,6 +135,7 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
   DesktopCapturer::SourceId full_screen_slide_show_id = 0;
   const std::string original_document_title =
       GetDocumentTitleFromEditor(original_window);
+  auto result = FullScreenDetectorResult::kUnknown;
   for (const auto& source : powerpoint_windows) {
     HWND window = reinterpret_cast<HWND>(source.id);
 
@@ -135,6 +144,7 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     // slide show.
     if (GetWindowType(window) == WindowType::kEditor &&
         GetDocumentTitleFromEditor(window) == original_document_title) {
+      result = FullScreenDetectorResult::kFailureDueToSameTitleWindows;
       return 0;
     }
 
@@ -142,8 +152,13 @@ DesktopCapturer::SourceId FullScreenPowerPointHandler::FindFullScreenWindow(
     // document.
     if (GetWindowType(window) == WindowType::kSlideShow &&
         GetDocumentTitleFromSlideShow(window) == original_document_title) {
+      result = FullScreenDetectorResult::kSuccess;
       full_screen_slide_show_id = source.id;
     }
+  }
+  if (full_screen_detector_result_ != result) {
+    full_screen_detector_result_ = result;
+    RecordFullScreenDetectorResult(result);
   }
   return full_screen_slide_show_id;
 }

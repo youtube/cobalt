@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/audio_options.h"
 #include "api/environment/environment.h"
@@ -87,6 +86,9 @@ Environment AssembleEnvironment(PeerConnectionFactoryDependencies& deps) {
 
 }  // namespace
 
+// TODO: bugs.webrtc.org/42220069 - Move this function to
+// 'create_modular_peer_connection_factory' build target when all users of this
+// function would depend on that build target.
 scoped_refptr<PeerConnectionFactoryInterface>
 CreateModularPeerConnectionFactory(
     PeerConnectionFactoryDependencies dependencies) {
@@ -400,7 +402,8 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
     RTC_LOG(LS_INFO) << "Using pc injected network controller factory";
     call_config.per_call_network_controller_factory =
         std::move(per_call_network_controller_factory);
-  } else if (IsTrialEnabled("WebRTC-Bwe-InjectedCongestionController")) {
+  } else if (field_trials().IsEnabled(
+                 "WebRTC-Bwe-InjectedCongestionController")) {
     RTC_LOG(LS_INFO) << "Using pcf injected network controller factory";
     call_config.network_controller_factory =
         injected_network_controller_factory_.get();
@@ -414,10 +417,6 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_w(
   call_config.encode_metronome = encode_metronome_.get();
   call_config.pacer_burst_interval = configuration.pacer_burst_interval;
   return context_->call_factory()->CreateCall(std::move(call_config));
-}
-
-bool PeerConnectionFactory::IsTrialEnabled(absl::string_view key) const {
-  return absl::StartsWith(field_trials().Lookup(key), "Enabled");
 }
 
 }  // namespace webrtc

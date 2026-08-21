@@ -103,7 +103,6 @@ ReceiveStatisticsProxy::ReceiveStatisticsProxy(uint32_t remote_ssrc,
       last_content_type_(VideoContentType::UNSPECIFIED),
       last_codec_type_(kVideoCodecVP8),
       num_delayed_frames_rendered_(0),
-      sum_missed_render_deadline_ms_(0),
       timing_frame_info_counter_(kMovingMaxWindowMs),
       worker_thread_(worker_thread) {
   RTC_DCHECK(worker_thread);
@@ -171,8 +170,8 @@ void ReceiveStatisticsProxy::UpdateHistograms(
         if (num_delayed_frames_rendered_ > 0) {
           RTC_HISTOGRAM_COUNTS_1000(
               "WebRTC.Video.DelayedFramesToRenderer_AvgDelayInMs",
-              static_cast<int>(sum_missed_render_deadline_ms_ /
-                               num_delayed_frames_rendered_));
+              (sum_missed_render_deadline_ / num_delayed_frames_rendered_)
+                  .ms());
         }
       }
     }
@@ -745,10 +744,10 @@ void ReceiveStatisticsProxy::OnRenderedFrame(
   content_specific_stats->received_height.Add(frame_meta.height);
 
   // Consider taking stats_.render_delay_ms into account.
-  const int64_t time_until_rendering_ms =
-      frame_meta.render_time_ms() - frame_meta.decode_timestamp.ms();
-  if (time_until_rendering_ms < 0) {
-    sum_missed_render_deadline_ms_ += -time_until_rendering_ms;
+  const TimeDelta time_until_rendering =
+      frame_meta.render_time - frame_meta.decode_timestamp;
+  if (time_until_rendering < TimeDelta::Zero()) {
+    sum_missed_render_deadline_ += -time_until_rendering;
     ++num_delayed_frames_rendered_;
   }
 

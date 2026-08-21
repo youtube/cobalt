@@ -59,6 +59,10 @@ if (is_cobalt && is_partner_toolchain) {
 static_library("test_support") {
   testonly = true
   sources = [
+    "../memory_coordinator/mock_memory_consumer.cc",
+    "../memory_coordinator/mock_memory_consumer.h",
+    "../memory_coordinator/test_memory_consumer_registry.cc",
+    "../memory_coordinator/test_memory_consumer_registry.h",
     "../task/sequence_manager/test/fake_task.cc",
     "../task/sequence_manager/test/fake_task.h",
     "../task/sequence_manager/test/mock_time_domain.cc",
@@ -98,6 +102,8 @@ static_library("test_support") {
     "launcher/test_result.h",
     "launcher/test_results_tracker.h",
     "launcher/unit_test_launcher.h",
+    "manual_hang_watcher.cc",
+    "manual_hang_watcher.h",
     "metrics/action_suffix_reader.cc",
     "metrics/action_suffix_reader.h",
     "metrics/histogram_enum_reader.cc",
@@ -743,9 +749,6 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/test/transit/Elements.java",
       "android/javatests/src/org/chromium/base/test/transit/EntryPointSentinelStation.java",
       "android/javatests/src/org/chromium/base/test/transit/Facility.java",
-      "android/javatests/src/org/chromium/base/test/transit/FacilityCheckIn.java",
-      "android/javatests/src/org/chromium/base/test/transit/FacilityCheckOut.java",
-      "android/javatests/src/org/chromium/base/test/transit/FacilitySwap.java",
       "android/javatests/src/org/chromium/base/test/transit/FragmentElement.java",
       "android/javatests/src/org/chromium/base/test/transit/InstrumentationThreadCondition.java",
       "android/javatests/src/org/chromium/base/test/transit/LogicalElement.java",
@@ -754,7 +757,6 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/test/transit/ScrollableFacility.java",
       "android/javatests/src/org/chromium/base/test/transit/SimpleConditions.java",
       "android/javatests/src/org/chromium/base/test/transit/Station.java",
-      "android/javatests/src/org/chromium/base/test/transit/StationToStationTrip.java",
       "android/javatests/src/org/chromium/base/test/transit/StatusStore.java",
       "android/javatests/src/org/chromium/base/test/transit/TrafficControl.java",
       "android/javatests/src/org/chromium/base/test/transit/TransitAsserts.java",

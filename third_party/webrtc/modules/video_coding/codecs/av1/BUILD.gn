@@ -31,8 +31,10 @@ rtc_library("av1_svc_config") {
 rtc_library("dav1d_decoder") {
   visibility = [ "*" ]
   poisonous = [ "software_video_codecs" ]
-  public = [ "dav1d_decoder.h" ]
-  sources = [ "dav1d_decoder.cc" ]
+  sources = [
+    "dav1d_decoder.cc",
+    "dav1d_decoder.h",
+  ]
 
   deps = [
     "../..:video_codec_interface",
@@ -52,8 +54,10 @@ rtc_library("dav1d_decoder") {
 rtc_library("libaom_av1_encoder") {
   visibility = [ "*" ]
   poisonous = [ "software_video_codecs" ]
-  public = [ "libaom_av1_encoder.h" ]
-  sources = [ "libaom_av1_encoder.cc" ]
+  sources = [
+    "libaom_av1_encoder.cc",
+    "libaom_av1_encoder.h",
+  ]
   deps = [
     "../..:video_codec_interface",
     "../../../../api:field_trials_view",

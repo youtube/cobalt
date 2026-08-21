@@ -11,19 +11,10 @@
 #ifndef RTC_BASE_SOCKET_H_
 #define RTC_BASE_SOCKET_H_
 
-#include <errno.h>
-
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-
-// IWYU pragma: begin_exports
-#if defined(WEBRTC_POSIX)
-#include <arpa/inet.h>
-#include <sys/types.h>
-#define SOCKET_EACCES EACCES
-#endif
-// IWYU pragma: end_exports
 
 #include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
@@ -33,10 +24,17 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
+// IWYU pragma: begin_exports
+#if defined(WEBRTC_POSIX)
+#include <arpa/inet.h>
+#include <sys/types.h>
+#define SOCKET_EACCES EACCES
+#endif
+// IWYU pragma: end_exports
+
 // Rather than converting errors into a private namespace,
 // Reuse the POSIX socket api errors. Note this depends on
 // Win32 compatibility.
-
 #if defined(WEBRTC_WIN)
 #undef EWOULDBLOCK  // Remove errno.h's definition for each macro below.
 #define EWOULDBLOCK WSAEWOULDBLOCK

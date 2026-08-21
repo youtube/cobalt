@@ -939,6 +939,13 @@ interface CSSPropertyRule : CSSRule
     getter name
     getter syntax
     method constructor
+interface CSSPseudoElement : EventTarget
+    attribute @@toStringTag
+    getter element
+    getter parent
+    getter type
+    method constructor
+    method pseudo
 interface CSSRGB : CSSColorValue
     attribute @@toStringTag
     getter alpha
@@ -2438,6 +2445,7 @@ interface Element : Node
     method matches
     method moveBefore
     method prepend
+    method pseudo
     method querySelector
     method querySelectorAll
     method releasePointerCapture
@@ -6476,7 +6484,6 @@ interface Navigator
     method getBattery
     method getGamepads
     method getUserMedia
-    method install
     method javaEnabled
     method queryHandwritingRecognizer
     method requestMIDIAccess
@@ -9334,13 +9341,6 @@ interface SpeechRecognitionPhrase
     getter boost
     getter phrase
     method constructor
-interface SpeechRecognitionPhraseList
-    attribute @@toStringTag
-    getter length
-    method addItem
-    method constructor
-    method item
-    method removeItem
 interface StaticRange : AbstractRange
     attribute @@toStringTag
     method constructor

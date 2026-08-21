@@ -67,8 +67,10 @@ namespace webrtc {
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsTrue;
+using ::testing::NotNull;
 using ::testing::Pair;
 using ::testing::SizeIs;
+
 using RTCConfiguration = PeerConnectionInterface::RTCConfiguration;
 
 namespace {
@@ -536,11 +538,12 @@ TEST_F(SdpOfferAnswerTest, RejectedDataChannelsDoNotGetReoffered) {
       "a=max-message-size:262144\r\n"
       "a=mid:" +
       mid + "\r\n";
-  auto answer = CreateSessionDescription(SdpType::kAnswer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      CreateSessionDescription(SdpType::kAnswer, sdp);
   ASSERT_TRUE(pc->SetRemoteDescription(std::move(answer)));
   // The subsequent offer should not recycle the m-line since the existing data
   // channel is closed.
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   const auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 1u);
   EXPECT_EQ(offer_contents[0].mid(), mid);
@@ -571,7 +574,8 @@ TEST_F(SdpOfferAnswerTest, RejectedDataChannelsDoGetReofferedWhenActive) {
       "a=max-message-size:262144\r\n"
       "a=mid:" +
       mid + "\r\n";
-  auto answer = CreateSessionDescription(SdpType::kAnswer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      CreateSessionDescription(SdpType::kAnswer, sdp);
   ASSERT_TRUE(pc->SetRemoteDescription(std::move(answer)));
 
   // The subsequent offer should recycle the m-line when there is a new data
@@ -580,7 +584,7 @@ TEST_F(SdpOfferAnswerTest, RejectedDataChannelsDoGetReofferedWhenActive) {
   EXPECT_TRUE(pc->pc()->ShouldFireNegotiationNeededEvent(
       pc->observer()->latest_negotiation_needed_event()));
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   const auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 1u);
   EXPECT_EQ(offer_contents[0].mid(), mid);
@@ -632,7 +636,8 @@ TEST_F(SdpOfferAnswerTest, SimulcastAnswerWithNoRidsIsRejected) {
   std::string extensions =
       "a=extmap:9 urn:ietf:params:rtp-hdrext:sdes:mid\r\n"
       "a=extmap:10 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\r\n";
-  auto answer = CreateSessionDescription(SdpType::kAnswer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      CreateSessionDescription(SdpType::kAnswer, sdp);
   EXPECT_FALSE(pc->SetRemoteDescription(std::move(answer)));
 
   auto answer_with_extensions =
@@ -668,7 +673,7 @@ TEST_F(SdpOfferAnswerTest, SimulcastOfferWithMixedCodec) {
   init.send_encodings.push_back(rid2);
 
   auto transceiver = pc->AddTransceiver(MediaType::VIDEO, init);
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& offer_contents = offer->description()->contents();
   auto send_codecs = offer_contents[0].media_description()->codecs();
   // Verify that the serialized SDP includes pt=.
@@ -730,7 +735,8 @@ TEST_F(SdpOfferAnswerTest, SimulcastAnswerWithPayloadType) {
       "a=rid:2 recv pt=97\r\n"
       "a=simulcast:recv 1;2\r\n";
 
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
 
   auto transceiver = pc->pc()->GetTransceivers()[0];
@@ -739,7 +745,7 @@ TEST_F(SdpOfferAnswerTest, SimulcastAnswerWithPayloadType) {
           .ok());
 
   // Check the generated SDP.
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   answer->ToString(&sdp);
   EXPECT_THAT(sdp, testing::HasSubstr("a=rid:1 send pt=96\r\n"));
   EXPECT_THAT(sdp, testing::HasSubstr("a=rid:2 send pt=97\r\n"));
@@ -773,7 +779,8 @@ TEST_F(SdpOfferAnswerTest, ExpectAllSsrcsSpecifiedInSsrcGroupFid) {
       "a=fmtp:97 apt=96\r\n"
       "a=ssrc-group:FID 1 2\r\n"
       "a=ssrc:1 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   pc->SetRemoteDescription(std::move(offer), &error);
   EXPECT_FALSE(error.ok());
@@ -806,7 +813,8 @@ TEST_F(SdpOfferAnswerTest, ExpectAllSsrcsSpecifiedInSsrcGroupFecFr) {
       "a=fmtp:98 repair-window=10000000\r\n"
       "a=ssrc-group:FEC-FR 1 2\r\n"
       "a=ssrc:1 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   pc->SetRemoteDescription(std::move(offer), &error);
   EXPECT_FALSE(error.ok());
@@ -841,7 +849,8 @@ TEST_F(SdpOfferAnswerTest, ExpectTwoSsrcsInSsrcGroupFid) {
       "a=ssrc:1 cname:test\r\n"
       "a=ssrc:2 cname:test\r\n"
       "a=ssrc:3 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   pc->SetRemoteDescription(std::move(offer), &error);
   EXPECT_FALSE(error.ok());
@@ -876,7 +885,8 @@ TEST_F(SdpOfferAnswerTest, ExpectTwoSsrcsInSsrcGroupFecFr) {
       "a=ssrc:1 cname:test\r\n"
       "a=ssrc:2 cname:test\r\n"
       "a=ssrc:3 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   pc->SetRemoteDescription(std::move(offer), &error);
   EXPECT_FALSE(error.ok());
@@ -912,7 +922,8 @@ TEST_F(SdpOfferAnswerTest, ExpectAtMostFourSsrcsInSsrcGroupSIM) {
       "a=ssrc:2 cname:test\r\n"
       "a=ssrc:3 cname:test\r\n"
       "a=ssrc:4 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   RTCError error;
   pc->SetRemoteDescription(std::move(offer), &error);
   EXPECT_FALSE(error.ok());
@@ -923,7 +934,7 @@ TEST_F(SdpOfferAnswerTest, DuplicateSsrcsDisallowedInLocalDescription) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
   pc->AddVideoTrack("video_track", {});
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 2u);
   uint32_t second_ssrc = offer_contents[1].media_description()->first_ssrc();
@@ -942,7 +953,7 @@ TEST_F(SdpOfferAnswerTest,
 
   pc->AddAudioTrack("audio_track", {});
   pc->AddVideoTrack("video_track", {});
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 2u);
   uint32_t audio_ssrc = offer_contents[0].media_description()->first_ssrc();
@@ -983,7 +994,7 @@ TEST_F(SdpOfferAnswerTest,
 
   pc->AddAudioTrack("audio_track", {});
   pc->AddVideoTrack("video_track", {});
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 2u);
   uint32_t audio_ssrc = offer_contents[0].media_description()->first_ssrc();
@@ -1023,7 +1034,7 @@ TEST_F(SdpOfferAnswerTest, AllowOnlyOneSsrcGroupPerSemanticAndPrimarySsrc) {
 
   pc->AddAudioTrack("audio_track", {});
   pc->AddVideoTrack("video_track", {});
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   auto& offer_contents = offer->description()->contents();
   ASSERT_EQ(offer_contents.size(), 2u);
   uint32_t audio_ssrc = offer_contents[0].media_description()->first_ssrc();
@@ -1083,7 +1094,8 @@ TEST_F(SdpOfferAnswerTest, OfferWithRtxAndNoMsidIsNotRejected) {
       "a=ssrc-group:FID 1 2\r\n"
       "a=ssrc:1 cname:test\r\n"
       "a=ssrc:2 cname:test\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
 }
 
@@ -1125,7 +1137,7 @@ TEST_F(SdpOfferAnswerTest, SdpMungingWithInvalidPayloadTypeIsRejected) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   ASSERT_EQ(offer->description()->contents().size(), 1u);
   auto* audio = offer->description()->contents()[0].media_description();
   ASSERT_GT(audio->codecs().size(), 0u);
@@ -1164,11 +1176,12 @@ TEST_F(SdpOfferAnswerTest, MsidSignalingInSubsequentOfferAnswer) {
       "a=rtcp-mux\r\n"
       "a=rtpmap:111 opus/48000/2\r\n";
 
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
 
   // Check the generated SDP.
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   answer->ToString(&sdp);
   EXPECT_NE(std::string::npos, sdp.find("a=msid:- audio_track\r\n"));
 
@@ -1214,14 +1227,15 @@ TEST_F(SdpOfferAnswerTest, MsidSignalingUnknownRespondsWithMsidAndKeepsSsrc) {
       "a=mid:0\r\n"
       "a=rtpmap:111 opus/48000/2\r\n";
 
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   EXPECT_TRUE(pc->SetRemoteDescription(std::move(offer)));
   auto first_transceiver = pc->pc()->GetTransceivers()[0];
   EXPECT_TRUE(first_transceiver
                   ->SetDirectionWithError(RtpTransceiverDirection::kSendOnly)
                   .ok());
   // Check the generated *serialized* SDP.
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   const auto& answer_contents = answer->description()->contents();
   ASSERT_EQ(answer_contents.size(), 1u);
   auto answer_streams = answer_contents[0].media_description()->streams();
@@ -1325,7 +1339,7 @@ TEST_P(SdpOfferAnswerWithPayloadTypeTest,
   EXPECT_TRUE(
       pc->SetRemoteDescription(CreateSessionDescription(SdpType::kOffer, sdp)));
   // The answer should accept the PT for VP9.
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   {
     const auto* mid_0 = answer->description()->GetContentDescriptionByName("0");
     ASSERT_TRUE(mid_0);
@@ -1340,7 +1354,7 @@ TEST_P(SdpOfferAnswerWithPayloadTypeTest,
 
   EXPECT_TRUE(pc->SetLocalDescription(std::move(answer)));
   // The follow-up offer should continue to use the same PT for VP9.
-  auto offer = pc->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
   {
     const auto* mid_0 = offer->description()->GetContentDescriptionByName("0");
     ASSERT_TRUE(mid_0);
@@ -1414,13 +1428,13 @@ TEST_P(SdpOfferAnswerShuffleMediaTypes,
       CreateSessionDescription(SdpType::kAnswer, rejected_answer_sdp);
   EXPECT_TRUE(pc1->SetRemoteDescription(std::move(rejected_answer)));
 
-  auto offer =
+  std::unique_ptr<SessionDescriptionInterface> offer =
       pc2->CreateOfferAndSetAsLocal();  // This will generate a mid=0 too
   ASSERT_EQ(offer->description()->contents().size(), 1u);
   auto mid2 = offer->description()->contents()[0].mid();
   EXPECT_EQ(mid1, mid2);  // Check that the mids collided.
   EXPECT_TRUE(pc1->SetRemoteDescription(std::move(offer)));
-  auto answer = pc1->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc1->CreateAnswer();
   EXPECT_FALSE(pc1->SetLocalDescription(std::move(answer)));
 }
 
@@ -1455,7 +1469,7 @@ TEST_P(SdpOfferAnswerShuffleMediaTypes,
       CreateSessionDescription(SdpType::kAnswer, rejected_answer_sdp);
   EXPECT_TRUE(pc1->SetRemoteDescription(std::move(rejected_answer)));
 
-  auto offer =
+  std::unique_ptr<SessionDescriptionInterface> offer =
       pc2->CreateOfferAndSetAsLocal();  // This will generate a mid=0 too
   ASSERT_EQ(offer->description()->contents().size(), 1u);
   auto mid2 = offer->description()->contents()[0].mid();
@@ -1500,7 +1514,7 @@ TEST_F(SdpOfferAnswerTest, OfferWithNoCompatibleCodecsIsRejectedInAnswer) {
   pc->SetRemoteDescription(std::move(desc), &error);
   EXPECT_TRUE(error.ok());
 
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   auto answer_contents = answer->description()->contents();
   ASSERT_EQ(answer_contents.size(), 2u);
   EXPECT_EQ(answer_contents[0].rejected, true);
@@ -1530,7 +1544,7 @@ TEST_F(SdpOfferAnswerTest, OfferWithRejectedMlineWithoutFingerprintIsAccepted) {
   pc->SetRemoteDescription(std::move(desc), &error);
   EXPECT_TRUE(error.ok());
 
-  auto answer = pc->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = pc->CreateAnswer();
   EXPECT_TRUE(pc->SetLocalDescription(std::move(answer)));
 }
 
@@ -1567,7 +1581,8 @@ TEST_F(SdpOfferAnswerTest, MidBackfillAnswer) {
       pc->pc()->remote_description()->description()->contents();
   ASSERT_EQ(offer_contents.size(), 1u);
   EXPECT_EQ(offer_contents[0].mid(), "0");
-  auto answer = pc->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc->CreateAnswerAndSetAsLocal();
   auto answer_contents = answer->description()->contents();
   ASSERT_EQ(answer_contents.size(), 1u);
   EXPECT_EQ(answer_contents[0].mid(), offer_contents[0].mid());
@@ -1635,15 +1650,17 @@ TEST_F(SdpOfferAnswerTest, ReducedSizeNotNegotiated) {
   auto audio_transceiver = caller->AddTransceiver(MediaType::AUDIO);
   auto video_transceiver = caller->AddTransceiver(MediaType::VIDEO);
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
-  ASSERT_NE(offer, nullptr);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
   std::string sdp;
   offer->ToString(&sdp);
   // Remove rtcp-rsize attribute.
   auto modified_offer = CreateSessionDescription(
       SdpType::kOffer, absl::StrReplaceAll(sdp, {{"a=rtcp-rsize\r\n", ""}}));
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(modified_offer)));
-  auto answer = callee->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswerAndSetAsLocal();
   EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
 
   auto receivers = callee->pc()->GetReceivers();

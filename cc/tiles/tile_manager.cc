@@ -51,6 +51,7 @@
 #include "cc/tiles/tile_task_manager.h"
 #include "cc/tiles/tiles_with_resource_iterator.h"
 #include "components/viz/common/resources/resource_sizes.h"
+#include "components/viz/common/traced_value.h"
 #include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -126,7 +127,7 @@ class RasterTaskImpl : public TileTask {
         tile_resolution_(tile_resolution),
         layer_id_(tile->layer_id()),
         source_prepare_tiles_id_(source_prepare_tiles_id),
-        tile_tracing_id_(static_cast<void*>(tile)),
+        tile_tracing_id_(tile),
         new_content_id_(tile->id()),
         source_frame_number_(tile->source_frame_number()),
         raster_buffer_(std::move(raster_buffer)),
@@ -198,7 +199,7 @@ class RasterTaskImpl : public TileTask {
   const TileResolution tile_resolution_;
   const int layer_id_;
   const uint64_t source_prepare_tiles_id_;
-  const raw_ptr<void, AcrossTasksDanglingUntriaged> tile_tracing_id_;
+  const viz::TracedValue::Id tile_tracing_id_;
   const uint64_t new_content_id_;
   const int source_frame_number_;
   std::unique_ptr<RasterBuffer> raster_buffer_;
@@ -596,7 +597,8 @@ void TileManager::Release(Tile* tile) {
   CHECK(tile->deleted());
 
   FreeResourcesForTile(tile);
-  client_->NotifyTileStateChanged(tile, /*update_damage=*/false);
+  client_->NotifyTileStateChanged(tile, /*update_damage=*/false,
+                                  /*set_needs_redraw=*/true);
   tiles_.erase(tile->id());
 }
 
@@ -940,7 +942,8 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
               tile->enclosing_layer_rect(), &color, kMaxOpsToAnalyze);
       if (is_solid_color) {
         tile->draw_info().set_solid_color(color);
-        client_->NotifyTileStateChanged(tile);
+        client_->NotifyTileStateChanged(tile, /*update_damage=*/true,
+                                        /*set_needs_redraw=*/true);
         continue;
       }
     }
@@ -1135,7 +1138,8 @@ void TileManager::FreeResourcesForOccludedTiles() {
       FreeResourcesForTile(iterator->GetCurrent());
       // We don't update the damage when Occluded tiles are released.
       client_->NotifyTileStateChanged(iterator->GetCurrent(),
-                                      /*update_damage=*/false);
+                                      /*update_damage=*/false,
+                                      /*set_needs_redraw=*/true);
     }
   }
 }
@@ -1159,7 +1163,8 @@ void TileManager::FreeResourcesForTileAndNotifyClientIfTileWasReadyToDraw(
   TRACE_EVENT0("viz", __PRETTY_FUNCTION__);
   bool was_ready_to_draw = tile->draw_info().IsReadyToDraw();
   FreeResourcesForTile(tile);
-  client_->NotifyTileStateChanged(tile, /*update_damage=*/was_ready_to_draw);
+  client_->NotifyTileStateChanged(tile, /*update_damage=*/was_ready_to_draw,
+                                  /*set_needs_redraw=*/true);
 }
 
 void TileManager::PartitionImagesForCheckering(
@@ -1741,7 +1746,8 @@ void TileManager::OnRasterTaskCompleted(
     pending_gpu_work_tiles_.insert(tile);
   } else {
     draw_info.set_resource_ready_for_draw();
-    client_->NotifyTileStateChanged(tile);
+    client_->NotifyTileStateChanged(tile, /*update_damage=*/true,
+                                    /*set_needs_redraw=*/true);
   }
 }
 
@@ -1984,12 +1990,23 @@ void TileManager::CheckIfMoreTilesNeedToBePrepared() {
 void TileManager::MarkTilesOutOfMemory(
     std::unique_ptr<RasterTilePriorityQueue> queue) const {
   // Mark required tiles as OOM so that we can activate/draw without them.
+  bool tiles_required_for_draw = false;
   for (; !queue->IsEmpty(); queue->Pop()) {
     Tile* tile = queue->Top().tile();
     if (tile->draw_info().IsReadyToDraw())
       continue;
     tile->draw_info().set_oom();
-    client_->NotifyTileStateChanged(tile);
+    client_->NotifyTileStateChanged(tile, /*update_damage=*/true,
+                                    /*set_needs_redraw=*/false);
+    tiles_required_for_draw |= tile->required_for_draw();
+  }
+  // If we trigger SetNeedsRedraw() inside the loop above, we may end up
+  // triggering Scheduler::ProcessScheduledActions(), which is inefficient.
+  // Worth, it may in turn trigger ActivateSyncTree() and other actions that
+  // remove tiles in the queue, leading to UAF.
+  if (tiles_required_for_draw) {
+    client_->SetNeedsRedraw(/*animation_only=*/false,
+                            /*skip_if_inside_draw=*/true);
   }
 }
 
@@ -2062,7 +2079,8 @@ void TileManager::CheckPendingGpuWorkAndIssueSignals() {
     if (global_state_.tree_priority != SMOOTHNESS_TAKES_PRIORITY ||
         raster_buffer_provider_->IsResourceReadyToDraw(resource)) {
       tile->draw_info().set_resource_ready_for_draw();
-      client_->NotifyTileStateChanged(tile);
+      client_->NotifyTileStateChanged(tile, /*update_damage=*/true,
+                                      /*set_needs_redraw=*/true);
       it = pending_gpu_work_tiles_.erase(it);
       continue;
     }

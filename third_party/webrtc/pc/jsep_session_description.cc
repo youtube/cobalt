@@ -10,7 +10,9 @@
 
 #include "api/jsep_session_description.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -101,7 +103,6 @@ void UpdateConnectionAddress(
   }
   media_desc->set_connection_address(connection_addr);
 }
-
 }  // namespace
 
 // TODO(steveanton): Remove this default implementation once Chromium has been
@@ -282,7 +283,7 @@ size_t JsepSessionDescription::RemoveCandidates(
     const std::vector<Candidate>& candidates) {
   size_t num_removed = 0;
   for (auto& candidate : candidates) {
-    int mediasection_index = GetMediasectionIndex(candidate);
+    int mediasection_index = GetMediasectionIndex(candidate.transport_name());
     if (mediasection_index < 0) {
       // Not found.
       continue;
@@ -316,51 +317,33 @@ bool JsepSessionDescription::ToString(std::string* out) const {
   return !out->empty();
 }
 
+bool JsepSessionDescription::IsValidMLineIndex(int index) const {
+  RTC_DCHECK(description_);
+  return index >= 0 &&
+         index < static_cast<int>(description_->contents().size());
+}
+
 bool JsepSessionDescription::GetMediasectionIndex(const IceCandidate* candidate,
-                                                  size_t* index) {
-  if (!candidate || !index) {
+                                                  size_t* index) const {
+  if (!candidate || !index || !description_) {
     return false;
   }
 
-  // If the candidate has no valid mline index or sdp_mid, it is impossible
-  // to find a match.
-  if (candidate->sdp_mid().empty() &&
-      (candidate->sdp_mline_index() < 0 ||
-       static_cast<size_t>(candidate->sdp_mline_index()) >=
-           description_->contents().size())) {
-    return false;
-  }
-
-  if (candidate->sdp_mline_index() >= 0)
+  auto mid = candidate->sdp_mid();
+  if (!mid.empty()) {
+    *index = GetMediasectionIndex(mid);
+  } else {
+    // An sdp_mline_index of -1 will be treated as invalid.
     *index = static_cast<size_t>(candidate->sdp_mline_index());
-  if (description_ && !candidate->sdp_mid().empty()) {
-    bool found = false;
-    // Try to match the sdp_mid with content name.
-    for (size_t i = 0; i < description_->contents().size(); ++i) {
-      if (candidate->sdp_mid() == description_->contents().at(i).mid()) {
-        *index = i;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // If the sdp_mid is presented but we can't find a match, we consider
-      // this as an error.
-      return false;
-    }
   }
-  return true;
+  return IsValidMLineIndex(*index);
 }
 
-int JsepSessionDescription::GetMediasectionIndex(const Candidate& candidate) {
-  // Find the description with a matching transport name of the candidate.
-  const std::string& transport_name = candidate.transport_name();
-  for (size_t i = 0; i < description_->contents().size(); ++i) {
-    if (transport_name == description_->contents().at(i).mid()) {
-      return static_cast<int>(i);
-    }
-  }
-  return -1;
+int JsepSessionDescription::GetMediasectionIndex(absl::string_view mid) const {
+  const auto& contents = description_->contents();
+  auto it =
+      std::find_if(contents.begin(), contents.end(),
+                   [&](const auto& content) { return mid == content.mid(); });
+  return it == contents.end() ? -1 : std::distance(contents.begin(), it);
 }
-
 }  // namespace webrtc

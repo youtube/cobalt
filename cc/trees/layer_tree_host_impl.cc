@@ -315,12 +315,12 @@ void LayerTreeHostImpl::DidEndPinchZoom() {
   // so updating draw properties and drawing will ensure we are using the right
   // scales that we want when we're not inside a pinch.
   active_tree_->set_needs_update_draw_properties();
-  SetNeedsRedraw();
+  SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   frame_trackers_.StopSequence(FrameSequenceTrackerType::kPinchZoom);
 }
 
 void LayerTreeHostImpl::DidUpdatePinchZoom() {
-  SetNeedsRedraw();
+  SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   client_->RenewTreePriority();
 }
 
@@ -357,7 +357,7 @@ void LayerTreeHostImpl::SetNeedsFullViewportRedraw() {
   // TODO(bokan): Do these really need to be manually called? (Rather than
   // damage/redraw being set from scroll offset changes).
   SetFullViewportDamage();
-  SetNeedsRedraw();
+  SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
 }
 
 void LayerTreeHostImpl::SetDeferBeginMainFrame(
@@ -1093,7 +1093,7 @@ void LayerTreeHostImpl::AnimateInternal() {
 
     // If the tree changed, then we want to draw at the end of the current
     // frame.
-    SetNeedsRedraw(/*animation_only*/ true);
+    SetNeedsRedraw(/*animation_only=*/true, /*skip_if_inside_draw=*/false);
   }
 }
 
@@ -2156,7 +2156,8 @@ void LayerTreeHostImpl::NotifyAllTileTasksCompleted() {
 }
 
 void LayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile,
-                                               bool update_damage) {
+                                               bool update_damage,
+                                               bool set_needs_redraw) {
   DCHECK(!settings_.trees_in_viz_in_viz_process);
 
   TRACE_EVENT0("cc", "LayerTreeHostImpl::NotifyTileStateChanged");
@@ -2187,10 +2188,11 @@ void LayerTreeHostImpl::NotifyTileStateChanged(const Tile* tile,
         update_damage);
   }
 
-  if (!client_->IsInsideDraw() && tile->required_for_draw()) {
+  if (set_needs_redraw && !client_->IsInsideDraw() &&
+      tile->required_for_draw()) {
     // The LayerImpl::NotifyTileStateChanged() should damage the layer, so this
     // redraw will make those tiles be displayed.
-    SetNeedsRedraw();
+    SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   }
 }
 
@@ -2268,7 +2270,7 @@ void LayerTreeHostImpl::SetExternalTilePriorityConstraints(
     // Compositor, not LayerTreeFrameSink, is responsible for setting damage
     // and triggering redraw for constraint changes.
     SetFullViewportDamage();
-    SetNeedsRedraw();
+    SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   }
 }
 
@@ -2395,7 +2397,7 @@ void LayerTreeHostImpl::OnDraw(const gfx::Transform& transform,
     // parameters.
     if (transform_changed || viewport_changed || resourceless_software_draw_) {
       SetFullViewportDamage();
-      SetNeedsRedraw();
+      SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
       active_tree_->set_needs_update_draw_properties();
     }
 
@@ -3485,7 +3487,7 @@ bool LayerTreeHostImpl::WillBeginImplFrame(const viz::BeginFrameArgs& args) {
     // Optimistically schedule a draw. This will let us expect the tile manager
     // to complete its work so that we can draw new tiles within the impl frame
     // we are beginning now.
-    SetNeedsRedraw(/*animation_only*/ true);
+    SetNeedsRedraw(/*animation_only=*/true, /*skip_if_inside_draw=*/false);
   }
 
   if (input_delegate_)
@@ -4068,7 +4070,7 @@ void LayerTreeHostImpl::SetVisible(bool visible) {
     // draw anything even if this is not the first time we become visible.
     if (!active_tree_->LayerListIsEmpty()) {
       SetFullViewportDamage();
-      SetNeedsRedraw();
+      SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
     }
   } else if (!settings_.trees_in_viz_in_viz_process) {
     EvictAllUIResources();
@@ -4087,7 +4089,12 @@ void LayerTreeHostImpl::SetNeedsOneBeginImplFrame() {
   client_->SetNeedsOneBeginImplFrameOnImplThread();
 }
 
-void LayerTreeHostImpl::SetNeedsRedraw(bool animation_only) {
+void LayerTreeHostImpl::SetNeedsRedraw(bool animation_only,
+                                       bool skip_if_inside_draw) {
+  if (skip_if_inside_draw && client_->IsInsideDraw()) {
+    return;
+  }
+
   NotifyLatencyInfoSwapPromiseMonitors();
   events_metrics_manager_.SaveActiveEventMetrics();
 
@@ -4532,7 +4539,7 @@ void LayerTreeHostImpl::DidChangeBrowserControlsPosition() {
   active_tree_->UpdateViewportContainerSizes();
   if (pending_tree_)
     pending_tree_->UpdateViewportContainerSizes();
-  SetNeedsRedraw();
+  SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   SetNeedsOneBeginImplFrame();
   SetFullViewportDamage();
 }
@@ -4706,7 +4713,7 @@ void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
     // tick. Scheduling a redraw here before ticking means the draw gets
     // aborted due to no damage and the swap promises broken so a LatencyInfo
     // won't be recorded.
-    SetNeedsRedraw();
+    SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
   }
 }
 
@@ -5208,7 +5215,7 @@ void LayerTreeHostImpl::SetNeedsAnimateForScrollbarAnimation() {
 // TODO(danakj): Make this a return value from the Animate() call instead of an
 // interface on LTHI. (Also, crbug.com/551138.)
 void LayerTreeHostImpl::SetNeedsRedrawForScrollbarAnimation() {
-  SetNeedsRedraw(/*animation_only*/ true);
+  SetNeedsRedraw(/*animation_only=*/true, /*skip_if_inside_draw=*/false);
 }
 
 ScrollbarSet LayerTreeHostImpl::ScrollbarsFor(ElementId id) const {
@@ -5311,7 +5318,7 @@ void LayerTreeHostImpl::AsValueWithFrameInto(
 
 void LayerTreeHostImpl::ActivationStateAsValueInto(
     base::trace_event::TracedValue* state) const {
-  viz::TracedValue::SetIDRef(this, state, "lthi");
+  viz::TracedValue::SetIDRef(viz::TracedValue::Id(this), state, "lthi");
   state->BeginDictionary("tile_manager");
   tile_manager_.BasicStateAsValueInto(state);
   state->EndDictionary();
@@ -5897,7 +5904,7 @@ void LayerTreeHostImpl::NotifyAnimationWorkletStateChange(
     SetNeedsOneBeginImplFrame();
     if (state == AnimationWorkletMutationState::COMPLETED_WITH_UPDATE &&
         tree_type == ElementListType::ACTIVE) {
-      SetNeedsRedraw();
+      SetNeedsRedraw(/*animation_only=*/false, /*skip_if_inside_draw=*/false);
     }
   }
 }

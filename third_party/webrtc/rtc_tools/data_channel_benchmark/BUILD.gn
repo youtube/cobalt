@@ -76,5 +76,6 @@ rtc_executable("data_channel_benchmark") {
     "//third_party/abseil-cpp/absl/flags:flag",
     "//third_party/abseil-cpp/absl/flags:parse",
     "//third_party/abseil-cpp/absl/strings:string_view",
+    "//third_party/abseil-cpp/absl/time",
   ]
 }

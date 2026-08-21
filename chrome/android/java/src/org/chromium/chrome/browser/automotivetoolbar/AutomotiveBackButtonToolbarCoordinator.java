@@ -15,19 +15,23 @@ import android.widget.FrameLayout;
 import androidx.annotation.AnimRes;
 import androidx.appcompat.widget.Toolbar;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.util.AutomotiveUtils;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.ui.animation.EmptyAnimationListener;
+import org.chromium.ui.display.DisplayUtil;
 
 /**
  * The automotive back button toolbar allows users to navigate backwards. This coordinator supports
  * the back button toolbar disappearing on fullscreen, appearing on swipe.
  */
+@NullMarked
 public class AutomotiveBackButtonToolbarCoordinator {
     /** Duration automotive back button toolbar is visible after a valid swipe */
     private static final long SHOW_TOOLBAR_ON_SWIPE_DURATION_MS = 10000;
@@ -110,7 +114,11 @@ public class AutomotiveBackButtonToolbarCoordinator {
                     mOnSwipeAutomotiveToolbar.setVisibility(View.GONE);
                     mHandler.removeCallbacks(mHideToolbar);
                     mTouchEventProvider.removeTouchEventObserver(mEdgeSwipeGestureDetector);
-                    mBackButtonToolbarForAutomotive.setVisibility(View.VISIBLE);
+                    if (isAutomotiveBackButtonBarStreamlineSupported(mContext)) {
+                        mBackButtonToolbarForAutomotive.setVisibility(View.GONE);
+                    } else {
+                        mBackButtonToolbarForAutomotive.setVisibility(View.VISIBLE);
+                    }
                     mIsFullscreen = false;
                 }
             };
@@ -138,6 +146,10 @@ public class AutomotiveBackButtonToolbarCoordinator {
         mFullscreenManager.addObserver(mFullscreenObserver);
         mBackButtonToolbarForAutomotive =
                 automotiveBaseFrameLayout.findViewById(R.id.back_button_toolbar);
+        // The back button bar does not show when not in full-screen.
+        if (isAutomotiveBackButtonBarStreamlineSupported(mContext)) {
+            mBackButtonToolbarForAutomotive.setVisibility(View.GONE);
+        }
         // Check if back button toolbar is vertical
         mIsVerticalToolbar = AutomotiveUtils.useVerticalAutomotiveBackButtonToolbar(context);
         setOnSwipeBackButtonToolbar(
@@ -189,6 +201,7 @@ public class AutomotiveBackButtonToolbarCoordinator {
     }
 
     /** Destroy the Automotive Back Button Toolbar coordinator and its components. */
+    @SuppressWarnings("NullAway")
     public void destroy() {
         mHideOnSwipeToolbarAnimation.cancel();
         mShowOnSwipeToolbarAnimation.cancel();
@@ -209,5 +222,17 @@ public class AutomotiveBackButtonToolbarCoordinator {
 
     OnSwipeCallback getOnSwipeCallbackForTesting() {
         return mOnSwipeCallback;
+    }
+
+    /**
+     * Returns true if the automotive back button bar should be streamlined, which means removing
+     * Chrome's back button bar (AAOS already provides a back button) when not in full-screen mode.
+     *
+     * @param context The context used to check for device compliance.
+     * @return Whether the back button bar should be streamlined.
+     */
+    public static boolean isAutomotiveBackButtonBarStreamlineSupported(Context context) {
+        return DisplayUtil.doesDeviceHaveCarmaPhase1Version2Compliance(context)
+                && ChromeFeatureList.sAutomotiveBackButtonBarStreamline.isEnabled();
     }
 }

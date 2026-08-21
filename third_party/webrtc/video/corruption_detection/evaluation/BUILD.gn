@@ -8,6 +8,22 @@
 
 import("../../../webrtc.gni")
 
+rtc_library("file_based_decoder") {
+  testonly = true
+  sources = [ "file_based_decoder.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/strings:string_view" ]
+}
+
+rtc_library("file_based_encoder") {
+  testonly = true
+  sources = [ "file_based_encoder.h" ]
+  deps = [
+    ":test_clip",
+    "../../../api/units:data_rate",
+    "../../../api/video:video_frame",
+  ]
+}
+
 rtc_library("picture_pair_provider") {
   testonly = true
   sources = [ "picture_pair_provider.h" ]

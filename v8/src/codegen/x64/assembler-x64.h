@@ -1106,7 +1106,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // {pc_offset() + kIntraSegmentJmpInstrSize}).
   static constexpr int kIntraSegmentJmpInstrSize = 5;
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
-  void near_call(Builtin buitin, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
@@ -3061,7 +3060,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
+  void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 
   int WriteCodeComments();
   int WriteBuiltinJumpTableInfos();

@@ -2488,6 +2488,16 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
 // and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+
+  // Explicitly check for stack overflows. This method can call into JS
+  // code via extensions, and will consume significant stack space before that,
+  // so that stack check might come too late.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+    i_isolate->StackOverflow();
+    return;
+  }
+
   CreateRealm(info, -1, v8::MaybeLocal<Value>());
 }
 
@@ -2496,6 +2506,16 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::RealmCreateAllowCrossRealmAccess(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
+
+  // Explicitly check for stack overflows. This method can call into JS
+  // code via extensions, and will consume significant stack space before that,
+  // so that stack check might come too late.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
+    i_isolate->StackOverflow();
+    return;
+  }
+
   Local<Context> context;
   if (CreateRealm(info, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
@@ -5341,7 +5361,7 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
     : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
-  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+  base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
@@ -5646,7 +5666,7 @@ void Worker::SetCurrentWorker(Worker* worker) {
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
-  v8::base::FlushDenormalsScope denormals_scope(flush_denormals_);
+  base::FlushDenormalsScope denormals_scope(flush_denormals_);
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
@@ -6744,21 +6764,32 @@ void d8_install_sigterm_handler() {
 #endif  // V8_OS_POSIX
 }
 
-}  // namespace
-
-int Shell::Main(int argc, char* argv[]) {
+void ConfigurePartitionAllocIfEnabled() {
 #if defined(V8_ENABLE_PARTITION_ALLOC)
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   allocator_shim::ConfigurePartitionsForTesting();
   allocator_shim::internal::PartitionAllocMalloc::Allocator()
       ->EnableThreadCacheIfSupported();
+  // Use the same limits Chrome uses for the foreground mode.
+  static constexpr size_t kThreadCacheLargeSizeThreshold = 1 << 15;
+  ::partition_alloc::ThreadCache::SetLargestCachedSize(
+      kThreadCacheLargeSizeThreshold);
+#if defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
+  allocator_shim::AdjustDefaultAllocatorForForeground();
+#endif  // defined(V8_OS_DARWIN) || defined(V8_OS_WIN)
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #endif
+}
+
+}  // namespace
+
+int Shell::Main(int argc, char* argv[]) {
+  ConfigurePartitionAllocIfEnabled();
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
 
-  v8::base::FlushDenormalsScope denormals_scope(options.flush_denormals);
+  base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 

@@ -902,6 +902,10 @@ component("net") {
     "quic/quic_session_alias_key.h",
     "quic/quic_session_attempt.cc",
     "quic/quic_session_attempt.h",
+    "quic/quic_session_attempt_manager.cc",
+    "quic/quic_session_attempt_manager.h",
+    "quic/quic_session_attempt_request.cc",
+    "quic/quic_session_attempt_request.h",
     "quic/quic_session_key.cc",
     "quic/quic_session_key.h",
     "quic/quic_session_pool.cc",
@@ -1809,6 +1813,7 @@ component("net") {
       "disk_cache/sql/sql_entry_impl.h",
       "disk_cache/sql/sql_persistent_store.cc",
       "disk_cache/sql/sql_persistent_store.h",
+      "disk_cache/sql/sql_persistent_store_queries.h",
     ]
     deps += [ "//sql:sql" ]
   }
@@ -2334,34 +2339,7 @@ static_library("test_support") {
     configs += [ "//build/config/linux/nss" ]
   }
 
-  if (enable_websockets || (is_cronet_build && !is_ios)) {
-    sources += [
-      "test/spawned_test_server/base_test_server.cc",
-      "test/spawned_test_server/base_test_server.h",
-      "test/spawned_test_server/spawned_test_server.h",
-    ]
-  }
-
   public_configs = [ ":net_test_config" ]
-
-  if (use_remote_test_server) {
-    sources += [
-      "test/spawned_test_server/remote_test_server.cc",
-      "test/spawned_test_server/remote_test_server.h",
-      "test/spawned_test_server/remote_test_server_spawner_request.cc",
-      "test/spawned_test_server/remote_test_server_spawner_request.h",
-    ]
-  } else if (!is_ios && !is_starboard) {
-    sources += [
-      "test/spawned_test_server/local_test_server.cc",
-      "test/spawned_test_server/local_test_server.h",
-    ]
-    if (is_win) {
-      sources += [ "test/spawned_test_server/local_test_server_win.cc" ]
-    } else if (is_posix || is_fuchsia) {
-      sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
-    }
-  }
 
   if (enable_python_utils) {
     sources += [
@@ -2970,6 +2948,7 @@ target(_test_target_type, "net_unittests") {
     "quic/quic_proxy_client_socket_test_base.h",
     "quic/quic_proxy_client_socket_unittest.cc",
     "quic/quic_proxy_datagram_client_socket_unittest.cc",
+    "quic/quic_session_attempt_manager_unittest.cc",
     "quic/quic_session_key_unittest.cc",
     "quic/quic_session_pool_peer.cc",
     "quic/quic_session_pool_peer.h",
@@ -3270,15 +3249,6 @@ target(_test_target_type, "net_unittests") {
   ]
   data_deps = [ "//testing/buildbot/filters:net_unittests_filters" ]
 
-  if (is_linux || is_chromeos || is_mac || is_win || is_fuchsia) {
-    deps += [ "//third_party/pywebsocket3/" ]
-    data_deps += [ "//third_party/pywebsocket3/" ]
-    data += [
-      "tools/testserver/",
-      "//third_party/pywebsocket3/src/mod_pywebsocket/",
-    ]
-  }
-
   if (is_linux || is_chromeos) {
     sources += [ "tools/quic/quic_simple_server_test.cc" ]
   }
@@ -3314,7 +3284,6 @@ target(_test_target_type, "net_unittests") {
   }
 
   if (is_fuchsia) {
-    use_test_server = true
     deps += [
       "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.net.interfaces:fuchsia.net.interfaces_hlcpp",
       "//third_party/fuchsia-sdk/sdk/pkg/fidl_cpp",
@@ -3368,6 +3337,7 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_deflate_predictor_impl_test.cc",
       "websockets/websocket_deflate_stream_test.cc",
       "websockets/websocket_deflater_test.cc",
+      "websockets/websocket_end_to_end_test.cc",
       "websockets/websocket_errors_test.cc",
       "websockets/websocket_extension_parser_test.cc",
       "websockets/websocket_extension_test.cc",
@@ -3383,14 +3353,6 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.cc",
       "websockets/websocket_test_util.h",
     ]
-
-    if (!is_ios && !is_starboard) {
-      # TODO(crbug.com/40812029): iOS does not have support for the spawned test
-      # server, which is used by this test. The long term plan is to add
-      # websocket support to the embedded test server and when that happens,
-      # this test could be enabled.
-      sources += [ "websockets/websocket_end_to_end_test.cc" ]
-    }
   }
 
   if (!disable_file_support) {
@@ -3460,7 +3422,6 @@ target(_test_target_type, "net_unittests") {
   }
 
   if (is_android) {
-    data_deps += [ "//net/tools/testserver:testserver_py" ]
     deps += [
       ":net_jni_headers",
       "//base:base_unittest_support_java",
@@ -3553,6 +3514,12 @@ target(_test_target_type, "net_unittests") {
       "disk_cache/sql/sql_backend_impl_unittest.cc",
       "disk_cache/sql/sql_persistent_store_unittest.cc",
     ]
+
+    # Platforms where sqlite_dev_shell is defined.
+    if (is_win || is_mac || is_linux || is_chromeos) {
+      sources += [ "disk_cache/sql/sql_persistent_store_queries_unittest.cc" ]
+      data_deps += [ "//third_party/sqlite:sqlite_dev_shell" ]
+    }
   }
 }
 

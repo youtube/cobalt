@@ -35,15 +35,15 @@ enum SpsMode {
   kRewriteRequired_VuiSuboptimal,
 };
 
-const size_t kSpsBufferMaxSize = 256;
-const size_t kWidth = 640;
-const size_t kHeight = 480;
+constexpr size_t kSpsBufferMaxSize = 256;
+constexpr size_t kWidth = 640;
+constexpr size_t kHeight = 480;
 
-const uint8_t kStartSequence[] = {0x00, 0x00, 0x00, 0x01};
-const uint8_t kAud[] = {H264::NaluType::kAud, 0x09, 0x10};
-const uint8_t kSpsNaluType[] = {H264::NaluType::kSps};
-const uint8_t kIdr1[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x00, 0x04};
-const uint8_t kIdr2[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x11};
+constexpr uint8_t kStartSequence[] = {0x00, 0x00, 0x00, 0x01};
+constexpr uint8_t kAud[] = {H264::NaluType::kAud, 0x09, 0x10};
+constexpr uint8_t kSpsNaluType[] = {H264::NaluType::kSps};
+constexpr uint8_t kIdr1[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x00, 0x04};
+constexpr uint8_t kIdr2[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x11};
 
 struct VuiHeader {
   uint32_t vui_parameters_present_flag;

@@ -152,26 +152,26 @@ using ::webrtc::test::FrameForwarder;
 using ::webrtc::test::FunctionVideoDecoderFactory;
 using ::webrtc::test::RtcpPacketParser;
 
-const uint8_t kRedRtxPayloadType = 125;
+constexpr uint8_t kRedRtxPayloadType = 125;
 
-const uint32_t kSsrc = 1234u;
-const uint32_t kSsrcs4[] = {1, 2, 3, 4};
-const int kVideoWidth = 640;
-const int kVideoHeight = 360;
-const int kFramerate = 30;
+constexpr uint32_t kSsrc = 1234u;
+constexpr uint32_t kSsrcs4[] = {1, 2, 3, 4};
+constexpr int kVideoWidth = 640;
+constexpr int kVideoHeight = 360;
+constexpr int kFramerate = 30;
 constexpr TimeDelta kFrameDuration = TimeDelta::Millis(1000 / kFramerate);
 
-const uint32_t kSsrcs1[] = {1};
-const uint32_t kSsrcs3[] = {1, 2, 3};
-const uint32_t kRtxSsrcs1[] = {4};
-const uint32_t kFlexfecSsrc = 5;
-const uint32_t kIncomingUnsignalledSsrc = 0xC0FFEE;
-const int64_t kUnsignalledReceiveStreamCooldownMs = 500;
+constexpr uint32_t kSsrcs1[] = {1};
+constexpr uint32_t kSsrcs3[] = {1, 2, 3};
+constexpr uint32_t kRtxSsrcs1[] = {4};
+constexpr uint32_t kFlexfecSsrc = 5;
+constexpr uint32_t kIncomingUnsignalledSsrc = 0xC0FFEE;
+constexpr int64_t kUnsignalledReceiveStreamCooldownMs = 500;
 
 constexpr uint32_t kRtpHeaderSize = 12;
 constexpr size_t kNumSimulcastStreams = 3;
 
-const char kUnsupportedExtensionName[] =
+constexpr char kUnsupportedExtensionName[] =
     "urn:ietf:params:rtp-hdrext:unsupported";
 
 Codec RemoveFeedbackParams(Codec&& codec) {

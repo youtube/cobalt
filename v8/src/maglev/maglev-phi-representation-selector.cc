@@ -602,7 +602,8 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                 input_index,
                 AddNewNodeNoInputConversionAtBlockEnd<
                     CheckedNumberOrOddballToHoleyFloat64>(
-                    phi->predecessor_at(input_index), {input_phi}));
+                    phi->predecessor_at(input_index), {input_phi},
+                    TaggedToFloat64ConversionType::kNumberOrUndefined));
             break;
           }
           case ValueRepresentation::kTagged:
@@ -1182,7 +1183,7 @@ void MaglevPhiRepresentationSelector::PreparePhiTaggings(
       DCHECK(new_block->is_loop());
       phi->set_input(predecessor_count - 1, phi);
     }
-    reducer_.RegisterNode(phi);
+    if (reducer_.has_graph_labeller()) reducer_.RegisterNode(phi);
     new_block->AddPhi(phi);
 
     return phi;

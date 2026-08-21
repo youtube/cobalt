@@ -800,8 +800,10 @@ void MessageService::OpenChannelToTabImpl(
   // Therefore, possible origins are either an extension origin or an opaque
   // origin created by an extension. See https://crbug.com/1407087.
   url::Origin source_origin = url::Origin();
+  GURL source_url;
   if (source.is_for_render_frame()) {
     source_origin = source.GetRenderFrameHost()->GetLastCommittedOrigin();
+    source_url = source.GetRenderFrameHost()->GetLastCommittedURL();
   } else if (source.is_for_service_worker() && extension) {
     source_origin = extension->origin();
   }
@@ -815,9 +817,8 @@ void MessageService::OpenChannelToTabImpl(
           std::nullopt,  // No source_tab, as there is no frame.
           ExtensionApiFrameIdMap::FrameData(), receiver.release(),
           receiver_port_id, MessagingEndpoint::ForExtension(extension_id),
-          std::move(opener_port), extension_id,
-          GURL(),  // Source URL doesn't make sense for opening to tabs.
-          source_origin, channel_type, channel_name,
+          std::move(opener_port), extension_id, source_url, source_origin,
+          channel_type, channel_name,
           false);  // Connections to tabs aren't webview guests.
   OpenChannelImpl(receiver_context, std::move(params), extension,
                   false /* did_enqueue */);
@@ -1054,20 +1055,21 @@ void MessageService::CloseChannel(const PortId& port_id,
 void MessageService::ClosePort(const PortId& port_id,
                                int process_id,
                                const PortContext& port_context,
-                               bool force_close) {
+                               bool close_channel,
+                               const std::string& error_message) {
   int routing_id =
       port_context.frame ? port_context.frame->routing_id : MSG_ROUTING_NONE;
   int worker_thread_id =
       port_context.worker ? port_context.worker->thread_id : kMainThreadId;
-  ClosePortImpl(port_id, process_id, routing_id, worker_thread_id, force_close,
-                std::string());
+  ClosePortImpl(port_id, process_id, routing_id, worker_thread_id,
+                close_channel, error_message);
 }
 
 void MessageService::ClosePortImpl(const PortId& port_id,
                                    int process_id,
                                    int routing_id,
                                    int worker_thread_id,
-                                   bool force_close,
+                                   bool close_channel,
                                    const std::string& error_message) {
   // Note: The channel might be not yet created (if the opener became invalid
   // before the channel initialization completed) or already gone (if the other
@@ -1082,7 +1084,7 @@ void MessageService::ClosePortImpl(const PortId& port_id,
           context_id,
           base::BindOnce(&MessageService::PendingLazyContextClosePort,
                          weak_factory_.GetWeakPtr(), port_id, process_id,
-                         routing_id, worker_thread_id, force_close,
+                         routing_id, worker_thread_id, close_channel,
                          error_message));
     }
     return;
@@ -1091,7 +1093,7 @@ void MessageService::ClosePortImpl(const PortId& port_id,
   // The difference between closing a channel and port is that closing a port
   // does not necessarily have to destroy the channel if there are multiple
   // receivers, whereas closing a channel always forces all ports to be closed.
-  if (force_close) {
+  if (close_channel) {
     CloseChannelImpl(it, port_id, error_message, true);
   } else if (port_id.is_opener) {
     it->second->opener->ClosePort(process_id, routing_id, worker_thread_id);

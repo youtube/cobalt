@@ -178,10 +178,6 @@ if (!build_with_chromium) {
       "test_audio_device_impl.h",
     ]
 
-    # TODO: bugs.webrtc.org/413413572 - Mark this build target as testonly or
-    # or update downstream not to use deprecated function. Explicit poison
-    # can be removed then.
-    allow_poison = [ "environment_construction" ]
     deps = [
       ":audio_device_buffer",
       ":audio_device_default",
@@ -192,7 +188,6 @@ if (!build_with_chromium) {
       "../../api:scoped_refptr",
       "../../api/audio:audio_device",
       "../../api/environment",
-      "../../api/environment:environment_factory",
       "../../api/task_queue",
       "../../api/units:time_delta",
       "../../common_audio",

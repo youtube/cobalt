@@ -623,12 +623,10 @@ class BASE_EXPORT TraceLog :
   perfetto::DataSourceConfig track_event_config_ GUARDED_BY(track_event_lock_);
   bool track_event_enabled_ GUARDED_BY(track_event_lock_) = false;
   mutable Lock track_event_lock_;
-#if !BUILDFLAG(IS_NACL)
   std::unique_ptr<perfetto::trace_processor::TraceProcessorStorage>
       trace_processor_;
   std::unique_ptr<JsonStringOutputWriter> json_output_writer_;
   OutputCallback proto_output_callback_;
-#endif  // !BUILDFLAG(IS_NACL)
 #endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 #if BUILDFLAG(IS_ANDROID)

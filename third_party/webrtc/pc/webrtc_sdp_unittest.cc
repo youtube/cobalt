@@ -64,39 +64,45 @@ using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::Property;
 
-const uint32_t kDefaultSctpPort = 5000;
-const uint16_t kUnusualSctpPort = 9556;
-const char kSessionTime[] = "t=0 0\r\n";
-const uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
-const char kAttributeIceUfragVoice[] = "a=ice-ufrag:ufrag_voice\r\n";
-const char kAttributeIcePwdVoice[] = "a=ice-pwd:pwd_voice\r\n";
-const char kAttributeIceUfragVideo[] = "a=ice-ufrag:ufrag_video\r\n";
-const char kAttributeIcePwdVideo[] = "a=ice-pwd:pwd_video\r\n";
-const uint32_t kCandidateGeneration = 2;
-const char kCandidateFoundation1[] = "a0+B/1";
-const char kCandidateFoundation2[] = "a0+B/2";
-const char kCandidateFoundation3[] = "a0+B/3";
-const char kCandidateFoundation4[] = "a0+B/4";
-const char kFingerprint[] =
+constexpr uint32_t kDefaultSctpPort = 5000;
+constexpr uint16_t kUnusualSctpPort = 9556;
+constexpr char kSessionTime[] = "t=0 0\r\n";
+constexpr uint32_t kCandidatePriority = 2130706432U;  // pref = 1.0
+constexpr char kAttributeIceUfragVoice[] = "a=ice-ufrag:ufrag_voice\r\n";
+constexpr char kAttributeIcePwdVoice[] = "a=ice-pwd:pwd_voice\r\n";
+constexpr char kAttributeIceUfragVideo[] = "a=ice-ufrag:ufrag_video\r\n";
+constexpr char kAttributeIcePwdVideo[] = "a=ice-pwd:pwd_video\r\n";
+constexpr uint32_t kCandidateGeneration = 2;
+constexpr char kCandidateFoundation1[] = "a0+B/1";
+constexpr char kCandidateFoundation2[] = "a0+B/2";
+constexpr char kCandidateFoundation3[] = "a0+B/3";
+constexpr char kCandidateFoundation4[] = "a0+B/4";
+constexpr char kFingerprint[] =
     "a=fingerprint:sha-1 "
     "4A:AD:B9:B1:3F:82:18:3B:54:02:12:DF:3E:5D:49:6B:19:E5:7C:AB\r\n";
-const char kExtmapAllowMixed[] = "a=extmap-allow-mixed\r\n";
-const int kExtmapId = 1;
-const char kExtmapUri[] = "http://example.com/082005/ext.htm#ttime";
-const char kExtmap[] = "a=extmap:1 http://example.com/082005/ext.htm#ttime\r\n";
-const char kExtmapWithDirectionAndAttribute[] =
+constexpr char kExtmapAllowMixed[] = "a=extmap-allow-mixed\r\n";
+constexpr int kExtmapId = 1;
+constexpr char kExtmapUri[] = "http://example.com/082005/ext.htm#ttime";
+constexpr char kExtmap[] =
+    "a=extmap:1 http://example.com/082005/ext.htm#ttime\r\n";
+constexpr char kExtmapWithDirectionAndAttribute[] =
     "a=extmap:1/sendrecv http://example.com/082005/ext.htm#ttime a1 a2\r\n";
-const char kExtmapWithDirectionAndAttributeEncrypted[] =
+constexpr char kExtmapWithDirectionAndAttributeEncrypted[] =
     "a=extmap:1/sendrecv urn:ietf:params:rtp-hdrext:encrypt "
     "http://example.com/082005/ext.htm#ttime a1 a2\r\n";
 
-const uint8_t kIdentityDigest[] = {0x4A, 0xAD, 0xB9, 0xB1, 0x3F, 0x82, 0x18,
-                                   0x3B, 0x54, 0x02, 0x12, 0xDF, 0x3E, 0x5D,
-                                   0x49, 0x6B, 0x19, 0xE5, 0x7C, 0xAB};
+constexpr uint8_t kIdentityDigest[] = {0x4A, 0xAD, 0xB9, 0xB1, 0x3F, 0x82, 0x18,
+                                       0x3B, 0x54, 0x02, 0x12, 0xDF, 0x3E, 0x5D,
+                                       0x49, 0x6B, 0x19, 0xE5, 0x7C, 0xAB};
 
-const char kDtlsSctp[] = "DTLS/SCTP";
-const char kUdpDtlsSctp[] = "UDP/DTLS/SCTP";
-const char kTcpDtlsSctp[] = "TCP/DTLS/SCTP";
+constexpr char kDtlsSctp[] = "DTLS/SCTP";
+constexpr char kUdpDtlsSctp[] = "UDP/DTLS/SCTP";
+constexpr char kTcpDtlsSctp[] = "TCP/DTLS/SCTP";
+
+constexpr char kMediaSectionMsidLine[] =
+    "a=msid:local_stream_1 audio_track_id_1";
+constexpr char kSsrcAttributeMsidLine[] =
+    "a=ssrc:1 msid:local_stream_1 audio_track_id_1";
 
 struct CodecParams {
   int max_ptime;
@@ -109,7 +115,7 @@ struct CodecParams {
 };
 
 // Reference sdp string
-const char kSdpFullString[] =
+constexpr char kSdpFullString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -172,7 +178,7 @@ const char kSdpFullString[] =
     "a=ssrc:3 cname:stream_1_cname\r\n";
 
 // SDP reference string without the candidates.
-const char kSdpString[] =
+constexpr char kSdpString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -211,7 +217,7 @@ const char kSdpString[] =
     "a=ssrc:3 cname:stream_1_cname\r\n";
 
 // draft-ietf-mmusic-sctp-sdp-03
-const char kSdpSctpDataChannelString[] =
+constexpr char kSdpSctpDataChannelString[] =
     "m=application 9 UDP/DTLS/SCTP 5000\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "a=ice-ufrag:ufrag_data\r\n"
@@ -225,7 +231,7 @@ const char kSdpSctpDataChannelString[] =
 // draft-ietf-mmusic-sctp-sdp-12
 // Note - this is invalid per draft-ietf-mmusic-sctp-sdp-26,
 // since the separator after "sctp-port" needs to be a colon.
-const char kSdpSctpDataChannelStringWithSctpPort[] =
+constexpr char kSdpSctpDataChannelStringWithSctpPort[] =
     "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n"
     "a=sctp-port 5000\r\n"
     "c=IN IP4 0.0.0.0\r\n"
@@ -237,7 +243,7 @@ const char kSdpSctpDataChannelStringWithSctpPort[] =
     "a=mid:data_content_name\r\n";
 
 // draft-ietf-mmusic-sctp-sdp-26
-const char kSdpSctpDataChannelStringWithSctpColonPort[] =
+constexpr char kSdpSctpDataChannelStringWithSctpColonPort[] =
     "m=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n"
     "a=sctp-port:5000\r\n"
     "c=IN IP4 0.0.0.0\r\n"
@@ -248,7 +254,7 @@ const char kSdpSctpDataChannelStringWithSctpColonPort[] =
 
     "a=mid:data_content_name\r\n";
 
-const char kSdpSctpDataChannelWithCandidatesString[] =
+constexpr char kSdpSctpDataChannelWithCandidatesString[] =
     "m=application 2345 UDP/DTLS/SCTP 5000\r\n"
     "c=IN IP4 74.125.127.126\r\n"
     "a=candidate:a0+B/1 1 udp 2130706432 192.168.1.5 1234 typ host "
@@ -266,7 +272,7 @@ const char kSdpSctpDataChannelWithCandidatesString[] =
     "a=mid:data_content_name\r\n"
     "a=sctpmap:5000 webrtc-datachannel 1024\r\n";
 
-const char kSdpConferenceString[] =
+constexpr char kSdpConferenceString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -279,14 +285,14 @@ const char kSdpConferenceString[] =
     "c=IN IP4 0.0.0.0\r\n"
     "a=x-google-flag:conference\r\n";
 
-const char kSdpSessionString[] =
+constexpr char kSdpSessionString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
     "t=0 0\r\n"
     "a=msid-semantic: WMS local_stream\r\n";
 
-const char kSdpAudioString[] =
+constexpr char kSdpAudioString[] =
     "m=audio 9 RTP/SAVPF 111\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "a=rtcp:9 IN IP4 0.0.0.0\r\n"
@@ -300,7 +306,7 @@ const char kSdpAudioString[] =
     "a=ssrc:1 cname:stream_1_cname\r\n"
     "a=ssrc:1 msid:local_stream audio_track_id_1\r\n";
 
-const char kSdpVideoString[] =
+constexpr char kSdpVideoString[] =
     "m=video 9 RTP/SAVPF 120\r\n"
     "c=IN IP4 0.0.0.0\r\n"
     "a=rtcp:9 IN IP4 0.0.0.0\r\n"
@@ -315,7 +321,7 @@ const char kSdpVideoString[] =
     "a=ssrc:2 msid:local_stream video_track_id_1\r\n";
 
 // Reference sdp string using bundle-only.
-const char kBundleOnlySdpFullString[] =
+constexpr char kBundleOnlySdpFullString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -369,7 +375,7 @@ const char kBundleOnlySdpFullString[] =
 
 // Plan B SDP reference string, with 2 streams, 2 audio tracks and 3 video
 // tracks.
-const char kPlanBSdpFullString[] =
+constexpr char kPlanBSdpFullString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -442,7 +448,7 @@ const char kPlanBSdpFullString[] =
 
 // Unified Plan SDP reference string, with 2 streams, 2 audio tracks and 3 video
 // tracks.
-const char kUnifiedPlanSdpFullString[] =
+constexpr char kUnifiedPlanSdpFullString[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -558,7 +564,7 @@ const char kUnifiedPlanSdpFullString[] =
 //   there are 0 media stream ids.
 // This Unified Plan SDP represents a SDP that signals the msid using both
 // a=msid and a=ssrc msid semantics.
-const char kUnifiedPlanSdpFullStringWithSpecialMsid[] =
+constexpr char kUnifiedPlanSdpFullStringWithSpecialMsid[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -638,7 +644,7 @@ const char kUnifiedPlanSdpFullStringWithSpecialMsid[] =
     "a=ssrc:7 msid:- audio_track_id_3\r\n";
 
 // SDP string for unified plan without SSRCs
-const char kUnifiedPlanSdpFullStringNoSsrc[] =
+constexpr char kUnifiedPlanSdpFullStringNoSsrc[] =
     "v=0\r\n"
     "o=- 18446744069414584320 18446462598732840960 IN IP4 127.0.0.1\r\n"
     "s=-\r\n"
@@ -732,101 +738,101 @@ const char kUnifiedPlanSdpFullStringNoSsrc[] =
 
 // One candidate reference string as per W3c spec.
 // candidate:<blah> not a=candidate:<blah>CRLF
-const char kRawCandidate[] =
+constexpr char kRawCandidate[] =
     "candidate:a0+B/1 1 udp 2130706432 192.168.1.5 1234 typ host generation 2";
 // One candidate reference string.
-const char kSdpOneCandidate[] =
+constexpr char kSdpOneCandidate[] =
     "a=candidate:a0+B/1 1 udp 2130706432 192.168.1.5 1234 typ host "
     "generation 2\r\n";
 
-const char kSdpTcpActiveCandidate[] =
+constexpr char kSdpTcpActiveCandidate[] =
     "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9 typ host "
     "tcptype active generation 2";
-const char kSdpTcpPassiveCandidate[] =
+constexpr char kSdpTcpPassiveCandidate[] =
     "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9 typ host "
     "tcptype passive generation 2";
-const char kSdpTcpSOCandidate[] =
+constexpr char kSdpTcpSOCandidate[] =
     "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9 typ host "
     "tcptype so generation 2";
-const char kSdpTcpInvalidCandidate[] =
+constexpr char kSdpTcpInvalidCandidate[] =
     "candidate:a0+B/1 1 tcp 2130706432 192.168.1.5 9 typ host "
     "tcptype invalid generation 2";
 
 // One candidate reference string with IPV6 address.
-const char kRawIPV6Candidate[] =
+constexpr char kRawIPV6Candidate[] =
     "candidate:a0+B/1 1 udp 2130706432 "
     "abcd:abcd:abcd:abcd:abcd:abcd:abcd:abcd 1234 typ host generation 2";
 
 // One candidate reference string.
-const char kSdpOneCandidateWithUfragPwd[] =
+constexpr char kSdpOneCandidateWithUfragPwd[] =
     "a=candidate:a0+B/1 1 udp 2130706432 192.168.1.5 1234 typ host network_name"
     " eth0 ufrag user_rtp pwd password_rtp generation 2\r\n";
 
-const char kRawHostnameCandidate[] =
+constexpr char kRawHostnameCandidate[] =
     "candidate:a0+B/1 1 udp 2130706432 a.test 1234 typ host generation 2";
 
 // Session id and version
-const char kSessionId[] = "18446744069414584320";
-const char kSessionVersion[] = "18446462598732840960";
+constexpr char kSessionId[] = "18446744069414584320";
+constexpr char kSessionVersion[] = "18446462598732840960";
 
 // ICE options.
-const char kIceOption1[] = "iceoption1";
-const char kIceOption2[] = "iceoption2";
-const char kIceOption3[] = "iceoption3";
+constexpr char kIceOption1[] = "iceoption1";
+constexpr char kIceOption2[] = "iceoption2";
+constexpr char kIceOption3[] = "iceoption3";
 
 // ICE ufrags/passwords.
-const char kUfragVoice[] = "ufrag_voice";
-const char kPwdVoice[] = "pwd_voice";
-const char kUfragVideo[] = "ufrag_video";
-const char kPwdVideo[] = "pwd_video";
-const char kUfragData[] = "ufrag_data";
-const char kPwdData[] = "pwd_data";
+constexpr char kUfragVoice[] = "ufrag_voice";
+constexpr char kPwdVoice[] = "pwd_voice";
+constexpr char kUfragVideo[] = "ufrag_video";
+constexpr char kPwdVideo[] = "pwd_video";
+constexpr char kUfragData[] = "ufrag_data";
+constexpr char kPwdData[] = "pwd_data";
 
 // Extra ufrags/passwords for extra unified plan m= sections.
-const char kUfragVoice2[] = "ufrag_voice_2";
-const char kPwdVoice2[] = "pwd_voice_2";
-const char kUfragVoice3[] = "ufrag_voice_3";
-const char kPwdVoice3[] = "pwd_voice_3";
-const char kUfragVideo2[] = "ufrag_video_2";
-const char kPwdVideo2[] = "pwd_video_2";
-const char kUfragVideo3[] = "ufrag_video_3";
-const char kPwdVideo3[] = "pwd_video_3";
+constexpr char kUfragVoice2[] = "ufrag_voice_2";
+constexpr char kPwdVoice2[] = "pwd_voice_2";
+constexpr char kUfragVoice3[] = "ufrag_voice_3";
+constexpr char kPwdVoice3[] = "pwd_voice_3";
+constexpr char kUfragVideo2[] = "ufrag_video_2";
+constexpr char kPwdVideo2[] = "pwd_video_2";
+constexpr char kUfragVideo3[] = "ufrag_video_3";
+constexpr char kPwdVideo3[] = "pwd_video_3";
 
 // Content name
-const char kAudioContentName[] = "audio_content_name";
-const char kVideoContentName[] = "video_content_name";
-const char kDataContentName[] = "data_content_name";
+constexpr char kAudioContentName[] = "audio_content_name";
+constexpr char kVideoContentName[] = "video_content_name";
+constexpr char kDataContentName[] = "data_content_name";
 
 // Extra content names for extra unified plan m= sections.
-const char kAudioContentName2[] = "audio_content_name_2";
-const char kAudioContentName3[] = "audio_content_name_3";
-const char kVideoContentName2[] = "video_content_name_2";
-const char kVideoContentName3[] = "video_content_name_3";
+constexpr char kAudioContentName2[] = "audio_content_name_2";
+constexpr char kAudioContentName3[] = "audio_content_name_3";
+constexpr char kVideoContentName2[] = "video_content_name_2";
+constexpr char kVideoContentName3[] = "video_content_name_3";
 
 // MediaStream 1
-const char kStreamId1[] = "local_stream_1";
-const char kStream1Cname[] = "stream_1_cname";
-const char kAudioTrackId1[] = "audio_track_id_1";
-const uint32_t kAudioTrack1Ssrc = 1;
-const char kVideoTrackId1[] = "video_track_id_1";
-const uint32_t kVideoTrack1Ssrc1 = 2;
-const uint32_t kVideoTrack1Ssrc2 = 3;
+constexpr char kStreamId1[] = "local_stream_1";
+constexpr char kStream1Cname[] = "stream_1_cname";
+constexpr char kAudioTrackId1[] = "audio_track_id_1";
+constexpr uint32_t kAudioTrack1Ssrc = 1;
+constexpr char kVideoTrackId1[] = "video_track_id_1";
+constexpr uint32_t kVideoTrack1Ssrc1 = 2;
+constexpr uint32_t kVideoTrack1Ssrc2 = 3;
 
 // MediaStream 2
-const char kStreamId2[] = "local_stream_2";
-const char kStream2Cname[] = "stream_2_cname";
-const char kAudioTrackId2[] = "audio_track_id_2";
-const uint32_t kAudioTrack2Ssrc = 4;
-const char kVideoTrackId2[] = "video_track_id_2";
-const uint32_t kVideoTrack2Ssrc = 5;
-const char kVideoTrackId3[] = "video_track_id_3";
-const uint32_t kVideoTrack3Ssrc = 6;
-const char kAudioTrackId3[] = "audio_track_id_3";
-const uint32_t kAudioTrack3Ssrc = 7;
+constexpr char kStreamId2[] = "local_stream_2";
+constexpr char kStream2Cname[] = "stream_2_cname";
+constexpr char kAudioTrackId2[] = "audio_track_id_2";
+constexpr uint32_t kAudioTrack2Ssrc = 4;
+constexpr char kVideoTrackId2[] = "video_track_id_2";
+constexpr uint32_t kVideoTrack2Ssrc = 5;
+constexpr char kVideoTrackId3[] = "video_track_id_3";
+constexpr uint32_t kVideoTrack3Ssrc = 6;
+constexpr char kAudioTrackId3[] = "audio_track_id_3";
+constexpr uint32_t kAudioTrack3Ssrc = 7;
 
 // Candidate
-const char kDummyMid[] = "dummy_mid";
-const int kDummyIndex = 123;
+constexpr char kDummyMid[] = "dummy_mid";
+constexpr int kDummyIndex = 123;
 
 // Misc
 SdpType kDummyType = SdpType::kOffer;
@@ -3744,10 +3750,6 @@ TEST_F(WebRtcSdpTest, UnifiedPlanHasMediaSectionMsidSignaling) {
   EXPECT_EQ(kMsidSignalingMediaSection | kMsidSignalingSemantic,
             jsep_desc.description()->msid_signaling());
 }
-
-const char kMediaSectionMsidLine[] = "a=msid:local_stream_1 audio_track_id_1";
-const char kSsrcAttributeMsidLine[] =
-    "a=ssrc:1 msid:local_stream_1 audio_track_id_1";
 
 TEST_F(WebRtcSdpTest, SerializeOnlyMediaSectionMsid) {
   jdesc_.description()->set_msid_signaling(kMsidSignalingMediaSection);

@@ -4,28 +4,77 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #include "src/gpu/graphite/CommandBuffer.h"
 
+#include "include/core/SkSamplingOptions.h"
+#include "include/core/SkSize.h"
+#include "include/core/SkTileMode.h"
+#include "include/gpu/graphite/TextureInfo.h"
+#include "include/private/base/SkDebug.h"
 #include "src/core/SkTraceEvent.h"
 #include "src/gpu/RefCntedCallback.h"
 #include "src/gpu/graphite/Buffer.h"
-#include "src/gpu/graphite/ComputePipeline.h"
 #include "src/gpu/graphite/DrawPass.h"
-#include "src/gpu/graphite/GraphicsPipeline.h"
 #include "src/gpu/graphite/Log.h"
 #include "src/gpu/graphite/RenderPassDesc.h"
+#include "src/gpu/graphite/Resource.h"
 #include "src/gpu/graphite/ResourceProvider.h"
-#include "src/gpu/graphite/Sampler.h"
+#include "src/gpu/graphite/ResourceTypes.h"
+#include "src/gpu/graphite/Sampler.h"  // IWYU pragma: keep
 #include "src/gpu/graphite/Texture.h"
-#include "src/gpu/graphite/TextureProxy.h"
+
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
 
 namespace skgpu::graphite {
+
+namespace {
+
+// TODO(b/407062399): Can be removed post debugging
+class ResourceCountTracker {
+public:
+    static ResourceCountTracker& Get() {
+        static ResourceCountTracker gTracker{};
+        return gTracker;
+    }
+
+    void recordCount(int count) {
+        // fetch_max is c++26 :/
+        int oldCount;
+        do {
+            oldCount = fMaxCount.load(std::memory_order_acquire);
+            count = std::max(count, oldCount);
+        } while(!fMaxCount.compare_exchange_weak(oldCount, count,
+                                                 std::memory_order_release,
+                                                 std::memory_order_relaxed));
+    }
+
+    int getMaxCount() const {
+        return fMaxCount.load(std::memory_order_acquire);
+    }
+
+private:
+    ResourceCountTracker() = default;
+
+    std::atomic<int> fMaxCount{0};
+};
+
+} // anonymous namespace
 
 CommandBuffer::CommandBuffer(Protected isProtected) : fIsProtected(isProtected) {}
 
 CommandBuffer::~CommandBuffer() {
     this->releaseResources();
+}
+
+void CommandBuffer::recordResourceCounts() const {
+    ResourceCountTracker::Get().recordCount(fTrackedUsageResources.size() +
+                                            fCommandBufferResources.size());
+}
+
+int CommandBuffer::MaxTrackedResources() {
+    return ResourceCountTracker::Get().getMaxCount();
 }
 
 void CommandBuffer::releaseResources() {

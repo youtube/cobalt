@@ -10,9 +10,11 @@
 
 #include "rtc_tools/frame_analyzer/video_color_aligner.h"
 
-#include <stdint.h>
+#include <cstdint>
 
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
 #include "rtc_tools/video_file_reader.h"
 #include "test/gtest.h"

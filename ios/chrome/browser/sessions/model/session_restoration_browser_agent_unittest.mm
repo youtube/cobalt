@@ -18,7 +18,6 @@
 #import "ios/chrome/browser/main/model/browser_web_state_list_delegate.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper_delegate.h"
-#import "ios/chrome/browser/sessions/model/ios_chrome_session_tab_helper.h"
 #import "ios/chrome/browser/sessions/model/session_tab_group.h"
 #import "ios/chrome/browser/sessions/model/session_window_ios.h"
 #import "ios/chrome/browser/sessions/model/test_session_restoration_observer.h"
@@ -167,7 +166,7 @@ class SessionRestorationBrowserAgentTest : public PlatformTest {
   void TearDown() override {
     @autoreleasepool {
       CloseAllWebStates(*browser_->GetWebStateList(),
-                        WebStateList::CLOSE_NO_FLAGS);
+                        WebStateList::ClosingReason::kDefault);
     }
     PlatformTest::TearDown();
   }
@@ -366,7 +365,8 @@ TEST_F(SessionRestorationBrowserAgentTest, SaveAndRestoreEmptySession) {
   [test_session_service_ setPerformIO:NO];
 
   // Session should be saved, now remove the webstate.
-  browser_->GetWebStateList()->CloseWebStateAt(0, WebStateList::CLOSE_NO_FLAGS);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      0, WebStateList::ClosingReason::kDefault);
   [test_session_service_ setPerformIO:YES];
   session_restoration_agent_->SaveSession(/*immediately=*/true);
   [test_session_service_ setPerformIO:NO];
@@ -409,7 +409,8 @@ TEST_F(SessionRestorationBrowserAgentTest, DISABLED_SaveAndRestoreSession) {
   session_restoration_agent_->SaveSession(/*immediately=*/true);
   [test_session_service_ setPerformIO:NO];
   // close all the webStates
-  CloseAllWebStates(*browser_->GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*browser_->GetWebStateList(),
+                    WebStateList::ClosingReason::kDefault);
 
   const base::FilePath& state_path = profile_->GetStatePath();
   SessionWindowIOS* session_window =
@@ -458,7 +459,8 @@ TEST_F(SessionRestorationBrowserAgentTest, SaveInProgressAndRestoreSession) {
             browser_->GetWebStateList()->GetActiveWebState());
 
   // Close all the webStates
-  CloseAllWebStates(*browser_->GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*browser_->GetWebStateList(),
+                    WebStateList::ClosingReason::kDefault);
 
   const base::FilePath& state_path = profile_->GetStatePath();
   SessionWindowIOS* session_window =
@@ -526,8 +528,8 @@ TEST_F(SessionRestorationBrowserAgentTest,
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 1);
 
   // Removing the active webstate.
-  browser_->GetWebStateList()->CloseWebStateAt(/*index=*/2,
-                                               WebStateList::CLOSE_USER_ACTION);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      /*index=*/2, WebStateList::ClosingReason::kUserAction);
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 2);
 
   EXPECT_EQ(browser_->GetWebStateList()->active_index(), 1);
@@ -537,13 +539,13 @@ TEST_F(SessionRestorationBrowserAgentTest,
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 3);
 
   // Removing a non active webState.
-  browser_->GetWebStateList()->CloseWebStateAt(/*index=*/1,
-                                               WebStateList::CLOSE_USER_ACTION);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      /*index=*/1, WebStateList::ClosingReason::kUserAction);
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 4);
 
   // Removing the last active webState.
-  browser_->GetWebStateList()->CloseWebStateAt(/*index=*/0,
-                                               WebStateList::CLOSE_USER_ACTION);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      /*index=*/0, WebStateList::ClosingReason::kUserAction);
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 6);
 
   InsertNewWebState(/*parent=*/nullptr, /*index=*/0,
@@ -552,7 +554,8 @@ TEST_F(SessionRestorationBrowserAgentTest,
   InsertNewWebState(/*parent=*/nullptr, /*index=*/1,
                     /*pinned=*/false,
                     /*background=*/true);
-  CloseAllWebStates(*browser_->GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*browser_->GetWebStateList(),
+                    WebStateList::ClosingReason::kDefault);
   EXPECT_EQ(test_session_service_.saveSessionCallsCount, 7);
 }
 

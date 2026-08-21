@@ -18,7 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/strings/match.h"
 #include "api/array_view.h"
 #include "api/field_trials_view.h"
 #include "api/units/data_rate.h"
@@ -132,8 +131,7 @@ constexpr DataRate Interpolate(const DataRate& a,
 
 // TODO(webrtc:12415): Flip this to a kill switch when this feature launches.
 bool EnableLowresBitrateInterpolation(const FieldTrialsView& trials) {
-  return absl::StartsWith(
-      trials.Lookup("WebRTC-LowresSimulcastBitrateInterpolation"), "Enabled");
+  return trials.IsEnabled("WebRTC-LowresSimulcastBitrateInterpolation");
 }
 
 int GetDefaultSimulcastTemporalLayers(VideoCodecType codec) {
@@ -355,8 +353,7 @@ size_t LimitSimulcastLayerCount(size_t min_num_layers,
                                 int height,
                                 const FieldTrialsView& trials,
                                 VideoCodecType codec) {
-  if (!absl::StartsWith(trials.Lookup(kUseLegacySimulcastLayerLimitFieldTrial),
-                        "Disabled")) {
+  if (!trials.IsDisabled(kUseLegacySimulcastLayerLimitFieldTrial)) {
     // Max layers from one higher resolution in kSimulcastFormats will be used
     // if the ratio (pixels_up - pixels) / (pixels_up - pixels_down) is less
     // than configured `max_ratio`. pixels_down is the selected index in

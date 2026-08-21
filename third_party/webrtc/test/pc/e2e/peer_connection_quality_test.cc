@@ -643,7 +643,7 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
     SignalingInterceptor* signaling_interceptor) {
   std::string log_output;
 
-  auto offer = alice_->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = alice_->CreateOffer();
   RTC_CHECK(offer);
   offer->ToString(&log_output);
   RTC_LOG(LS_INFO) << "Original offer: " << log_output;
@@ -660,7 +660,7 @@ void PeerConnectionE2EQualityTest::ExchangeOfferAnswer(
   bool set_remote_offer =
       bob_->SetRemoteDescription(std::move(patch_result.remote_sdp));
   RTC_CHECK(set_remote_offer);
-  auto answer = bob_->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = bob_->CreateAnswer();
   RTC_CHECK(answer);
   answer->ToString(&log_output);
   RTC_LOG(LS_INFO) << "Original answer: " << log_output;

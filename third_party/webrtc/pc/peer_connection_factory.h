@@ -39,7 +39,6 @@
 #include "call/call.h"
 #include "call/rtp_transport_controller_send_factory_interface.h"
 #include "media/base/media_engine.h"
-#include "p2p/base/port_allocator.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
 #include "rtc_base/thread.h"
@@ -125,8 +124,6 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
  private:
   Thread* network_thread() const { return context_->network_thread(); }
-
-  bool IsTrialEnabled(absl::string_view key) const;
 
   std::unique_ptr<Call> CreateCall_w(
       const Environment& env,

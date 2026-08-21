@@ -29,8 +29,9 @@ enum {
   kInterArrivalShift = kAbsSendTimeFraction + kAbsSendTimeInterArrivalUpshift,
 };
 
-const double kRtpTimestampToMs = 1.0 / 90.0;
-const double kAstToMs = 1000.0 / static_cast<double>(1 << kInterArrivalShift);
+constexpr double kRtpTimestampToMs = 1.0 / 90.0;
+constexpr double kAstToMs =
+    1000.0 / static_cast<double>(1 << kInterArrivalShift);
 
 class InterArrivalTest : public ::testing::Test {
  protected:

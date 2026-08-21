@@ -16,6 +16,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -26,7 +27,7 @@
 #include "content/public/common/isolated_world_ids.h"
 #include "content/web_test/browser/web_test_control_host.h"
 #include "content/web_test/common/web_test_switches.h"
-#include "ipc/ipc_channel.h"
+#include "ipc/constants.mojom.h"
 
 #if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
 #include "content/public/browser/devtools_frontend_host.h"
@@ -39,7 +40,7 @@ namespace {
 // the constant
 // kMaxMessageChunkSize in chrome/browser/devtools/devtools_ui_bindings.cc.
 constexpr size_t kWebTestMaxMessageChunkSize =
-    IPC::Channel::kMaximumMessageSize / 4;
+    IPC::mojom::kChannelMaximumMessageSize / 4;
 }  // namespace
 
 DevToolsProtocolTestBindings::DevToolsProtocolTestBindings(

@@ -98,7 +98,6 @@
 #include "content/public/test/test_utils.h"
 #include "content/test/did_commit_navigation_interceptor.h"
 #include "content/test/mock_commit_deferring_condition.h"
-#include "ipc/ipc_security_test_util.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -1583,62 +1582,72 @@ void ExecuteScriptAsyncWithoutUserGesture(const ToRenderFrameHost& adapter,
 
 // EvalJsResult methods.
 EvalJsResult::EvalJsResult(base::Value value, std::string_view error)
-    : value(error.empty() ? std::move(value) : base::Value()), error(error) {}
+    : error(error), value_(error.empty() ? std::move(value) : base::Value()) {}
 
 EvalJsResult::EvalJsResult(const EvalJsResult& other)
-    : value(other.value.Clone()), error(other.error) {}
+    : error(other.error), value_(other.value_.Clone()) {}
 
 const std::string& EvalJsResult::ExtractString() const {
-  CHECK(error.empty())
+  CHECK(is_ok())
       << "Can't ExtractString() because the script encountered a problem: "
       << error;
-  CHECK(value.is_string()) << "Can't ExtractString() because script result: "
-                           << value << "is not a string.";
-  return value.GetString();
+  CHECK(value_.is_string())
+      << "Can't ExtractString() because script result: " << value_
+      << "is not a string.";
+  return value_.GetString();
 }
 
 int EvalJsResult::ExtractInt() const {
-  CHECK(error.empty())
+  CHECK(is_ok())
       << "Can't ExtractInt() because the script encountered a problem: "
       << error;
-  CHECK(value.is_int()) << "Can't ExtractInt() because script result: " << value
-                        << "is not an int.";
-  return value.GetInt();
+  CHECK(value_.is_int()) << "Can't ExtractInt() because script result: "
+                         << value_ << "is not an int.";
+  return value_.GetInt();
 }
 
 bool EvalJsResult::ExtractBool() const {
-  CHECK(error.empty())
+  CHECK(is_ok())
       << "Can't ExtractBool() because the script encountered a problem: "
       << error;
-  CHECK(value.is_bool()) << "Can't ExtractBool() because script result: "
-                         << value << "is not a bool.";
-  return value.GetBool();
+  CHECK(value_.is_bool()) << "Can't ExtractBool() because script result: "
+                          << value_ << "is not a bool.";
+  return value_.GetBool();
 }
 
 double EvalJsResult::ExtractDouble() const {
-  CHECK(error.empty())
+  CHECK(is_ok())
       << "Can't ExtractDouble() because the script encountered a problem: "
       << error;
-  CHECK(value.is_double() || value.is_int())
-      << "Can't ExtractDouble() because script result: " << value
+  CHECK(value_.is_double() || value_.is_int())
+      << "Can't ExtractDouble() because script result: " << value_
       << "is not a double or int.";
-  return value.GetDouble();
+  return value_.GetDouble();
 }
 
 base::Value::List EvalJsResult::ExtractList() const {
-  CHECK(error.empty())
+  CHECK(is_ok())
       << "Can't ExtractList() because the script encountered a problem: "
       << error;
-  CHECK(value.is_list()) << "Can't ExtractList() because script result: "
-                         << value << "is not a list.";
-  return value.GetList().Clone();
+  CHECK(value_.is_list()) << "Can't ExtractList() because script result: "
+                          << value_ << "is not a list.";
+  return value_.GetList().Clone();
+}
+
+base::Value::Dict EvalJsResult::ExtractDict() const {
+  CHECK(is_ok())
+      << "Can't ExtractDict() because the script encountered a problem: "
+      << error;
+  CHECK(value_.is_dict()) << "Can't ExtractDict() because script result: "
+                          << value_ << "is not a dictionary.";
+  return value_.GetDict().Clone();
 }
 
 std::ostream& operator<<(std::ostream& os, const EvalJsResult& bar) {
-  if (!bar.error.empty()) {
+  if (!bar.is_ok()) {
     os << bar.error;
   } else {
-    os << bar.value;
+    os << bar.value_;
   }
   return os;
 }
@@ -3509,9 +3518,10 @@ void TestNavigationManager::ResumeIfPaused() {
 
   navigation_paused_ = false;
 
-  request_->GetNavigationThrottleRegistryForTesting()
-      ->GetNavigationThrottleRunnerForTesting()
-      .CallResumeForTesting();
+  auto* registry = request_->GetNavigationThrottleRegistryForTesting();
+  ASSERT_EQ(1u, registry->GetDeferringThrottles().size());
+  registry->ResumeProcessingNavigationEvent(
+      *registry->GetDeferringThrottles().cbegin());
 }
 
 bool TestNavigationManager::ShouldMonitorNavigation(NavigationHandle* handle) {
@@ -4171,13 +4181,9 @@ blink::mojom::BlobURLStore* BlobURLStoreInterceptor::GetForwardingInterface() {
 void BlobURLStoreInterceptor::Register(
     mojo::PendingRemote<blink::mojom::Blob> blob,
     const GURL& url,
-    // TODO(crbug.com/40775506): Remove these once experiment is over.
-    const base::UnguessableToken& unsafe_agent_cluster_id,
-    const std::optional<net::SchemefulSite>& unsafe_top_level_site,
     RegisterCallback callback) {
-  GetForwardingInterface()->Register(
-      std::move(blob), target_url_, unsafe_agent_cluster_id,
-      unsafe_top_level_site, std::move(callback));
+  GetForwardingInterface()->Register(std::move(blob), target_url_,
+                                     std::move(callback));
 }
 
 BlobURLStoreInterceptor::BlobURLStoreInterceptor(GURL target_url)

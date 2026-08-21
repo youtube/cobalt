@@ -55,10 +55,12 @@ _EXTRA_ARGS = [
 _GTEST_KEY = '"gtest/gtest.h"'
 _GTEST_VALUE = '"test/gtest.h"'
 _IWYU_MAPPING = {
+    # Literal matches not followed e.g. by IWYU pragma.
     '"gmock/gmock.h"': '"test/gmock.h"',
     _GTEST_KEY: _GTEST_VALUE,
     '<sys/socket.h>': '"rtc_base/net_helpers.h"',
-
+}
+_IWYU_THIRD_PARTY = {
     # IWYU does not refer to the complete third_party/ path.
     '"libyuv/': '"third_party/libyuv/include/libyuv/',
     '"aom/': '"third_party/libaom/source/libaom/aom/',
@@ -68,14 +70,15 @@ _IWYU_MAPPING = {
 # Supported file suffices.
 _SUFFICES = [".cc", ".h"]
 
-# Ignored headers, used with `clang-include-cleaner --ignore-headers=`
+# Ignored headers, regexps used with `clang-include-cleaner --ignore-headers=`
 _IGNORED_HEADERS = [
-    ".pb.h",  # generated protobuf files.
-    "pipewire/.*.h",  # pipewire.
-    "spa/.*.h",  # pipewire.
-    "openssl/.*.h",  # openssl/boringssl.
-    "alsa/.*.h",  # ALSA.
-    "pulse/.*.h",  # PulseAudio.
+    "\\.pb\\.h",  # generated protobuf files.
+    "pipewire\\/.*\\.h",  # pipewire.
+    "spa\\/.*\\.h",  # pipewire.
+    "openssl\\/.*\\.h",  # openssl/boringssl.
+    "alsa\\/.*\\.h",  # ALSA.
+    "pulse\\/.*\\.h",  # PulseAudio.
+    "bits\\/.*\\.h",  # pthreads.
 ]
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -204,6 +207,12 @@ def _modified_content(content: str) -> str:
                                   modified_content,
                                   flags=re.MULTILINE)
     for key, value in _IWYU_MAPPING.items():
+        # These must be exact matches, e.g. not having a trailing IWYU pragma.
+        modified_content = re.sub(rf'^#include {re.escape(key)}$',
+                                  f'#include {value}',
+                                  modified_content,
+                                  flags=re.MULTILINE)
+    for key, value in _IWYU_THIRD_PARTY.items():
         modified_content = re.sub(rf'^#include {re.escape(key)}',
                                   f'#include {value}',
                                   modified_content,

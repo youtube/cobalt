@@ -69,9 +69,7 @@ OPENSSL_EXPORT int RSA_up_ref(RSA *rsa);
 // Properties.
 
 // OPENSSL_RSA_MAX_MODULUS_BITS is the maximum supported RSA modulus, in bits.
-//
-// TODO(crbug.com/402677800): Reduce this to 8192.
-#define OPENSSL_RSA_MAX_MODULUS_BITS 16384
+#define OPENSSL_RSA_MAX_MODULUS_BITS 8192
 
 // RSA_bits returns the size of |rsa|, in bits.
 OPENSSL_EXPORT unsigned RSA_bits(const RSA *rsa);

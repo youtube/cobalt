@@ -612,6 +612,10 @@
     "META": {"sizes": {"includes": [45],}},
     "includes": [4780],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/side_panel/comments/resources.grd": {
+    "META": {"sizes": {"includes": [30],}},
+    "includes": [4790],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/side_panel/commerce/resources.grd": {
     "META": {"sizes": {"includes": [20],}},
     "includes": [4800],
@@ -726,6 +730,10 @@
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/chromeos/floating_workspace/resources.grd": {
     "META": {"sizes": {"includes": [10],}},
     "includes": [5210],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/color_pipeline_internals/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [5220],
   },
   # END chrome/ WebUI resources section
 

@@ -20,8 +20,8 @@ namespace webrtc {
 
 namespace {
 
-const int kMaxPayloadSize = 1024;
-const int kNumCores = 1;
+constexpr int kMaxPayloadSize = 1024;
+constexpr int kNumCores = 1;
 
 const VideoEncoder::Capabilities kCapabilities(false);
 const VideoEncoder::Settings kSettings(kCapabilities,

@@ -320,7 +320,8 @@ TEST_P(PeerConnectionBundleTest,
   ASSERT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
   RTCOfferAnswerOptions options_no_bundle;
   options_no_bundle.use_rtp_mux = false;
-  auto answer = callee->CreateAnswer(options_no_bundle);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options_no_bundle);
   SdpContentsForEach(RemoveRtcpMux(), answer->description());
   ASSERT_TRUE(
       callee->SetLocalDescription(CloneSessionDescription(answer.get())));
@@ -612,7 +613,8 @@ TEST_P(PeerConnectionBundleTest, FailToSetDescriptionWithBundleAndNoRtcpMux) {
   RTCOfferAnswerOptions options;
   options.use_rtp_mux = true;
 
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   SdpContentsForEach(RemoveRtcpMux(), offer->description());
 
   std::string error;
@@ -699,7 +701,7 @@ TEST_P(PeerConnectionBundleTest, BundleOnFirstMidInAnswer) {
 
   auto* old_video_transport = caller->video_rtp_transport();
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   auto* old_bundle_group =
       answer->description()->GetGroupByName(GROUP_TYPE_BUNDLE);
   std::string first_mid = old_bundle_group->content_names()[0];
@@ -725,7 +727,8 @@ TEST_P(PeerConnectionBundleTest, ApplyDescriptionWithSameSsrcsBundledFails) {
 
   RTCOfferAnswerOptions options;
   options.use_rtp_mux = true;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   // Modify the remote SDP to make two m= sections have the same SSRC.
@@ -744,7 +747,8 @@ TEST_P(PeerConnectionBundleTest, ApplyDescriptionWithSameSsrcsBundledFails) {
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
   // When BUNDLE is enabled, applying the description is expected to fail
   // because the demuxing criteria can not be satisfied.
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
   EXPECT_FALSE(callee->SetLocalDescription(std::move(answer)));
 }
 
@@ -756,7 +760,8 @@ TEST_P(PeerConnectionBundleTest,
 
   RTCOfferAnswerOptions options;
   options.use_rtp_mux = false;
-  auto offer = caller->CreateOffer(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(options);
   EXPECT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   // Modify the remote SDP to make two m= sections have the same SSRC.
@@ -774,7 +779,8 @@ TEST_P(PeerConnectionBundleTest,
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
   // Without BUNDLE, demuxing is done per-transport.
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
   EXPECT_TRUE(callee->SetLocalDescription(std::move(answer)));
 }
 
@@ -787,7 +793,8 @@ TEST_P(PeerConnectionBundleTest, RejectDescriptionChangingBundleTag) {
 
   RTCOfferAnswerOptions options;
   options.use_rtp_mux = true;
-  auto offer = caller->CreateOfferAndSetAsLocal(options);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal(options);
 
   // Create a new bundle-group with different bundled_mid.
   auto* old_bundle_group =
@@ -799,7 +806,8 @@ TEST_P(PeerConnectionBundleTest, RejectDescriptionChangingBundleTag) {
 
   auto re_offer = CloneSessionDescription(offer.get());
   callee->SetRemoteDescription(std::move(offer));
-  auto answer = callee->CreateAnswer(options);
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      callee->CreateAnswer(options);
   // Reject the first MID.
   answer->description()->contents()[0].rejected = true;
   // Remove the first MID from the bundle group.
@@ -826,7 +834,8 @@ TEST_P(PeerConnectionBundleTest, RemovingContentAndRejectBundleGroup) {
   auto caller = CreatePeerConnectionWithAudioVideo(config);
   caller->CreateDataChannel("dc");
 
-  auto offer = caller->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOfferAndSetAsLocal();
   auto re_offer = CloneSessionDescription(offer.get());
 
   // Removing the second MID from the BUNDLE group.
@@ -854,7 +863,7 @@ TEST_P(PeerConnectionBundleTest, AddContentToBundleGroupInAnswerNotSupported) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   const auto first_mid = offer->description()->contents()[0].mid();
   const auto second_mid = offer->description()->contents()[1].mid();
 
@@ -866,7 +875,7 @@ TEST_P(PeerConnectionBundleTest, AddContentToBundleGroupInAnswerNotSupported) {
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
 
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   bundle_group.AddContentName(second_mid);
   answer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
   answer->description()->AddGroup(bundle_group);
@@ -881,7 +890,7 @@ TEST_P(PeerConnectionBundleTest, RejectBundleGroupWithNonExistingMid) {
   auto caller = CreatePeerConnectionWithAudioVideo();
   auto callee = CreatePeerConnectionWithAudioVideo();
 
-  auto offer = caller->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = caller->CreateOffer();
   auto invalid_bundle_group =
       *offer->description()->GetGroupByName(GROUP_TYPE_BUNDLE);
   invalid_bundle_group.AddContentName("non-existing-MID");
@@ -904,7 +913,7 @@ TEST_P(PeerConnectionBundleTest, RemoveContentFromBundleGroup) {
       caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal()));
 
   EXPECT_TRUE(callee->SetRemoteDescription(caller->CreateOfferAndSetAsLocal()));
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   const auto second_mid = answer->description()->contents()[1].mid();
 
   auto invalid_bundle_group =
@@ -960,7 +969,8 @@ TEST_F(PeerConnectionBundleTestUnifiedPlan, MultipleBundleGroups) {
   caller->AddVideoTrack("3_audio");
   auto callee = CreatePeerConnection();
 
-  auto offer = caller->CreateOffer(RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(RTCOfferAnswerOptions());
   // Modify the GROUP to have two BUNDLEs. We know that the MIDs will be 0,1,2,4
   // because our implementation has predictable MIDs.
   offer->description()->RemoveGroupByName(GROUP_TYPE_BUNDLE);
@@ -976,7 +986,7 @@ TEST_F(PeerConnectionBundleTestUnifiedPlan, MultipleBundleGroups) {
   EXPECT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   EXPECT_TRUE(
       callee->SetLocalDescription(CloneSessionDescription(answer.get())));
   EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
@@ -1015,11 +1025,12 @@ TEST_F(PeerConnectionBundleTestUnifiedPlan, AddNonBundledSection) {
   auto callee = CreatePeerConnection(config);
 
   // Establish an existing BUNDLE group.
-  auto offer = caller->CreateOffer(RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(RTCOfferAnswerOptions());
   EXPECT_TRUE(
       caller->SetLocalDescription(CloneSessionDescription(offer.get())));
   EXPECT_TRUE(callee->SetRemoteDescription(std::move(offer)));
-  auto answer = callee->CreateAnswer();
+  std::unique_ptr<SessionDescriptionInterface> answer = callee->CreateAnswer();
   EXPECT_TRUE(
       callee->SetLocalDescription(CloneSessionDescription(answer.get())));
   EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));

@@ -18,6 +18,7 @@
 #include "chrome/browser/safe_browsing/safe_browsing_service.h"
 #include "chrome/browser/safe_browsing/verdict_cache_manager_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "components/enterprise/connectors/core/content_area_user_provider.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/content/browser/web_ui/safe_browsing_ui.h"
 #include "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.h"
@@ -26,8 +27,10 @@
 #include "components/safe_browsing/core/browser/verdict_cache_manager.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/utils.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "services/network/public/cpp/cross_thread_pending_shared_url_loader_factory.h"
+#include "url/gurl.h"
 
 namespace {
 
@@ -110,6 +113,8 @@ std::unique_ptr<KeyedService> ChromeEnterpriseRealTimeUrlLookupServiceFactory::
       policy::ManagementServiceFactory::GetForProfile(profile),
       profile->IsOffTheRecord(), profile->IsGuestSession(),
       base::BindRepeating(&GetProfileEmail, profile),
+      base::BindRepeating(&enterprise_connectors::GetActiveContentAreaUser,
+                          IdentityManagerFactory::GetForProfile(profile)),
       base::BindRepeating(&enterprise_util::IsProfileAffiliated, profile),
       /*is_command_line_switch_supported=*/IsCommandLineSwitchSupported());
 }

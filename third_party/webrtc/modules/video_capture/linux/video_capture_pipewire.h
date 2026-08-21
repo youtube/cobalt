@@ -11,9 +11,14 @@
 #ifndef MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_PIPEWIRE_H_
 #define MODULES_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_PIPEWIRE_H_
 
+#include <cstdint>
+
+#include "api/scoped_refptr.h"
+#include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "modules/video_capture/linux/pipewire_session.h"
 #include "modules/video_capture/video_capture_defines.h"
 #include "modules/video_capture/video_capture_impl.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace videocapturemodule {

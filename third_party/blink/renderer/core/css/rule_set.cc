@@ -956,24 +956,23 @@ void RuleSet::AddViewTransitionRule(StyleRuleViewTransition* rule) {
 void RuleSet::AddChildRules(StyleRule* parent_rule,
                             base::span<const Member<StyleRuleBase>> rules,
                             const MediaQueryEvaluator& medium,
-                            const MixinMap& mixins,
                             AddRuleFlags add_rule_flags,
                             const ContainerQuery* container_query,
                             CascadeLayer* cascade_layer,
                             const StyleScope* style_scope,
-                            const StyleRuleApplyMixin* apply_mixin) {
+                            bool within_mixin) {
   for (StyleRuleBase* rule : rules) {
     if (auto* style_rule = DynamicTo<StyleRule>(rule)) {
-      AddStyleRule(style_rule, parent_rule, medium, mixins, add_rule_flags,
-                   apply_mixin, container_query, cascade_layer, style_scope);
+      AddStyleRule(style_rule, parent_rule, medium, add_rule_flags,
+                   within_mixin, container_query, cascade_layer, style_scope);
     } else if (auto* page_rule = DynamicTo<StyleRulePage>(rule)) {
       page_rule->SetCascadeLayer(cascade_layer);
       AddPageRule(page_rule);
     } else if (auto* media_rule = DynamicTo<StyleRuleMedia>(rule)) {
       if (MatchMediaForAddRules(medium, media_rule->MediaQueries())) {
-        AddChildRules(parent_rule, media_rule->ChildRules(), medium, mixins,
+        AddChildRules(parent_rule, media_rule->ChildRules(), medium,
                       add_rule_flags, container_query, cascade_layer,
-                      style_scope, apply_mixin);
+                      style_scope, within_mixin);
       }
     } else if (auto* font_face_rule = DynamicTo<StyleRuleFontFace>(rule)) {
       font_face_rule->SetCascadeLayer(cascade_layer);
@@ -1010,9 +1009,9 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
       AddFunctionRule(function_rule);
     } else if (auto* supports_rule = DynamicTo<StyleRuleSupports>(rule)) {
       if (supports_rule->ConditionIsSupported()) {
-        AddChildRules(parent_rule, supports_rule->ChildRules(), medium, mixins,
+        AddChildRules(parent_rule, supports_rule->ChildRules(), medium,
                       add_rule_flags, container_query, cascade_layer,
-                      style_scope, apply_mixin);
+                      style_scope, within_mixin);
       }
     } else if (auto* container_rule = DynamicTo<StyleRuleContainer>(rule)) {
       const ContainerQuery* inner_container_query =
@@ -1021,15 +1020,15 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
         inner_container_query =
             inner_container_query->CopyWithParent(container_query);
       }
-      AddChildRules(parent_rule, container_rule->ChildRules(), medium, mixins,
+      AddChildRules(parent_rule, container_rule->ChildRules(), medium,
                     add_rule_flags, inner_container_query, cascade_layer,
-                    style_scope, apply_mixin);
+                    style_scope, within_mixin);
     } else if (auto* layer_block_rule = DynamicTo<StyleRuleLayerBlock>(rule)) {
       CascadeLayer* sub_layer =
           GetOrAddSubLayer(cascade_layer, layer_block_rule->GetName());
-      AddChildRules(parent_rule, layer_block_rule->ChildRules(), medium, mixins,
+      AddChildRules(parent_rule, layer_block_rule->ChildRules(), medium,
                     add_rule_flags, container_query, sub_layer, style_scope,
-                    apply_mixin);
+                    within_mixin);
     } else if (auto* layer_statement_rule =
                    DynamicTo<StyleRuleLayerStatement>(rule)) {
       for (const auto& layer_name : layer_statement_rule->GetNames()) {
@@ -1040,42 +1039,34 @@ void RuleSet::AddChildRules(StyleRule* parent_rule,
       if (style_scope) {
         inner_style_scope = inner_style_scope->CopyWithParent(style_scope);
       }
-      AddChildRules(parent_rule, scope_rule->ChildRules(), medium, mixins,
+      AddChildRules(parent_rule, scope_rule->ChildRules(), medium,
                     add_rule_flags, container_query, cascade_layer,
-                    inner_style_scope, apply_mixin);
+                    inner_style_scope, within_mixin);
     } else if (auto* starting_style_rule =
                    DynamicTo<StyleRuleStartingStyle>(rule)) {
       AddChildRules(parent_rule, starting_style_rule->ChildRules(), medium,
-                    mixins, add_rule_flags | kRuleIsStartingStyle,
-                    container_query, cascade_layer, style_scope, apply_mixin);
+                    add_rule_flags | kRuleIsStartingStyle, container_query,
+                    cascade_layer, style_scope, within_mixin);
+    } else if (auto* mixin_rule = DynamicTo<StyleRuleMixin>(rule)) {
+      mixins_.Set(mixin_rule->GetName(), mixin_rule);
     } else if (auto* apply_mixin_rule = DynamicTo<StyleRuleApplyMixin>(rule)) {
-      auto it = mixins.find(apply_mixin_rule->GetName());
-      if (it != mixins.end() && it->value->FakeParentRule().ChildRules()) {
+      // TODO(sesse): This lookup needs to work completely differently
+      // if we are to support mixins from different stylesheets.
+      // In particular, we need to implement tree-scoped lookups
+      // in a situation where we don't have the normal ScopedStyleResolver
+      // available, and also take into account that sharing RuleSets
+      // won't really work if we cross-reference mixins from other sheets.
+      auto it = mixins_.find(apply_mixin_rule->GetName());
+      if (it != mixins_.end() && it->value->FakeParentRule().ChildRules()) {
         AddChildRules(parent_rule, *it->value->FakeParentRule().ChildRules(),
-                      medium, mixins, add_rule_flags, container_query,
-                      cascade_layer, style_scope, apply_mixin_rule);
-      }
-    } else if (auto* contents_rule =
-                   DynamicTo<StyleRuleContentsStatement>(rule)) {
-      // Try first the parameter from @apply, then the fallback block given in
-      // @contents, and if neither exists, nothing happens.
-      if (apply_mixin->FakeParentRuleForDeclarations()) {
-        AddChildRules(
-            parent_rule,
-            *apply_mixin->FakeParentRuleForDeclarations()->ChildRules(), medium,
-            mixins, add_rule_flags, container_query, cascade_layer, style_scope,
-            apply_mixin);
-      } else if (contents_rule->FakeParentRuleForFallback()) {
-        AddChildRules(parent_rule,
-                      *contents_rule->FakeParentRuleForFallback()->ChildRules(),
-                      medium, mixins, add_rule_flags, container_query,
-                      cascade_layer, style_scope, apply_mixin);
+                      medium, add_rule_flags, container_query, cascade_layer,
+                      style_scope, /*within_mixin=*/true);
       }
     } else if (auto* nested_declarations =
                    DynamicTo<StyleRuleNestedDeclarations>(rule)) {
       AddStyleRule(nested_declarations->InnerStyleRule(), parent_rule, medium,
-                   mixins, add_rule_flags, apply_mixin, container_query,
-                   cascade_layer, style_scope);
+                   add_rule_flags, within_mixin, container_query, cascade_layer,
+                   style_scope);
     }
   }
 }
@@ -1094,7 +1085,6 @@ bool RuleSet::MatchMediaForAddRules(const MediaQueryEvaluator& evaluator,
 
 void RuleSet::AddRulesFromSheet(const StyleSheetContents* sheet,
                                 const MediaQueryEvaluator& medium,
-                                const MixinMap& mixins,
                                 CascadeLayer* cascade_layer,
                                 const StyleScope* style_scope) {
   TRACE_EVENT0("blink", "RuleSet::addRulesFromSheet");
@@ -1122,15 +1112,15 @@ void RuleSet::AddRulesFromSheet(const StyleSheetContents* sheet,
           GetOrAddSubLayer(cascade_layer, import_rule->GetLayerName());
     }
     if (import_rule->GetStyleSheet()) {
-      AddRulesFromSheet(import_rule->GetStyleSheet(), medium, mixins,
-                        import_layer, import_rule->GetScope());
+      AddRulesFromSheet(import_rule->GetStyleSheet(), medium, import_layer,
+                        import_rule->GetScope());
     }
   }
 
   InvalidationSetToSelectorMap::StyleSheetContentsScope contents_scope(sheet);
-  AddChildRules(/*parent_rule=*/nullptr, sheet->ChildRules(), medium, mixins,
+  AddChildRules(/*parent_rule=*/nullptr, sheet->ChildRules(), medium,
                 kRuleHasNoSpecialState, nullptr /* container_query */,
-                cascade_layer, style_scope, /*apply_mixin=*/nullptr);
+                cascade_layer, style_scope, /*within_mixin=*/false);
 }
 
 // If there's a reference to the parent selector (implicit or explicit)
@@ -1258,13 +1248,12 @@ void RuleSet::AddFilteredRulesFromOtherSet(
 void RuleSet::AddStyleRule(StyleRule* style_rule,
                            StyleRule* parent_rule,
                            const MediaQueryEvaluator& medium,
-                           const MixinMap& mixins,
                            AddRuleFlags add_rule_flags,
-                           const StyleRuleApplyMixin* apply_mixin,
+                           bool within_mixin,
                            const ContainerQuery* container_query,
                            CascadeLayer* cascade_layer,
                            const StyleScope* style_scope) {
-  if (apply_mixin) {
+  if (within_mixin) {
     style_rule = To<StyleRule>(style_rule->Renest(parent_rule));
   }
   for (const CSSSelector* selector = style_rule->FirstSelector(); selector;
@@ -1276,9 +1265,8 @@ void RuleSet::AddStyleRule(StyleRule* style_rule,
 
   // Nested rules are taken to be added immediately after their parent rule.
   if (style_rule->ChildRules() != nullptr) {
-    AddChildRules(style_rule, *style_rule->ChildRules(), medium, mixins,
-                  add_rule_flags, container_query, cascade_layer, style_scope,
-                  apply_mixin);
+    AddChildRules(style_rule, *style_rule->ChildRules(), medium, add_rule_flags,
+                  container_query, cascade_layer, style_scope, within_mixin);
   }
 }
 
@@ -1717,6 +1705,7 @@ void RuleSet::Trace(Visitor* visitor) const {
   visitor->Trace(layer_intervals_);
   visitor->Trace(container_query_intervals_);
   visitor->Trace(scope_intervals_);
+  visitor->Trace(mixins_);
 #if DCHECK_IS_ON()
   visitor->Trace(all_rules_);
 #endif  // DCHECK_IS_ON()

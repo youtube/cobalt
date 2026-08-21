@@ -11,15 +11,15 @@
 #ifndef RTC_TOOLS_NETWORK_TESTER_TEST_CONTROLLER_H_
 #define RTC_TOOLS_NETWORK_TESTER_TEST_CONTROLLER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
 
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/network/received_packet.h"

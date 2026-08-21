@@ -73,7 +73,7 @@ using ::webrtc::SdpSemantics;
 
 namespace {
 
-const int kMaxWait = 25000;
+constexpr int kMaxWait = 25000;
 
 }  // namespace
 

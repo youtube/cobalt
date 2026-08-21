@@ -21,12 +21,12 @@ class SkImage;
 class SkMatrix;
 class SkPaint;
 class SkPicture;
+class SkRecorder;
 class SkSurfaceProps;
 struct SkIRect;
 struct SkISize;
 
 namespace SkImages { enum class BitDepth; }
-namespace skgpu::graphite { class Recorder; }
 
 class SkImage_Picture : public SkImage_Lazy {
 public:
@@ -45,10 +45,10 @@ public:
     // Call drawPicture on the provided canvas taking care of any required mutex locking.
     void replay(SkCanvas*) const;
 
+#if !defined(SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS)
     sk_sp<SkImage> onMakeSubset(GrDirectContext*, const SkIRect&) const override;
-    sk_sp<SkImage> onMakeSubset(skgpu::graphite::Recorder*,
-                                const SkIRect&,
-                                RequiredProperties) const override;
+#endif
+    sk_sp<SkImage> onMakeSubset(SkRecorder*, const SkIRect&, RequiredProperties) const override;
 
     // If possible, extract key data based on the underlying drawPicture-call's parameters.
     // Takes care of any required mutex locking.

@@ -429,9 +429,9 @@ bool AudioReceiveStreamImpl::SetMinimumPlayoutDelay(int delay_ms) {
   return channel_receive_->SetMinimumPlayoutDelay(delay_ms);
 }
 
-void AudioReceiveStreamImpl::DeliverRtcp(const uint8_t* packet, size_t length) {
+void AudioReceiveStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  channel_receive_->ReceivedRTCPPacket(packet, length);
+  channel_receive_->ReceivedRTCPPacket(packet.data(), packet.size());
 }
 
 void AudioReceiveStreamImpl::SetSyncGroup(absl::string_view sync_group) {

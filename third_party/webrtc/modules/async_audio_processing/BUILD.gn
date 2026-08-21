@@ -14,8 +14,6 @@ rtc_library("async_audio_processing") {
     "async_audio_processing.h",
   ]
 
-  public = [ "async_audio_processing.h" ]
-
   deps = [
     "../../api:ref_count",
     "../../api:scoped_refptr",

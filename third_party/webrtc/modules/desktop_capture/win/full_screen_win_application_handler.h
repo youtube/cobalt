@@ -20,6 +20,15 @@
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/full_screen_application_handler.h"
 
+// Used for metrics; Entries should not be renumbered and numeric values should
+// never be reused.
+enum class FullScreenDetectorResult {
+  kUnknown = 0,
+  kSuccess = 1,
+  kFailureDueToSameTitleWindows = 2,
+  kMaxValue = kFailureDueToSameTitleWindows
+};
+
 namespace webrtc {
 
 class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
@@ -52,6 +61,8 @@ class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
   bool IsEditorWindow(HWND window) const;
 
   bool IsSlideShowWindow(HWND window) const;
+
+  mutable FullScreenDetectorResult full_screen_detector_result_;
 };
 
 std::unique_ptr<FullScreenApplicationHandler>

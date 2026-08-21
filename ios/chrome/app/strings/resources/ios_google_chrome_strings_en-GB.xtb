@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Google Password Manager couldn't check your passwords. Try checking your Internet connection.</translation>
 <translation id="1394995526009609883">You can update your selections at any time in Chrome settings.</translation>
 <translation id="1407843355326180937">Sign in to this site and Chrome to get your bookmarks and more on all your devices.</translation>
-<translation id="1426599484714342603">Get the power of Chrome Shopping</translation>
 <translation id="1462727070346936664">Sign in to get the most out of Chrome.</translation>
 <translation id="1493827051843127077">Set Chrome as default to sync your tabs, passwords and payment info on all your devices</translation>
 <translation id="1504372625950710826">Chrome couldn't check for updates. Try checking your Internet connection.</translation>
@@ -33,7 +32,6 @@ Things to consider:
 <translation id="1554731936187952550">You have Chrome's strongest security against harmful websites</translation>
 <translation id="155816064895200734">Set Chrome as the default browser</translation>
 <translation id="1580570086594302477">Opens a new Chrome Incognito tab.</translation>
-<translation id="1634522710245925681">Use Chrome by default to easily get price insights</translation>
 <translation id="1646463005043273333">Opens the Chrome setting to set Chrome as default browser.</translation>
 <translation id="1670609221633730681">Chrome tip: Choose your address bar position</translation>
 <translation id="1683863426423719967">To receive Tab Reminders from Chrome, turn on notifications in your iOS Settings.</translation>
@@ -65,14 +63,12 @@ Things to consider:
 <translation id="2423077901494354337">You'll now get the most out of Chrome on your device.</translation>
 <translation id="2427791862912929107">Chrome has features that help you manage your Internet data and how quickly you're able to load web pages.
 <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">To get your saved passwords in your other apps easily, use Chrome for auto-fill</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{This happens when Chrome isn't used for {THRESHOLD} minute. This could include history and autofill.}other{This happens when Chrome isn't used for {THRESHOLD} minutes. This could include history and autofill.}}</translation>
 <translation id="2561231791489583059">Use Chrome as your default browser to stay protected from dangerous sites and keep your passwords safe</translation>
 <translation id="2574249610672786438">To see your tabs from wherever you use Chrome, sign in on all of your devices</translation>
 <translation id="2576431527583832481">Chrome just got better! A new version is available.</translation>
 <translation id="257708665678654955">Would you like Google Chrome to offer to translate <ph name="LANGUAGE_NAME" /> pages from this site next time?</translation>
 <translation id="2668242166988961773">Search with voice in Chrome.</translation>
-<translation id="2671426118752779020">You can use the passwords that you saved to Google Password Manager in other apps on your iPhone.</translation>
 <translation id="2689064829982324496">To sign out of your Google Account on all websites, <ph name="BEGIN_LINK" />sign out of Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome couldn't check for updates. Try again later.</translation>
 <translation id="2703746758996815929">To get helpful Chrome tips, turn on notifications in your iOS settings.</translation>
@@ -222,7 +218,6 @@ Your data is encrypted with your passphrase. Enter it to use and save Chrome dat
 <translation id="6684809838922667136">Make Chrome better</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{This happens when Chrome isn't used for {THRESHOLD} minute. Data saved only to this device while you were signed in will be deleted. This could include history and passwords.}other{This happens when Chrome isn't used for {THRESHOLD} minutes. Data saved only to this device while you were signed in will be deleted. This could include history and passwords.}}</translation>
 <translation id="6709398533399187136">Your password was exposed in a data breach. Google Password Manager recommends changing it now.</translation>
-<translation id="6788035488757621217">From your device's settings, open '<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />' and select 'Chrome'</translation>
 <translation id="6820553595690137150">Passphrase encryption doesn't include payment methods and addresses.
 
 To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your account<ph name="END_LINK" />.</translation>
@@ -242,7 +237,6 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
 <translation id="7175129790242719365">Chrome tip: Sign in to Chrome</translation>
 <translation id="7187993566681480880">Keeps you safe on Chrome and may be used to improve your security in other Google apps when you are signed in.</translation>
 <translation id="7200524487407690471">Chrome automatically runs Safety Check every day to keep you safe from data breaches, unsafe websites and more. You can find more about Safety Check in Settings.</translation>
-<translation id="72119412072970160">You can use the passwords that you saved to Google Password Manager in other apps on your iPad.</translation>
 <translation id="7214019116829172458">Open Chrome Incognito tab</translation>
 <translation id="722167379782941918">Chrome recommends enhanced protection</translation>
 <translation id="723787869754590019">Use Chrome for autofill</translation>
@@ -288,7 +282,6 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
 <translation id="8018153653741938705">Stay safe with Google Chrome</translation>
 <translation id="8022947259858476807">Use Chrome by default to open links, search from widgets and auto-fill passwords in other apps</translation>
 <translation id="804638182476029347">Allow Chrome notifications to get price drop alerts</translation>
-<translation id="804756029368067824">Set Chrome as your default browser to easily track prices and get price insights for things that you want to buy.</translation>
 <translation id="8065292699993359127">Open URLs in Chrome in Incognito</translation>
 <translation id="8069507567842347179">This package has already been tracked on Chrome.</translation>
 <translation id="8136856065410661948">This will be used to create events in your Apple Calendar from Chrome and Google Lens.</translation>

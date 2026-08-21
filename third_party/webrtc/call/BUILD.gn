@@ -660,6 +660,7 @@ if (rtc_include_tests) {
         "../test/network:simulated_network",
         "../video/config:encoder_config",
         "//third_party/abseil-cpp/absl/flags:flag",
+        "//third_party/abseil-cpp/absl/strings",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
     }

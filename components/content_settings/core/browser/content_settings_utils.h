@@ -84,11 +84,7 @@ base::Time GetCoarseVisitedTime(base::Time time);
 // Returns a TimeDelta representing a week.
 base::TimeDelta GetCoarseVisitedTimePrecision();
 
-// Returns whether ContentSettingsType is an eligible permission for
-// auto-revocation.
-bool CanBeAutoRevoked(ContentSettingsType type,
-                      ContentSetting setting,
-                      bool is_one_time = false);
+// Returns whether the permission is an eligible permission for auto-revocation.
 bool CanBeAutoRevoked(ContentSettingsType type,
                       const base::Value& value,
                       bool is_one_time = false);
@@ -125,6 +121,11 @@ bool ShouldTypeExpireActively(ContentSettingsType type);
 // |info|. Expects that the value represents a valid setting.
 PermissionSetting ValueToPermissionSetting(const PermissionSettingsInfo* info,
                                            const base::Value& value);
+
+// Convert a permission setting to a base::Value for a permission represented by
+// |info|. Expects that the setting is valid.
+base::Value PermissionSettingToValue(const PermissionSettingsInfo* info,
+                                     const PermissionSetting& setting);
 
 }  // namespace content_settings
 

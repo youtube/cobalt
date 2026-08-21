@@ -27,7 +27,7 @@
 #include <openssl/hkdf.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../fipsmodule/ec/internal.h"
 #include "../internal.h"

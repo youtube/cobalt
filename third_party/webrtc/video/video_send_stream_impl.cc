@@ -628,9 +628,9 @@ void VideoSendStreamImpl::GenerateKeyFrame(
   }
 }
 
-void VideoSendStreamImpl::DeliverRtcp(const uint8_t* packet, size_t length) {
+void VideoSendStreamImpl::DeliverRtcp(ArrayView<const uint8_t> packet) {
   RTC_DCHECK_RUN_ON(&thread_checker_);
-  rtp_video_sender_->DeliverRtcp(packet, length);
+  rtp_video_sender_->DeliverRtcp(packet);
 }
 
 bool VideoSendStreamImpl::started() {

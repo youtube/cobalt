@@ -240,8 +240,10 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
 }
 
 void HttpStreamPool::AttemptManager::Preconnect(Job* job) {
-  // JobController should check active streams before starting a preconnect Job.
-  CHECK_LT(group_->ActiveStreamSocketCount(), job->num_streams());
+  // JobController should check active streams before starting a preconnect
+  // Job unless the Job is AltSvc QUIC preconnect.
+  CHECK(job->type() == JobType::kAltSvcQuicPreconnect ||
+        group_->ActiveStreamSocketCount() < job->num_streams());
 
   TRACE_EVENT_INSTANT("net.stream", "AttemptManager::Preconnect", track_,
                       NetLogWithSourceToFlow(job->request_net_log()));
@@ -517,6 +519,7 @@ void HttpStreamPool::AttemptManager::CancelTcpBasedAttempts(
 
 void HttpStreamPool::AttemptManager::OnJobComplete(Job* job) {
   preconnect_jobs_.erase(job);
+  limit_ignoring_jobs_.erase(job);
   ip_based_pooling_disabling_jobs_.erase(job);
   alternative_service_disabling_jobs_.erase(job);
 
@@ -999,13 +1002,17 @@ void HttpStreamPool::AttemptManager::SetOnCompleteCallbackForTesting(
 void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
   CHECK(availability_state_ == AvailabilityState::kAvailable);
 
-  if (job->IsPreconnect()) {
-    preconnect_jobs_.emplace(job);
-  } else {
-    request_jobs_.Insert(job, job->priority());
-    if (base_ssl_config_.has_value()) {
-      base_ssl_config_->allowed_bad_certs = job->allowed_bad_certs();
-    }
+  switch (job->type()) {
+    case JobType::kRequest:
+      request_jobs_.Insert(job, job->priority());
+      if (base_ssl_config_.has_value()) {
+        base_ssl_config_->allowed_bad_certs = job->allowed_bad_certs();
+      }
+      break;
+    case JobType::kPreconnect:
+    case JobType::kAltSvcQuicPreconnect:
+      preconnect_jobs_.emplace(job);
+      break;
   }
 
   if (job->respect_limits() == RespectLimits::kIgnore) {
@@ -1024,8 +1031,11 @@ void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
 
   // JobController should check the existing QUIC/SPDY sessions before starting
   // a Job.
-  DCHECK(!CanUseExistingQuicSession());
-  DCHECK(!HasAvailableSpdySession());
+  // TODO(crbug.com/346835898): Change to DCHECK once we stabilize the
+  // implementation.
+  CHECK(!CanUseExistingQuicSession());
+  CHECK(job->type() == JobType::kAltSvcQuicPreconnect ||
+        !HasAvailableSpdySession());
 
   MaybeChangeServiceEndpointRequestPriority();
   RestrictAllowedProtocols(job->allowed_alpns());
@@ -1193,7 +1203,7 @@ QuicChromiumClientSession* HttpStreamPool::AttemptManager::
 
 base::WeakPtr<SpdySession> HttpStreamPool::AttemptManager::
     CanUseExistingSpdySessionAfterEndpointChanges() {
-  if (!IsIpBasedPoolingEnabled() || !UsingTls()) {
+  if (!IsIpBasedPoolingEnabled() || !UsingTls() || !CanUseTcpBasedProtocols()) {
     return nullptr;
   }
 
@@ -1642,6 +1652,7 @@ void HttpStreamPool::AttemptManager::NotifyJobOfPreconnectComplete(
     raw_ptr<Job> job,
     int rv) {
   Job* raw_job = job.get();
+  limit_ignoring_jobs_.erase(raw_job);
   notified_jobs_.emplace(std::move(job));
   TRACE_EVENT_INSTANT("net.stream",
                       "AttemptManager::NotifyJobOfPreconnectComplete", track_,
@@ -1691,7 +1702,7 @@ void HttpStreamPool::AttemptManager::MaybeStartDraining() {
   // slow. Currently we just cancel them for simplicity. If we want to keep
   // these attempts in the draining `this`, Group::ConnectingStreamSocketCount()
   // should check draining AttemptManagers.
-  CancelTcpBasedAttempts(StreamSocketCloseReason::kAbort);
+  CancelTcpBasedAttempts(StreamSocketCloseReason::kAttemptManagerDraining);
 
   if (quic_attempt_ && quic_attempt_->is_slow()) {
     CancelQuicAttempt(ERR_ABORTED);

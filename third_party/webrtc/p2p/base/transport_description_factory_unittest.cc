@@ -144,12 +144,12 @@ class TransportDescriptionFactoryTest : public ::testing::Test {
     // The initial offer / answer exchange.
     std::unique_ptr<TransportDescription> offer =
         f1_.CreateOffer(options, nullptr, &ice_credentials_);
-    ASSERT_TRUE(offer);
+    ASSERT_THAT(offer, NotNull());
     EXPECT_THAT(offer->transport_options, Not(Contains("renomination")));
 
     std::unique_ptr<TransportDescription> answer = f2_.CreateAnswer(
         offer.get(), options, true, nullptr, &ice_credentials_);
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_THAT(answer->transport_options, Not(Contains("renomination")));
 
     options.enable_ice_renomination = true;

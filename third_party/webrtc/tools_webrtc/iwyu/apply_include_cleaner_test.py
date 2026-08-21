@@ -45,6 +45,17 @@ class ApplyIncludeCleanerTest(unittest.TestCase):
             '#include "third_party/libyuv/include/libyuv/something.h"')
 
     @mock.patch('subprocess.run',
+                return_value=mock.Mock(stdout=_OUTPUT, returncode=0))
+    def test_pragma_no_modification(self, mock_subprocess):
+        file = mock.Mock()
+        file.read_text.return_value = '#include <sys/socket.h>  // IWYU'
+        output = apply_include_cleaner.apply_include_cleaner_to_file(
+            file, should_modify=True, cmd=[])
+        self.assertEqual(output, self._OUTPUT)
+        mock_subprocess.assert_called_once()
+        file.write_text.assert_not_called()
+
+    @mock.patch('subprocess.run',
                 return_value=mock.Mock(stdout=f'+ {_GTEST_KEY}\n',
                                        returncode=0))
     def test_gtest_output_modification(self, mock_subprocess):

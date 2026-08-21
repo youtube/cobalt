@@ -55,10 +55,12 @@ TEST_F(UnpackerTest, UnpackFullCrx) {
   op_result1.response = DuplicateTestFile(unpacker_test_dir.GetPath(), "jebgalgnebhfojomionfpkfelancnnkf.crx");
 #endif
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       op_result1,
 #else
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
 #endif
@@ -102,10 +104,12 @@ TEST_F(UnpackerTest, UnpackFileNotFound) {
   OperationResult op_result2;
   op_result2.response = GetTestFilePath("file_not_found.crx");
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       op_result2, nullptr,
 #else
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(jebg_hash), std::end(jebg_hash)),
       GetTestFilePath("file_not_found.crx"), nullptr,
 #endif
@@ -138,10 +142,12 @@ TEST_F(UnpackerTest, UnpackFileHashMismatch) {
   op_result3.response = GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx");
 #endif
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
       op_result3, nullptr,
 #else
   Unpacker::Unpack(
+      "jebgalgnebhfojomionfpkfelancnnkf",
       std::vector<uint8_t>(std::begin(abag_hash), std::end(abag_hash)),
       GetTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"), nullptr,
 #endif
@@ -177,11 +183,11 @@ TEST_F(UnpackerTest, UnpackWithVerifiedContents) {
   op_result4.response = DuplicateTestFile(unpacker_test_dir.GetPath(), "gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3");
 #endif
   Unpacker::Unpack(
-      std::vector<uint8_t>(),
+      "gndmhdcefbhlchkhipcnnbkcmicncehk", std::vector<uint8_t>(),
       op_result4,
 #else
   Unpacker::Unpack(
-      std::vector<uint8_t>(),
+      "gndmhdcefbhlchkhipcnnbkcmicncehk", std::vector<uint8_t>(),
       GetTestFilePath("gndmhdcefbhlchkhipcnnbkcmicncehk_22_314.crx3"),
 #endif
 #if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)

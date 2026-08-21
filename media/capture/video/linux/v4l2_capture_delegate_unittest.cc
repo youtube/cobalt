@@ -317,7 +317,8 @@ class MockCaptureHandleProvider
     : public VideoCaptureDevice::Client::Buffer::HandleProvider {
  public:
   MockCaptureHandleProvider(const gfx::Size& size, gfx::BufferFormat format) {
-    gmb_handle_ = gpu::CreatePixmapHandleForTesting(size, format);
+    gmb_handle_ =
+        gpu::TestSharedImageInterface::CreatePixmapHandle(size, format);
   }
   // Duplicate as an writable (unsafe) shared memory region.
   base::UnsafeSharedMemoryRegion DuplicateAsUnsafeRegion() override {

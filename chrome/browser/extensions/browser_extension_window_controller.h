@@ -7,8 +7,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/extensions/window_controller.h"
-#include "chrome/browser/ui/unowned_user_data/scoped_unowned_user_data.h"
 #include "components/sessions/core/session_id.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 class GURL;
@@ -49,6 +49,7 @@ class BrowserExtensionWindowController : public WindowController {
   void SetFullscreenMode(bool is_fullscreen,
                          const GURL& extension_url) const override;
   bool CanClose(Reason* reason) const override;
+  BrowserWindowInterface* GetBrowserWindowInterface() override;
 #if !BUILDFLAG(IS_ANDROID)
   Browser* GetBrowser() const override;
 #endif
@@ -82,7 +83,8 @@ class BrowserExtensionWindowController : public WindowController {
   const SessionID session_id_;
   const api::tabs::WindowType window_type_;
 
-  ScopedUnownedUserData<BrowserExtensionWindowController> scoped_data_holder_;
+  ui::ScopedUnownedUserData<BrowserExtensionWindowController>
+      scoped_data_holder_;
 };
 
 }  // namespace extensions

@@ -18,7 +18,7 @@
 
 #include "../pki/crl.h"
 #include "../pki/input.h"
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const bssl::der::Input input_der(data, size);

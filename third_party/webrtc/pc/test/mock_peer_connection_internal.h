@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
 #include "api/audio/audio_device.h"
@@ -210,6 +211,10 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
               (override));
   MOCK_METHOD(bool, AddIceCandidate, (const IceCandidate*), (override));
   MOCK_METHOD(bool,
+              RemoveIceCandidate,
+              (const IceCandidate* candidate),
+              (override));
+  MOCK_METHOD(bool,
               RemoveIceCandidates,
               (const std::vector<webrtc::Candidate>&),
               (override));
@@ -286,7 +291,10 @@ class MockPeerConnectionInternal : public PeerConnectionInternal {
   MOCK_METHOD(DataChannelController*, data_channel_controller, (), (override));
   MOCK_METHOD(PortAllocator*, port_allocator, (), (override));
   MOCK_METHOD(LegacyStatsCollector*, legacy_stats, (), (override));
-  MOCK_METHOD(PeerConnectionObserver*, Observer, (), (const, override));
+  MOCK_METHOD(void,
+              RunWithObserver,
+              (absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>),
+              (override));
   MOCK_METHOD(std::optional<SSLRole>, GetSctpSslRole_n, (), (override));
   MOCK_METHOD(PeerConnectionInterface::IceConnectionState,
               ice_connection_state_internal,

@@ -28,9 +28,9 @@ using ::testing::Return;
 
 namespace webrtc {
 
-const int kSampleRate = 44100;
-const int kChannels = 2;
-const int kSamplesPer10Ms = kSampleRate * 10 / 1000;
+constexpr int kSampleRate = 44100;
+constexpr int kChannels = 2;
+constexpr int kSamplesPer10Ms = kSampleRate * 10 / 1000;
 
 // The fake audio data is 0,1,..SCHAR_MAX-1,0,1,... This is to make it easy
 // to detect errors. This function verifies that the buffers contain such data.

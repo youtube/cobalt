@@ -102,7 +102,7 @@ class MockRtpVideoSender : public RtpVideoSenderInterface {
               GetRtpPayloadStates,
               (),
               (const, override));
-  MOCK_METHOD(void, DeliverRtcp, (const uint8_t*, size_t), (override));
+  MOCK_METHOD(void, DeliverRtcp, (ArrayView<const uint8_t>), (override));
   MOCK_METHOD(void,
               OnBitrateAllocationUpdated,
               (const VideoBitrateAllocation&),

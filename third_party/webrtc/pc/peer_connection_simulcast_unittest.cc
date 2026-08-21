@@ -53,6 +53,8 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
+
 using ::testing::Contains;
 using ::testing::Each;
 using ::testing::ElementsAre;
@@ -62,18 +64,11 @@ using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::Le;
 using ::testing::Ne;
+using ::testing::NotNull;
 using ::testing::Pair;
 using ::testing::Property;
 using ::testing::SizeIs;
 using ::testing::StartsWith;
-
-using webrtc::MediaContentDescription;
-using ::webrtc::RidDescription;
-using ::webrtc::SimulcastDescription;
-using ::webrtc::SimulcastLayer;
-using ::webrtc::StreamParams;
-
-namespace webrtc {
 
 class PeerConnectionSimulcastTests : public ::testing::Test {
  public:
@@ -120,12 +115,14 @@ class PeerConnectionSimulcastTests : public ::testing::Test {
   void ExchangeOfferAnswer(PeerConnectionWrapper* local,
                            PeerConnectionWrapper* remote,
                            const std::vector<SimulcastLayer>& answer_layers) {
-    auto offer = local->CreateOfferAndSetAsLocal();
+    std::unique_ptr<SessionDescriptionInterface> offer =
+        local->CreateOfferAndSetAsLocal();
     // Remove simulcast as the second peer connection won't support it.
     RemoveSimulcast(offer.get());
     std::string err;
     EXPECT_TRUE(remote->SetRemoteDescription(std::move(offer), &err)) << err;
-    auto answer = remote->CreateAnswerAndSetAsLocal();
+    std::unique_ptr<SessionDescriptionInterface> answer =
+        remote->CreateAnswerAndSetAsLocal();
     // Setup the answer to look like a server response.
     auto mcd_answer = answer->description()->contents()[0].media_description();
     auto& receive_layers = mcd_answer->simulcast_description().receive_layers();
@@ -230,8 +227,9 @@ TEST_F(PeerConnectionSimulcastTests, ChecksForIllegalRidValues) {
 TEST_F(PeerConnectionSimulcastTests, SingleRidIsRemovedFromSessionDescription) {
   auto pc = CreatePeerConnectionWrapper();
   auto transceiver = AddTransceiver(pc.get(), CreateLayers({"1"}, true));
-  auto offer = pc->CreateOfferAndSetAsLocal();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc->CreateOfferAndSetAsLocal();
+  ASSERT_THAT(offer, NotNull());
   auto contents = offer->description()->contents();
   ASSERT_EQ(1u, contents.size());
   EXPECT_THAT(contents[0].media_description()->streams(),
@@ -257,8 +255,8 @@ TEST_F(PeerConnectionSimulcastTests, SimulcastAppearsInSessionDescription) {
   std::vector<std::string> rids({"f", "h", "q"});
   auto layers = CreateLayers(rids, true);
   auto transceiver = AddTransceiver(pc.get(), layers);
-  auto offer = pc->CreateOffer();
-  ASSERT_TRUE(offer);
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  ASSERT_THAT(offer, NotNull());
   auto contents = offer->description()->contents();
   ASSERT_EQ(1u, contents.size());
   auto content = contents[0];
@@ -287,7 +285,8 @@ TEST_F(PeerConnectionSimulcastTests, SimulcastLayersAreSetInSender) {
   auto remote = CreatePeerConnectionWrapper();
   auto layers = CreateLayers({"f", "h", "q"}, true);
   auto transceiver = AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   {
     SCOPED_TRACE("after create offer");
     ValidateTransceiverParameters(transceiver, layers);
@@ -296,7 +295,8 @@ TEST_F(PeerConnectionSimulcastTests, SimulcastLayersAreSetInSender) {
   auto simulcast = RemoveSimulcast(offer.get());
   std::string error;
   EXPECT_TRUE(remote->SetRemoteDescription(std::move(offer), &error)) << error;
-  auto answer = remote->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      remote->CreateAnswerAndSetAsLocal();
 
   // Setup an answer that mimics a server accepting simulcast.
   auto mcd_answer = answer->description()->contents()[0].media_description();
@@ -321,7 +321,8 @@ TEST_F(PeerConnectionSimulcastTests, PausedSimulcastLayersAreDisabledInSender) {
   auto server_layers = CreateLayers({"f", "h", "q"}, {true, false, false});
   RTC_DCHECK_EQ(layers.size(), server_layers.size());
   auto transceiver = AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   {
     SCOPED_TRACE("after create offer");
     ValidateTransceiverParameters(transceiver, layers);
@@ -331,7 +332,8 @@ TEST_F(PeerConnectionSimulcastTests, PausedSimulcastLayersAreDisabledInSender) {
   RemoveSimulcast(offer.get());
   std::string error;
   EXPECT_TRUE(remote->SetRemoteDescription(std::move(offer), &error)) << error;
-  auto answer = remote->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      remote->CreateAnswerAndSetAsLocal();
 
   // Setup an answer that mimics a server accepting simulcast.
   auto mcd_answer = answer->description()->contents()[0].media_description();
@@ -369,7 +371,8 @@ TEST_F(PeerConnectionSimulcastTests, RejectedSimulcastLayersAreDeactivated) {
   auto layers = CreateLayers({"1", "2", "3"}, true);
   auto expected_layers = CreateLayers({"2", "3"}, true);
   auto transceiver = AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   {
     SCOPED_TRACE("after create offer");
     ValidateTransceiverParameters(transceiver, layers);
@@ -378,7 +381,8 @@ TEST_F(PeerConnectionSimulcastTests, RejectedSimulcastLayersAreDeactivated) {
   auto removed_simulcast = RemoveSimulcast(offer.get());
   std::string error;
   EXPECT_TRUE(remote->SetRemoteDescription(std::move(offer), &error)) << error;
-  auto answer = remote->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      remote->CreateAnswerAndSetAsLocal();
   auto mcd_answer = answer->description()->contents()[0].media_description();
   // Setup the answer to look like a server response.
   // Remove one of the layers to reject it in the answer.
@@ -403,7 +407,8 @@ TEST_F(PeerConnectionSimulcastTests, ServerSendsOfferToReceiveSimulcast) {
   auto remote = CreatePeerConnectionWrapper();
   auto layers = CreateLayers({"f", "h", "q"}, true);
   AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   // Remove simulcast as a sender and set it up as a receiver.
   RemoveSimulcast(offer.get());
   AddRequestToReceiveSimulcast(layers, offer.get());
@@ -422,7 +427,8 @@ TEST_F(PeerConnectionSimulcastTests, TransceiverIsNotRecycledWithSimulcast) {
   auto remote = CreatePeerConnectionWrapper();
   auto layers = CreateLayers({"f", "h", "q"}, true);
   AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   // Remove simulcast as a sender and set it up as a receiver.
   RemoveSimulcast(offer.get());
   AddRequestToReceiveSimulcast(layers, offer.get());
@@ -483,12 +489,14 @@ TEST_F(PeerConnectionSimulcastTests, NegotiationDoesNotHaveRidExtensionFails) {
   auto layers = CreateLayers({"1", "2", "3"}, true);
   auto expected_layers = CreateLayers({"1"}, true);
   auto transceiver = AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOfferAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      local->CreateOfferAndSetAsLocal();
   // Remove simulcast as the second peer connection won't support it.
   RemoveSimulcast(offer.get());
   std::string err;
   EXPECT_TRUE(remote->SetRemoteDescription(std::move(offer), &err)) << err;
-  auto answer = remote->CreateAnswerAndSetAsLocal();
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      remote->CreateAnswerAndSetAsLocal();
   // Setup the answer to look like a server response.
   // Drop the RID header extension.
   auto mcd_answer = answer->description()->contents()[0].media_description();
@@ -535,7 +543,7 @@ TEST_F(PeerConnectionSimulcastTests, SimulcastSldModificationRejected) {
   auto remote = CreatePeerConnectionWrapper();
   auto layers = CreateLayers({"1", "2", "3"}, true);
   AddTransceiver(local.get(), layers);
-  auto offer = local->CreateOffer();
+  std::unique_ptr<SessionDescriptionInterface> offer = local->CreateOffer();
   std::string as_string;
   EXPECT_TRUE(offer->ToString(&as_string));
   auto simulcast_marker = "a=rid:3 send\r\na=simulcast:send 1;2;3\r\n";

@@ -21,6 +21,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #elif defined(WEBRTC_FUCHSIA)
+#include <pthread.h>
 #include <zircon/types.h>
 #include <zircon/process.h>
 #elif defined(WEBRTC_POSIX)
@@ -32,6 +33,10 @@
 #endif
 // clang-format on
 // IWYU pragma: end_exports
+
+#if !defined(WEBRTC_WIN)
+#include <sched.h>
+#endif
 
 namespace webrtc {
 #if defined(WEBRTC_WIN)

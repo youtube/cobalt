@@ -1312,14 +1312,12 @@ config("features") {
     defines += [ "V8_ENABLE_FUZZTEST" ]
   }
 
-  # TODO(Wenqin): Gearbox is not compatible with builtin PGO builds yet, try to
-  # support it later.
   # TODO(Wenqin): Gearbox didn't work when didn't enable pointer compression,
   # it's related to the deserializer, when pointer compression is disable, it
   # will not call PostProcessCode method, which is the bottleneck for Gearbox
   # try to fix it later.
-  if (v8_builtins_profiling_log_file == "" && v8_enable_pointer_compression &&
-      v8_enable_builtins_gearbox && v8_current_cpu == "x64") {
+  if (v8_enable_pointer_compression && v8_enable_builtins_gearbox &&
+      v8_current_cpu == "x64") {
     defines += [ "V8_BUILTINS_GEARBOX" ]
   }
   if (v8_enable_short_builtin_calls) {
@@ -4346,7 +4344,6 @@ v8_header_set("v8_internal_headers") {
     "src/tasks/cancelable-task.h",
     "src/tasks/operations-barrier.h",
     "src/tasks/task-utils.h",
-    "src/temporal/temporal-parser.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event-no-perfetto.h",
     "src/tracing/trace-event.h",
@@ -5849,7 +5846,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-test.cc",
     "src/runtime/runtime-trace.cc",
     "src/runtime/runtime-typedarray.cc",
-    "src/runtime/runtime-utils.cc",
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/sandbox/code-pointer-table.cc",
@@ -5892,7 +5888,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/tasks/cancelable-task.cc",
     "src/tasks/operations-barrier.cc",
     "src/tasks/task-utils.cc",
-    "src/temporal/temporal-parser.cc",
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",
@@ -8010,6 +8005,8 @@ template("v8_fuzzer") {
   fuzzer_name = target_name
 
   v8_source_set(fuzzer_name) {
+    testonly = true
+
     sources = invoker.sources
 
     deps = [ ":fuzzer_support" ]
@@ -8024,6 +8021,8 @@ template("v8_fuzzer") {
   }
 
   v8_executable("v8_simple_${fuzzer_name}") {
+    testonly = true
+
     deps = [
       ":${fuzzer_name}",
       "//build/win:default_exe_manifest",
@@ -8054,6 +8053,8 @@ if (v8_enable_webassembly) {
 
   if (v8_enable_drumbrake) {
     v8_source_set("lib_wasm_interpreter_fuzzer_common") {
+      testonly = true
+
       sources = [
         "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.cc",
         "test/fuzzer/wasm/interpreter/interpreter-fuzzer-common.h",
@@ -8131,6 +8132,8 @@ if (v8_enable_webassembly) {
   }
 
   v8_source_set("wasm_test_common") {
+    testonly = true
+
     sources = [
       "test/common/flag-utils.h",
       "test/common/wasm/flag-utils.h",
@@ -8160,6 +8163,8 @@ if (v8_enable_webassembly) {
   }
 
   v8_source_set("wasm_fuzzer_common") {
+    testonly = true
+
     sources = [
       "test/fuzzer/wasm/fuzzer-common.cc",
       "test/fuzzer/wasm/fuzzer-common.h",

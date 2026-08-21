@@ -45,7 +45,7 @@ namespace webrtc {
 namespace {
 
 constexpr int kDefaultSampleRateHz = 48000;
-const char kSourceCountHistogramName[] =
+constexpr char kSourceCountHistogramName[] =
     "WebRTC.Audio.AudioMixer.NewHighestSourceCount";
 
 // Utility function that resets the frame member variables with

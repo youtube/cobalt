@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../../internal.h"
 #include "./params.h"

@@ -25,7 +25,7 @@
 namespace webrtc {
 namespace {
 
-const char kWindowThreadName[] = "window_capture_utils_test_thread";
+constexpr char kWindowThreadName[] = "window_capture_utils_test_thread";
 const WCHAR kWindowTitle[] = L"Window Capture Utils Test";
 
 std::unique_ptr<Thread> SetUpUnresponsiveWindow(std::mutex& mtx,

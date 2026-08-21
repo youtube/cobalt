@@ -22,7 +22,10 @@ source_set("tabs_public") {
     "//components/tab_groups:tab_groups",
     "//components/tabs:public",
   ]
-  deps = [ "//content/public/browser" ]
+  deps = [
+    "//content/public/browser",
+    "//ui/base/unowned_user_data",
+  ]
 }
 
 # These enums should not need to depend on chrome/browser/ui. They have been
@@ -71,7 +74,7 @@ if (!is_android) {
       ":tab_strip",
       "//base",
       "//chrome/browser/ui/browser_window",
-      "//chrome/browser/ui/unowned_user_data",
+      "//ui/base/unowned_user_data",
     ]
   }
 
@@ -143,6 +146,7 @@ if (!is_android) {
       ":tabs",
       "//chrome/browser/favicon",
       "//chrome/browser/profiles:profile",
+      "//chrome/browser/signin",
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_element_identifiers",
       "//chrome/browser/ui:browser_navigator_params_headers",
@@ -168,6 +172,8 @@ if (!is_android) {
       "split_tab_swap_menu_model.h",
       "tab_model.h",
     ]
+
+    deps = [ "//ui/base/unowned_user_data" ]
 
     public_deps = [
       ":tab_strip_model_observer",
@@ -279,6 +285,7 @@ if (!is_android) {
       "//chrome/browser/ui/browser_window:browser_window",
       "//chrome/browser/ui/commerce:commerce",
       "//chrome/browser/ui/send_tab_to_self",
+      "//chrome/browser/ui/thumbnails",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/web_applications",
       "//components/commerce/core:utils",
@@ -329,6 +336,7 @@ if (!is_android) {
       "//chrome/browser/ui/color:color_headers",
       "//chrome/browser/ui/omnibox:omnibox",
       "//chrome/browser/ui/startup:startup_tab",
+      "//chrome/browser/ui/views/permissions/chip:chip",
       "//components/collaboration/public:public",
       "//components/keyed_service/core",
       "//components/tabs:public",
@@ -391,6 +399,7 @@ if (!is_android) {
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search",
+      "//chrome/browser/signin",
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/task_manager:task_manager",
@@ -402,12 +411,15 @@ if (!is_android) {
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/tabs/alert:tab_alert",
+      "//chrome/browser/ui/thumbnails",
       "//chrome/browser/ui/toolbar",
       "//chrome/browser/ui/toolbar/pinned_toolbar",
       "//chrome/browser/ui/views/intent_picker:intent_picker_page_action",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/side_panel",
+      "//chrome/browser/ui/views/toolbar:toolbar",
       "//chrome/browser/ui/webui:webui_util",
+      "//chrome/browser/vr",
       "//chrome/browser/web_applications",
       "//components/browsing_topics",
       "//components/content_settings/core/browser",
@@ -429,6 +441,7 @@ if (!is_android) {
       "//components/tab_groups",
       "//components/tabs",
       "//net",
+      "//ui/base/unowned_user_data",
       "//ui/webui",
     ]
 
@@ -485,8 +498,6 @@ if (!is_android) {
       "tab_ukm_test_helper.h",
       "test_tab_strip_model_delegate.cc",
       "test_tab_strip_model_delegate.h",
-      "test_util.cc",
-      "test_util.h",
     ]
 
     public_deps = [
@@ -652,6 +663,7 @@ if (!is_android) {
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/startup:startup_tab",
       "//chrome/browser/ui/tab_contents",
+      "//chrome/browser/ui/thumbnails",
       "//chrome/common:non_code_constants",
       "//chrome/test:test_support",
       "//components/commerce/core:account_checker_test_support",

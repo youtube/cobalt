@@ -77,8 +77,6 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  V(thread_in_wasm_flag_address_address,                                       \
-    "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
 #ifdef V8_ENABLE_SANDBOX
@@ -120,7 +118,6 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(allocate_and_initialize_young_external_pointer_table_entry,                \
     "AllocateAndInitializeYoungExternalPointerTableEntry")                     \
-  V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
   V(baseline_pc_for_next_executed_bytecode,                                    \
     "BaselinePCForNextExecutedBytecode")                                       \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \

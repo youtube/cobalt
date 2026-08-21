@@ -211,6 +211,7 @@ class JsepTransportController : public PayloadTypeSuggester,
   RTCError AddRemoteCandidates(const std::string& mid,
                                const std::vector<Candidate>& candidates);
   RTCError RemoveRemoteCandidates(const std::vector<Candidate>& candidates);
+  bool RemoveRemoteCandidate(const IceCandidate* candidate);
 
   /**********************
    * DTLS-related methods

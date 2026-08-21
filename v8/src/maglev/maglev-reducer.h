@@ -244,11 +244,13 @@ class MaglevReducer {
   NodeT* AddUnbufferedNewNodeNoInputConversion(
       BasicBlock* block, std::initializer_list<ValueNode*> inputs,
       Args&&... args);
-
   // Add a new node with a static set of inputs.
   template <typename NodeT, typename... Args>
   NodeT* AddNewNodeNoInputConversion(std::initializer_list<ValueNode*> inputs,
                                      Args&&... args);
+  template <typename ControlNodeT, typename... Args>
+  void AddNewControlNode(std::initializer_list<ValueNode*> inputs,
+                         Args&&... args);
 
   void AddInitializedNodeToGraph(Node* node);
 
@@ -323,6 +325,8 @@ class MaglevReducer {
   MaglevGraphLabeller* graph_labeller() const {
     return graph()->graph_labeller();
   }
+
+  bool is_tracing_enabled() const { return graph()->is_tracing_enabled(); }
 
   // TODO(victorgomes): Delete these access (or move to private) when the
   // speculation scope is moved inside MaglevReducer.

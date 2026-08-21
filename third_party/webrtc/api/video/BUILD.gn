@@ -135,18 +135,18 @@ rtc_source_set("video_frame_type") {
 
 rtc_source_set("render_resolution") {
   visibility = [ "*" ]
-  public = [ "render_resolution.h" ]
+  sources = [ "render_resolution.h" ]
 }
 
 rtc_source_set("resolution") {
   visibility = [ "*" ]
-  public = [ "resolution.h" ]
+  sources = [ "resolution.h" ]
   deps = [ "../../rtc_base/system:rtc_export" ]
 }
 
 rtc_source_set("corruption_detection_filter_settings") {
   visibility = [ "*" ]
-  public = [ "corruption_detection_filter_settings.h" ]
+  sources = [ "corruption_detection_filter_settings.h" ]
 }
 
 rtc_library("encoded_image") {

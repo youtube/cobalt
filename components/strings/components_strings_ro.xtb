@@ -312,6 +312,7 @@
 <translation id="1521655867290435174">Foi de calcul Google</translation>
 <translation id="1524669537550112617">Proprietăți de închiriat mobilate</translation>
 <translation id="1527263332363067270">Se așteaptă conectarea…</translation>
+<translation id="1527490370616010873">Google nu este furnizorul tău de completare automată. Pentru a activa aceste setări și a folosi informațiile de plată din Contul Google, accesează <ph name="BEGIN_LINK" />Setările serviciilor de completare automată<ph name="END_LINK" />.</translation>
 <translation id="1528311629279578926">Conexiunea este blocată deoarece a fost inițiată de o pagină publică pentru conectarea la dispozitive sau servere din rețeaua ta privată. Reîncarcă această pagină pentru a permite conexiunea.</translation>
 <translation id="1529789484829130889">Tava 8</translation>
 <translation id="1530707389502320859">Site-ul pe care ai încercat să-l accesezi pare fals. Uneori, atacatorii imită site-uri aducând modificări mici, greu de observat, adresei URL.</translation>
@@ -421,7 +422,6 @@
 <translation id="1706625117072057435">Niveluri de zoom</translation>
 <translation id="1706922226983368260">Cheie de acces • <ph name="PHONE_NAME" /></translation>
 <translation id="1706954506755087368">{1,plural, =1{Acest server nu a putut dovedi că este <ph name="DOMAIN" />. Data de emitere a certificatului său de securitate este mâine. Cauza poate fi o eroare de configurare sau interceptarea conexiunii de către un atacator.}few{Acest server nu a putut dovedi că este <ph name="DOMAIN" />. Data de emitere a certificatului său de securitate este în viitor, peste # zile. Cauza poate fi o eroare de configurare sau interceptarea conexiunii de către un atacator.}other{Acest server nu a putut dovedi că este <ph name="DOMAIN" />. Data de emitere a certificatului său de securitate este în viitor, peste # de zile. Cauza poate fi o eroare de configurare sau interceptarea conexiunii de către un atacator.}}</translation>
-<translation id="1709711942721576168">Butonul Modul AI, activează pentru a întreba Modul AI</translation>
 <translation id="1710259589646384581">Sistem de operare</translation>
 <translation id="1711234383449478798">Ignorată deoarece politica <ph name="POLICY_NAME" /> nu este setată la <ph name="VALUE" />.</translation>
 <translation id="1712552549805331520"><ph name="URL" /> dorește să stocheze permanent date pe computer</translation>
@@ -1117,6 +1117,7 @@
 <translation id="2902312830803030883">Mai multe acțiuni</translation>
 <translation id="2903493209154104877">Adrese</translation>
 <translation id="290376772003165898">Pagina nu este în <ph name="LANGUAGE" />?</translation>
+<translation id="2904180982022726666">Organizația ta limitează ce poți trimite</translation>
 <translation id="2905107382358353958">Alertă cu privire la noua setare pentru plăți</translation>
 <translation id="2909946352844186028">A fost detectată o schimbare a rețelei.</translation>
 <translation id="2911255567212929079">Învățare automată și inteligență artificială</translation>
@@ -1446,7 +1447,6 @@
 <translation id="343474037147570563">Fișierele pe care le încarci sau atașezi sunt trimise la Google Cloud sau la terți spre analiză. De exemplu, se pot căuta date sensibile sau programe malware și pot să fie stocate conform politicilor companiei și să fie vizibile pentru administrator.</translation>
 <translation id="3435557549311968410">Continuu (scurt)</translation>
 <translation id="3435738964857648380">Securitate</translation>
-<translation id="3436118221454753036">Modul Întreabă AI</translation>
 <translation id="3440783957068352691">pătrată</translation>
 <translation id="3441653493275994384">Ecran</translation>
 <translation id="3443504041532578451">Disc optic (satin)</translation>
@@ -2415,6 +2415,7 @@
 <translation id="5043753287208271200">Galben 3</translation>
 <translation id="5045550434625856497">Parolă incorectă</translation>
 <translation id="5048293684454354469">Subiectele anunțurilor reprezintă doar unul dintre numeroasele tipuri de date pe care un site le poate folosi pentru a personaliza anunțurile. Chiar și fără subiectele anunțurilor, site-urile pot afișa în continuare anunțuri, dar ele pot fi mai puțin personalizate. Află mai multe despre <ph name="BEGIN_LINK" />gestionarea confidențialității anunțurilor<ph name="LINK_END" />.</translation>
+<translation id="5051254010007014901"><ph name="TOOLBELT_PRECEDING_MATCH_TEXT" />, apasă pe Tab pentru mai multe comenzi directe de căutare disponibile după această sugestie de căutare</translation>
 <translation id="5052517576853118371">Subiecte active</translation>
 <translation id="5056425809654826431">{NUM_FILES,plural, =1{Pentru a trimite fișierul prin Trimitere în apropiere, eliberează spațiu (<ph name="DISK_SPACE_SIZE" />) pe dispozitiv}few{Pentru a trimite fișierele prin Trimitere în apropiere, eliberează spațiu (<ph name="DISK_SPACE_SIZE" />) pe dispozitiv}other{Pentru a trimite fișierele prin Trimitere în apropiere, eliberează spațiu (<ph name="DISK_SPACE_SIZE" />) pe dispozitiv}}</translation>
 <translation id="505757197798929356">Specifică motivul deschiderii (obligatoriu)</translation>
@@ -3035,7 +3036,6 @@
 <translation id="6108849843016142864">Reptile și amfibieni</translation>
 <translation id="610911394827799129">Contul Google poate să ofere alte forme ale istoricului de navigare la <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /></translation>
 <translation id="611018310643025551">Căutările tale, cele mai bune potriviri și conținutul paginilor acestora sunt trimise la Google și pot fi văzute de evaluatori umani pentru a îmbunătăți această funcție.</translation>
-<translation id="6115793664998531464"><ph name="STARTER_PACK_AI_MODE_FOCUSED_FRIENDLY_MATCH_TEXT" />, apasă pe Enter pentru a întreba modul AI</translation>
 <translation id="6116338172782435947">să afișeze textul și imaginile copiate în clipboard</translation>
 <translation id="6117833587752089929">Foto (satin)</translation>
 <translation id="6118782133429281336">Lista de origini este goală.</translation>
@@ -4708,6 +4708,7 @@ Detalii suplimentare:
 <translation id="8975263830901772334">Numele fișierelor pe care le printezi</translation>
 <translation id="8982884016487650216">S-a încărcat fișierul PDF</translation>
 <translation id="8983369100812962543">Acum poți redimensiona aplicația</translation>
+<translation id="8984785270737450103">Trimiterea este dezactivată</translation>
 <translation id="8985112471026018799">Salvează cardul pentru a finaliza achiziția mai rapid</translation>
 <translation id="8987245424886630962"><ph name="VIEW_CHROME_HISTORY_FOCUSED_FRIENDLY_MATCH_TEXT" />, apasă pe Tab, apoi pe Enter pentru a vedea istoricul de navigare în Chrome</translation>
 <translation id="8987663052629670333">Servicii de printare de fotografii</translation>
@@ -4837,6 +4838,7 @@ Detalii suplimentare:
 <translation id="9174917557437862841">Butonul Comută între file, apasă pe Enter pentru a comuta la această filă</translation>
 <translation id="9177283544810807743">Acest PDF nu se poate accesa. Extragerea textului, un produs Google AI</translation>
 <translation id="9179703756951298733">Gestionează informațiile despre plăți și carduri de credit din setările Chrome</translation>
+<translation id="9179766227052716237">Organizația ta rostește: „<ph name="CUSTOM_MESSAGE" />”</translation>
 <translation id="9179907736442194268">Primește alerte prin e-mail dacă prețul scade pe orice site</translation>
 <translation id="9183302530794969518">Documente Google</translation>
 <translation id="9183425211371246419"><ph name="HOST_NAME" /> folosește un protocol neacceptat.</translation>

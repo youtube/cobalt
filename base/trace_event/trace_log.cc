@@ -140,9 +140,8 @@ void WriteDebugAnnotations(base::trace_event::TraceEvent* trace_event,
 // using an override here.
 // TODO(crbug.com/343404899): Remove when all embedders migrate to Perfetto.
 void OnAddLegacyTraceEvent(TraceEvent* trace_event) {
-  perfetto::DynamicCategory category(
-      TraceLog::GetInstance()->GetCategoryGroupName(
-          trace_event->category_group_enabled()));
+  perfetto::DynamicCategory category(TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(
+      trace_event->category_group_enabled()));
 
   auto phase = trace_event->phase();
   if (phase == TRACE_EVENT_PHASE_COMPLETE) {
@@ -220,7 +219,7 @@ void OnUpdateLegacyTraceEventDuration(
     const TimeTicks& now,
     const ThreadTicks& thread_now) {
   perfetto::DynamicCategory category(
-      TraceLog::GetInstance()->GetCategoryGroupName(category_group_enabled));
+      TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(category_group_enabled));
   auto phase = TRACE_EVENT_PHASE_END;
   base::TimeTicks timestamp =
       explicit_timestamps ? now : TRACE_TIME_TICKS_NOW();
@@ -372,16 +371,6 @@ TraceLog::~TraceLog() {
   TrackEvent::RemoveSessionObserver(this);
 }
 
-const unsigned char* TraceLog::GetCategoryGroupEnabled(
-    const char* category_group) {
-  return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);
-}
-
-const char* TraceLog::GetCategoryGroupName(
-    const unsigned char* category_group_enabled) {
-  return TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(category_group_enabled);
-}
-
 void TraceLog::SetEnabled(const TraceConfig& trace_config) {
   DCHECK(trace_config.process_filter_config().IsEnabled(process_id_));
 
@@ -413,12 +402,12 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config) {
   // TODO(khokhlov): Avoid duplication between this code and
   // services/tracing/public/cpp/perfetto/perfetto_config.cc.
   perfetto::TraceConfig perfetto_config;
-  size_t size_limit = trace_config.GetTraceBufferSizeInKb();
-  if (size_limit == 0) {
-    size_limit = 200 * 1024;
+  ByteCount size_limit = trace_config.GetTraceBufferSizeInBytes();
+  if (size_limit.is_zero()) {
+    size_limit = MiB(200);
   }
   auto* buffer_config = perfetto_config.add_buffers();
-  buffer_config->set_size_kb(checked_cast<uint32_t>(size_limit));
+  buffer_config->set_size_kb(checked_cast<uint32_t>(size_limit.InKiB()));
   switch (trace_config.GetTraceRecordMode()) {
     case base::trace_event::RECORD_UNTIL_FULL:
     case base::trace_event::RECORD_AS_MUCH_AS_POSSIBLE:

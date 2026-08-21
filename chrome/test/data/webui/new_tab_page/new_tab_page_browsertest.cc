@@ -73,6 +73,12 @@ IN_PROC_BROWSER_TEST_F(NewTabPageTest, ComposeboxFileThumbnail) {
   RunTest("new_tab_page/composebox/file_thumbnail_test.js", "mocha.run()");
 }
 
+using NewTabPageNtpPromoTest = NewTabPageBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(NewTabPageNtpPromoTest, NtpSinglePromoTest) {
+  RunTest("new_tab_page/ntp_promo/ntp_single_promo_test.js", "mocha.run()");
+}
+
 using NewTabPageModulesTest = NewTabPageBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(NewTabPageModulesTest, ModuleWrapper) {
@@ -156,6 +162,10 @@ IN_PROC_BROWSER_TEST_F(NewTabPageModulesTest, MicrosoftAuthModule) {
   RunTest(
       "new_tab_page/modules/v2/authentication/microsoft_auth_module_test.js",
       "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(NewTabPageModulesTest, TabGroupsModule) {
+  RunTest("new_tab_page/modules/v2/tab_groups/module_test.js", "mocha.run()");
 }
 
 using NewTabPageAppTest = NewTabPageBrowserTest;

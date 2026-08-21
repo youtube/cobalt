@@ -23,12 +23,12 @@ using webrtc::rtcp::Sdes;
 
 namespace webrtc {
 namespace {
-const uint32_t kSenderSsrc = 0x12345678;
-const uint8_t kPadding = 0;
-const uint8_t kTerminatorTag = 0;
-const uint8_t kCnameTag = 1;
-const uint8_t kNameTag = 2;
-const uint8_t kEmailTag = 3;
+constexpr uint32_t kSenderSsrc = 0x12345678;
+constexpr uint8_t kPadding = 0;
+constexpr uint8_t kTerminatorTag = 0;
+constexpr uint8_t kCnameTag = 1;
+constexpr uint8_t kNameTag = 2;
+constexpr uint8_t kEmailTag = 3;
 }  // namespace
 
 TEST(RtcpPacketSdesTest, CreateAndParseWithoutChunks) {

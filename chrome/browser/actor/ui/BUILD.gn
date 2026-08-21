@@ -13,6 +13,8 @@ source_set("ui") {
     ":ui_event_types",
     "//base",
     "//chrome/browser/actor:actor",
+    "//chrome/browser/actor:variant_visitor",
+    "//chrome/browser/ui/tabs:tabs_public",
     "//content/public/browser",
   ]
 }
@@ -22,6 +24,10 @@ source_set("states") {
     "states/agent_overlay_state.h",
     "states/handoff_button_state.h",
   ]
+
+  sources = [ "states/agent_overlay_state.cc" ]
+
+  public_deps = [ "//chrome/browser/actor:types" ]
 }
 
 source_set("event_dispatcher") {
@@ -38,8 +44,8 @@ source_set("event_dispatcher") {
     ":tool_request_variant",
     ":ui_event_types",
     ":ui_event_utils",
-    ":variant_visitor",
     "//chrome/browser/actor:actor",
+    "//chrome/browser/actor:variant_visitor",
     "//chrome/browser/actor/ui:ui",
   ]
 }
@@ -54,12 +60,14 @@ source_set("test_support") {
     "mock_event_dispatcher.h",
   ]
   testonly = true
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//testing/gmock",
+  ]
   deps = [
     ":event_dispatcher",
     ":ui",
     "//chrome/browser/actor:actor",
-    "//testing/gmock",
   ]
 }
 
@@ -81,12 +89,12 @@ source_set("ui_event_types") {
   ]
   public_deps = [
     "//base",
+
+    # ActorTask::State isn't in actor:types
+    "//chrome/browser/actor:actor",
     "//chrome/browser/actor:types",
   ]
-  deps = [
-    "//components/tabs:public",
-    "//ui/gfx/geometry:geometry",
-  ]
+  deps = [ "//components/tabs:public" ]
 }
 
 source_set("ui_event_utils") {
@@ -96,30 +104,28 @@ source_set("ui_event_utils") {
   ]
   deps = [
     ":ui_event_types",
-    ":variant_visitor",
     "//base",
+    "//chrome/browser/actor:variant_visitor",
     "//third_party/abseil-cpp:absl",
   ]
-}
-
-source_set("variant_visitor") {
-  sources = [ "variant_visitor.h" ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "actor_ui_state_manager_unittest.cc",
     "event_dispatcher_unittest.cc",
     "ui_event_debugstring_unittest.cc",
   ]
   deps = [
     ":event_dispatcher",
     ":test_support",
+    ":ui",
     ":ui_event_types",
     ":ui_event_utils",
     "//chrome/browser/actor:actor",
     "//chrome/browser/actor:impl",
-    "//chrome/browser/actor/ui:ui",
+    "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common",
     "//chrome/test:test_support",
     "//components/tabs:public",

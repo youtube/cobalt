@@ -198,8 +198,9 @@ TEST_P(PeerConnectionHeaderExtensionTest, AnswersUnstoppedModifiedExtensions) {
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
 
-  auto offer = pc1->CreateOfferAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc2->SetRemoteDescription(std::move(offer));
 
   ASSERT_EQ(pc2->pc()->GetTransceivers().size(), 1u);
@@ -209,8 +210,9 @@ TEST_P(PeerConnectionHeaderExtensionTest, AnswersUnstoppedModifiedExtensions) {
   modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
   transceiver2->SetHeaderExtensionsToNegotiate(modified_extensions);
 
-  auto answer = pc2->CreateAnswerAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   EXPECT_THAT(answer->description()
                   ->contents()[0]
                   .media_description()
@@ -231,15 +233,17 @@ TEST_P(PeerConnectionHeaderExtensionTest, NegotiatedExtensionsAreAccessible) {
   auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
   modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
   transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
-  auto offer = pc1->CreateOfferAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
 
   std::unique_ptr<PeerConnectionWrapper> pc2 =
       CreatePeerConnection(media_type, semantics);
   auto transceiver2 = pc2->AddTransceiver(media_type);
   pc2->SetRemoteDescription(std::move(offer));
-  auto answer = pc2->CreateAnswerAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc1->SetRemoteDescription(std::move(answer));
 
   // PC1 has exts 2-4 unstopped and PC2 has exts 1-3 unstopped -> ext 2, 3
@@ -297,11 +301,13 @@ TEST_P(PeerConnectionHeaderExtensionTest, RemovalAfterRenegotiation) {
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
 
-  auto offer = pc1->CreateOfferAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc2->SetRemoteDescription(std::move(offer));
-  auto answer = pc2->CreateAnswerAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc1->SetRemoteDescription(std::move(answer));
 
   auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
@@ -329,11 +335,13 @@ TEST_P(PeerConnectionHeaderExtensionTest,
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
 
-  auto offer = pc1->CreateOfferAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc2->SetRemoteDescription(std::move(offer));
-  auto answer = pc2->CreateAnswerAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   std::string sdp;
   ASSERT_TRUE(answer->ToString(&sdp));
   // We support uri1 but it is stopped by default. Let the remote reactivate it.
@@ -386,7 +394,8 @@ TEST_P(PeerConnectionHeaderExtensionTest,
       "a=mid:audio\r\n"
       "a=setup:actpass\r\n"
       "a=extmap:1 urn:bogus\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   pc->SetRemoteDescription(std::move(offer));
   pc->CreateAnswerAndSetAsLocal(
       PeerConnectionInterface::RTCOfferAnswerOptions());
@@ -440,9 +449,10 @@ TEST_P(PeerConnectionHeaderExtensionTest,
       "a=mid:audio\r\n"
       "a=setup:actpass\r\n"
       "a=extmap:1 uri1\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   pc->SetRemoteDescription(std::move(offer));
-  auto answer =
+  std::unique_ptr<SessionDescriptionInterface> answer =
       pc->CreateAnswer(PeerConnectionInterface::RTCOfferAnswerOptions());
   std::string modified_sdp;
   ASSERT_TRUE(answer->ToString(&modified_sdp));
@@ -473,7 +483,7 @@ TEST_P(PeerConnectionHeaderExtensionTest,
       CreatePeerConnection(media_type, semantics);
   pc->AddTransceiver(media_type);
 
-  auto offer =
+  std::unique_ptr<SessionDescriptionInterface> offer =
       pc->CreateOffer(PeerConnectionInterface::RTCOfferAnswerOptions());
   std::string modified_sdp;
   ASSERT_TRUE(offer->ToString(&modified_sdp));
@@ -527,7 +537,8 @@ TEST_P(PeerConnectionHeaderExtensionTest, EnablingExtensionsAfterRemoteOffer) {
       "a=mid:audio\r\n"
       "a=setup:actpass\r\n"
       "a=extmap:5 uri1\r\n";
-  auto offer = CreateSessionDescription(SdpType::kOffer, sdp);
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
   pc->SetRemoteDescription(std::move(offer));
 
   ASSERT_GT(pc->pc()->GetTransceivers().size(), 0u);
@@ -570,11 +581,13 @@ TEST_P(PeerConnectionHeaderExtensionTest, SenderParametersReflectNegotiation) {
     EXPECT_THAT(sender_parameters.header_extensions, IsEmpty());
   }
 
-  auto offer = pc1->CreateOfferAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      pc1->CreateOfferAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc2->SetRemoteDescription(std::move(offer));
-  auto answer = pc2->CreateAnswerAndSetAsLocal(
-      PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc2->CreateAnswerAndSetAsLocal(
+          PeerConnectionInterface::RTCOfferAnswerOptions());
   pc1->SetRemoteDescription(std::move(answer));
   {
     auto sender_parameters = pc1->pc()->GetSenders()[0]->GetParameters();

@@ -320,11 +320,7 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
       mem_type_(memory.type),
       mem_size_(checked_cast<uint32_t>(size)),
       mem_page_(checked_cast<uint32_t>((page_size ? page_size : size))),
-#if BUILDFLAG(IS_NACL)
-      vm_page_size_(4096U),  // SysInfo is not built for NACL.
-#else
       vm_page_size_(SysInfo::VMAllocationGranularity()),
-#endif
       readonly_(readonly),
       corrupt_(false),
       allocs_histogram_(nullptr),
@@ -1085,7 +1081,6 @@ bool ReadOnlySharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, true);
 }
 
-#if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 FilePersistentMemoryAllocator::FilePersistentMemoryAllocator(
@@ -1168,7 +1163,6 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
 #error Unsupported OS.
 #endif
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 //----- DelayedPersistentAllocation --------------------------------------------
 
@@ -1196,12 +1190,10 @@ void* DelayedPersistentAllocation::Get() const {
   // contents of the allocation in any way.
   Reference ref = reference_->load(std::memory_order_acquire);
 
-#if !BUILDFLAG(IS_NACL)
   // TODO(crbug/1432981): Remove these. They are used to investigate unexpected
   // failures.
   bool ref_found = (ref != 0);
   bool raced = false;
-#endif  // !BUILDFLAG(IS_NACL)
 
   if (!ref) {
     ref = allocator_->Allocate(size_, type_);
@@ -1222,15 +1214,12 @@ void* DelayedPersistentAllocation::Get() const {
       DCHECK_LE(size_, allocator_->GetAllocSize(existing));
       allocator_->ChangeType(ref, 0, type_, /*clear=*/false);
       ref = existing;
-#if !BUILDFLAG(IS_NACL)
       raced = true;
-#endif  // !BUILDFLAG(IS_NACL)
     }
   }
 
   char* mem = allocator_->GetAsArray<char>(ref, type_, size_);
   if (!mem) {
-#if !BUILDFLAG(IS_NACL)
     // TODO(crbug/1432981): Remove these. They are used to investigate
     // unexpected failures.
     SCOPED_CRASH_KEY_BOOL("PersistentMemoryAllocator", "full",
@@ -1242,7 +1231,6 @@ void* DelayedPersistentAllocation::Get() const {
     SCOPED_CRASH_KEY_BOOL("PersistentMemoryAllocator", "raced", raced);
     SCOPED_CRASH_KEY_NUMBER("PersistentMemoryAllocator", "type_", type_);
     SCOPED_CRASH_KEY_NUMBER("PersistentMemoryAllocator", "size_", size_);
-#endif  // !BUILDFLAG(IS_NACL)
     // This should never happen but be tolerant if it does as corruption from
     // the outside is something to guard against.
     NOTREACHED();

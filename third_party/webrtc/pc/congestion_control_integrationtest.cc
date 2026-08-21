@@ -11,9 +11,11 @@
 // This file contains tests that verify that congestion control options
 // are correctly negotiated in the SDP offer/answer.
 
+#include <memory>
 #include <string>
 
 #include "absl/strings/str_cat.h"
+#include "api/jsep.h"
 #include "api/peer_connection_interface.h"
 #include "api/test/rtc_error_matchers.h"
 #include "pc/test/integration_test_helpers.h"
@@ -40,7 +42,8 @@ TEST_F(PeerConnectionCongestionControlTest, OfferContainsCcfbIfEnabled) {
   SetFieldTrials("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   caller()->AddAudioVideoTracks();
-  auto offer = caller()->CreateOfferAndWait();
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller()->CreateOfferAndWait();
   std::string offer_str = absl::StrCat(*offer);
   EXPECT_THAT(offer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
 }

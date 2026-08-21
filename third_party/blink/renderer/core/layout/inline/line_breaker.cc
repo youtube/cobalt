@@ -2266,9 +2266,19 @@ void LineBreaker::AppendCandidates(const InlineItemResult& item_result,
 
 bool LineBreaker::CanBreakInside(const LineInfo& line_info) {
   const InlineItemResults& item_results = line_info.Results();
-  if (std::ranges::any_of(
-          base::span(item_results).first(item_results.size() - 1),
-          std::identity(), &InlineItemResult::can_break_after)) {
+  if (RuntimeEnabledFeatures::SkipOofItemForBreakCandidateEnabled()) {
+    for (wtf_size_t i = 0; i < item_results.size() - 1; ++i) {
+      if (item_results[i].can_break_after) {
+        for (++i; i < item_results.size(); ++i) {
+          if (!item_results[i].item->IsFloatingOrOutOfFlowPositioned()) {
+            return true;
+          }
+        }
+      }
+    }
+  } else if (std::ranges::any_of(
+                 base::span(item_results).first(item_results.size() - 1),
+                 std::identity(), &InlineItemResult::can_break_after)) {
     return true;
   }
   for (const InlineItemResult& item_result : item_results) {
@@ -2973,9 +2983,12 @@ void LineBreaker::HandleControlItem(const InlineItem& item,
         HandleEmptyText(item, line_info);
         return;
       }
+      const Font* font = RuntimeEnabledFeatures::TabSizeAncestorEnabled()
+                             ? &node_.FontForTab()
+                             : style.GetFont();
       const ShapeResult* shape_result =
           ShapeResult::CreateForTabulationCharacters(
-              style.GetFont(), item.Direction(), style.GetTabSize(), position_,
+              font, item.Direction(), style.GetTabSize(), position_,
               item.StartOffset(), item.Length());
       HandleText(item, *shape_result, line_info);
       return;
@@ -3268,9 +3281,15 @@ void LineBreaker::HandleBlockInInline(const InlineItem& item,
       // The block broke inside. If the block itself fits, but some content
       // inside overflowed, we now need to enter a parallel flow, i.e. resume
       // the block-in-inline in the next fragmentainer, but continue layout of
-      // any actual inline content after the block-in- inline in the current
-      // fragmentainer.
-      if (outgoing_block_break_token->IsAtBlockEnd()) {
+      // any actual inline content after the block-in-inline in the current
+      // fragmentainer. Also do this if the incoming break token was in a
+      // parallel flow. Then, by right, the outgoing break token should also be
+      // in a parallel flow, but this inconsistency may occur if a column
+      // spanner is discovered (at which point we avoid parallel flows before
+      // it) in a subsequent outer fragmentainer after having overflowed a block
+      // in a previous outer fragmentainer. See crbug.com/430249827
+      if (outgoing_block_break_token->IsAtBlockEnd() ||
+          (break_token_ && break_token_->IsInParallelFlow())) {
         const auto* parallel_token =
             InlineBreakToken::CreateForParallelBlockFlow(
                 node_, current_, *outgoing_block_break_token);
@@ -3729,7 +3748,18 @@ void LineBreaker::HandleFloat(const InlineItem& item,
   // already have been processed.
   InlineItemResult* item_result = AddItem(item, line_info);
   auto index_before_float = current_;
-  item_result->can_break_after = auto_wrap_;
+  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
+    // Out-of-flow elements must be ignored for the text processing.
+    // https://drafts.csswg.org/css-text-3/#text-encoding
+    DCHECK(!item_result->can_break_after);
+    if (!item_result->should_create_line_box) {
+      // Allow to break after leading floats. This is not defined, but it's a
+      // historical behavior some tests require, and is compatbible with WebKit.
+      item_result->can_break_after = auto_wrap_;
+    }
+  } else {
+    item_result->can_break_after = auto_wrap_;
+  }
   MoveToNextOf(item);
 
   // If we are currently computing our min/max-content size, simply append the
@@ -3872,12 +3902,35 @@ void LineBreaker::HandleOutOfFlowPositioned(const InlineItem& item,
   DCHECK_EQ(item.Type(), InlineItem::kOutOfFlowPositioned);
   InlineItemResult* item_result = AddItem(item, line_info);
 
-  // Break opportunity after OOF is not well-defined nor interoperable. Using
-  // |kObjectReplacementCharacter|, except when this is a leading OOF, seems to
-  // produce reasonable and interoperable results in common cases.
-  DCHECK(!item_result->can_break_after);
-  if (item_result->should_create_line_box)
-    ComputeCanBreakAfter(item_result, auto_wrap_, break_iterator_);
+  if (RuntimeEnabledFeatures::LineBreakOofNoOrcEnabled()) {
+    // Out-of-flow elements must be ignored for the text processing.
+    // https://drafts.csswg.org/css-text-3/#text-encoding
+    // But when the point is breakable, whether to break before or after isn't
+    // well-defined.
+    DCHECK(!item_result->can_break_after);
+    InlineItemResults& item_results = *line_info->MutableResults();
+    if (item_results.size() >= 2) {
+      InlineItemResult* last_item_result = std::prev(item_result);
+      if (last_item_result->IsEmptyText() && !last_item_result->can_break_after)
+          [[unlikely]] {
+        // Text+SP OP OOF Text => !break_after.
+        //     line-breaking-018, line-breaking-019
+        // Text+SP OP Empty OOF Text => break_after.
+        //     position-absolute-in-inline-004
+        ComputeCanBreakAfter(item_result, auto_wrap_, break_iterator_);
+      } else {
+        item_result->can_break_after = last_item_result->can_break_after;
+      }
+    }
+  } else {
+    // Break opportunity after OOF is not well-defined nor interoperable. Using
+    // |kObjectReplacementCharacter|, except when this is a leading OOF, seems
+    // to produce reasonable and interoperable results in common cases.
+    DCHECK(!item_result->can_break_after);
+    if (item_result->should_create_line_box) {
+      ComputeCanBreakAfter(item_result, auto_wrap_, break_iterator_);
+    }
+  }
 
   MoveToNextOf(item);
 }

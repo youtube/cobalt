@@ -22,7 +22,7 @@ namespace webrtc {
 namespace {
 
 // Test parameter for the basic sample based SwapQueue Tests.
-const size_t kChunkSize = 3;
+constexpr size_t kChunkSize = 3;
 
 // Queue item verification function for the vector test.
 bool LengthVerifierFunction(const std::vector<int>& v) {

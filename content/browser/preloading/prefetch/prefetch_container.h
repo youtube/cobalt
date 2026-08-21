@@ -237,7 +237,7 @@ class CONTENT_EXPORT PrefetchContainer {
   // Each callback is called at most once in the lifecycle of a container.
   //
   // Be careful about using this. This is designed only for
-  // `PrefetchMatchResolver`.
+  // `PrefetchMatchResolver` and some other prefetch-internal classes.
   class Observer : public base::CheckedObserver {
    public:
     // Called at the head of dtor.
@@ -254,6 +254,7 @@ class CONTENT_EXPORT PrefetchContainer {
     virtual void OnDeterminedHead(PrefetchContainer& prefetch_container) = 0;
     // Called when load of prefetch completed or failed.
     virtual void OnPrefetchCompletedOrFailed(
+        PrefetchContainer& prefetch_container,
         const network::URLLoaderCompletionStatus& completion_status,
         const std::optional<int>& response_code) = 0;
   };
@@ -559,10 +560,6 @@ class CONTENT_EXPORT PrefetchContainer {
   // Returns request id to be used by DevTools and test utilities.
   const std::string& RequestId() const { return request_id_; }
 
-  const std::optional<PrefetchResponseSizes>& GetPrefetchResponseSizes() const {
-    return prefetch_response_sizes_;
-  }
-
   bool HasPreloadingAttempt() { return !!attempt_; }
   base::WeakPtr<PreloadingAttempt> preloading_attempt() { return attempt_; }
 
@@ -815,12 +812,8 @@ class CONTENT_EXPORT PrefetchContainer {
   }
 
  protected:
-  friend class PrefetchContainerTestBase;
-
   // Updates metrics based on the result of the prefetch request.
   void UpdatePrefetchRequestMetrics(
-      const std::optional<network::URLLoaderCompletionStatus>&
-          completion_status,
       const network::mojom::URLResponseHead* head);
 
  private:
@@ -892,8 +885,9 @@ class CONTENT_EXPORT PrefetchContainer {
   // be updated to the latest value when this method is called.
   void MaybeRecordPrefetchStatusToUMA(PrefetchStatus prefetch_status);
 
-  // Records `Prefetch.PrefetchContainer.DurationAdded*` UMAs.
-  void RecordDurationFromAdded();
+  // Records UMAs tracking some certain durations during prefetch addition to
+  // prefetch completion (e.g. `Prefetch.PrefetchContainer.AddedTo*`).
+  void RecordPrefetchDurationHistogram();
   // Records `Prefetch.PrefetchMatchingBlockedNavigationWithPrefetch.*` UMAs.
   void RecordPrefetchMatchingBlockedNavigationHistogram(bool blocked_until_head,
                                                         bool is_nav_prerender);
@@ -902,6 +896,12 @@ class CONTENT_EXPORT PrefetchContainer {
       const std::optional<base::TimeDelta>& blocked_duration,
       bool served,
       bool is_nav_prerender);
+
+  // Should be called only from `OnPrefetchComplete()`, so that
+  // `OnPrefetchCompletedOrFailed()` is always called after
+  // `OnPrefetchCompleteInternal()`.
+  void OnPrefetchCompleteInternal(
+      const network::URLLoaderCompletionStatus& completion_status);
 
   // The ID of the RenderFrameHost/Document that triggered the prefetch.
   // This will be empty when browser-initiated prefetch.
@@ -1006,12 +1006,6 @@ class CONTENT_EXPORT PrefetchContainer {
   base::WeakPtr<PrefetchStreamingURLLoader> streaming_loader_;
 
   ukm::SourceId ukm_source_id_;
-
-  // The sizes information of the prefetched response.
-  std::optional<PrefetchResponseSizes> prefetch_response_sizes_;
-
-  // The amount of time it took for the prefetch to complete.
-  std::optional<base::TimeDelta> fetch_duration_;
 
   // The amount of time it took for the headers to be received.
   std::optional<base::TimeDelta> header_latency_;

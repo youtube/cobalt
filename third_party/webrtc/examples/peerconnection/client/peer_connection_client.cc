@@ -10,12 +10,23 @@
 
 #include "examples/peerconnection/client/peer_connection_client.h"
 
+#include <cerrno>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <string>
+
+#include "api/async_dns_resolver.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/units/time_delta.h"
 #include "examples/peerconnection/client/defaults.h"
 #include "rtc_base/async_dns_resolver.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helpers.h"
+#include "rtc_base/socket.h"
 #include "rtc_base/thread.h"
 
 namespace {

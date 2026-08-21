@@ -11,18 +11,15 @@
 #include "components/dom_distiller/core/mojom/distilled_page_prefs.mojom.h"
 #include "components/prefs/pref_change_registrar.h"
 
+class PrefRegistrySimple;
 class PrefService;
-
-namespace user_prefs {
-class PrefRegistrySyncable;
-}
 
 namespace dom_distiller {
 
 // Interface for preferences used for distilled page.
 class DistilledPagePrefs {
  public:
-  class Observer {
+  class Observer : public base::CheckedObserver {
    public:
     virtual void OnChangeFontFamily(mojom::FontFamily font) = 0;
     virtual void OnChangeTheme(mojom::Theme theme) = 0;
@@ -36,7 +33,7 @@ class DistilledPagePrefs {
 
   ~DistilledPagePrefs();
 
-  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
 
   // Sets the user's preference for the font family of distilled pages.
   void SetFontFamily(mojom::FontFamily new_font);
@@ -66,7 +63,7 @@ class DistilledPagePrefs {
 
   raw_ptr<PrefService> pref_service_;
   PrefChangeRegistrar pref_change_registrar_;
-  base::ObserverList<Observer>::Unchecked observers_;
+  base::ObserverList<Observer> observers_;
 
   base::WeakPtrFactory<DistilledPagePrefs> weak_ptr_factory_{this};
 };

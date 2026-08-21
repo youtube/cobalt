@@ -636,18 +636,12 @@ void PeerConnectionDelegateAdapter::OnRemoveTrack(
 }
 - (void)removeIceCandidates:
     (NSArray<RTC_OBJC_TYPE(RTCIceCandidate) *> *)iceCandidates {
-  std::vector<webrtc::Candidate> candidates;
   for (RTC_OBJC_TYPE(RTCIceCandidate) * iceCandidate in iceCandidates) {
-    std::unique_ptr<const webrtc::IceCandidate> candidate(
+    std::unique_ptr<webrtc::IceCandidate> candidate(
         iceCandidate.nativeCandidate);
     if (candidate) {
-      candidates.push_back(candidate->candidate());
-      // Need to fill the transport name from the sdp_mid.
-      candidates.back().set_transport_name(candidate->sdp_mid());
+      _peerConnection->RemoveIceCandidate(candidate.get());
     }
-  }
-  if (!candidates.empty()) {
-    _peerConnection->RemoveIceCandidates(candidates);
   }
 }
 

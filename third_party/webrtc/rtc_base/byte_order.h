@@ -11,15 +11,16 @@
 #ifndef RTC_BASE_BYTE_ORDER_H_
 #define RTC_BASE_BYTE_ORDER_H_
 
-#include <stdint.h>
-
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
+#include "rtc_base/system/arch.h"  // IWYU pragma: keep
+
 #if defined(WEBRTC_POSIX) && !defined(__native_client__)
-#include <arpa/inet.h>
+#include <arpa/inet.h>  // IWYU pragma: keep
 #endif
 
-#include "rtc_base/system/arch.h"
 
 #if defined(WEBRTC_MAC)
 #include <libkern/OSByteOrder.h>
@@ -41,7 +42,6 @@
 #elif defined(WEBRTC_WIN) || defined(__native_client__)
 
 #if defined(WEBRTC_WIN)
-#include <stdlib.h>
 #include <winsock2.h>
 #else
 #include <netinet/in.h>  // no-presubmit-check

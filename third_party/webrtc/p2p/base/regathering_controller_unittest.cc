@@ -34,17 +34,17 @@
 
 namespace {
 
-const int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
-                            webrtc::PORTALLOCATOR_DISABLE_RELAY |
-                            webrtc::PORTALLOCATOR_DISABLE_TCP;
+constexpr int kOnlyLocalPorts = webrtc::PORTALLOCATOR_DISABLE_STUN |
+                                webrtc::PORTALLOCATOR_DISABLE_RELAY |
+                                webrtc::PORTALLOCATOR_DISABLE_TCP;
 // The address of the public STUN server.
 const webrtc::SocketAddress kStunAddr("99.99.99.1", webrtc::STUN_SERVER_PORT);
 // The addresses for the public TURN server.
 const webrtc::SocketAddress kTurnUdpIntAddr("99.99.99.3",
                                             webrtc::STUN_SERVER_PORT);
 const webrtc::RelayCredentials kRelayCredentials("test", "test");
-const char kIceUfrag[] = "UF00";
-const char kIcePwd[] = "TESTICEPWD00000000000000";
+constexpr char kIceUfrag[] = "UF00";
+constexpr char kIcePwd[] = "TESTICEPWD00000000000000";
 
 }  // namespace
 

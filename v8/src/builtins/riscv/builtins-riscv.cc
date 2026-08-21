@@ -329,22 +329,43 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
       kUnknownIndirectPointerTag);
 
-  __ GetObjectType(data, scratch1, scratch1);
-#ifndef V8_JITLESS
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
-    AssertCodeIsBaseline(masm, data, scratch1);
-    __ Branch(is_baseline);
-    __ bind(&not_baseline);
+  if (V8_JITLESS_BOOL) {
+    __ GetObjectType(data, scratch1, scratch1);
+    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   } else {
-    __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
+    if (v8_flags.debug_code) {
+      Label not_baseline;
+#if V8_STATIC_ROOTS_BOOL
+      __ BranchObjectTypeFast(&not_baseline, ne, data, scratch1, CODE_TYPE);
+#else
+      __ GetObjectType(data, scratch1, scratch1);
+      __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
+#endif  // V8_STATIC_ROOTS_BOOL
+      AssertCodeIsBaseline(masm, data, scratch1);
+      __ Branch(is_baseline);
+      __ bind(&not_baseline);
+    } else {
+#if V8_STATIC_ROOTS_BOOL
+      __ BranchObjectTypeFast(&is_baseline, eq, data, scratch1, CODE_TYPE);
+#else
+      __ GetObjectType(data, scratch1, scratch1);
+      __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
+#endif
+    }
+#if V8_STATIC_ROOTS_BOOL
+    // scratch1 already contains the compressed map.
+    __ BranchInstanceTypeWithUniqueCompressedMap(
+        &done, ne, scratch1, Register::no_reg(), INTERPRETER_DATA_TYPE);
+#else
+    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
+#endif
   }
-#endif  // !V8_JITLESS
-  __ Branch(&done, eq, scratch1, Operand(BYTECODE_ARRAY_TYPE));
-  __ Branch(is_unavailable, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
+
   __ bind(&done);
+
+  __ GetObjectType(bytecode, scratch1, scratch1);
+  __ Branch(is_unavailable, ne, scratch1, Operand(BYTECODE_ARRAY_TYPE));
 }
 
 // static
@@ -2258,32 +2279,21 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ SubWord(scratch, argc, Operand(JSParameterCount(0)));
-    if (CpuFeatures::IsSupported(ZICOND)) {
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 0
-      __ MoveIfZero(this_argument, undefined_value, scratch);   // if argc == 0
-      __ MoveIfZero(target, undefined_value, scratch);          // if argc == 0
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 1
-      __ MoveIfZero(this_argument, undefined_value, scratch);   // if argc == 1
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 2
-    } else {
-      Label done0, done1, done2;
-      __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 0
-      __ Move(this_argument, undefined_value);   // if argc == 0
-      __ Move(target, undefined_value);          // if argc == 0
-      __ bind(&done0);                           // argc != 0
+    Label done0, done1, done2;
+    __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 0
+    __ Move(this_argument, undefined_value);   // if argc == 0
+    __ Move(target, undefined_value);          // if argc == 0
+    __ bind(&done0);                           // argc != 0
 
-      __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 1
-      __ Move(this_argument, undefined_value);   // if argc == 1
-      __ bind(&done1);                           // argc > 1
+    __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 1
+    __ Move(this_argument, undefined_value);   // if argc == 1
+    __ bind(&done1);                           // argc > 1
 
-      __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 2
-      __ bind(&done2);                           // argc > 2
-    }
+    __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 2
+    __ bind(&done2);                           // argc > 2
 
     __ DropArgumentsAndPushNewReceiver(argc, this_argument);
   }
@@ -2333,32 +2343,21 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ SubWord(scratch, argc, Operand(JSParameterCount(0)));
-    if (CpuFeatures::IsSupported(ZICOND)) {
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 0
-      __ MoveIfZero(new_target, undefined_value, scratch);      // if argc == 0
-      __ MoveIfZero(target, undefined_value, scratch);          // if argc == 0
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(arguments_list, undefined_value, scratch);  // if argc == 1
-      __ MoveIfZero(new_target, target, scratch);               // if argc == 1
-      __ SubWord(scratch, scratch, Operand(1));
-      __ MoveIfZero(new_target, target, scratch);  // if argc == 2
-    } else {
-      Label done0, done1, done2;
-      __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 0
-      __ Move(new_target, undefined_value);      // if argc == 0
-      __ Move(target, undefined_value);          // if argc == 0
-      __ bind(&done0);
+    Label done0, done1, done2;
+    __ Branch(&done0, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 0
+    __ Move(new_target, undefined_value);      // if argc == 0
+    __ Move(target, undefined_value);          // if argc == 0
+    __ bind(&done0);
 
-      __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
-      __ Move(arguments_list, undefined_value);  // if argc == 1
-      __ Move(new_target, target);               // if argc == 1
-      __ bind(&done1);
+    __ Branch(&done1, ne, scratch, Operand(1), Label::Distance::kNear);
+    __ Move(arguments_list, undefined_value);  // if argc == 1
+    __ Move(new_target, target);               // if argc == 1
+    __ bind(&done1);
 
-      __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
-      __ Move(new_target, target);  // if argc == 2
-      __ bind(&done2);
-    }
+    __ Branch(&done2, ne, scratch, Operand(2), Label::Distance::kNear);
+    __ Move(new_target, target);  // if argc == 2
+    __ bind(&done2);
 
     __ DropArgumentsAndPushNewReceiver(argc, undefined_value);
   }
@@ -4186,14 +4185,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   DEFINE_PINNED(reason, desc.GetRegisterParameter(1));
   DEFINE_PINNED(debug_event, desc.GetRegisterParameter(2));
   int catch_handler = __ pc_offset();
-  DEFINE_SCOPED(thread_in_wasm_flag_addr);
-  thread_in_wasm_flag_addr = a2;
-
-  // Unset thread_in_wasm_flag.
-  __ LoadWord(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ StoreWord(zero_reg, MemOperand(thread_in_wasm_flag_addr, 0));
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   __ mv(reason, kReturnRegister0);
@@ -4359,15 +4350,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
     DCHECK_EQ(next_offset, stack_params_offset);
   }
 
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ LoadWord(thread_in_wasm_flag_addr,
-                MemOperand(kRootRegister,
-                           Isolate::thread_in_wasm_flag_address_offset()));
-    DEFINE_SCOPED(scratch);
-    __ li(scratch, 1);
-    __ Sw(scratch, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
   __ StoreWord(
       zero_reg,
       MemOperand(fp, StackSwitchFrameConstants::kGCScanSlotCountOffset));
@@ -4389,13 +4371,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // The wrapper_buffer has to be in a2 as the correct parameter register.
   regs.Reserve(kReturnRegister0, kReturnRegister1);
   ASSIGN_PINNED(wrapper_buffer, a2);
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ LoadWord(thread_in_wasm_flag_addr,
-                MemOperand(kRootRegister,
-                           Isolate::thread_in_wasm_flag_address_offset()));
-    __ Sw(zero_reg, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
 
   __ LoadWord(
       wrapper_buffer,
@@ -5060,7 +5035,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadTrustedPointerField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      kCodeIndirectPointerTag);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

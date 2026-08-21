@@ -14,6 +14,8 @@
 
 #include "api/test/rtc_error_matchers.h"
 #include "rtc_base/random.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/time_utils.h"
 #include "rtc_tools/network_tester/test_controller.h"
 #include "test/gmock.h"
 #include "test/gtest.h"

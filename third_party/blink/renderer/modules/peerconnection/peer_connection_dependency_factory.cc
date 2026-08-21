@@ -90,6 +90,7 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_std.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/webrtc/api/create_modular_peer_connection_factory.h"
 #include "third_party/webrtc/api/enable_media.h"
 #include "third_party/webrtc/api/peer_connection_interface.h"
 #include "third_party/webrtc/api/rtc_event_log/rtc_event_log_factory.h"
@@ -103,16 +104,15 @@
 #include "third_party/webrtc_overrides/metronome_source.h"
 #include "third_party/webrtc_overrides/timer_based_tick_provider.h"
 
-namespace WTF {
+namespace blink {
+
 template <>
 struct CrossThreadCopier<base::RepeatingCallback<void(base::TimeDelta)>>
     : public CrossThreadCopierPassThrough<
           base::RepeatingCallback<void(base::TimeDelta)>> {
   STATIC_ONLY(CrossThreadCopier);
 };
-}  // namespace WTF
 
-namespace blink {
 namespace {
 
 using PassKey = base::PassKey<PeerConnectionDependencyFactory>;

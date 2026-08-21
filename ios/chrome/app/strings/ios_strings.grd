@@ -1044,62 +1044,80 @@
       <message name="IDS_IOS_BWG_CONSENT_FIRST_BOX_TITLE" desc="First box title text for the Gemini Consent page for managed accounts.">
           Your page content is shared for more relevant answers
       </message>
-      <message name="IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for managed accounts.">
-        When you use this feature, page content and URLs are sent to Google but won't be used to improve generative AI models. You can turn this off in settings anytime.
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_LINK">
+          Your privacy &amp; Gemini.
       </message>
-      <message name="IDS_IOS_BWG_CONSENT_MANAGED_FOOTNOTE" desc="Footnote text for the Gemini Consent page for non managed accounts.">
-        Your organization's chats aren't used to improve our models. Gemini may display inaccurate info, including about people, so double-check it. Your privacy &amp; Gemini
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_TEXT" desc="Footnote text for the Gemini Consent page for managed accounts.">
+          Your organization's chats aren't used to improve our models. Gemini may display inaccurate info, including about people, so double-check it. <ph name="YOUR_PRIVACY_GEMINI">$1<ex>Your privacy &amp; Gemini</ex></ph>
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_1" desc="Text for the first link in the BWG consent footnote.">
+          Google Terms
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_2" desc="Text for the second link in the BWG consent footnote.">
+          Gemini Apps Privacy Notice
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_TEXT" desc="Format string for the BWG consent footnote for non-managed accounts.">
+          <ph name="GOOGLE_TERMS">$1<ex>Google Terms</ex></ph> and the <ph name="GEMINI_APPS_PRIVACY">$2<ex>Gemini Apps Privacy Notice</ex></ph> apply. Gemini can make mistakes, so double-check it.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for managed accounts.">
+          When you use this feature, page content and URLs are sent to Google but won't be used to improve generative AI models. You can turn this off in settings anytime.
       </message>
       <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for managed accounts.">
-        Chats are reviewed and used to improve Google AI. Learn about your choices. Info about your location is also stored with your activity.
+          Neither your conversations with Gemini nor your <ph name="GOOGLE_WORKSPACE_DATA">$1<ex>Google Workspace data</ex></ph> will be reviewed by human reviewers or used to improve generative AI models.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY_LINK" desc="The link text in the second box body for managed accounts.">
+        Google Workspace data
       </message>
       <message name="IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Consent page for managed accounts.">
-        Your organisation's data is private and secure
+          Your organization's data is private and secure
       </message>
       <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_FIRST_BOX_BODY" desc="First box body text for the Gemini Consent page for non managed accounts.">
-        When you use this feature, page content and URLs are sent to Google. You can turn this off in settings anytime.
-      </message>
-      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_FOOTNOTE" desc="Footnote text for the Gemini Consent page for non managed accounts.">
-        Google Terms and the Gemini Apps Privacy Notice apply. Gemini can make mistakes, so double-check it.
+          When you use this feature, page content and URLs are sent to Google. You can turn this off in settings anytime.
       </message>
       <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY" desc="Second box body text for the Gemini Consent page for non managed accounts.">
-        Neither your conversations with Gemini nor your Google Workspace data will be reviewed by human reviewers or used to improve generative AI models.
+          Chats are reviewed and used to improve Google AI. <ph name="LEARN_ABOUT_CHOICES">$1<ex>Learn about your choices.</ex></ph> <ph name="INFO_ABOUT_LOCATION">$2<ex>Info about your location</ex></ph> is also stored with your activity.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_1" desc="The first link text in the second box body for non managed accounts.">
+        Learn about your choices.
+      </message>
+      <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_2" desc="The second link text within the second box body for non managed accounts.">
+        Info about your location
       </message>
       <message name="IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Consent page for non managed accounts.">
-        Your activity improves Google AI
+          Your activity improves Google AI
       </message>
       <message name="IDS_IOS_BWG_CONSENT_PRIMARY_BUTTON" desc="Primary button text for the Gemini Consent page.">
-        Yes, I'm in
+          Yes, I'm in
       </message>
       <message name="IDS_IOS_BWG_CONSENT_SECONDARY_BUTTON" desc="Secondary button text for the Gemini Consent page.">
-        No thanks
+          No thanks
       </message>
       <message name="IDS_IOS_BWG_IPH_TEXT" desc="Text for the BWG In-Product Help bubble.">
-        You can open Gemini here
+          You can open Gemini here
       </message>
       <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_BODY" desc="First box body text for the Gemini Promo page.">
-        Get relevant answers based on the content of the page you're on
+          Get relevant answers based on the content of the page you're on
       </message>
       <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_TITLE" desc="First box title text for the Gemini Promo page.">
-        Ask about any page
+          Ask about any page
       </message>
       <message name="IDS_IOS_BWG_PROMO_GRADIENT_TEXT" desc="Text for the BWG Promo that will have a gradient color.">
-        Gemini
+          Gemini
       </message>
       <message name="IDS_IOS_BWG_PROMO_MAIN_TITLE" desc="Main title text for the Gemini Promo page.">
-        Get answers faster with Gemini in Chrome
+          Get answers faster with Gemini in Chrome
       </message>
       <message name="IDS_IOS_BWG_PROMO_PRIMARY_BUTTON" desc="Primary button text for the Gemini Promo page.">
-        Get started
+          Get started
       </message>
       <message name="IDS_IOS_BWG_PROMO_SECONDARY_BUTTON" desc="Secondary button text for the Gemini Promo page.">
-        Cancel
+          Cancel
       </message>
       <message name="IDS_IOS_BWG_PROMO_SECOND_BOX_BODY" desc="Second box body text for the Gemini Promo page.">
-        Get key takeaways and insights that help you understand any topic
+          Get key takeaways and insights that help you understand any topic
       </message>
       <message name="IDS_IOS_BWG_PROMO_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Promo page.">
-        Summarize
+          Summarize
       </message>
       <message name="IDS_IOS_CALL_OMNIBOX_ACTION" desc="Call suggestion action button [iOS only]">
         Call
@@ -1713,9 +1731,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_GO_TO_SETTINGS" desc="Text of the primary button in the 'Learn More' step view of the Credential Provider Exention Promo. [iOS only]">
         Go to Settings…
-      </message>
-      <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_INITIAL_TITLE" desc="Title text of the inital step Credential Provider Exention promo. [iOS only]">
-        Get your saved passwords in any app with one tap
       </message>
       <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_LEARN_HOW" desc="Text of the primary button in the inital step view of the Credential Provider Exention Promo. [iOS only]">
         Learn how
@@ -2354,6 +2369,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_ENTERPRISE_PROFILE_CREATION_CONTINUE" meaning="Button label to continue with a managed profile" desc="Message displayed in the primary button on a screen where the user is asked to create a work profile.">
        Continue
       </message>
+      <message name="IDS_IOS_ENTERPRISE_PROFILE_CREATION_GOTIT" meaning="Button label to continue with a managed profile" desc="Message displayed in the button on a screen where the user is notified about the personal profile migration to a work profile.">
+       Got it
+      </message>
       <message name="IDS_IOS_ENTERPRISE_PROFILE_CREATION_LEARN_MORE_BROWSER_INFORMATION_SUBTITLE" desc="Message of a section of the learn more screen about how the administrator manages the browser and can access browser information.">
         Your organization may need to see and manage browsing data tied to your managed account, such as your browsing history and passwords.
       </message>
@@ -2377,6 +2395,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_ENTERPRISE_PROFILE_CREATION_TITLE" desc="Message displayed in the secondary button on a screen where the user is asked to create a work profile.">
        A separate space for work
+      </message>
+      <message name="IDS_IOS_ENTERPRISE_PROFILE_MIGRATION_SUBTITLE" desc="Message displayed on a screen where the user is notified about the personal profile migration to a work profile.">
+        Using Chrome with your managed account helps you keep browsing related to your organization (including tabs, history, and passwords) separate from your other browsing
       </message>
       <message name="IDS_IOS_ENTERPRISE_RESTRICTED_ACCOUNTS_TO_PATTERNS_MESSAGE" desc="Text displayed in the popover to inform the user that the browser is managed by Enterprise policies. (Restrict Accounts To Patterns) [iOS only]">
           Your organization allows you to sign in only with certain accounts. Accounts that aren't allowed are hidden.
@@ -2551,24 +2572,6 @@ See your search engine’s instructions for deleting your search history, if app
     </message>
       <message name="IDS_IOS_FIRST_RUN_SCREEN_READ_MORE" desc="The label on the primary button of some screens in the first run experience if the content requires scrolling to the end [iOS only]">
         More
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_ANDROID_SWITCHER_SUBTITLE_IPAD" desc="Subtitle for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on iPad">
-        Get the best from the mobile browser you know and love on your iPad.
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_ANDROID_SWITCHER_SUBTITLE_IPHONE" desc="Subtitle for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on iPhone">
-        Get the best from the mobile browser you know and love on your iPhone.
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_DESKTOP_USER_SUBTITLE_IPAD" desc="Subtitle for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on iPad">
-        Get the best from the desktop browser you know and love on your iPad.
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_DESKTOP_USER_SUBTITLE_IPHONE" desc="Subtitle for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on iPhone">
-        Get the best from the desktop browser you know and love on your iPhone.
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_DEVICE_SWITCHER_TITLE_IPAD" desc="Title for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on IPad">
-        The browser you love now on iPad
-      </message>
-      <message name="IDS_IOS_FIRST_RUN_SEGMENTED_DEFAULT_BROWSER_DEVICE_SWITCHER_TITLE_IPHONE" desc="Title for Default Browser promo shown during First Run Experience to users identified as Cross Device Desktop Users on iPhone">
-        The browser you love now on iOS
       </message>
       <message name="IDS_IOS_FIRST_RUN_SIGNIN_BENEFITS_SUBTITLE_SHORT" desc="This string is on a promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in (access to bookmarks, passwords, history, settings, etc.). We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Google Account. The tone should be informative and lightweight.">
         Sign in to get your bookmarks, passwords, and more on all your devices.
@@ -3656,6 +3659,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_MANUAL_FALLBACK_THREE_DOT_MENU_BUTTON_ACCESSIBILITY_LABEL" desc="Accessibility label for the 3-dot menu button displayed in the manual fallback entity cells, which allows to take action on the entity (e.g., edit the entity). This label is ending with the accessibility label of the cell the button is displayed in.">
         More options for <ph name="CELL_ACCESSIBILITY_LABEL">$1<ex>1 of 3 passwords, twitter.com</ex></ph>
       </message>
+      <message name="IDS_IOS_MAPS_PREVIEWS_SETTING_TITLE" desc="Title of the setting to enable maps previews [iOS only]">
+        Maps Previews on Google.com
+      </message>
       <message name="IDS_IOS_MICROPHONE_USAGE_DESCRIPTION" desc="Specifies the reason for accessing the user's microphone while the app is in use [Length: unlimited] [iOS only].">
         This lets you search using your voice
       </message>
@@ -3679,6 +3685,12 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_MINI_MAP_DISABLE_CONFIRMATION_STRING" desc="The text in the snackbar after disabling address detection [iOS only].">
         Address detection off. Turn it back on in Settings.
+      </message>
+      <message name="IDS_IOS_MINI_MAP_DISABLE_PREVIEW_CONFIRMATION_STRING" desc="The text in the snackbar after disabling address detection [iOS only].">
+        Maps Previews off. Turn it back on in Settings.
+      </message>
+      <message name="IDS_IOS_MINI_MAP_DISABLE_PREVIEW_STRING" desc="The text button to disable the mini map preview [iOS only].">
+        Turn off Maps Previews
       </message>
       <message name="IDS_IOS_MINI_MAP_DISABLE_STRING" desc="The text button to disable the address detecion [iOS only].">
         Turn off address detection
@@ -3805,9 +3817,6 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_NTP_FEED_SIGNIN_PROMO_DISABLE_SNACKBAR_MESSAGE" desc="The test shown in the snackbar message when sign-in promo is trigger when sign-in is disabled. [iOS only]">
         Not available on your device
-      </message>
-      <message name="IDS_IOS_OFFER_TO_SAVE_PASSWORDS" desc="Title for the switch item in Settings that can be toggled allowing users to be prompted if they want to save their passwords when logging into webpages. [Length: 25em] [iOS only]">
-        Offer to save passwords
       </message>
       <message name="IDS_IOS_OFFER_TO_SAVE_PASSWORDS_PASSKEYS" desc="Title for the switch item in Settings that can be toggled allowing users to be prompted if they want to save their passwords and passkeys when logging into webpages. Refer to Glossary when translating 'passkeys'. [Length: 25em] [iOS only]">
         Offer to save passwords &amp; passkeys
@@ -5710,9 +5719,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SEARCH_WITH_TITLE_SEARCH_WITH" desc="Edit menu button title to open a tab with a Search query of the current selection. Will contain the search provider. [Length: 25em]." meaning="Edit menu Search button [Length: 25em]">
         Search with <ph name="SEARCH_PROVIDER">$1<ex>Google</ex></ph>
       </message>
-      <message name="IDS_IOS_SEGMENTED_DEFAULT_BROWSER_VIDEO_PROMO_DEVICE_SWITCHER_TITLE" desc="Title for the segmented generic default browser promo view, shown to users identified as Desktop Users or Android switchers.">
-        Get the best from the Browser you love
-      </message>
       <message name="IDS_IOS_SEND_TAB_PROMO_ALLOW_BUTTON" desc="Text for the Allow button for the Send Tab to Self promo Magic Stack module.">
         Allow Tabs Notifications…
       </message>
@@ -5829,14 +5835,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SETTINGS_PASSWORDS_EXCEPTIONS_HEADING" desc="The title for a list of sites where passwords will not be saved. These items are already saved by the browser and can only be deleted. [Length: one line] [iOS only]">
       Never saved
       </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS" desc="The title of the view that teaches users to turn on iOS auto-fill from Chrome password manager">
-        Passwords in other Apps
-      </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_CAPTION" desc="The caption label below subtitle of the view that teaches users to turn off iOS AutoFill from Chrome password manager">
         To turn off, open <ph name="BEGIN_LINK">BEGIN_LINK</ph>Settings<ph name="END_LINK">END_LINK</ph> and go to AutoFill Passwords.
-      </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_CAPTION_IOS16" desc="The caption label below subtitle of the view that teaches users to turn off iOS AutoFill from Chrome password manager on iOS 16 and above">
-        To turn off, open <ph name="BEGIN_LINK">BEGIN_LINK</ph>Settings<ph name="END_LINK">END_LINK</ph> and go to Password Options.
       </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_CAPTION_IOS17" desc="The caption label below subtitle of the view that teaches users to turn off iOS AutoFill from Chrome password manager. 'Password Options' is the name of an iOS setting (iOS settings &gt; Passwords &gt; Password Options). The translation and capitalization should match that of the iOS setting. [iOS only]" meaning="Translation and capitalization of 'Password Options' should match that of the iOS setting.">
         To turn off, go to <ph name="BEGIN_LINK">BEGIN_LINK</ph>Password Options<ph name="END_LINK">END_LINK</ph>
@@ -5882,9 +5882,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_PASSKEYS_SAVED_HEADING" desc="The title for a list of items, with each entry consisting of a password or a passkey, and a corresponding username and website. These items are already saved by the browser and can be deleted/edited. Refer to Glossary for the meaning of 'passkey', do not translate it as 'password'. [Length: one line] [iOS only]">
         Saved passwords &amp; passkeys
-      </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_SAVED_HEADING" desc="The title for a list of username/site/password items. These items are already saved by the browser and can be deleted/edited. [Length: one line] [iOS only]">
-      Saved passwords
       </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_TOO_LONG_NOTE_DESCRIPTION" desc="Footer text shown when the user is trying to add or edit a credential manually via settings and the note typed by user is too long. [iOS only]">
         Notes can save up to <ph name="CHARACTER_LIMIT">$1<ex>1000</ex></ph> characters.
@@ -6071,12 +6068,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SET_UP_LIST_NOTIFICATIONS_TITLE" desc="Title for the Set Up List item that encourages the user to enable Chrome notifications.">
         Get notifications
-      </message>
-      <message name="IDS_IOS_SET_UP_LIST_SEGMENTED_DEFAULT_BROWSER_DEVICE_SWITCHER_SHORT_DESCRIPTION" desc="Shortened description for the Set Up List item that encourages the user to set Chrome as their default browser, shown to users identified as Desktop Users or Android Switchers by the Segmentation Platform.">
-        Get the best from the browser you love.
-      </message>
-      <message name="IDS_IOS_SET_UP_LIST_SEGMENTED_DEFAULT_BROWSER_SHOPPER_SHORT_DESCRIPTION" desc="Shortened description for the Set Up List item that encourages the user to set Chrome as their default browser, shown to users identified as Shopping Users by the Segmentation Platform.">
-        Easily track prices and get price insights.
       </message>
       <message name="IDS_IOS_SET_UP_LIST_SIGN_IN_SYNC_SHORT_DESCRIPTION_NO_SYNC" desc="Same as IDS_IOS_SET_UP_LIST_SIGN_IN_SYNC_SHORT_DESCRIPTION but without mentioning sync.">
         Get your bookmarks, passwords, and more.
@@ -6698,11 +6689,8 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GRID_CELL_SELECTED" desc="Accessibility value of a tab grid cell while the tab grid is in edit mode. This string is read by VoiceOver to describe the state of a tab grid cell which is currently selected.">
         Selected
       </message>
-      <message name="IDS_IOS_TAB_GRID_CLOSE_ALL_BUTTON" desc="Title of the button in the tab grid UI that closes all the tabs in the grid. [iOS only]">
-        Close all
-      </message>
-      <message name="IDS_IOS_TAB_GRID_CLOSE_ALL_TABS" desc="Title of the button in the action sheet that close all tabs. [iOS only]">
-        Close all
+      <message name="IDS_IOS_TAB_GRID_CELL_UPDATED" desc="Accessibility value of the title of a tab grid cell when it has been updated since the last time the user looked at it. Read by VoiceOver">
+          <ph name="TAB_TITLE">$1<ex>Google Search</ex></ph>, new activity
       </message>
       <message name="IDS_IOS_TAB_GRID_CLOSE_ALL_TABS_ACTION_SHEET_MESSAGE" desc="Message of the action sheet that confirms closing all tabs or non-pinned tabs only. [iOS only]">
         Closing all tabs will close pinned tabs as well.
@@ -6823,6 +6811,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GROUPS_PANEL_CELL_ACCESSIBILITY_LABEL_FORMAT" desc="Format for the accessibility label of a cell in the Tab Groups panel in Tab Grid. [iOS only]">
         Open <ph name="GROUP_TITLE">$1<ex>Travel</ex></ph>, group of <ph name="NUMBER_OF_TABS">$2<ex>4 Tabs</ex></ph>, <ph name="CREATION_TEXT">$3<ex>created 3 days ago</ex></ph>
       </message>
+      <message name="IDS_IOS_TAB_GROUPS_PANEL_CELL_SHARED_ACCESSIBILITY_LABEL_FORMAT" desc="Format for the accessibility label of a cell in the Tab Groups panel in Tab Grid representing a shared tab group. [iOS only]">
+        Open <ph name="GROUP_TITLE">$1<ex>Travel</ex></ph>, shared group of <ph name="NUMBER_OF_TABS">$2<ex>4 Tabs</ex></ph>, <ph name="CREATION_TEXT">$3<ex>created 3 days ago</ex></ph>
+      </message>
       <message name="IDS_IOS_TAB_GROUPS_PANEL_NOTIFICATION_CELL_ACCESSIBILITY_HINT" desc="Accessibility hint for tapping on the notification cell that can appear at the top of the tab groups panel.">
         Double tap to close this notification.
       </message>
@@ -6846,6 +6837,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_TAB_GROUP_ACTIVITY_SUMMARY_ACTIVITY_BUTTON" desc="Title of the button in the activity summary in a shared tab group.">
         Activity
       </message>
+      <message name="IDS_IOS_TAB_GROUP_ACTIVITY_SUMMARY_ACTIVITY_CLOSE_BUTTON_ACCESSIBILITY_LABEL" desc="Accessibility label of the button to close the recent activity summary. Read by text-to-speech.">
+        Close recent activity summary
+      </message>
       <message name="IDS_IOS_TAB_GROUP_ACTIVITY_SUMMARY_ACTIVITY_REMOVED_ONLY_TEXT" desc="Text of the activity summary in a shared tab group for the number tabs closed.">
           {count, plural,
             =1 {{count} closed tab}
@@ -6858,6 +6852,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_TAB_GROUP_CELL_ACCESSIBILITY_TITLE" desc="Accessibility label, giving context to screen reader when users navigate the tab grouping cell in the tab grid. This is spoken by VoiceOver.">
         Tab group, <ph name="GROUP_TITLE">$1<ex>Group name</ex></ph>, <ph name="TABS_NUMBER">$2<ex>4</ex></ph> tabs.
+      </message>
+      <message name="IDS_IOS_TAB_GROUP_CELL_UPDATED_ACCESSIBILITY_TITLE" desc="Accessibility label, giving context to screen reader when users navigate the tab grouping cell in the tab grid that has been updated since the last time it was visited. This is spoken by VoiceOver.">
+        Tab group, <ph name="GROUP_TITLE">$1<ex>Group name</ex></ph>, <ph name="TABS_NUMBER">$2<ex>4</ex></ph> tabs, new activity.
       </message>
       <message name="IDS_IOS_TAB_GROUP_CONFIRMATION_DELETE_MESSAGE_WITHOUT_EMAIL" desc="Message of the confirmation to delete a tab group in the action sheet. This text is displayed when a user is not signed in.">
         This will permanently delete the group from your device.

@@ -19,6 +19,7 @@
 #include "components/permissions/features.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/sync/base/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "crypto/crypto_buildflags.h"
@@ -46,6 +47,7 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #if BUILDFLAG(ENABLE_GLIC)
             features::kGlic, features::kTabstripComboButton,
 #endif
+            syncer::kReplaceSyncPromosWithSignInPromos,
             privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             privacy_sandbox::kFingerprintingProtectionUx},
         /*disabled_features=*/{
@@ -70,12 +72,22 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, A11yPage) {
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
+#if !BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_F(SettingsTest, AccountPage) {
+  RunTest("settings/account_page_test.js", "mocha.run()");
+}
+#endif
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, AntiAbusePage) {
   RunTest("settings/anti_abuse_page_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, AppearanceFontsPage) {
   RunTest("settings/appearance_fonts_page_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, AppearancePageIndex) {
+  RunTest("settings/appearance_page_index_test.js", "mocha.run()");
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -88,6 +100,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, AppearancePage) {
 IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillAddressValidation) {
   RunTest("settings/autofill_section_address_validation_test.js",
           "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, AutofillPageIndex) {
+  RunTest("settings/autofill_page_index_test.js", "mocha.run()");
 }
 
 // TODO(crbug.com/40258836): Clean up this test after Password Manager redesign
@@ -230,10 +246,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, HelpPage) {
   RunTest("settings/help_page_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, IdleLoad) {
-  RunTest("settings/idle_load_test.js", "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, IncognitoTrackingProtectionsPageTest) {
   RunTest("settings/incognito_tracking_protections_page_test.js",
           "runMochaSuite('IncognitoTrackingProtectionsPageTest')");
@@ -309,6 +321,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PaymentsSectionPayOverTime) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, PaymentsSectionPaymentsList) {
   RunTest("settings/payments_section_payments_list_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, PerformancePageIndex) {
+  RunTest("settings/performance_page_index_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, PeoplePage) {
@@ -546,10 +562,6 @@ IN_PROC_BROWSER_TEST_F(PeoplePageSyncPageTest, LinkedServicesDisabled) {
           "runMochaSuite('LinkedServicesDisabled')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, PerformanceMenu) {
-  RunTest("settings/settings_performance_menu_test.js", "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsTest, ProtocolHandlers) {
   RunTest("settings/protocol_handlers_test.js", "mocha.run()");
 }
@@ -590,6 +602,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SearchEngineEntry) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SearchEngines) {
   RunTest("settings/search_engines_page_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, SearchPageIndex) {
+  RunTest("settings/search_page_index_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SearchPage) {
@@ -683,6 +699,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SmartCardReadersPage) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SpeedPage) {
   RunTest("settings/speed_page_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, OnStartupPage) {
+  RunTest("settings/on_startup_page_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, StartupUrlsPage) {
@@ -794,10 +814,6 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, DISABLED_BasicPage) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyGuidePromo) {
   RunTest("settings/basic_page_test.js", "runMochaSuite('PrivacyGuidePromo')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsTest, Performance) {
-  RunTest("settings/basic_page_test.js", "runMochaSuite('Performance')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, AiSections) {

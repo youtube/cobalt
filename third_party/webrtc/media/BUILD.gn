@@ -362,6 +362,7 @@ rtc_source_set("media_channel") {
     "../rtc_base/network:sent_packet",
     "../video/config:encoder_config",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }

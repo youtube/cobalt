@@ -55,12 +55,14 @@ using ::testing::StrictMock;
 
 constexpr webtransport::StreamId kIncomingUniStreamId = 15;
 constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
+constexpr uint64_t kDefaultLocalRequestId = 0;
+constexpr uint64_t kDefaultPeerRequestId = 1;
 
 FullTrackName kDefaultTrackName() { return FullTrackName("foo", "bar"); }
 
-MoqtSubscribe DefaultSubscribe() {
+MoqtSubscribe DefaultSubscribe(uint64_t request_id) {
   MoqtSubscribe subscribe = {
-      /*request_id=*/1,
+      request_id,
       /*track_alias=*/2,
       kDefaultTrackName(),
       /*subscriber_priority=*/0x80,
@@ -74,13 +76,24 @@ MoqtSubscribe DefaultSubscribe() {
   return subscribe;
 }
 
+// The usual test case is that a SUBSCRIBE is coming in.
+MoqtSubscribe DefaultSubscribe() {
+  return DefaultSubscribe(kDefaultPeerRequestId);
+}
+
+// Used when a test sets up a remote track.
+MoqtSubscribe DefaultLocalSubscribe() {
+  return DefaultSubscribe(kDefaultLocalRequestId);
+}
+
 MoqtFetch DefaultFetch() {
   MoqtFetch fetch = {
-      /*fetch_id=*/1,
+      kDefaultPeerRequestId,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*fetch=*/
-      StandaloneFetch(kDefaultTrackName(), Location(0, 0), 1, std::nullopt),
+      StandaloneFetch(kDefaultTrackName(), Location(0, 0),
+                      kDefaultPeerRequestId, std::nullopt),
       /*parameters=*/VersionSpecificParameters(),
   };
   return fetch;
@@ -364,7 +377,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      TrackNamespace("foo"),
+      /*request_id=*/0,
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -377,7 +390,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   MoqtAnnounceCancel cancel = {
       TrackNamespace("foo"),
       RequestErrorCode::kInternalError,
-      /*reason_phrase=*/"Test error",
+      /*error_reason=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -407,7 +420,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      TrackNamespace{"foo"},
+      /*request_id=*/0,
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -440,7 +453,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
                     VersionSpecificParameters());
 
   MoqtAnnounceError error = {
-      /*track_namespace=*/TrackNamespace{"foo"},
+      /*request_id=*/0,
       /*error_code=*/RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
@@ -471,7 +484,8 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _));
   listener->OnSubscribeAccepted();
-  EXPECT_NE(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
+  EXPECT_NE(MoqtSessionPeer::GetSubscription(&session_, kDefaultPeerRequestId),
+            nullptr);
 }
 
 TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
@@ -490,7 +504,8 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
   listener->OnSubscribeRejected(
       MoqtSubscribeErrorReason(RequestErrorCode::kInternalError, "Test error"),
       request.track_alias);
-  EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
+  EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, kDefaultPeerRequestId),
+            nullptr);
 }
 
 TEST_F(MoqtSessionTest, SubscribeForPast) {
@@ -579,7 +594,7 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
 
   // Peer unsubscribes.
   MoqtUnsubscribe unsubscribe = {
-      /*request_id=*/1,
+      kDefaultPeerRequestId,
   };
   stream_input->OnUnsubscribeMessage(unsubscribe);
   EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
@@ -893,6 +908,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      kDefaultPeerRequestId,
       track_namespace,
       *parameters,
   };
@@ -901,7 +917,8 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       mock_stream_,
-      Writev(SerializedControlMessage(MoqtAnnounceOk{track_namespace}), _));
+      Writev(SerializedControlMessage(MoqtAnnounceOk{kDefaultPeerRequestId}),
+             _));
   stream_input->OnAnnounceMessage(announce);
   MoqtUnannounce unannounce = {
       track_namespace,
@@ -920,6 +937,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      kDefaultPeerRequestId,
       track_namespace,
       *parameters,
   };
@@ -928,7 +946,8 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       mock_stream_,
-      Writev(SerializedControlMessage(MoqtAnnounceOk{track_namespace}), _));
+      Writev(SerializedControlMessage(MoqtAnnounceOk{kDefaultPeerRequestId}),
+             _));
   stream_input->OnAnnounceMessage(announce);
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtAnnounceCancel{
@@ -947,6 +966,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      kDefaultPeerRequestId,
       track_namespace,
       *parameters,
   };
@@ -960,7 +980,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
   EXPECT_CALL(
       mock_stream_,
       Writev(SerializedControlMessage(MoqtAnnounceError{
-                 track_namespace, error.error_code, error.reason_phrase}),
+                 kDefaultPeerRequestId, error.error_code, error.reason_phrase}),
              _));
   stream_input->OnAnnounceMessage(announce);
 }
@@ -984,7 +1004,7 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
       },
       VersionSpecificParameters());
   MoqtSubscribeAnnouncesOk ok = {
-      /*track_namespace=*/track_namespace,
+      kDefaultLocalRequestId,
   };
   stream_input->OnSubscribeAnnouncesOkMessage(ok);
   EXPECT_TRUE(got_callback);
@@ -1015,7 +1035,7 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
       },
       VersionSpecificParameters());
   MoqtSubscribeAnnouncesError error = {
-      track_namespace,
+      kDefaultLocalRequestId,
       RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
@@ -1111,7 +1131,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   MockSubscribeRemoteTrackVisitor visitor_;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor_);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultLocalSubscribe(),
+                                     &visitor_);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -1140,7 +1161,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
 
   // SUBSCRIBE_OK arrives
   MoqtSubscribeOk ok = {
-      /*request_id=*/1,
+      kDefaultLocalRequestId,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*largest_location=*/std::nullopt,
@@ -1156,7 +1177,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   MockSubscribeRemoteTrackVisitor visitor;
   FullTrackName ftn("foo", "bar");
   std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultLocalSubscribe(),
+                                     &visitor);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_sequence=*/0,
@@ -1185,7 +1207,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
 
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
-      /*request_id=*/1,
+      kDefaultLocalRequestId,
       /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/3,
@@ -1203,11 +1225,12 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
 
 TEST_F(MoqtSessionTest, SubscribeErrorWithTrackAlias) {
   MockSubscribeRemoteTrackVisitor visitor;
-  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultLocalSubscribe(),
+                                     &visitor);
 
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
-      /*request_id=*/1,
+      kDefaultLocalRequestId,
       /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/3,
@@ -1223,11 +1246,12 @@ TEST_F(MoqtSessionTest, SubscribeErrorWithTrackAlias) {
 
 TEST_F(MoqtSessionTest, SubscribeErrorWithBadTrackAlias) {
   MockSubscribeRemoteTrackVisitor visitor;
-  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(), &visitor);
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultLocalSubscribe(),
+                                     &visitor);
 
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
-      /*request_id=*/1,
+      kDefaultLocalRequestId,
       /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/2,
@@ -1396,7 +1420,7 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeTimedOut));
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout));
   subscription->OnGroupAbandoned(5);
 }
 
@@ -2264,9 +2288,10 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
 
   // Compose and send the FETCH_OK.
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   fetch_task->CallFetchResponseCallback(expected_ok);
   // Data arrives.
@@ -2288,9 +2313,10 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
   MockTrackPublisher* track = CreateTrackPublisher();
 
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(expected_ok, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
@@ -2329,9 +2355,10 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
   stream_input->OnFetchMessage(fetch);
 
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   fetch_task->CallFetchResponseCallback(expected_ok);
 }
@@ -2355,9 +2382,9 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
   stream_input->OnFetchMessage(fetch);
 
   MoqtFetchError expected_error;
-  expected_error.subscribe_id = fetch.fetch_id;
+  expected_error.request_id = fetch.request_id;
   expected_error.error_code = RequestErrorCode::kTrackDoesNotExist;
-  expected_error.reason_phrase = "foo";
+  expected_error.error_reason = "foo";
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));
   fetch_task->CallFetchResponseCallback(expected_error);
@@ -2370,7 +2397,7 @@ TEST_F(MoqtSessionTest, InvalidFetch) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 1;  // Too low.
+  fetch.request_id = 1;  // Too low.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
                            "Request ID not monotonically increasing"))
@@ -2445,7 +2472,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
 
   // Joining FETCH arrives. The resulting Fetch should begin at (2, 0).
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(*track, Fetch(Location(2, 0), 4, std::optional<uint64_t>(10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
@@ -2476,7 +2503,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchNonLatestObject) {
   ReceiveSubscribeSynchronousOk(track, subscribe, stream_input.get());
 
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -2504,7 +2531,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
       VersionSpecificParameters(),
   };
   MoqtFetch expected_fetch = {
-      /*fetch_id=*/2,
+      /*request_id=*/2,
       /*subscriber_priority=*/0x80,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/JoiningFetchRelative(0, 1),
@@ -2538,11 +2565,11 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
                       MoqtDeliveryOrder::kAscending, Location(2, 0),
                       VersionSpecificParameters()));
   stream_input->OnFetchOkMessage(MoqtFetchOk(2, MoqtDeliveryOrder::kAscending,
-                                             Location(2, 0),
+                                             false, Location(2, 0),
                                              VersionSpecificParameters()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
-      /*fetch_id=*/2,
+      /*request_id=*/2,
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
@@ -2569,6 +2596,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
+      /*request_id=*/1,
       track_namespace,
       *parameters,
   };
@@ -2596,6 +2624,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
+      /*request_id=*/1,
       track_namespace,
       *parameters,
   };
@@ -2627,7 +2656,8 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2726,7 +2756,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2796,7 +2827,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2934,7 +2966,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
                                          quic::QuicTimeDelta::FromSeconds(1),
                                  },
                                  quiche::QuicheMemSlice(), false}));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -2992,11 +3024,11 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
           quiche::QuicheMemSlice(), true}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut)).Times(0);
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout)).Times(0);
   subscription->OnNewObjectAvailable(Location(0, 0), 0);
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -3049,7 +3081,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
   subscription->OnNewFinAvailable(Location(0, 0), 0);
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -3129,7 +3161,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   // Group 1 should start the timer on the Group 0 stream.
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor1.get()));
-  EXPECT_CALL(data_mock1, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock1, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor1.reset();
       }));
@@ -3190,18 +3222,17 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounceError), _));
   stream_input->OnAnnounceMessage(
-      MoqtAnnounce(TrackNamespace("foo"), VersionSpecificParameters()));
+      MoqtAnnounce(3, TrackNamespace("foo"), VersionSpecificParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 5;
   stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
              _));
-  stream_input->OnSubscribeAnnouncesMessage(
-      MoqtSubscribeAnnounces(TrackNamespace("foo")));
+  stream_input->OnSubscribeAnnouncesMessage(MoqtSubscribeAnnounces(7));
   // Block all outgoing SUBSCRIBE, ANNOUNCE, GOAWAY,etc.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;

@@ -21,6 +21,8 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.CurrentTabObserver;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonControllerFactory;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarFeatures;
@@ -152,8 +154,18 @@ public class ContextualPageActionController {
                     new DiscountsActionProvider(shoppingServiceSupplier));
         }
         if (AdaptiveToolbarFeatures.isTabGroupingPageActionEnabled()) {
+            Supplier<GroupSuggestionsButtonController> groupSuggestionButtonControllerSupplier =
+                    () -> {
+                        if (!mProfileSupplier.hasValue()
+                                || mProfileSupplier.get().isOffTheRecord()) {
+                            return null;
+                        }
+                        return GroupSuggestionsButtonControllerFactory.getForProfile(
+                                mProfileSupplier.get());
+                    };
             mActionProviders.put(
-                    AdaptiveToolbarButtonVariant.TAB_GROUPING, new TabGroupingActionProvider());
+                    AdaptiveToolbarButtonVariant.TAB_GROUPING,
+                    new TabGroupingActionProvider(groupSuggestionButtonControllerSupplier));
         }
     }
 

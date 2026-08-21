@@ -23,7 +23,6 @@
 #include "api/sequence_checker.h"
 #include "api/transport/stun.h"
 #include "p2p/dtls/dtls_utils.h"
-#include "rtc_base/byte_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/str_join.h"
@@ -128,14 +127,15 @@ DtlsStunPiggybackController::GetDataToPiggyback(
                            packet.size());
 }
 
-std::optional<absl::string_view> DtlsStunPiggybackController::GetAckToPiggyback(
+std::optional<const std::vector<uint32_t>>
+DtlsStunPiggybackController::GetAckToPiggyback(
     StunMessageType stun_message_type) {
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
   if (state_ == State::OFF || state_ == State::COMPLETE) {
     return std::nullopt;
   }
-  return handshake_ack_writer_.DataAsStringView();
+  return handshake_messages_received_;
 }
 
 void DtlsStunPiggybackController::ReportDataPiggybacked(
@@ -164,7 +164,6 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
     RTC_LOG(LS_INFO) << "DTLS-STUN piggybacking complete.";
     state_ = State::COMPLETE;
     pending_packets_.clear();
-    handshake_ack_writer_.Clear();
     handshake_messages_received_.clear();
     return;
   }
@@ -197,7 +196,6 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
     RTC_LOG(LS_INFO) << "DTLS-STUN piggybacking complete.";
     state_ = State::COMPLETE;
     pending_packets_.clear();
-    handshake_ack_writer_.Clear();
     handshake_messages_received_.clear();
     return;
   }
@@ -221,19 +219,11 @@ void DtlsStunPiggybackController::ReportDataPiggybacked(
   if (std::find(handshake_messages_received_.begin(),
                 handshake_messages_received_.end(),
                 hash) == handshake_messages_received_.end()) {
-    handshake_messages_received_.push_back(hash);
-    handshake_ack_writer_.WriteUInt32(hash);
-
-    if (handshake_ack_writer_.Length() > kMaxAckSize) {
-      // If needed, limit size of ack attribute...by removing oldest ack.
+    // If needed, limit size of ack attribute by removing oldest ack.
+    while (handshake_messages_received_.size() >= kMaxAckSize) {
       handshake_messages_received_.erase(handshake_messages_received_.begin());
-      handshake_ack_writer_.Clear();
-      for (const auto& val : handshake_messages_received_) {
-        handshake_ack_writer_.WriteUInt32(val);
-      }
     }
-
-    RTC_DCHECK(handshake_ack_writer_.Length() <= kMaxAckSize);
+    handshake_messages_received_.push_back(hash);
   }
 
   dtls_data_callback_(*data);

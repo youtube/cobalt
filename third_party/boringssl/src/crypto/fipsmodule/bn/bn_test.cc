@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <iterator>
 #include <limits>
 #include <utility>
 
@@ -2858,10 +2859,10 @@ TEST_F(BNTest, BNMulMontABI) {
     CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), a.data(), mont->N.d,
               mont->n0, words);
 #else
-    CHECK_ABI(bn_mul_mont, r.data(), a.data(), b.data(), mont->N.d, mont->n0,
-              words);
-    CHECK_ABI(bn_mul_mont, r.data(), a.data(), a.data(), mont->N.d, mont->n0,
-              words);
+    CHECK_ABI(bn_mul_mont_words, r.data(), a.data(), b.data(), mont->N.d,
+              mont->n0, words);
+    CHECK_ABI(bn_mul_mont_words, r.data(), a.data(), a.data(), mont->N.d,
+              mont->n0, words);
 #endif
   }
 }
@@ -2884,10 +2885,11 @@ TEST_F(BNTest, BNMulMont5ABI) {
     a[0] = 1;
     b[0] = 42;
 
-    bn_mul_mont(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
+    bn_mul_mont_words(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
     CHECK_ABI(bn_scatter5, r.data(), words, table.data(), 13);
     for (size_t i = 0; i < 32; i++) {
-      bn_mul_mont(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
+      bn_mul_mont_words(r.data(), a.data(), b.data(), mont->N.d, mont->n0,
+                        words);
       bn_scatter5(r.data(), words, table.data(), i);
     }
     CHECK_ABI(bn_gather5, r.data(), words, table.data(), 13);

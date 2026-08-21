@@ -28,7 +28,7 @@
 
 using ::testing::_;
 
-const int kTestSharedMemoryId = 123;
+constexpr int kTestSharedMemoryId = 123;
 
 namespace webrtc {
 

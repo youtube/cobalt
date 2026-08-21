@@ -55,15 +55,15 @@ using ::testing::Optional;
 
 namespace webrtc {
 namespace {
-const uint32_t kSenderSsrc = 0x12345;
-const uint32_t kReceiverSsrc = 0x23456;
+constexpr uint32_t kSenderSsrc = 0x12345;
+constexpr uint32_t kReceiverSsrc = 0x23456;
 constexpr TimeDelta kOneWayNetworkDelay = TimeDelta::Millis(100);
-const uint8_t kBaseLayerTid = 0;
-const uint8_t kHigherLayerTid = 1;
-const uint16_t kSequenceNumber = 100;
-const uint8_t kPayloadType = 100;
-const int kWidth = 320;
-const int kHeight = 100;
+constexpr uint8_t kBaseLayerTid = 0;
+constexpr uint8_t kHigherLayerTid = 1;
+constexpr uint16_t kSequenceNumber = 100;
+constexpr uint8_t kPayloadType = 100;
+constexpr int kWidth = 320;
+constexpr int kHeight = 100;
 
 MATCHER_P2(Near, value, margin, "") {
   return value - margin <= arg && arg <= value + margin;

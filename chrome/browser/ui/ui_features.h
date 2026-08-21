@@ -159,8 +159,6 @@ bool IsRestoringSplitViewEnabled();
 
 BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
 
-bool IsNtpFooterEnabledWithoutSideBySide();
-
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
 BASE_DECLARE_FEATURE(kTabScrollingButtonPosition);
@@ -269,7 +267,6 @@ BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
-BASE_DECLARE_FEATURE(kEnterpriseUpdatedProfileCreationScreen);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
 // Enables using the same colors used for the default app menu button for the

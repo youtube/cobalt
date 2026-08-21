@@ -56,21 +56,28 @@ bool IsValidRtpPacketSize(RtpPacketType packet_type, size_t size);
 absl::string_view RtpPacketTypeToString(RtpPacketType packet_type);
 
 // Verifies that a packet has a valid RTP header.
+// TODO: issues.webrtc.org/42225170 - deprecate when Chrome does not use
 bool RTC_EXPORT ValidateRtpHeader(const uint8_t* rtp,
                                   size_t length,
                                   size_t* header_length);
+bool RTC_EXPORT ValidateRtpHeader(ArrayView<const uint8_t> rtp,
+                                  size_t* header_length);
 
-// Helper method which updates the absolute send time extension if present.
-bool UpdateRtpAbsSendTimeExtension(uint8_t* rtp,
-                                   size_t length,
+bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> rtp,
                                    int extension_id,
                                    uint64_t time_us);
 
 // Applies specified `options` to the packet. It updates the absolute send time
 // extension header if it is present present then updates HMAC.
+
+// TODO: issues.webrtc.org/42225170 - deprecate when Chrome does not use
 bool RTC_EXPORT
 ApplyPacketOptions(uint8_t* data,
                    size_t length,
+                   const PacketTimeUpdateParams& packet_time_params,
+                   uint64_t time_us);
+bool RTC_EXPORT
+ApplyPacketOptions(ArrayView<uint8_t> data,
                    const PacketTimeUpdateParams& packet_time_params,
                    uint64_t time_us);
 

@@ -27,9 +27,9 @@
 #endif
 
 namespace {
-const int kAllowedErrorMillisecs = 30;
-const int kProcessingTimeMillisecs = 500;
-const int kWorkingThreads = 2;
+constexpr int kAllowedErrorMillisecs = 30;
+constexpr int kProcessingTimeMillisecs = 500;
+constexpr int kWorkingThreads = 2;
 
 // Consumes approximately kProcessingTimeMillisecs of CPU time in single thread.
 void WorkingFunction(int64_t* counter) {

@@ -4,39 +4,43 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #ifndef skgpu_graphite_CommandBuffer_DEFINED
 #define skgpu_graphite_CommandBuffer_DEFINED
 
-#include "include/core/SkColor.h"
+#include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
+#include "include/core/SkSpan.h"
+#include "include/core/SkTypes.h"
+#include "include/gpu/GpuTypes.h"
 #include "include/private/base/SkTArray.h"
 #include "src/gpu/GpuRefCnt.h"
-#include "src/gpu/graphite/CommandTypes.h"
-#include "src/gpu/graphite/DrawTypes.h"
-#include "src/gpu/graphite/DrawWriter.h"
-#include "src/gpu/graphite/Resource.h"
+#include "src/gpu/graphite/Resource.h"  // IWYU pragma: keep
 
+#include <cstddef>
+#include <memory>
 #include <optional>
+#include <utility>
+
+class SkSurface;
+struct SkISize;
 
 namespace skgpu {
-class RefCntedCallback;
 class MutableTextureState;
+class RefCntedCallback;
 }
 
 namespace skgpu::graphite {
 
+class BackendSemaphore;
 class Buffer;
 class DispatchGroup;
 class DrawPass;
-class SharedContext;
-class GraphicsPipeline;
-struct RenderPassDesc;
 class ResourceProvider;
 class Sampler;
 class Texture;
-class TextureProxy;
+struct BufferTextureCopyData;
+struct RenderPassDesc;
 
 class CommandBuffer {
 public:
@@ -59,6 +63,11 @@ public:
     void trackCommandBufferResource(sk_sp<Resource> resource);
     // Release all tracked Resources
     void resetCommandBuffer();
+
+    // TODO(b/407062399): Can be removed post debugging
+    void recordResourceCounts() const;
+    // Maximum number of tracked resources (usage or cb ref) by any submitted command buffer
+    static int MaxTrackedResources();
 
     // If any work is needed to create new resources for a fresh command buffer do that here.
     virtual bool setNewCommandBufferResources() = 0;

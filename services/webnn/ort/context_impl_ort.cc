@@ -24,13 +24,15 @@ ContextImplOrt::ContextImplOrt(
     WebNNContextProviderImpl* context_provider,
     mojom::CreateContextOptionsPtr options,
     ScopedOrtEnv env,
-    scoped_refptr<SessionOptions> session_options)
+    scoped_refptr<SessionOptions> session_options,
+    bool is_external_data_supported)
     : WebNNContextImpl(std::move(receiver),
                        context_provider,
                        GetContextProperties(),
                        std::move(options)),
       env_(std::move(env)),
-      session_options_(std::move(session_options)) {}
+      session_options_(std::move(session_options)),
+      is_external_data_supported_(is_external_data_supported) {}
 
 ContextImplOrt::~ContextImplOrt() = default;
 
@@ -53,8 +55,21 @@ ContextProperties ContextImplOrt::GetContextProperties() {
       OperandDataType::kUint8, OperandDataType::kInt8,
       OperandDataType::kFloat16, OperandDataType::kFloat32};
 
+  static constexpr SupportedDataTypes kFloat16To32Uint8Int32To64 = {
+      OperandDataType::kFloat16, OperandDataType::kFloat32,
+      OperandDataType::kUint8, OperandDataType::kInt32,
+      OperandDataType::kInt64};
+
+  static constexpr SupportedDataTypes kFloat16To32Uint8Int8To32 = {
+      OperandDataType::kFloat16, OperandDataType::kFloat32,
+      OperandDataType::kUint8, OperandDataType::kInt8, OperandDataType::kInt32};
+
+  static constexpr SupportedDataTypes kFloat16To32Int64 = {
+      OperandDataType::kFloat16, OperandDataType::kFloat32,
+      OperandDataType::kInt64};
+
   return ContextProperties(
-      InputOperandLayout::kNchw, Resample2DAxes::kChannelsFirst,
+      InputOperandLayout::kNchw, Resample2DAxes::kAny,
       BatchNormalizationAxis::kChannelsFirst,
       /*tensor_byte_length_limit=*/kTensorByteLengthLimit,
       {/*input=*/SupportedDataTypes::All(),
@@ -77,7 +92,7 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*conv_transpose2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
        /*conv_transpose2d_bias=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
-       /*cumulative_sum_input=*/{},
+       /*cumulative_sum_input=*/{kFloat16To32Int32To64, kMaxNonScalarRank},
        /*dequantize_linear_input=*/{},
        /*dequantize_linear_scale=*/{},
        /*dequantize_linear_zero_point=*/{},
@@ -128,7 +143,8 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*sin_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*sqrt_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*tan_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*elu_input=*/{},
+       /*elu_input=*/
+       {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*expand_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*gather_input=*/
@@ -151,40 +167,49 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*gru_bias=*/{},
        /*gru_cell_input=*/{},
        /*gru_cell_bias=*/{},
-       /*hard_sigmoid_input=*/{},
+       /*hard_sigmoid_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*hard_swish_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*instance_normalization_input=*/{},
        /*instance_normalization_scale=*/{},
        /*layer_normalization_input=*/{},
        /*leaky_relu_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*linear_input=*/{},
+       /*linear_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*lstm_input=*/{},
        /*lstm_bias=*/{},
        /*lstm_cell_input=*/{},
        /*lstm_cell_bias=*/{},
-       /*matmul_input=*/{},
-       /*pad_input=*/{},
-       /*average_pool2d_input=*/
-       {DataTypeConstraint::kFloat16To32, {3, 8}},
-       /*l2_pool2d_input=*/
-       {DataTypeConstraint::kFloat16To32, {3, 8}},
-       /*max_pool2d_input=*/
-       {kInts8Float16To32, {3, 8}},
+       /*matmul_input=*/{DataTypeConstraint::kFloat16To32Ints32To64, kMaxRank},
+       /*pad_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*average_pool2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*l2_pool2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
+       /*max_pool2d_input=*/{kInts8Float16To32, {3, 8}},
        /*prelu_input=*/{DataTypeConstraint::kFloat16To32Ints32To64, kMaxRank},
        /*quantize_linear_input=*/{},
        /*quantize_linear_zero_point=*/{},
-       /*reduce_l1_input=*/{},
-       /*reduce_l2_input=*/{},
-       /*reduce_log_sum_input=*/{},
-       /*reduce_log_sum_exp_input=*/{},
-       /*reduce_max_input=*/{},
-       /*reduce_mean_input=*/{},
-       /*reduce_min_input=*/{},
-       /*reduce_product_input=*/{},
-       /*reduce_sum_input=*/{},
-       /*reduce_sum_square_input=*/{},
+       /*reduce_l1_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_l2_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_log_sum_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_log_sum_exp_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_max_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_mean_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_min_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_product_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_sum_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
+       /*reduce_sum_square_input=*/
+       {kFloat16To32Int32To64, kMaxRank},
        /*relu_input=*/{DataTypeConstraint::kFloat16To32Int8To64, kMaxRank},
-       /*resample2d_input=*/{},
+       /*resample2d_input=*/
+       {kFloat16To32Uint8Int8To32, SupportedRanks::Exactly(4)},
        // TODO(crbug.com/425151000): Add int4/uint4 support for reshape once the
        // related ORT issue is fixed.
        // https://github.com/microsoft/onnxruntime/issues/24285
@@ -206,16 +231,19 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*slice_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*softmax_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*softplus_input=*/{},
+       /*softplus_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*softsign_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*split_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
        /*tanh_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*tile_input=*/{DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*transpose_input=*/{SupportedDataTypes::All(), kMaxRank},
-       /*triangular_input=*/{},
-       /*where_condition=*/{},
-       /*where_value=*/{}});
+       /*triangular_input=*/{kFloat16To32Int64, {2, 8}},
+       /*where_condition=*/{DataTypeConstraint::kUint8, kMaxRank},
+       // TODO(crbug.com/429859156): ORT CPU EP should support int8, uint32, and
+       // uint64 for where operation.
+       /*where_value=*/
+       {kFloat16To32Uint8Int32To64, kMaxRank}});
 }
 
 base::WeakPtr<WebNNContextImpl> ContextImplOrt::AsWeakPtr() {
@@ -254,8 +282,8 @@ void ContextImplOrt::CreateTensorImpl(
   auto buffer_state =
       base::MakeRefCounted<QueueableResourceState<BufferContentOrt>>(
           std::move(buffer_content));
-  std::move(callback).Run(std::make_unique<TensorImplOrt>(
-      std::move(receiver), this, std::move(tensor_info),
+  std::move(callback).Run(base::MakeRefCounted<TensorImplOrt>(
+      std::move(receiver), AsWeakPtr(), std::move(tensor_info),
       std::move(buffer_state)));
 }
 

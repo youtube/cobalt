@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
 
@@ -189,9 +190,7 @@ void CanvasRenderingContext::DidProcessTask(
 
   // The end of a script task that drew content to the canvas is the point
   // at which the current frame may be considered complete.
-  if (CanvasRenderingContextHost* host = Host()) [[likely]] {
-    host->PreFinalizeFrame();
-  }
+  PreFinalizeFrame();
   FlushReason reason = did_print_in_current_task_
                            ? FlushReason::kCanvasPushFrameWhilePrinting
                            : FlushReason::kCanvasPushFrame;

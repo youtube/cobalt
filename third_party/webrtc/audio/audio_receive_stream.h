@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/audio_format.h"
@@ -123,7 +124,7 @@ class AudioReceiveStreamImpl final : public webrtc::AudioReceiveStreamInterface,
                                          int64_t time_ms) override;
   bool SetMinimumPlayoutDelay(int delay_ms) override;
 
-  void DeliverRtcp(const uint8_t* packet, size_t length);
+  void DeliverRtcp(ArrayView<const uint8_t> packet);
 
   void SetSyncGroup(absl::string_view sync_group);
 

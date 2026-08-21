@@ -39,21 +39,21 @@ using ::testing::NiceMock;
 namespace webrtc {
 namespace {
 // 5 frames per second at 90 kHz.
-const uint32_t kTimestampDelta5Fps = 90000 / 5;
-const int kDefaultQp = 54;
-const int kDefaultTl0BitrateKbps = 200;
-const int kDefaultTl1BitrateKbps = 2000;
-const int kFrameRate = 5;
-const int kSyncPeriodSeconds = 2;
-const int kMaxSyncPeriodSeconds = 4;
+constexpr uint32_t kTimestampDelta5Fps = 90000 / 5;
+constexpr int kDefaultQp = 54;
+constexpr int kDefaultTl0BitrateKbps = 200;
+constexpr int kDefaultTl1BitrateKbps = 2000;
+constexpr int kFrameRate = 5;
+constexpr int kSyncPeriodSeconds = 2;
+constexpr int kMaxSyncPeriodSeconds = 4;
 
 // Expected flags for corresponding temporal layers.
-const int kTl0Flags = VP8_EFLAG_NO_UPD_GF | VP8_EFLAG_NO_UPD_ARF |
-                      VP8_EFLAG_NO_REF_GF | VP8_EFLAG_NO_REF_ARF;
-const int kTl1Flags =
+constexpr int kTl0Flags = VP8_EFLAG_NO_UPD_GF | VP8_EFLAG_NO_UPD_ARF |
+                          VP8_EFLAG_NO_REF_GF | VP8_EFLAG_NO_REF_ARF;
+constexpr int kTl1Flags =
     VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
-const int kTl1SyncFlags = VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_REF_GF |
-                          VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
+constexpr int kTl1SyncFlags = VP8_EFLAG_NO_REF_ARF | VP8_EFLAG_NO_REF_GF |
+                              VP8_EFLAG_NO_UPD_ARF | VP8_EFLAG_NO_UPD_LAST;
 const std::vector<uint32_t> kDefault2TlBitratesBps = {
     kDefaultTl0BitrateKbps * 1000,
     (kDefaultTl1BitrateKbps - kDefaultTl0BitrateKbps) * 1000};

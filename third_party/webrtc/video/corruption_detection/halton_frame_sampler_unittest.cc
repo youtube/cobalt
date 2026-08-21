@@ -38,15 +38,15 @@ using ::testing::Not;
 using Coordinates = HaltonFrameSampler::Coordinates;
 
 // Defaults for sampling tests.
-const int kDefaultScaledWidth = 4;
-const int kDefaultScaledHeight = 4;
-const double kDefaultStdDevGaussianBlur = 0.02;
+constexpr int kDefaultScaledWidth = 4;
+constexpr int kDefaultScaledHeight = 4;
+constexpr double kDefaultStdDevGaussianBlur = 0.02;
 
 #if GTEST_HAS_DEATH_TEST
 // Defaults for blurring tests.
-const int kDefaultRow = 3;
-const int kDefaultColumn = 2;
-const double kDefaultStdDev = 1.12;
+constexpr int kDefaultRow = 3;
+constexpr int kDefaultColumn = 2;
+constexpr double kDefaultStdDev = 1.12;
 #endif  // GTEST_HAS_DEATH_TEST
 
 VideoFrame MakeDefaultFrame() {

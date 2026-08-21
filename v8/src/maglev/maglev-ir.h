@@ -143,7 +143,8 @@ class ExceptionHandlerInfo;
   V(Float64Compare)                     \
   V(Float64ToBoolean)                   \
   V(Float64Ieee754Unary)                \
-  V(Float64Ieee754Binary)
+  V(Float64Ieee754Binary)               \
+  V(Float64Sqrt)
 
 #define SMI_OPERATIONS_NODE_LIST(V) \
   V(CheckedSmiIncrement)            \
@@ -1090,6 +1091,7 @@ inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
 
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
+  kNumberOrUndefined,
   kNumberOrBoolean,
   kNumberOrOddball,
 };
@@ -1123,6 +1125,8 @@ inline std::ostream& operator<<(
   switch (conversion_type) {
     case TaggedToFloat64ConversionType::kOnlyNumber:
       return os << "Number";
+    case TaggedToFloat64ConversionType::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
     case TaggedToFloat64ConversionType::kNumberOrBoolean:
       return os << "NumberOrBoolean";
     case TaggedToFloat64ConversionType::kNumberOrOddball:
@@ -2405,8 +2409,8 @@ class NodeBase : public ZoneObject {
 
   auto options() const { return std::tuple{}; }
 
-  void ClearUnstableNodeAspects(KnownNodeAspects&);
-  void ClearElementsProperties(KnownNodeAspects&);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled, KnownNodeAspects&);
+  void ClearElementsProperties(bool is_tracing_enabled, KnownNodeAspects&);
 
   void set_owner(BasicBlock* block) { owner_or_temporaries_ = block; }
 
@@ -3768,6 +3772,23 @@ class Float64Ieee754Binary
   Ieee754Function ieee_function_;
 };
 
+class Float64Sqrt : public FixedInputValueNodeT<1, Float64Sqrt> {
+  using Base = FixedInputValueNodeT<1, Float64Sqrt>;
+
+ public:
+  explicit Float64Sqrt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const;
+};
+
 class CheckInt32IsSmi : public FixedInputNodeT<1, CheckInt32IsSmi> {
   using Base = FixedInputNodeT<1, CheckInt32IsSmi>;
 
@@ -4813,8 +4834,10 @@ class CheckedNumberOrOddballToHoleyFloat64
   using Base = FixedInputValueNodeT<1, CheckedNumberOrOddballToHoleyFloat64>;
 
  public:
-  explicit CheckedNumberOrOddballToHoleyFloat64(uint64_t bitfield)
-      : Base(bitfield) {}
+  explicit CheckedNumberOrOddballToHoleyFloat64(
+      uint64_t bitfield, TaggedToFloat64ConversionType conversion_type)
+      : Base(TaggedToFloat64ConversionTypeOffset::update(bitfield,
+                                                         conversion_type)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::HoleyFloat64() |
@@ -4824,13 +4847,32 @@ class CheckedNumberOrOddballToHoleyFloat64
 
   Input& input() { return Node::input(0); }
 
+  TaggedToFloat64ConversionType conversion_type() const {
+    return TaggedToFloat64ConversionTypeOffset::decode(Base::bitfield());
+  }
+
   DeoptimizeReason deoptimize_reason() const {
-    return DeoptimizeReason::kNotANumberOrOddball;
+    switch (conversion_type()) {
+      case TaggedToFloat64ConversionType::kOnlyNumber:
+        return DeoptimizeReason::kNotANumber;
+      case TaggedToFloat64ConversionType::kNumberOrBoolean:
+        return DeoptimizeReason::kNotANumberOrBoolean;
+      case TaggedToFloat64ConversionType::kNumberOrUndefined:
+        // TODO(nicohartmann): We could consider a NotANumberOrUndefined reason.
+      case TaggedToFloat64ConversionType::kNumberOrOddball:
+        return DeoptimizeReason::kNotANumberOrOddball;
+    }
   }
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
+
+  auto options() const { return std::tuple{conversion_type()}; }
+
+ private:
+  using TaggedToFloat64ConversionTypeOffset =
+      Base::template NextBitField<TaggedToFloat64ConversionType, 2>;
 };
 
 class CheckedNumberToInt32
@@ -7544,7 +7586,8 @@ class CheckMapsWithMigration
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                KnownNodeAspects& known_node_aspects);
 
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
@@ -7576,7 +7619,8 @@ class MigrateMapIfNeeded : public FixedInputValueNodeT<2, MigrateMapIfNeeded> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const {}
 
-  void ClearUnstableNodeAspects(KnownNodeAspects& known_node_aspects);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled,
+                                KnownNodeAspects& known_node_aspects);
 };
 
 class CheckCacheIndicesNotCleared
@@ -8795,7 +8839,7 @@ class StoreFixedDoubleArrayElement
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
-      ValueRepresentation::kHoleyFloat64};
+      ValueRepresentation::kFloat64};
 
   static constexpr int kElementsIndex = 0;
   static constexpr int kIndexIndex = 1;
@@ -9316,7 +9360,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
-  void ClearUnstableNodeAspects(KnownNodeAspects&);
+  void ClearUnstableNodeAspects(bool is_tracing_enabled, KnownNodeAspects&);
 
  private:
   using KindField = NextBitField<Kind, 3>;

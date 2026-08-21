@@ -35,6 +35,13 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
+// Templates in this file are instantiated many times with different types.
+// Adding the regular GC_PLUGIN_IGNORE annotations to fields in the templates
+// results in the annotation being duplicated many times, growing the debug
+// symbols, and regressing binary size. To avoid the binary size regression,
+// mark the file to ignore instead.
+GC_PLUGIN_IGNORE_FILE("crbug.com/428987863")
+
 namespace WTF {
 
 template <typename KeyTraits, typename MappedTraits>
@@ -144,7 +151,7 @@ class HashMap {
 
   wtf_size_t size() const;
   wtf_size_t Capacity() const;
-  void ReserveCapacityForSize(unsigned size) {
+  void ReserveCapacityForSize(wtf_size_t size) {
     impl_.ReserveCapacityForSize(size);
   }
 
@@ -329,10 +336,12 @@ class HashMap<KeyArg, MappedArg, KeyTraitsArg, MappedTraitsArg, Allocator>::
 };
 
 template <typename KeyTraits, typename ValueTraits>
-struct HashMapValueTraits : KeyValuePairHashTraits<KeyTraits, ValueTraits> {
-  using P = typename KeyValuePairHashTraits<KeyTraits, ValueTraits>::TraitType;
+struct HashMapValueTraits
+    : blink::KeyValuePairHashTraits<KeyTraits, ValueTraits> {
+  using P =
+      typename blink::KeyValuePairHashTraits<KeyTraits, ValueTraits>::TraitType;
   static bool IsEmptyValue(const P& value) {
-    return IsHashTraitsEmptyValue<KeyTraits>(value.key);
+    return blink::IsHashTraitsEmptyValue<KeyTraits>(value.key);
   }
   // HashTable should never use the following functions/flags of this traits
   // type. They make sense in the KeyTraits only.
@@ -557,7 +566,7 @@ auto HashMap<T, U, V, W, X>::Take(KeyPeekInType key) -> MappedType {
 template <typename T, typename U, typename V, typename W, typename X>
 template <typename IncomingKeyType>
 inline bool HashMap<T, U, V, W, X>::IsValidKey(const IncomingKeyType& key) {
-  return !IsHashTraitsEmptyOrDeletedValue<KeyTraits>(key);
+  return !blink::IsHashTraitsEmptyOrDeletedValue<KeyTraits>(key);
 }
 
 template <typename T, typename U, typename V, typename W, typename X>
@@ -587,6 +596,8 @@ inline bool operator!=(const HashMap<T, U, V, W, X>& a,
 
 }  // namespace WTF
 
+namespace blink {
 using WTF::HashMap;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_MAP_H_

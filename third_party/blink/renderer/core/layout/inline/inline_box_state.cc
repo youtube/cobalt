@@ -118,13 +118,19 @@ void InlineBoxState::ResetStyle(const ComputedStyle& style_ref,
 
 void InlineBoxState::ComputeTextMetrics(const ComputedStyle& styleref,
                                         const Font& fontref,
-                                        FontBaseline ifc_baseline) {
+                                        FontBaseline ifc_baseline,
+                                        float scale) {
   const auto baseline_type =
       styleref.CssDominantBaseline() == EDominantBaseline::kAuto
           ? ifc_baseline
           : styleref.GetFontBaseline();
   if (const SimpleFontData* font_data = fontref.PrimaryFont()) {
-    if (is_svg_text) {
+    if (scale != 1.0f) {
+      text_metrics =
+          font_data->GetFontMetrics().GetFloatFontHeight(baseline_type);
+      text_metrics.ascent *= scale;
+      text_metrics.descent *= scale;
+    } else if (is_svg_text) {
       text_metrics =
           font_data->GetFontMetrics().GetFloatFontHeight(baseline_type);
     } else {
@@ -138,8 +144,15 @@ void InlineBoxState::ComputeTextMetrics(const ComputedStyle& styleref,
 
   FontHeight emphasis_marks_outsets =
       ComputeEmphasisMarkOutsets(styleref, fontref);
-  FontHeight leading_space = CalculateLeadingSpace(
-      styleref.ComputedLineHeightAsFixed(fontref), text_metrics);
+  LayoutUnit line_height = styleref.ComputedLineHeightAsFixed(fontref);
+  if (scale != 1.0f) {
+    // When the line-height is fixed,
+    //  - Should we apply the maximum scaling factor in the line?
+    //  - When the text shrinks, this behavior is questionable.  Non-text
+    //    items may overflow.
+    line_height *= scale;
+  }
+  FontHeight leading_space = CalculateLeadingSpace(line_height, text_metrics);
   if (emphasis_marks_outsets.IsEmpty()) {
     text_metrics.AddLeading(leading_space);
   } else {
@@ -217,9 +230,10 @@ void InlineBoxState::ResetTextMetrics() {
 
 void InlineBoxState::EnsureTextMetrics(const ComputedStyle& styleref,
                                        const Font& fontref,
-                                       FontBaseline ifc_baseline) {
+                                       FontBaseline ifc_baseline,
+                                       float scale) {
   if (text_metrics.IsEmpty())
-    ComputeTextMetrics(styleref, fontref, ifc_baseline);
+    ComputeTextMetrics(styleref, fontref, ifc_baseline, scale);
 }
 
 void InlineBoxState::AccumulateUsedFonts(const ShapeResultView* shape_result,
@@ -268,8 +282,10 @@ void InlineLayoutStateStack::Trace(Visitor* visitor) const {
 InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
     const InlineNode node,
     const ComputedStyle& line_style,
+    const InlineItemResults& line_items,
     FontBaseline baseline_type,
     bool line_height_quirk,
+    bool should_scale_line_height,
     LogicalLineItems* line_box) {
   has_block_in_inline_ = false;
   is_svg_text_ = node.IsSvgText();
@@ -280,11 +296,16 @@ InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
     box->fragment_start = 0;
   } else {
     // For the following lines, clear states that are not shared across lines.
-    for (InlineBoxState& box : stack_) {
+    for (wtf_size_t i = 0; i < stack_.size(); ++i) {
+      InlineBoxState& box = stack_[i];
       box.fragment_start = line_box->size();
       if (box.needs_box_fragment) {
         DCHECK_NE(&box, stack_.data());
-        AddBoxFragmentPlaceholder(&box, line_box, baseline_type);
+        float text_scale =
+            should_scale_line_height
+                ? FindTextScale(line_items, 0, stack_.size() - i - 1)
+                : 1.0f;
+        AddBoxFragmentPlaceholder(&box, text_scale, line_box, baseline_type);
       }
       if (!line_height_quirk)
         box.metrics = box.text_metrics;
@@ -313,8 +334,12 @@ InlineBoxState* InlineLayoutStateStack::OnBeginPlaceItems(
     // line height properties) as the initial metrics for the line box.
     // https://drafts.csswg.org/css2/visudet.html#strut
     if (!line_height_quirk) {
-      line_box_state.ComputeTextMetrics(line_style, *line_box_state.font,
-                                        baseline_type);
+      line_box_state.ComputeTextMetrics(
+          line_style, *line_box_state.font, baseline_type,
+          should_scale_line_height
+              ? FindTextScale(line_items, /* start_index */ 0,
+                              /* initial_nesting_level */ 0)
+              : 1.0f);
     }
   }
 
@@ -326,12 +351,13 @@ InlineBoxState* InlineLayoutStateStack::OnOpenTag(
     const InlineItem& item,
     const InlineItemResult& item_result,
     FontBaseline baseline_type,
+    float text_scale,
     LogicalLineItems* line_box) {
   InlineBoxState* box =
       OnOpenTag(space, item, item_result, baseline_type, *line_box);
   box->needs_box_fragment = item.ShouldCreateBoxFragment();
   if (box->needs_box_fragment)
-    AddBoxFragmentPlaceholder(box, line_box, baseline_type);
+    AddBoxFragmentPlaceholder(box, text_scale, line_box, baseline_type);
   return box;
 }
 
@@ -441,6 +467,7 @@ void InlineLayoutStateStack::OnBlockInInline(const FontHeight& metrics,
 // from placeholders.
 void InlineLayoutStateStack::AddBoxFragmentPlaceholder(
     InlineBoxState* box,
+    float text_scale,
     LogicalLineItems* line_box,
     FontBaseline baseline_type) {
   DCHECK(box != stack_.data() &&
@@ -455,10 +482,16 @@ void InlineLayoutStateStack::AddBoxFragmentPlaceholder(
     // the line-height property.
     FontHeight metrics;
     if (const auto* font_data = box->font->PrimaryFont()) {
-      metrics =
-          is_svg_text_
-              ? font_data->GetFontMetrics().GetFloatFontHeight(baseline_type)
-              : font_data->GetFontMetrics().GetFontHeight(baseline_type);
+      if (text_scale != 1.0f) {
+        metrics = font_data->GetFontMetrics().GetFloatFontHeight(baseline_type);
+        metrics.ascent *= text_scale;
+        metrics.descent *= text_scale;
+      } else {
+        metrics =
+            is_svg_text_
+                ? font_data->GetFontMetrics().GetFloatFontHeight(baseline_type)
+                : font_data->GetFontMetrics().GetFontHeight(baseline_type);
+      }
     }
 
     // Extend the block direction of the box by borders and paddings. Inline

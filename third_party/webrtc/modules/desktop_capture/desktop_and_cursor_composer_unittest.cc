@@ -33,15 +33,15 @@ namespace {
 
 using testing::ElementsAre;
 
-const int kFrameXCoord = 100;
-const int kFrameYCoord = 200;
-const int kScreenWidth = 100;
-const int kScreenHeight = 100;
-const int kCursorWidth = 10;
-const int kCursorHeight = 10;
+constexpr int kFrameXCoord = 100;
+constexpr int kFrameYCoord = 200;
+constexpr int kScreenWidth = 100;
+constexpr int kScreenHeight = 100;
+constexpr int kCursorWidth = 10;
+constexpr int kCursorHeight = 10;
 
-const int kTestCursorSize = 3;
-const uint32_t kTestCursorData[kTestCursorSize][kTestCursorSize] = {
+constexpr int kTestCursorSize = 3;
+constexpr uint32_t kTestCursorData[kTestCursorSize][kTestCursorSize] = {
     {
         0xffffffff,
         0x99990000,

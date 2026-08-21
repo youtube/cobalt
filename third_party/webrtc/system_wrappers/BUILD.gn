@@ -47,8 +47,10 @@ rtc_library("system_wrappers") {
 rtc_library("field_trial") {
   visibility = [ "*" ]
   poisonous = [ "environment_construction" ]
-  public = [ "include/field_trial.h" ]
-  sources = [ "source/field_trial.cc" ]
+  sources = [
+    "include/field_trial.h",
+    "source/field_trial.cc",
+  ]
   if (rtc_exclude_field_trial_default) {
     defines = [ "WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT" ]
   }
@@ -65,8 +67,10 @@ rtc_library("field_trial") {
 
 rtc_library("metrics") {
   visibility = [ "*" ]
-  public = [ "include/metrics.h" ]
-  sources = [ "source/metrics.cc" ]
+  sources = [
+    "include/metrics.h",
+    "source/metrics.cc",
+  ]
   if (rtc_exclude_metrics_default) {
     defines = [ "WEBRTC_EXCLUDE_METRICS_DEFAULT" ]
   }

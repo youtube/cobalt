@@ -456,6 +456,34 @@ RTCError JsepTransportController::RemoveRemoteCandidates(
   return RTCError::OK();
 }
 
+bool JsepTransportController::RemoveRemoteCandidate(const IceCandidate* c) {
+  if (!network_thread_->IsCurrent()) {
+    return network_thread_->BlockingCall(
+        [&] { return RemoveRemoteCandidate(c); });
+  }
+
+  RTC_DCHECK_RUN_ON(network_thread_);
+  std::string mid = c->sdp_mid();
+  if (!VerifyCandidate(c->candidate()).ok() || mid.empty()) {
+    RTC_LOG(LS_ERROR) << "Candidate invalid or missing sdp_mid: "
+                      << c->candidate().ToSensitiveString();
+    return false;
+  }
+  JsepTransport* jsep_transport = GetJsepTransportForMid(mid);
+  if (!jsep_transport) {
+    RTC_LOG(LS_WARNING) << "No Transport for mid=" << mid;
+    return false;
+  }
+  DtlsTransportInternal* dtls =
+      c->candidate().component() == ICE_CANDIDATE_COMPONENT_RTP
+          ? jsep_transport->rtp_dtls_transport()
+          : jsep_transport->rtcp_dtls_transport();
+  if (dtls) {
+    dtls->ice_transport()->RemoveRemoteCandidate(c->candidate());
+  }
+  return true;
+}
+
 bool JsepTransportController::GetStats(const std::string& transport_name,
                                        TransportStats* stats) const {
   RTC_DCHECK_RUN_ON(network_thread_);

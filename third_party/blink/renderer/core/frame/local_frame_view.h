@@ -382,7 +382,8 @@ class CORE_EXPORT LocalFrameView final
   // detached frame and need special handling of the frame.
   // Frame throttling is not allowed by default. Normally we don't want to
   // throttle frames for printing.
-  void UpdateLifecyclePhasesForPrinting();
+  // Returns whether the lifecycle was successfully updated to pre-paint clean.
+  bool UpdateLifecyclePhasesForPrinting();
 
   // Computes the style, layout, and compositing inputs lifecycle stages if
   // needed. After calling this method, all frames will be in a lifecycle state
@@ -725,9 +726,6 @@ class CORE_EXPORT LocalFrameView final
   bool VisualViewportOrOverlayNeedsRepaintForTesting() const;
 
   LayoutUnit BarCaretWidth() const;
-  // Returns the max value between the given float value of width and viewpoint
-  // scale in LayoutUnit.
-  LayoutUnit ScaleCssPixelForCaret(float width) const;
 
   size_t PaintFrameCount() const { return paint_frame_count_; }
 

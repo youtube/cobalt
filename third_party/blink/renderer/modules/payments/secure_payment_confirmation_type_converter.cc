@@ -24,8 +24,10 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
     Convert(const blink::SecurePaymentConfirmationRequest* input) {
   auto output = payments::mojom::blink::SecurePaymentConfirmationRequest::New();
   output->credential_ids =
-      mojo::ConvertTo<Vector<Vector<uint8_t>>>(input->credentialIds());
-  output->challenge = mojo::ConvertTo<Vector<uint8_t>>(input->challenge());
+      mojo::ConvertTo<blink::Vector<blink::Vector<uint8_t>>>(
+          input->credentialIds());
+  output->challenge =
+      mojo::ConvertTo<blink::Vector<uint8_t>>(input->challenge());
 
   // If a timeout was not specified in JavaScript, then pass a null `timeout`
   // through mojo IPC, so the browser can set a default (e.g., 3 minutes).
@@ -36,7 +38,7 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
       input->instrument()->displayName(),
       blink::KURL(input->instrument()->icon()),
       input->instrument()->iconMustBeShown(),
-      // WTF::String()'s empty constructor constructs a 'null' string.
+      // blink::String()'s empty constructor constructs a 'null' string.
       input->instrument()->hasDetails() ? input->instrument()->details()
                                         : blink::String());
 
@@ -57,13 +59,13 @@ TypeConverter<payments::mojom::blink::SecurePaymentConfirmationRequestPtr,
 
   if (input->hasPaymentEntitiesLogos()) {
     output->payment_entities_logos =
-        ConvertTo<WTF::Vector<payments::mojom::blink::PaymentEntityLogoPtr>>(
+        ConvertTo<blink::Vector<payments::mojom::blink::PaymentEntityLogoPtr>>(
             input->paymentEntitiesLogos());
   }
 
   if (input->hasBrowserBoundPubKeyCredParams()) {
     output->browser_bound_pub_key_cred_params = ConvertTo<
-        WTF::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>>(
+        blink::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>>(
         input->browserBoundPubKeyCredParams());
   }
 

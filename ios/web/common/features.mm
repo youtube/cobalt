@@ -68,7 +68,7 @@ BASE_FEATURE(kSmoothScrollingDefault,
 );
 
 BASE_FEATURE(kFullscreenScrollThreshold,
-             "FullScreenScrollThreshold",
+             "FullscreenScrollThreshold",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kFullscreenScrollThresholdAmount[] =
@@ -117,6 +117,10 @@ BASE_FEATURE(kRestoreWKWebViewEditMenuHandler,
 
 BASE_FEATURE(kLogCrWebJavaScriptErrors,
              "LogCrWebJavaScriptErrors",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAssertOnJavaScriptErrors,
+             "AssertOnJavaScriptErrors",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

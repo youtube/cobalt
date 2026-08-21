@@ -25,9 +25,9 @@ using webrtc::rtcp::Bye;
 
 namespace webrtc {
 namespace {
-const uint32_t kSenderSsrc = 0x12345678;
-const uint32_t kCsrc1 = 0x22232425;
-const uint32_t kCsrc2 = 0x33343536;
+constexpr uint32_t kSenderSsrc = 0x12345678;
+constexpr uint32_t kCsrc1 = 0x22232425;
+constexpr uint32_t kCsrc2 = 0x33343536;
 }  // namespace
 
 TEST(RtcpPacketByeTest, CreateAndParseWithoutReason) {

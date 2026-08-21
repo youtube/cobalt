@@ -10,7 +10,9 @@
 
 #include "common_audio/real_fourier.h"
 
-#include <stdlib.h>
+#include <complex>
+#include <cstdint>
+#include <cstdlib>
 
 #include "common_audio/real_fourier_ooura.h"
 #include "test/gtest.h"

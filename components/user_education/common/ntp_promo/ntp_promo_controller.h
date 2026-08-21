@@ -10,12 +10,30 @@
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
+#include "components/user_education/common/ntp_promo/ntp_promo_identifier.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_storage_service.h"
 
 namespace user_education {
+
+// The contents of a promo as it will be shown in the NTP.
+struct NtpShowablePromo {
+  NtpShowablePromo();
+  NtpShowablePromo(std::string_view id_,
+                   std::string_view icon_name_,
+                   std::string_view body_text_,
+                   std::string_view action_button_text_);
+  NtpShowablePromo(const NtpShowablePromo& other);
+  NtpShowablePromo& operator=(const NtpShowablePromo& other);
+  ~NtpShowablePromo();
+
+  std::string id;
+  std::string icon_name;
+  std::string body_text;
+  std::string action_button_text;
+};
 
 // This struct provides ordered sets of pending and completed promos, intended
 // for use by the New Tab Page.
@@ -25,40 +43,46 @@ struct NtpShowablePromos {
   NtpShowablePromos(NtpShowablePromos&&) noexcept;
   NtpShowablePromos& operator=(NtpShowablePromos&&) noexcept;
 
-  struct Promo {
-    Promo(NtpPromoIdentifier id, const NtpPromoContent& content);
-
-    std::string id;
-    NtpPromoContent content;
-  };
-
   // Lists of promos, in descending priority order. Ie, if the UI chooses to
   // show only one promo from a list, choose the first one.
-  std::vector<Promo> pending;
-  std::vector<Promo> completed;
+  std::vector<NtpShowablePromo> pending;
+  std::vector<NtpShowablePromo> completed;
 };
 
 // Controls display of New Tab Page promos.
 class NtpPromoController {
  public:
   NtpPromoController(const NtpPromoController&) = delete;
-  ~NtpPromoController();
+  virtual ~NtpPromoController();
   void operator=(const NtpPromoController&) = delete;
 
   NtpPromoController(NtpPromoRegistry& registry,
                      UserEducationStorageService& storage_service);
 
+  // Determines if there are any showable proms.
+  virtual bool HasShowablePromos() const;
+
   // Provides ordered lists of eligible and completed promos, intended to be
   // displayed by the NTP. May update prefs as a side effect.
-  NtpShowablePromos GenerateShowablePromos();
+  virtual NtpShowablePromos GenerateShowablePromos();
+
+  // Called when promos are shown by the NTP promo component.
+  //
+  // The promos should be ordered in each list from top/first to bottom/last.
+  virtual void OnPromosShown(
+      const std::vector<NtpPromoIdentifier>& eligible_shown,
+      const std::vector<NtpPromoIdentifier>& completed_shown);
 
   // Called in response to an NTP promo activation.
-  void OnPromoClicked(NtpPromoIdentifier id);
+  virtual void OnPromoClicked(NtpPromoIdentifier id);
 
   // Returns the duration for which a promo can be shown after completion.
-  base::TimeDelta GetCompletedPromoShowDurationForTest() const;
+  static base::TimeDelta GetCompletedPromoShowDurationForTest();
 
  private:
+  // Updates the data on the promo shown in the top spot.
+  void OnPromoShownInTopSpot(NtpPromoIdentifier id);
+
   const raw_ref<NtpPromoRegistry> registry_;
   const raw_ref<UserEducationStorageService> storage_service_;
 };

@@ -9,13 +9,16 @@
  */
 #include "rtc_tools/frame_analyzer/reference_less_video_analysis_lib.h"
 
-#include <stdio.h>
-
+#include <cstddef>
+#include <cstdio>
 #include <numeric>
+#include <string>
 #include <vector>
 
+#include "api/scoped_refptr.h"
 #include "api/video/video_frame_buffer.h"
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
+#include "rtc_tools/video_file_reader.h"
 
 #define STATS_LINE_LENGTH 28
 #define PSNR_FREEZE_THRESHOLD 47

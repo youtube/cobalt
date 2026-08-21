@@ -24,9 +24,9 @@ namespace webrtc {
 namespace test {
 
 namespace {
-const size_t kFrameWidth = 50;
-const size_t kFrameHeight = 20;
-const size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
+constexpr size_t kFrameWidth = 50;
+constexpr size_t kFrameHeight = 20;
+constexpr size_t kFrameLength = 3 * kFrameWidth * kFrameHeight / 2;  // I420.
 }  // namespace
 
 class YuvFrameWriterTest : public ::testing::Test {

@@ -11,15 +11,14 @@
 #ifndef COMMON_AUDIO_CHANNEL_BUFFER_H_
 #define COMMON_AUDIO_CHANNEL_BUFFER_H_
 
-#include <string.h>
-
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <vector>
 
 #include "api/array_view.h"
-#include "common_audio/include/audio_util.h"
+#include "api/audio/audio_view.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/gtest_prod_util.h"
 
 namespace webrtc {
 

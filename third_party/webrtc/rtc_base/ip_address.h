@@ -12,27 +12,26 @@
 #define RTC_BASE_IP_ADDRESS_H_
 
 #include <cstdint>
+#include <cstring>
+#include <string>
+
+#include "absl/strings/string_view.h"
+#include "rtc_base/byte_order.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/system/rtc_export.h"
+
 #if defined(WEBRTC_POSIX)
 #include <arpa/inet.h>  // IWYU pragma: keep
 #include <netdb.h>
 #include <netinet/in.h>  // IWYU pragma: export
-
-#include "absl/strings/string_view.h"
 #endif
+
 #if defined(WEBRTC_WIN)
 #include <ws2tcpip.h>
-#endif
-#include <string.h>
 
-#include <string>
-
-#include "rtc_base/byte_order.h"
-#if defined(WEBRTC_WIN)
 #include "rtc_base/win32.h"
 #endif
-#include "absl/strings/string_view.h"
-#include "rtc_base/net_helpers.h"
-#include "rtc_base/system/rtc_export.h"
+
 namespace webrtc {
 
 enum IPv6AddressFlag {

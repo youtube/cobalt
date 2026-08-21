@@ -729,36 +729,6 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
   return AssertCodeIsBaselineAllowClobber(masm, code, scratch);
 }
 
-static void CheckSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
-                                                      Register data,
-                                                      Register scratch,
-                                                      Label* is_baseline,
-                                                      Label* is_bytecode) {
-#if V8_STATIC_ROOTS_BOOL
-  __ IsObjectTypeFast(data, CODE_TYPE, scratch);
-#else
-  __ CmpObjectType(data, CODE_TYPE, scratch);
-#endif  // V8_STATIC_ROOTS_BOOL
-  if (v8_flags.debug_code) {
-    Label not_baseline;
-    __ j(not_equal, &not_baseline);
-    AssertCodeIsBaseline(masm, data, scratch);
-    __ j(equal, is_baseline);
-    __ bind(&not_baseline);
-  } else {
-    __ j(equal, is_baseline);
-  }
-
-#if V8_STATIC_ROOTS_BOOL
-  // Scratch1 already contains the compressed map.
-  __ CompareInstanceTypeWithUniqueCompressedMap(scratch, INTERPRETER_DATA_TYPE);
-#else
-  // Scratch1 already contains the instance type.
-  __ CmpInstanceType(scratch, INTERPRETER_DATA_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-  __ j(not_equal, is_bytecode, Label::kNear);
-}
-
 static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
@@ -774,8 +744,30 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     __ IsObjectType(data, INTERPRETER_DATA_TYPE, scratch1);
     __ j(not_equal, &done, Label::kNear);
   } else {
-    CheckSharedFunctionInfoBytecodeOrBaseline(masm, data, scratch1, is_baseline,
-                                              &done);
+#if V8_STATIC_ROOTS_BOOL
+    __ IsObjectTypeFast(data, CODE_TYPE, scratch1);
+#else
+    __ CmpObjectType(data, CODE_TYPE, scratch1);
+#endif  // V8_STATIC_ROOTS_BOOL
+  if (v8_flags.debug_code) {
+    Label not_baseline;
+    __ j(not_equal, &not_baseline);
+    AssertCodeIsBaseline(masm, data, scratch1);
+    __ j(equal, is_baseline);
+    __ bind(&not_baseline);
+  } else {
+    __ j(equal, is_baseline);
+  }
+
+#if V8_STATIC_ROOTS_BOOL
+  // Scratch1 already contains the compressed map.
+  __ CompareInstanceTypeWithUniqueCompressedMap(scratch1,
+                                                INTERPRETER_DATA_TYPE);
+#else
+  // Scratch1 already contains the instance type.
+  __ CmpInstanceType(scratch1, INTERPRETER_DATA_TYPE);
+#endif  // V8_STATIC_ROOTS_BOOL
+  __ j(not_equal, &done, Label::kNear);
   }
 
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
@@ -3663,14 +3655,6 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // Restore rsp to free the reserved stack slots for the sections.
   __ leaq(rsp, MemOperand(rbp, StackSwitchFrameConstants::kLastSpillOffset));
 
-  // Unset thread_in_wasm_flag.
-  Register thread_in_wasm_flag_addr = r8;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
-
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
@@ -3805,11 +3789,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   }
   DCHECK_EQ(next_offset, stack_params_offset);
 
-  Register thread_in_wasm_flag_addr = r12;
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
   if (stack_switch) {
     __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
             0);
@@ -3821,12 +3800,6 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // it here, but an attacker that could corrupt the signature could also
   // corrupt that signature hash (which is outside of the sandbox).
   __ CallWasmCodePointerNoSignatureCheck(call_target);
-
-  __ movq(
-      thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
-  __ movl(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
-  thread_in_wasm_flag_addr = no_reg;
 
   wrapper_buffer = rcx;
   for (size_t i = 0; i < arraysize(wasm::kGpReturnRegisters); ++i) {
@@ -5200,7 +5173,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
       code_obj,
       FieldOperand(shared_function_info,
                    SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag, kScratchRegister);
+      kCodeIndirectPointerTag, kScratchRegister);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

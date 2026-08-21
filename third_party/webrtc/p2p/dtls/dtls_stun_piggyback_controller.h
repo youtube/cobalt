@@ -21,7 +21,6 @@
 #include "api/sequence_checker.h"
 #include "api/transport/stun.h"
 #include "p2p/dtls/dtls_utils.h"
-#include "rtc_base/byte_buffer.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -32,7 +31,7 @@ namespace webrtc {
 class DtlsStunPiggybackController {
  public:
   // Never ack more than 4 packets.
-  static constexpr unsigned kMaxAckSize = 16;
+  static constexpr unsigned kMaxAckSize = 4;
 
   // dtls_data_callback will be called with any DTLS packets received
   // piggybacked.
@@ -78,7 +77,7 @@ class DtlsStunPiggybackController {
   // to obtain optional DTLS data or ACKs.
   std::optional<absl::string_view> GetDataToPiggyback(
       StunMessageType stun_message_type);
-  std::optional<absl::string_view> GetAckToPiggyback(
+  std::optional<const std::vector<uint32_t>> GetAckToPiggyback(
       StunMessageType stun_message_type);
 
   // Called by Connection when receiving a STUN BINDING { REQUEST / RESPONSE }.
@@ -96,7 +95,6 @@ class DtlsStunPiggybackController {
 
   std::vector<uint32_t> handshake_messages_received_
       RTC_GUARDED_BY(sequence_checker_);
-  ByteBufferWriter handshake_ack_writer_ RTC_GUARDED_BY(sequence_checker_);
 
   // Count of data attributes received.
   int data_recv_count_ = 0;

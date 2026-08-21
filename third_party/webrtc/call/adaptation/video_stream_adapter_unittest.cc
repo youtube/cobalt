@@ -38,14 +38,14 @@ using ::testing::Return;
 
 namespace {
 
-const int kBalancedHighResolutionPixels = 1280 * 720;
-const int kBalancedHighFrameRateFps = 30;
+constexpr int kBalancedHighResolutionPixels = 1280 * 720;
+constexpr int kBalancedHighFrameRateFps = 30;
 
-const int kBalancedMediumResolutionPixels = 640 * 480;
-const int kBalancedMediumFrameRateFps = 20;
+constexpr int kBalancedMediumResolutionPixels = 640 * 480;
+constexpr int kBalancedMediumFrameRateFps = 20;
 
-const int kBalancedLowResolutionPixels = 320 * 240;
-const int kBalancedLowFrameRateFps = 10;
+constexpr int kBalancedLowResolutionPixels = 320 * 240;
+constexpr int kBalancedLowFrameRateFps = 10;
 
 std::string BalancedFieldTrialConfig() {
   return "WebRTC-Video-BalancedDegradationSettings/pixels:" +

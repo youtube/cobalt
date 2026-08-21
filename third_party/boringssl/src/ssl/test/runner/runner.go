@@ -21,6 +21,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	_ "embed"
 	"encoding/base64"
 	"encoding/binary"
@@ -74,6 +75,7 @@ var (
 	shimConfigFile     = flag.String("shim-config", "", "A config file to use to configure the tests for this shim.")
 	includeDisabled    = flag.Bool("include-disabled", false, "If true, also runs disabled tests.")
 	repeatUntilFailure = flag.Bool("repeat-until-failure", false, "If true, the first selected test will be run repeatedly until failure.")
+	keepTestCerts      = flag.Bool("keep-test-certs", false, "If true, causes the test certificate directory to be retained")
 )
 
 // ShimConfigurations is used with the “json” package and represents a shim
@@ -148,10 +150,10 @@ var (
 var channelIDKeyPath string
 
 func initKeys() {
-	// Since key generation is not particularly cheap (especially RSA), and the
-	// runner is intended to run on systems which may be resouece constrained,
-	// we load keys from disk instead of dynamically generating them. We treat
-	// key files the same as dynamically generated certificates, writing them
+	// Since RSA key generation is not particularly cheap, and the runner is
+	// intended to run on systems which may be resource constrained, we load
+	// keys from disk instead of dynamically generating them. We treat key
+	// files the same as dynamically generated certificates, writing them
 	// out to temporary files before passing them to the shim.
 
 	for _, k := range []struct {
@@ -208,6 +210,8 @@ var (
 )
 
 var (
+	rootCA *X509ChainBuilder
+
 	rsaCertificate       Credential
 	rsaChainCertificate  Credential
 	rsa1024Certificate   Credential
@@ -216,6 +220,7 @@ var (
 	ecdsaP521Certificate Credential
 	ed25519Certificate   Credential
 	garbageCertificate   Credential
+	pssCertificate       Credential
 )
 
 func initCertificates() {
@@ -224,16 +229,24 @@ func initCertificates() {
 		key  crypto.Signer
 		out  *Credential
 	}{
-		{"Test RSA-1024 Cert", &rsa1024Key, &rsa1024Certificate},
-		{"Test RSA-2048 Cert", &rsa2048Key, &rsaCertificate},
-		{"Test ECDSA P-256 Cert", &ecdsaP256Key, &ecdsaP256Certificate},
-		{"Test ECDSA P-384 Cert", &ecdsaP384Key, &ecdsaP384Certificate},
-		{"Test ECDSA P-521 Cert", &ecdsaP521Key, &ecdsaP521Certificate},
-		{"Test Ed25519 Cert", ed25519Key, &ed25519Certificate},
+		{"RSA-1024", &rsa1024Key, &rsa1024Certificate},
+		{"RSA-2048", &rsa2048Key, &rsaCertificate},
+		{"ECDSA P-256", &ecdsaP256Key, &ecdsaP256Certificate},
+		{"ECDSA P-384", &ecdsaP384Key, &ecdsaP384Certificate},
+		{"ECDSA P-521", &ecdsaP521Key, &ecdsaP521Certificate},
+		{"Ed25519", ed25519Key, &ed25519Certificate},
 	} {
-		template := *baseCertTemplate
-		template.Subject.CommonName = def.name
-		*def.out = generateSingleCertChain(&template, def.key)
+		// For each test key, make a self-signed root that issues a leaf, using
+		// the same algorithm.
+		*def.out = NewX509Root(X509Info{
+			PrivateKey:   def.key,
+			Name:         pkix.Name{CommonName: fmt.Sprintf("Test %s Root", def.name)},
+			IsCA:         true,
+			SubjectKeyID: []byte("root"),
+		}).Issue(X509Info{
+			PrivateKey: def.key,
+			DNSNames:   []string{"test"},
+		}).ToCredential()
 	}
 
 	channelIDBytes = make([]byte, 64)
@@ -243,28 +256,34 @@ func initCertificates() {
 	garbageCertificate.Certificate = [][]byte{[]byte("GARBAGE")}
 	garbageCertificate.PrivateKey = rsaCertificate.PrivateKey
 
-	// Build a basic three cert chain for testing chain specific things.
-	rootTmpl := *baseCertTemplate
-	rootTmpl.Subject.CommonName = "test root"
-	rootCert := generateTestCert(&rootTmpl, nil, &rsa2048Key)
-	intermediateTmpl := *baseCertTemplate
-	intermediateTmpl.Subject.CommonName = "test inter"
-	intermediateCert := generateTestCert(&intermediateTmpl, rootCert, &rsa2048Key)
-	leafTmpl := *baseCertTemplate
-	leafTmpl.IsCA, leafTmpl.BasicConstraintsValid = false, false
-	leafCert := generateTestCert(nil, intermediateCert, &rsa2048Key)
+	// Make a default root CA for other test certificates.
+	rootCA = NewX509Root(X509Info{
+		PrivateKey:   &rsa2048Key,
+		Name:         pkix.Name{CommonName: "Test Root"},
+		IsCA:         true,
+		SubjectKeyID: []byte("root"),
+	})
 
-	keyPath := writeTempKeyFile(&rsa2048Key)
-	rootCertPath, chainPath := writeTempCertFile([]*x509.Certificate{rootCert}), writeTempCertFile([]*x509.Certificate{leafCert, intermediateCert})
+	// Build a basic three cert chain for testing chain-specific things.
+	rsaChainCertificate = rootCA.Issue(X509Info{
+		PrivateKey:   &rsa2048Key,
+		Name:         pkix.Name{CommonName: "Test Intermediate"},
+		IsCA:         true,
+		SubjectKeyID: []byte("intermediate"),
+	}).Issue(X509Info{
+		PrivateKey: &rsa2048Key,
+		DNSNames:   []string{"test"},
+	}).ToCredential()
 
-	rsaChainCertificate = Credential{
-		Certificate:     [][]byte{leafCert.Raw, intermediateCert.Raw},
-		RootCertificate: rootCert.Raw,
-		PrivateKey:      &rsa2048Key,
-		ChainPath:       chainPath,
-		KeyPath:         keyPath,
-		RootPath:        rootCertPath,
-	}
+	// Make an id-RSASSA-PSS certificate. This is only partially supported as a
+	// PSS credential. The private key is still an id-rsaEncryption key, only
+	// the certificate uses id-RSASSA-PSS. We do not support id-RSASSA-PSS with
+	// TLS, so this test only exists to ensure BoringSSL does not accept it.
+	pssCertificate = rootCA.Issue(X509Info{
+		PrivateKey:         &rsa2048Key,
+		DNSNames:           []string{"test"},
+		EncodeSPKIAsRSAPSS: true,
+	}).ToCredential()
 }
 
 func flagInts(flagName string, vals []int) []string {
@@ -2153,7 +2172,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to make temporary directory: %s", err)
 		os.Exit(1)
 	}
-	defer os.RemoveAll(tmpDir)
+	if !*keepTestCerts {
+		defer os.RemoveAll(tmpDir)
+	}
 	initKeys()
 	initCertificates()
 

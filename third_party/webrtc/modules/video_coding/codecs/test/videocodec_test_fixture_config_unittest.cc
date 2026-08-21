@@ -25,7 +25,7 @@ namespace test {
 using Config = VideoCodecTestFixture::Config;
 
 namespace {
-const size_t kNumTemporalLayers = 2;
+constexpr size_t kNumTemporalLayers = 2;
 }  // namespace
 
 TEST(Config, NumberOfCoresWithUseSingleCore) {

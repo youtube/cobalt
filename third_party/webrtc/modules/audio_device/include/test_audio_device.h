@@ -19,7 +19,6 @@
 #include "api/audio/audio_device.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
-#include "api/task_queue/task_queue_factory.h"
 #include "rtc_base/buffer.h"
 
 namespace webrtc {
@@ -81,13 +80,6 @@ class TestAudioDeviceModule {
   // Use one of the Create... functions to get these instances.
   static scoped_refptr<AudioDeviceModule> Create(
       const Environment& env,
-      std::unique_ptr<Capturer> capturer,
-      std::unique_ptr<Renderer> renderer,
-      float speed = 1);
-
-  [[deprecated("bugs.webrtc.org/413413572")]]
-  static scoped_refptr<AudioDeviceModule> Create(
-      TaskQueueFactory* task_queue_factory,
       std::unique_ptr<Capturer> capturer,
       std::unique_ptr<Renderer> renderer,
       float speed = 1);

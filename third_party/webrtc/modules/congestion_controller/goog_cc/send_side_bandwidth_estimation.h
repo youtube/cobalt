@@ -15,15 +15,18 @@
 
 #include <stdint.h>
 
+#include <deque>
+#include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/field_trials_view.h"
+#include "api/transport/bandwidth_usage.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
-#include "modules/congestion_controller/goog_cc/loss_based_bwe.h"
 #include "modules/congestion_controller/goog_cc/loss_based_bwe_v2.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 
@@ -68,20 +71,23 @@ class SendSideBandwidthEstimation {
   // Return whether the current rtt is higher than the rtt limited configured in
   // RttBasedBackoff.
   bool IsRttAboveLimit() const;
-  uint8_t fraction_loss() const { return loss_based_bwe_.fraction_loss(); }
+  uint8_t fraction_loss() const { return last_fraction_loss_; }
   TimeDelta round_trip_time() const { return last_round_trip_time_; }
 
   // Call periodically to update estimate.
-  void OnPeriodicUpdate(Timestamp at_time);
+  void UpdateEstimate(Timestamp at_time);
   void OnSentPacket(const SentPacket& sent_packet);
   void UpdatePropagationRtt(Timestamp at_time, TimeDelta propagation_rtt);
 
   // Call when we receive a RTCP message with TMMBR or REMB.
   void UpdateReceiverEstimate(Timestamp at_time, DataRate bandwidth);
 
+  // Call when a new delay-based estimate is available.
+  void UpdateDelayBasedEstimate(Timestamp at_time, DataRate bitrate);
+
   // Call when we receive a RTCP message with a ReceiveBlock.
   void UpdatePacketsLost(int64_t packets_lost,
-                         int64_t packets_received,
+                         int64_t number_of_packets,
                          Timestamp at_time);
 
   // Call when we receive a RTCP message with a ReceiveBlock.
@@ -91,14 +97,15 @@ class SendSideBandwidthEstimation {
                    DataRate min_bitrate,
                    DataRate max_bitrate,
                    Timestamp at_time);
+  void SetSendBitrate(DataRate bitrate, Timestamp at_time);
   void SetMinMaxBitrate(DataRate min_bitrate, DataRate max_bitrate);
   int GetMinBitrate() const;
-
-  void OnTransportPacketsFeedback(const TransportPacketsFeedback& report,
-                                  DataRate delay_based_estimate,
-                                  std::optional<DataRate> acknowledged_rate,
-                                  bool is_probe_rate,
-                                  bool in_alr);
+  void SetAcknowledgedRate(std::optional<DataRate> acknowledged_rate,
+                           Timestamp at_time);
+  void UpdateLossBasedEstimator(const TransportPacketsFeedback& report,
+                                BandwidthUsage delay_detector_state,
+                                std::optional<DataRate> probe_bitrate,
+                                bool in_alr);
 
  private:
   friend class GoogCcStatePrinter;
@@ -114,6 +121,9 @@ class SendSideBandwidthEstimation {
   // min bitrate used during last kBweIncreaseIntervalMs.
   void UpdateMinHistory(Timestamp at_time);
 
+  // Gets the upper limit for the target bitrate. This is the minimum of the
+  // delay based limit, the receiver limit and the loss based controller limit.
+  DataRate GetUpperLimit() const;
   // Prints a warning if `bitrate` if sufficiently long time has past since last
   // warning.
   void MaybeLogLowBitrateWarning(DataRate bitrate, Timestamp at_time);
@@ -121,34 +131,47 @@ class SendSideBandwidthEstimation {
   // has changed, or sufficient time has passed since last stored event.
   void MaybeLogLossBasedEvent(Timestamp at_time);
 
+  // Cap `bitrate` to [min_bitrate_configured_, max_bitrate_configured_] and
+  // set `current_bitrate_` to the capped value and updates the event log.
+  void UpdateTargetBitrate(DataRate bitrate, Timestamp at_time);
+  // Applies lower and upper bounds to the current target rate.
+  // TODO(srte): This seems to be called even when limits haven't changed, that
+  // should be cleaned up.
   void ApplyTargetLimits(Timestamp at_time);
+
+  bool LossBasedBandwidthEstimatorV2Enabled() const;
+  bool LossBasedBandwidthEstimatorV2ReadyForUse() const;
 
   const FieldTrialsView* key_value_config_;
   RttBasedBackoff rtt_backoff_;
-  LossBasedBwe loss_based_bwe_;
+
+  std::deque<std::pair<Timestamp, DataRate> > min_bitrate_history_;
+
+  // incoming filters
+  int lost_packets_since_last_loss_update_;
+  int expected_packets_since_last_loss_update_;
 
   std::optional<DataRate> acknowledged_rate_;
-  uint8_t last_logged_fraction_loss_;
-  TimeDelta last_round_trip_time_;
-  // The max bitrate as set by the receiver in the call. This is typically
-  // signalled using the REMB RTCP message and is used when we don't have any
-  // send side delay based estimate.
-  DataRate receiver_limit_;
-  DataRate delay_based_limit_;
-  DataRate loss_based_limit_;
-
-  // `rtt_back_off_rate_` is calculated in relation to a limit and can only be
-  // lower than the limit. If not, it is nullopt.
-  std::optional<DataRate> rtt_back_off_rate_;
-
-  DataRate current_target_;  // Current combined target rate.
+  DataRate current_target_;
   DataRate last_logged_target_;
   DataRate min_bitrate_configured_;
   DataRate max_bitrate_configured_;
   Timestamp last_low_bitrate_log_;
 
-  Timestamp time_last_decrease_due_to_rtt_;
-  Timestamp first_loss_report_time_;
+  bool has_decreased_since_last_fraction_loss_;
+  Timestamp last_loss_feedback_;
+  Timestamp last_loss_packet_report_;
+  uint8_t last_fraction_loss_;
+  uint8_t last_logged_fraction_loss_;
+  TimeDelta last_round_trip_time_;
+
+  // The max bitrate as set by the receiver in the call. This is typically
+  // signalled using the REMB RTCP message and is used when we don't have any
+  // send side delay based estimate.
+  DataRate receiver_limit_;
+  DataRate delay_based_limit_;
+  Timestamp time_last_decrease_;
+  Timestamp first_report_time_;
   int initially_lost_packets_;
   DataRate bitrate_at_2_seconds_;
   UmaState uma_update_state_;
@@ -156,6 +179,12 @@ class SendSideBandwidthEstimation {
   std::vector<bool> rampup_uma_stats_updated_;
   RtcEventLog* const event_log_;
   Timestamp last_rtc_event_log_;
+  float low_loss_threshold_;
+  float high_loss_threshold_;
+  DataRate bitrate_threshold_;
+  std::unique_ptr<LossBasedBweV2> loss_based_bandwidth_estimator_v2_;
+  LossBasedState loss_based_state_;
+  FieldTrialFlag disable_receiver_limit_caps_only_;
 };
 }  // namespace webrtc
 #endif  // MODULES_CONGESTION_CONTROLLER_GOOG_CC_SEND_SIDE_BANDWIDTH_ESTIMATION_H_

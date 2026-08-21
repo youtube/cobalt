@@ -210,7 +210,7 @@ BASE_FEATURE(kBocaOnTaskLockedQuizMigration,
 // Enables or disables Boca OnTask mute ARC audio requests on ChromeOS.
 BASE_FEATURE(kBocaOnTaskMuteArcAudio,
              "BocaOnTaskMuteArcAudio",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the Boca OnTask pod on ChromeOS.
 BASE_FEATURE(kBocaOnTaskPod, "BocaOnTaskPod", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -313,6 +313,12 @@ BASE_FEATURE(kBocaSequentialInsertActivity,
 // boca.
 BASE_FEATURE(kBocaTranslateToggle,
              "BocaTranslateToggle",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables or disables migration to `BabelOrcaSpeechRecognizerClient` for
+// speech recognition.
+BASE_FEATURE(kBocaMigrateSpeechRecongnizerClient,
+             "BocaMigrateSpeechRecongnizerClient",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCrosSwitcher, "CrosSwitcher", base::FEATURE_DISABLED_BY_DEFAULT);
@@ -472,7 +478,7 @@ BASE_FEATURE(kConch, "Conch", base::FEATURE_DISABLED_BY_DEFAULT);
 // choose.
 BASE_FEATURE(kConchExpandTranscriptionLanguage,
              "ConchExpandTranscriptionLanguage",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, conch will provide available GenAI features.
 BASE_FEATURE(kConchGenAi, "ConchGenAi", base::FEATURE_ENABLED_BY_DEFAULT);
@@ -756,11 +762,6 @@ BASE_FEATURE(kEnableExternalKeyboardsInDiagnostics,
 BASE_FEATURE(kEnableHostnameSetting,
              "EnableHostnameSetting",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables or disables keyboard backlight control in settings.
-BASE_FEATURE(kEnableKeyboardBacklightControlInSettings,
-             "EnableKeyboardBacklightControlInSettings",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable keyboard rewriter fix.
 BASE_FEATURE(kEnableKeyboardRewriterFix,
@@ -1098,12 +1099,6 @@ BASE_FEATURE(kFlexAutoEnrollment,
 // Enables firmware updates from LVFS for ChromeOS Flex.
 BASE_FEATURE(kFlexFirmwareUpdate,
              "FlexFirmwareUpdate",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Controls whether to ignore policy setting for enabling VPN Apps
-// for ChromeOS Flex.
-BASE_FEATURE(kIgnoreDeviceFlexArcEnabledPolicy,
-             "IgnoreDeviceFlexArcEnabledPolicy",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls Floating SSO feature which can move cookies between ChromeOS
@@ -1806,7 +1801,7 @@ BASE_FEATURE(kLobsterFileNamingImprovement,
 // Enables lobster restriction based on the current active IME.
 BASE_FEATURE(kLobsterDisabledByInvalidIME,
              "LobsterDisabledByInvalidIME",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls lobster availability on managed accounts.
 BASE_FEATURE(kLobsterForManagedUsers,
@@ -1814,7 +1809,7 @@ BASE_FEATURE(kLobsterForManagedUsers,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables lobster i18n response.
-BASE_FEATURE(kLobsterI18n, "LobsterI18n", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kLobsterI18n, "LobsterI18n", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables lobster entry point in quick insert zero state.
 BASE_FEATURE(kLobsterQuickInsertZeroState,
@@ -1942,11 +1937,6 @@ BASE_FEATURE(kEcheLauncherListView,
              "EcheLauncherListView",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Switch the "More Apps" button in eche launcher to show small app icons
-BASE_FEATURE(kEcheLauncherIconsInMoreAppsButton,
-             "EcheLauncherIconsInMoreAppsButton",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the Phone Hub recent apps loading and error views based on the
 // connection status with the phone.
 BASE_FEATURE(kEcheNetworkConnectionState,
@@ -2035,11 +2025,6 @@ BASE_FEATURE(kNotificationScrollBar,
 // Enables notifications to be shown within context menus.
 BASE_FEATURE(kNotificationsInContextMenu,
              "NotificationsInContextMenu",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables showing OfflineItems in Notifications.
-BASE_FEATURE(kOfflineItemsInNotifications,
-             "OfflineItemsInNotifications",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether to enable on-device grammar check service.
@@ -2735,11 +2720,6 @@ BASE_FEATURE(kSingleCaCertVerificationPhase2,
 BASE_FEATURE(kSunfishFeature,
              "SunfishFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable the suspend state machine to better handle suspend accelerators.
-BASE_FEATURE(kSuspendStateMachine,
-             "SuspendStateMachine",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables custom Demo Mode behavior on feature-aware devices, as controlled by
 // the feature management module.
@@ -3469,6 +3449,10 @@ bool IsBocaTranslateToggleEnabled() {
   return base::FeatureList::IsEnabled(kBocaTranslateToggle);
 }
 
+bool IsBocaMigrateSpeechRecognizerClientEnabled() {
+  return base::FeatureList::IsEnabled(kBocaMigrateSpeechRecongnizerClient);
+}
+
 bool IsBrightnessControlInSettingsEnabled() {
   return base::FeatureList::IsEnabled(kEnableBrightnessControlInSettings);
 }
@@ -3736,10 +3720,6 @@ bool IsFlexFirmwareUpdateEnabled() {
          base::FeatureList::IsEnabled(kFlexFirmwareUpdate);
 }
 
-bool ShouldIgnoreDeviceFlexArcEnabledPolicy() {
-  return base::FeatureList::IsEnabled(kIgnoreDeviceFlexArcEnabledPolicy);
-}
-
 bool IsFloatingSsoAllowed() {
   return base::FeatureList::IsEnabled(kFloatingSso);
 }
@@ -3976,11 +3956,6 @@ bool IsKerberosRememberPasswordByDefaultEnabled() {
   return base::FeatureList::IsEnabled(kKerberosRememberPasswordByDefault);
 }
 
-bool IsKeyboardBacklightControlInSettingsEnabled() {
-  return base::FeatureList::IsEnabled(
-      kEnableKeyboardBacklightControlInSettings);
-}
-
 bool IsKeyboardRewriterFixEnabled() {
   return base::FeatureList::IsEnabled(kEnableKeyboardRewriterFix);
 }
@@ -4102,10 +4077,6 @@ bool IsEcheLauncherEnabled() {
          base::FeatureList::IsEnabled(kEcheSWA);
 }
 
-bool IsEcheLauncherIconsInMoreAppsButtonEnabled() {
-  return base::FeatureList::IsEnabled(kEcheLauncherIconsInMoreAppsButton);
-}
-
 bool IsEcheLauncherListViewEnabled() {
   return IsEcheLauncherEnabled() &&
          base::FeatureList::IsEnabled(kEcheLauncherListView);
@@ -4157,10 +4128,6 @@ bool IsNotificationsInContextMenuEnabled() {
 
 bool IsNssDbClientCertsRollbackEnabled() {
   return base::FeatureList::IsEnabled(kEnableNssDbClientCertsRollback);
-}
-
-bool IsOfflineItemsInNotificationsEnabled() {
-  return base::FeatureList::IsEnabled(kOfflineItemsInNotifications);
 }
 
 bool AreOngoingProcessesEnabled() {
@@ -4493,10 +4460,6 @@ bool IsShowSharingUserInLauncherContinueSectionEnabled() {
 
 bool IsSunfishFeatureEnabled() {
   return base::FeatureList::IsEnabled(kSunfishFeature);
-}
-
-bool IsSuspendStateMachineEnabled() {
-  return base::FeatureList::IsEnabled(kSuspendStateMachine);
 }
 
 bool IsSystemNudgeMigrationEnabled() {

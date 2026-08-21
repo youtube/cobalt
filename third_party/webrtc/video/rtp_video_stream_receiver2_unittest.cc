@@ -82,7 +82,7 @@ using ::testing::Invoke;
 using ::testing::SizeIs;
 using ::testing::Values;
 
-const uint8_t kH264StartCode[] = {0x00, 0x00, 0x00, 0x01};
+constexpr uint8_t kH264StartCode[] = {0x00, 0x00, 0x00, 0x01};
 
 // Corruption detection metrics for testing.
 constexpr double kStd = 1.0;
