@@ -18,7 +18,6 @@
 
 #include "starboard/egl.h"
 #include "starboard/gles.h"
-#include "ui/gl/init/gl_factory.h"
 
 namespace ui {
 
@@ -239,12 +238,6 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
     gl::GLDisplay* display,
     gfx::AcceleratedWidget window) {
   CHECK(window != gfx::kNullAcceleratedWidget);
-  if (!display->IsInitialized()) {
-    display = gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-        /*fallback_to_software_gl=*/false,
-        /*disable_gl_drawing=*/false,
-        /*init_extensions=*/true, gl::GpuPreference::kDefault);
-  }
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
   return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
@@ -254,12 +247,6 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
     gl::GLDisplay* display,
     const gfx::Size& size) {
-  if (!display->IsInitialized()) {
-    display = gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-        /*fallback_to_software_gl=*/false,
-        /*disable_gl_drawing=*/false,
-        /*init_extensions=*/true, gl::GpuPreference::kDefault);
-  }
   return gl::InitializeGLSurface(
       new gl::PbufferGLSurfaceEGL(display->GetAs<gl::GLDisplayEGL>(), size));
 }
