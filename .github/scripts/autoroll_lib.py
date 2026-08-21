@@ -13,7 +13,6 @@ class CommitStatus(enum.Enum):
   """Represents the outcome of a commit attempt."""
   SUCCESS = 'success'  # Successfully committed.
   CONFLICTED = 'conflicted'  # Committed with conflicts.
-  SKIPPED = 'skipped'  # The commit was already present or no action was needed.
   FAILED = 'failed'  # The commit failed due to conflicts or other errors.
 
 
@@ -181,7 +180,6 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
     CommitStatus: Enum indicating the outcome of the operation.
       - SUCCESS: Successfully committed.
       - CONFLICTED: Committed with conflicts.
-      - SKIPPED: The commit was already present or no action was needed.
       - FAILED: The commit failed due to conflicts or other errors.
     unmerged_files: List of files with conflicts.
   """
@@ -206,11 +204,6 @@ def apply_and_commit(action, sha, metadata, first_commit, autoroll_metadata):
       run(['git', 'add', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED
-
-  # Check if there are changes to commit
-  if not get_out(['git', 'diff', '--cached', '--name-only']).strip():
-    log('Commit skipped.')
-    return CommitStatus.SKIPPED, unmerged_files
 
   # Update autoroll file
   autoroll_file, autoroll_sha = autoroll_metadata
