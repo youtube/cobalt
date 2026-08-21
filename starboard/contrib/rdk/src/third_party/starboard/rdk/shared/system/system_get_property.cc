@@ -60,7 +60,7 @@ const char kPlatformName[] = "RDK";
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 size_t value_length,
                                 const char* from_value) {
-  if (strlen(from_value) + 1 > value_length)
+  if (!from_value || strlen(from_value) + 1 > value_length)
     return false;
   ::starboard::strlcpy(out_value, from_value, value_length);
   return true;
@@ -97,7 +97,7 @@ bool GetModelName(char* out_value, int value_length) {
     return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
   }
 
-  if (const char* env = std::getenv("COBALT_MODEL_NAME"); !env) {
+  if (const char* env = std::getenv("COBALT_MODEL_NAME"); env != nullptr) {
     return CopyStringAndTestIfSuccess(out_value, value_length, env);
   }
 
@@ -114,7 +114,7 @@ bool GetBrandName(char* out_value, int value_length) {
     return CopyStringAndTestIfSuccess(out_value, value_length, brand_name->c_str());
   }
 
-  if (const char* env = std::getenv("COBALT_OPERATOR_NAME"); !env) {
+  if (const char* env = std::getenv("COBALT_OPERATOR_NAME"); env != nullptr) {
     return CopyStringAndTestIfSuccess(out_value, value_length, env);
   }
 
@@ -127,7 +127,7 @@ bool GetManufacturerName(char* out_value, int value_length) {
     return CopyStringAndTestIfSuccess(out_value, value_length, prop.c_str());
   }
 
-  if (const char* env = std::getenv("COBALT_MANUFACTURE_NAME"); !env) {
+  if (const char* env = std::getenv("COBALT_MANUFACTURE_NAME"); env != nullptr) {
     return CopyStringAndTestIfSuccess(out_value, value_length, env);
   }
 
