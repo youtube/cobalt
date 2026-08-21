@@ -33,6 +33,7 @@
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
@@ -49,6 +50,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/render_process_host.h"
 #include "net/base/network_change_notifier_passive.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -170,11 +172,6 @@ class AppEventRunnerImpl : public AppEventRunner,
     }
 #endif
 
-    // Flush all open stdio streams before the process exits.
-    std::fflush(nullptr);
-
-    // Destroy only after main_runner_/ContentMainRunnerImpl is shutdown
-    // as the delegate is used internally.
     content_main_delegate_.reset();
     exit_manager_.reset();
 
