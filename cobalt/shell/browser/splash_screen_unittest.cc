@@ -25,6 +25,8 @@ using testing::_;
 
 namespace content {
 
+// Stub required to satisfy linker dependencies when the aggregation service
+// is not linked in this unit test target.
 void AggregatableReport::Provider::SetDisableEncryptionForTestingTool(
     bool should_disable) {}
 

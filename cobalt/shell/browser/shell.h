@@ -334,7 +334,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
 
-  static std::atomic<bool> s_has_hidden_system_splash_screen_;
+  static std::atomic<bool> has_hidden_system_splash_screen_;
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
