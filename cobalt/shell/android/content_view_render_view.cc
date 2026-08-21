@@ -28,7 +28,7 @@ using base::android::ScopedJavaLocalRef;
 namespace cobalt {
 
 ContentViewRenderView::ContentViewRenderView(JNIEnv* env,
-                                             jobject obj,
+                                             const JavaParamRef<jobject>& obj,
                                              gfx::NativeWindow root_window)
     : root_window_(root_window), current_surface_format_(0) {
   java_obj_.Reset(env, obj);

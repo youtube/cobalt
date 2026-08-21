@@ -20,7 +20,7 @@ namespace cobalt {
 class ContentViewRenderView : public content::CompositorClient {
  public:
   ContentViewRenderView(JNIEnv* env,
-                        jobject obj,
+                        const base::android::JavaParamRef<jobject>& obj,
                         gfx::NativeWindow root_window);
 
   ContentViewRenderView(const ContentViewRenderView&) = delete;
