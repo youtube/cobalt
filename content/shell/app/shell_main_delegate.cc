@@ -44,7 +44,7 @@
 #include "net/cookies/cookie_monster.h"
 #include "ui/base/resource/resource_bundle.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
