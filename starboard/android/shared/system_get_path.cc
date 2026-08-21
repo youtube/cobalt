@@ -62,9 +62,15 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
   switch (path_id) {
     case kSbSystemPathContentDirectory: {
+#if BUILDFLAG(IS_STARBOARD)
+      if (starboard::strlcat(path, GetContentPath(), kPathSize) >= kPathSize) {
+        return false;
+      }
+#else
       if (starboard::strlcat(path, g_app_assets_dir, kPathSize) >= kPathSize) {
         return false;
       }
+#endif
 
       break;
     }
