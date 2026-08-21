@@ -80,17 +80,44 @@ std::unordered_set<std::string> ReadAckedUuidsFromDiskForTesting(
   return acked_uuids;
 }
 
+std::unordered_map<std::string, bool> ReadHangAttributesFromDiskForTesting(
+    const base::FilePath& file_path) {
+  std::unordered_map<std::string, bool> hang_attributes;
+  std::string file_content;
+  if (!base::ReadFileToString(file_path, &file_content)) {
+    return hang_attributes;
+  }
+  std::optional<base::Value::Dict> parsed_dict =
+      base::JSONReader::ReadDict(file_content);
+  if (!parsed_dict) {
+    return hang_attributes;
+  }
+  for (const auto [uuid, value] : *parsed_dict) {
+    if (value.is_dict()) {
+      std::optional<bool> is_recovered =
+          value.GetDict().FindBool("is_recovered");
+      if (is_recovered.has_value()) {
+        hang_attributes[uuid] = *is_recovered;
+      }
+    }
+  }
+  return hang_attributes;
+}
+
 }  // namespace
 
 class NativeStabilityManagerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    // Overriding the acked UUIDs file path with a unique temporary directory
-    // for every test 1) isolates test storage and 2) ensures actual platform
-    // directories (e.g. kSbSystemPathCacheDirectory) are not used.
+    // Overriding the acked UUIDs and hang attributes file paths with a unique
+    // temporary directory for every test 1) isolates test storage and 2)
+    // ensures actual platform directories (e.g. kSbSystemPathCacheDirectory)
+    // are not used.
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     NativeStabilityManager::GetInstance()->SetAckedUuidsFilePathForTesting(
         temp_dir_.GetPath().Append("acked_event_uuids.json"));
+    NativeStabilityManager::GetInstance()->SetHangAttributesFilePathForTesting(
+        temp_dir_.GetPath().Append("hang_attributes.json"));
   }
 
   void TearDown() override {
@@ -475,11 +502,8 @@ TEST_F(NativeStabilityManagerTest, PruneStorageRemovesObsoleteAckedUuids) {
   SetupStubExtension(manager, {report1});
 
   // Prune storage against the updated crash storage state.
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
 
   // Verify directly on disk that obsolete UUIDs ("uuid-2", "uuid-3") were
   // removed, leaving only "uuid-1".
@@ -507,11 +531,8 @@ TEST_F(NativeStabilityManagerTest,
   manager->SetGetExtensionForTesting(base::BindRepeating(
       [](const char* name) -> const void* { return nullptr; }));
 
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
 
   // Verify acked_event_uuids.json still contains exactly uuid-1.
   EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
@@ -546,11 +567,8 @@ TEST_F(NativeStabilityManagerTest,
   EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
             (std::unordered_set<std::string>{"uuid-1"}));
 
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
 
   // Verify acked_event_uuids.json still contains exactly uuid-1.
   EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
@@ -589,11 +607,8 @@ TEST_F(NativeStabilityManagerTest,
         return nullptr;
       }));
 
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
 
   // Verify acked_event_uuids.json still contains exactly uuid-1.
   EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
@@ -615,11 +630,8 @@ TEST_F(NativeStabilityManagerTest,
   ASSERT_FALSE(base::PathExists(file_path));
 
   // Prune storage when acked_event_uuids.json does not exist.
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
 
   // Verify file was not created on disk.
   EXPECT_FALSE(base::PathExists(file_path));
@@ -637,8 +649,10 @@ TEST_F(NativeStabilityManagerTest,
   SetupStubExtension(manager, {report});
 
   std::string clamped_uuid(sizeof(report.native_stability_event_uuid) - 1, 'a');
-  base::FilePath file_path =
+  base::FilePath acked_file_path =
       temp_dir_.GetPath().Append("acked_event_uuids.json");
+  base::FilePath hang_attributes_file_path =
+      temp_dir_.GetPath().Append("hang_attributes.json");
 
   {
     base::RunLoop run_loop;
@@ -646,20 +660,283 @@ TEST_F(NativeStabilityManagerTest,
     run_loop.Run();
   }
 
-  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
-            (std::unordered_set<std::string>{clamped_uuid}));
+  manager->RecordHangStarted(clamped_uuid);
+  task_environment_.RunUntilIdle();
 
-  {
-    base::RunLoop run_loop;
-    manager->PruneStorage(run_loop.QuitClosure());
-    run_loop.Run();
-  }
-
-  // Verify acked_event_uuids.json still contains the 36-character UUID. This
-  // proves that PruneStorage() clamped the UUID it found in the starboard
-  // stability report persisted on disk.
-  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(file_path),
+  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(acked_file_path),
             (std::unordered_set<std::string>{clamped_uuid}));
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(hang_attributes_file_path),
+            (std::unordered_map<std::string, bool>{{clamped_uuid, false}}));
+
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
+
+  // Verify acked_event_uuids.json and hang_attributes.json still contain the
+  // 36-character UUID. This proves that PruneStorage() clamped the UUID it
+  // found in the starboard stability report persisted on disk.
+  EXPECT_EQ(ReadAckedUuidsFromDiskForTesting(acked_file_path),
+            (std::unordered_set<std::string>{clamped_uuid}));
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(hang_attributes_file_path),
+            (std::unordered_map<std::string, bool>{{clamped_uuid, false}}));
+}
+
+TEST_F(NativeStabilityManagerTest,
+       RecordedStartedHangIsUnrecoveredInGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  manager->RecordHangStarted("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_FALSE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       RecordedStartedThenRecoveredHangIsRecoveredInGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  manager->RecordHangStarted("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+  manager->RecordHangRecovered("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_TRUE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       PruneStorageRemovesObsoleteHangAttributesRecords) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
+
+  manager->RecordHangStarted("hang-uuid-1");
+  manager->RecordHangStarted("hang-uuid-2");
+  manager->RecordHangStarted("hang-uuid-3");
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(file_path).size(), 3u);
+
+  // Configure extension to only return hang-uuid-1.
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report1.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(file_path),
+            (std::unordered_map<std::string, bool>{{"hang-uuid-1", false}}));
+}
+
+TEST_F(NativeStabilityManagerTest,
+       PruneStorageDoesNotRemoveHangAttributesWhenReportsStillPersisted) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report1.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+
+  SbNativeStabilityReport report2 = {};
+  report2.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report2.native_stability_event_uuid, "hang-uuid-2",
+               sizeof(report2.native_stability_event_uuid) - 1);
+
+  SetupStubExtension(manager, {report1, report2});
+
+  base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
+
+  manager->RecordHangStarted("hang-uuid-1");
+  manager->RecordHangStarted("hang-uuid-2");
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(file_path),
+            (std::unordered_map<std::string, bool>{{"hang-uuid-1", false},
+                                                   {"hang-uuid-2", false}}));
+
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(ReadHangAttributesFromDiskForTesting(file_path),
+            (std::unordered_map<std::string, bool>{{"hang-uuid-1", false},
+                                                   {"hang-uuid-2", false}}));
+}
+
+TEST_F(NativeStabilityManagerTest,
+       NonRecordedHangIsUnrecoveredInGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_FALSE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       RecordedStartedHangWithRecoveredStatusIsRecoveredInGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  manager->RecordHangStarted("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+  manager->RecordHangRecovered("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+
+  // Subsequent RecordHangStarted on an already recovered hang should not
+  // overwrite the status to unrecovered.
+  manager->RecordHangStarted("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_TRUE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsReturnsUnrecoveredWhenHangAttributesFileCorrupted) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
+  ASSERT_TRUE(base::WriteFile(file_path, "not a valid json"));
+
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report1.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  report1.event_time_s = 1000;
+
+  SetupStubExtension(manager, {report1});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_FALSE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       RecordedRecoveredButNeverStartedHangIsUnrecoveredInGetPendingReports) {
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  // RecordHangRecovered without prior start should be ignored.
+  manager->RecordHangRecovered("hang-uuid-1");
+  task_environment_.RunUntilIdle();
+
+  SbNativeStabilityReport report = {};
+  report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_FALSE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       PruneStorageDoesNothingWhenHangAttributesFileDoesNotExist) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
+  ASSERT_FALSE(base::PathExists(file_path));
+
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report1.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  manager->PruneStorage();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_FALSE(base::PathExists(file_path));
 }
 
 }  // namespace h5vcc_native_stability
