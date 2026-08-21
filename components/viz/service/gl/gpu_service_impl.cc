@@ -1024,6 +1024,9 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
   }
 
 #if BUILDFLAG(IS_COBALT)
+  // Queue requests received while backgrounded rather than returning a
+  // transient failure, avoiding an infinite retry loop from clients during
+  // suspend.
   if (is_backgrounded_) {
     pending_establish_gpu_channel_requests_.push_back(
         {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
@@ -1291,6 +1294,8 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
     }
   }
 
+  // Fulfill all channel establishment requests that arrived while backgrounded,
+  // now that the display and default offscreen surface are re-initialized.
   auto pending_requests = std::move(pending_establish_gpu_channel_requests_);
   pending_establish_gpu_channel_requests_.clear();
   for (auto& request : pending_requests) {
