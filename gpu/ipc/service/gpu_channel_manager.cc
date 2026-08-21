@@ -827,7 +827,13 @@ void GpuChannelManager::OnBackgroundCleanup() {
     default_offscreen_surface_ = nullptr;
   }
 
-  // 5. Clear CPU-side font and 2D raster caches.
+  // 5. Natively shut down the GL display connection so it is fully uninitialized.
+  gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
+  if (display && display->IsInitialized()) {
+    display->Shutdown();
+  }
+
+  // 6. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -926,24 +932,7 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
   [[maybe_unused]] bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
 
-#if BUILDFLAG(IS_COBALT)
-  if (!default_offscreen_surface_) {
-    gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
-    if (display) {
-      if (!display->IsInitialized()) {
-        gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-            /*fallback_to_software_gl=*/false,
-            /*disable_gl_drawing=*/false,
-            /*init_extensions=*/true,
-            gl::GpuPreference::kDefault);
-      }
-      if (display->IsInitialized()) {
-        default_offscreen_surface_ =
-            gl::init::CreateOffscreenGLSurface(display, gfx::Size());
-      }
-    }
-  }
-#endif
+
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
   if (!surface) {
