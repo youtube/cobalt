@@ -113,6 +113,42 @@ std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
 }
 
 TEST(VerticalVideoTest, CapabilityQuery) {
+#if BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_2K)
+  SB_LOG(INFO) << "==================================================";
+  SB_LOG(INFO) << "[NPLB CONFIG] sb_max_video_resolution: 2K";
+  SB_LOG(INFO) << "[NPLB CONFIG] 4K/8K video test vectors EXCLUDED.";
+  SB_LOG(INFO) << "[NPLB CONFIG] Valid ONLY for 2K device certification.";
+  SB_LOG(INFO) << "==================================================";
+
+  // Runtime cross-check: Fail if a 4K-capable platform runs 2K NPLB.
+  if (SbMediaCanPlayMimeAndKeySystem(
+          "video/webm; codecs=\"vp9\"; width=3840; height=2160", "") ==
+      kSbMediaSupportTypeProbably) {
+    ADD_FAILURE()
+        << "[CERTIFICATION ERROR] Device reports 4K playback capability, "
+           "but NPLB was built with sb_max_video_resolution=2k! "
+           "For 4K device certification, full 4K/8K NPLB suite MUST be run.";
+  }
+#elif BUILDFLAG(SB_MAX_VIDEO_RESOLUTION_4K)
+  SB_LOG(INFO) << "==================================================";
+  SB_LOG(INFO) << "[NPLB CONFIG] sb_max_video_resolution: 4K";
+  SB_LOG(INFO) << "[NPLB CONFIG] 8K video test vectors EXCLUDED.";
+  SB_LOG(INFO) << "[NPLB CONFIG] Valid ONLY for 4K device certification.";
+  SB_LOG(INFO) << "==================================================";
+
+  // Runtime cross-check: Fail if an 8K-capable platform runs 4K NPLB.
+  if (SbMediaCanPlayMimeAndKeySystem(
+          "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320", "") ==
+      kSbMediaSupportTypeProbably) {
+    ADD_FAILURE()
+        << "[CERTIFICATION ERROR] Device reports 8K playback capability, "
+           "but NPLB was built with sb_max_video_resolution=4k! "
+           "For 8K device certification, full 8K NPLB suite MUST be run.";
+  }
+#else
+  SB_LOG(INFO) << "[NPLB CONFIG] sb_max_video_resolution: 8K (Full suite)";
+#endif
+
   SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(
       "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080", "");
   if (support == kSbMediaSupportTypeProbably) {
