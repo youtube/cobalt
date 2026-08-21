@@ -70,6 +70,12 @@ class GlobalFeatures {
     return experiment_config_manager_.get();
   }
 
+  // Record the active config data in the member variable to preserve the active
+  // config data for the current app life cycle in case it's needed after the
+  // config data in storage has been modified.
+  // Modified config data should only apply to the next app life cycle.
+  void InitializeActiveConfigData(ExperimentConfigType experiment_config_type);
+
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
   // Explicitly shuts down the metrics service. This is to ensure the
@@ -100,11 +106,6 @@ class GlobalFeatures {
   void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
-  // Record the active config data in the member variable to preserve the active
-  // config data for the current app life cycle in case it's needed after the
-  // config data in storage has been modified.
-  // Modified config data should only apply to the next app life cycle.
-  void InitializeActiveConfigData();
 
   // Construct a FilePath for a pref file and ensure its parent directory
   // exists.
