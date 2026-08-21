@@ -75,7 +75,7 @@ if (cobalt_font_package == "standard") {
   }
 } else if (cobalt_font_package == "android_system") {
   # fonts.xml contains a superset of what we expect to find on Android
-  # devices. The Android SbFile implementation falls back to system font
+  # devices. The Android posix emulation layer falls back to the system font
   # files for those not in cobalt content.
   declare_args() {
     source_font_config_dir = "config/android"
