@@ -179,7 +179,15 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   }
 
   gl::GLSurface* default_surface = manager->default_offscreen_surface();
+#if BUILDFLAG(IS_COBALT)
+  // In Cobalt, default_offscreen_surface_ is torn down during background
+  // conceal to free GPU resources. In-flight command buffer initialization
+  // requests arriving during the suspend transition may observe a null
+  // default_surface, requiring a fallback offscreen surface creation.
   if (default_surface && default_surface->GetGLDisplay() == display) {
+#else
+  if (default_surface->GetGLDisplay() == display) {
+#endif
     surface_ = default_surface;
   } else {
     // The default surface was created on a different display, create a

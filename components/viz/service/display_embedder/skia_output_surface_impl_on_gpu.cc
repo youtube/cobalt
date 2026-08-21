@@ -2537,6 +2537,10 @@ void SkiaOutputSurfaceImplOnGpu::MarkContextLost(ContextLostReason reason) {
 
   context_state_->MarkContextLost();
 #if BUILDFLAG(IS_COBALT)
+  // In Cobalt, the underlying native window (SbWindow) is destroyed on
+  // conceal. The output device and EGL surface must be destroyed immediately
+  // during context loss so that the EGLSurface is cleanly released before the
+  // native window is destroyed.
   output_device_.reset();
   if (gl_surface_) {
     gl_surface_->Destroy();
