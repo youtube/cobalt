@@ -177,12 +177,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     return default_offscreen_surface_.get();
   }
 
-#if BUILDFLAG(IS_COBALT)
-  void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
-    default_offscreen_surface_ = std::move(surface);
-  }
-#endif
-
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
     return gpu_memory_buffer_factory_;
   }
@@ -197,8 +191,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
 #if BUILDFLAG(IS_ANDROID)
   void DidAccessGpu();
-  void OnBackgroundCleanup();
-#elif BUILDFLAG(IS_COBALT)
   void OnBackgroundCleanup();
 #endif
 
