@@ -122,6 +122,10 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
                    StructureNotifyMask | KeyPressMask | KeyReleaseMask |
                    ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XMapWindow(display, window);
+  // Synchronize with the X server to guarantee that window creation and mapping
+  // requests are processed before separate X11 connections (such as the
+  // connection opened internally by EGL/Mesa) attempt to attach an EGLSurface
+  // to this native window handle.
   XSync(display, False);
 }
 
