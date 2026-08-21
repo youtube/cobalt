@@ -39,7 +39,7 @@ struct SbFilePrivate {
 
 namespace starboard {
 
-extern const char* g_app_assets_dir;
+inline constexpr char g_app_assets_dir[] = "/cobalt/assets";
 extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 extern const char* g_app_lib_dir;
