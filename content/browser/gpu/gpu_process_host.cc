@@ -875,14 +875,11 @@ bool GpuProcessHost::Init() {
 
   if (in_process_) {
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
-    auto factory = GetGpuMainThreadFactory();
-    if (!factory) {
-      return false;
-    }
+    DCHECK(GetGpuMainThreadFactory());
     gpu::GpuPreferences gpu_preferences = GetGpuPreferencesFromCommandLine();
     GpuDataManagerImpl::GetInstance()->UpdateGpuPreferences(
         &gpu_preferences, GPU_PROCESS_KIND_SANDBOXED);
-    in_process_gpu_thread_.reset(factory(
+    in_process_gpu_thread_.reset(GetGpuMainThreadFactory()(
         InProcessChildThreadParams(
             base::SingleThreadTaskRunner::GetCurrentDefault(),
             process_->GetInProcessMojoInvitation(), GetIOThreadTaskRunner()),
@@ -1215,9 +1212,6 @@ void GpuProcessHost::ForceShutdown() {
     g_gpu_process_hosts[kind_] = nullptr;
 
   process_->ForceShutdown();
-  if (in_process_) {
-    delete this;
-  }
 }
 
 void GpuProcessHost::DumpProcessStack() {
