@@ -614,17 +614,6 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   const bool clear_shader_cache_;
 
   base::WeakPtr<GpuServiceImpl> weak_ptr_;
-#if BUILDFLAG(IS_COBALT)
-  struct PendingEstablishGpuChannelRequest {
-    int32_t client_id;
-    uint64_t client_tracing_id;
-    bool is_gpu_host;
-    EstablishGpuChannelCallback callback;
-  };
-  std::vector<PendingEstablishGpuChannelRequest>
-      pending_establish_gpu_channel_requests_;
-  bool is_backgrounded_ = false;
-#endif
   base::WeakPtrFactory<GpuServiceImpl> weak_ptr_factory_{this};
 };
 

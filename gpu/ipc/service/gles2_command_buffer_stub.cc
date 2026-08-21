@@ -179,7 +179,7 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   }
 
   gl::GLSurface* default_surface = manager->default_offscreen_surface();
-  if (default_surface && default_surface->GetGLDisplay() == display) {
+  if (default_surface->GetGLDisplay() == display) {
     surface_ = default_surface;
   } else {
     // The default surface was created on a different display, create a

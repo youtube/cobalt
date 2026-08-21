@@ -1023,14 +1023,6 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     return;
   }
 
-#if BUILDFLAG(IS_COBALT)
-  if (is_backgrounded_) {
-    pending_establish_gpu_channel_requests_.push_back(
-        {client_id, client_tracing_id, is_gpu_host, std::move(callback)});
-    return;
-  }
-#endif
-
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
       channel_token, client_id, client_tracing_id, is_gpu_host, gpu_extra_info_,
@@ -1201,8 +1193,8 @@ void GpuServiceImpl::OnBackgroundCleanup() {
 }
 
 void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
-  // Currently called on Android and Cobalt.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
+  // Currently only called on Android.
+#if BUILDFLAG(IS_ANDROID)
   if (!main_runner_->BelongsToCurrentThread()) {
     main_runner_->PostTask(
         FROM_HERE,
@@ -1212,21 +1204,14 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   }
   DVLOG(1) << "GPU: Performing background cleanup";
   gpu_channel_manager_->OnBackgroundCleanup();
-#if BUILDFLAG(IS_COBALT)
-  is_backgrounded_ = true;
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display && display->IsInitialized()) {
-    display->Shutdown();
-  }
-#endif
 #else
   NOTREACHED();
 #endif
 }
 
 void GpuServiceImpl::OnBackgroundCleanupCompositorGpuThread() {
-  // Currently called on Android and Cobalt.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
+  // Currently only called on Android.
+#if BUILDFLAG(IS_ANDROID)
   if (compositor_gpu_thread_)
     compositor_gpu_thread_->OnBackgroundCleanup();
 #else
@@ -1273,32 +1258,6 @@ void GpuServiceImpl::OnForegrounded() {
 }
 
 void GpuServiceImpl::OnForegroundedOnMainThread() {
-#if BUILDFLAG(IS_COBALT)
-  is_backgrounded_ = false;
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display) {
-    if (!display->IsInitialized()) {
-      gl::init::GetOrInitializeGLOneOffPlatformImplementation(
-          /*fallback_to_software_gl=*/false,
-          /*disable_gl_drawing=*/false,
-          /*init_extensions=*/true,
-          gl::GpuPreference::kDefault);
-    }
-    if (display->IsInitialized()) {
-      scoped_refptr<gl::GLSurface> surface =
-          gl::init::CreateOffscreenGLSurface(display, gfx::Size());
-      gpu_channel_manager_->SetDefaultOffscreenSurface(std::move(surface));
-    }
-  }
-
-  auto pending_requests = std::move(pending_establish_gpu_channel_requests_);
-  pending_establish_gpu_channel_requests_.clear();
-  for (auto& request : pending_requests) {
-    EstablishGpuChannel(request.client_id, request.client_tracing_id,
-                        request.is_gpu_host, std::move(request.callback));
-  }
-#endif
-
   if (visibility_changed_callback_) {
     visibility_changed_callback_.Run(true);
     if (gpu_preferences_.enable_gpu_benchmarking_extension) {
