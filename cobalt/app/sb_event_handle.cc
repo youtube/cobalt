@@ -46,6 +46,20 @@ void SbEventHandle(const SbEvent* event) {
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+  } else if (event->type == kSbEventTypeFreeze) {
+    // Wait for the Freeze transition to complete natively before
+    // allowing SbEventHandle to return, ensuring event callbacks
+    // (such as FreezeDone) are invoked only after Cobalt has truly
+    // reached the frozen state and released its resources.
+    base::RunLoop run_loop;
+
+    // Note: SetQuitClosure receives the callback to explicitly quit this local
+    // run_loop, it does NOT quit the application. This simply unblocks
+    // SbEventHandle to safely return and allow the OS to suspend the
+    // still-living process in the background.
+    s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
+    s_lifecycle_delegate->HandleEvent(event);
+    run_loop.Run();
   } else {
     s_lifecycle_delegate->HandleEvent(event);
   }
