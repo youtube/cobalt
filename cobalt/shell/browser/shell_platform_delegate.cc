@@ -317,19 +317,38 @@ void ShellPlatformDelegate::OnAllFramesVisible(
 
 void ShellPlatformDelegate::OnAllFramesConcealed(
     content::WebContents* web_contents) {
-  Shell* shell = Shell::FromWebContents(web_contents);
-  if (shell) {
-    ConcealShell(shell);
-  }
-  is_visible_ = false;
-
-  content::CleanupGpuProcessOnUI(base::BindOnce([]() {
-    cobalt::CobaltLifecycleManager::GetInstance()->OnGpuCleanupCompleted();
-  }));
-
   // Stop observing as we only need one notification per conceal.
   cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
       static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+
+  // Clean up GPU process resources (EGLSurface, GL contexts, Skia output
+  // device) FIRST while the native window handle is still valid.
+  content::CleanupGpuProcessOnUI(base::BindOnce(
+      [](base::WeakPtr<ShellPlatformDelegate> self,
+         base::WeakPtr<content::WebContents> wc) {
+        // This callback executes on the UI thread asynchronously after the GPU
+        // process natively destroys EGL and GL resources (GL contexts,
+        // surfaces).
+        if (self) {
+          if (wc) {
+            Shell* shell = Shell::FromWebContents(wc.get());
+            if (shell) {
+              // Now that GPU resources are safely released, natively drop the
+              // platform-specific UI handles (e.g., EGL NativeWindowType).
+              self->ConcealShell(shell);
+            }
+          }
+          self->is_visible_ = false;
+        }
+
+        // Notify the lifecycle manager to unblock the main run loop which is
+        // waiting for the background transition (and GPU tearing down) to
+        // finish.
+        cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+            wc ? wc.get() : nullptr);
+      },
+      weak_factory_.GetWeakPtr(),
+      web_contents ? web_contents->GetWeakPtr() : nullptr));
 }
 
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)

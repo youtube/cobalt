@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -248,6 +249,8 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   std::unique_ptr<PlatformData> platform_;
 
   bool skip_for_testing_ = false;
+
+  base::WeakPtrFactory<ShellPlatformDelegate> weak_factory_{this};
 };
 
 }  // namespace content
