@@ -143,6 +143,7 @@ SbWindowPrivate::~SbWindowPrivate() {
   XDestroyWindow(display, gl_window);
   XRenderFreePicture(display, window_picture);
   XDestroyWindow(display, window);
+  XSync(display, False);
 }
 
 void SbWindowPrivate::BeginComposite() {

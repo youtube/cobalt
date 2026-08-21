@@ -132,6 +132,10 @@ void ShellPlatformDelegate::OnConceal() {
     return;
   }
 
+  // In concealed state the web application is hidden in the background, so we
+  // suspend hang watching to avoid false hang reports during inactivity.
+  base::HangWatcher::Suspend();
+
   // Register as lifecycle manager observer to receive OnAllFramesConcealed
   // callback!
   cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
@@ -158,6 +162,9 @@ void ShellPlatformDelegate::OnReveal() {
   if (IsVisible()) {
     return;
   }
+  // Resume hang watching, explicitly ignoring deadlines from during the conceal
+  // period.
+  base::HangWatcher::Resume();
   content::RestoreGpuProcessOnUI();
   // Used to ensure we only register as observer once, even if there are
   // multiple windows to wait for.

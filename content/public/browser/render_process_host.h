@@ -818,6 +818,10 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Sender,
   // This forces a renderer that is running "in process" to shut down.
   static void ShutDownInProcessRenderer();
 
+  // Returns the task runner for the in-process renderer thread, if running.
+  static scoped_refptr<base::SingleThreadTaskRunner>
+  GetInProcessRendererThreadTaskRunner();
+
   // Allows iteration over all the RenderProcessHosts in the browser. Note
   // that each host may not be active, and therefore may have nullptr channels.
   static iterator AllHostsIterator();

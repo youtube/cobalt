@@ -235,7 +235,9 @@ void CobaltMainDelegate::PreSandboxStartup() {
 
 void CobaltMainDelegate::Shutdown() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  main_runner_->Shutdown();
+  if (main_runner_) {
+    main_runner_->Shutdown();
+  }
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {
