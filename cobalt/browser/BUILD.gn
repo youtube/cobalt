@@ -34,6 +34,12 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.cc",
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.h",
+    "resource_scheduler/cobalt_proxying_url_loader_factory.cc",
+    "resource_scheduler/cobalt_proxying_url_loader_factory.h",
+    "resource_scheduler/cobalt_resource_throttle.cc",
+    "resource_scheduler/cobalt_resource_throttle.h",
   ]
 
   if (is_androidtv) {

@@ -47,6 +47,9 @@
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
+#include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
+#include "cobalt/browser/resource_scheduler/cobalt_proxying_url_loader_factory.h"
+#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/build/configs/buildflags.h"
@@ -323,6 +326,21 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
           &navigation_handle));
 }
 
+std::vector<std::unique_ptr<blink::URLLoaderThrottle>>
+CobaltContentBrowserClient::CreateURLLoaderThrottles(
+    const network::ResourceRequest& request,
+    content::BrowserContext* browser_context,
+    const base::RepeatingCallback<content::WebContents*()>& wc_getter,
+    content::NavigationUIData* navigation_ui_data,
+    content::FrameTreeNodeId frame_tree_node_id,
+    std::optional<int64_t> navigation_id) {
+  std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
+  if (auto throttle = CobaltResourceThrottle::MaybeCreate(request)) {
+    throttles.push_back(std::move(throttle));
+  }
+  return throttles;
+}
+
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
@@ -541,6 +559,9 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
+  if (CobaltAdaptiveResourceScheduler::GetInstance()->IsEnabled()) {
+    CobaltProxyingURLLoaderFactory::MaybeProxy(factory_builder);
+  }
   if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),

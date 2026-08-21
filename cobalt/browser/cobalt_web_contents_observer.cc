@@ -21,6 +21,7 @@
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
+#include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 #include "cobalt/build/configs/buildflags.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
@@ -28,6 +29,8 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
+#include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/common/input/web_keyboard_event.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -185,6 +188,18 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     platform_error_raised_count_ = 0;
 #endif
   }
+}
+
+void CobaltWebContentsObserver::DidGetUserInteraction(
+    const blink::WebInputEvent& event) {
+  int key_code = 0;
+  if (blink::WebInputEvent::IsKeyboardEventType(event.GetType())) {
+    const auto& key_event = static_cast<const blink::WebKeyboardEvent&>(event);
+    key_code = key_event.windows_key_code;
+  }
+  LOG(INFO) << "CobaltWebContentsObserver::DidGetUserInteraction: type="
+            << static_cast<int>(event.GetType()) << ", key_code=" << key_code;
+  CobaltAdaptiveResourceScheduler::GetInstance()->OnUserInteraction(key_code);
 }
 
 void CobaltWebContentsObserver::OnVisibilityChanged(
