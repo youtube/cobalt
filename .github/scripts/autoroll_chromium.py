@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import ssl
 import urllib.error
 import urllib.request
@@ -25,8 +26,7 @@ _COBALT_SUBMODULE_DIRS = [
 
 
 def get_submodule_root_dirs():
-  paths = lib.get_out(
-      ['git', 'config', '--file', '.gitmodules', '--get-regexp', 'path'])
+  paths = lib.git('config', '--file', '.gitmodules', '--get-regexp', 'path')
 
   return sorted(
       {line.split(' ', 1)[1].split('/')[0] for line in paths.splitlines()})
@@ -35,25 +35,34 @@ def get_submodule_root_dirs():
 def remove_local_checkout():
   lib.log('Removing local checkout...')
   roots = get_submodule_root_dirs()
-  if roots:
-    lib.run(['rm', '-rf', '--'] + roots)
-  lib.run(['git', 'rm', '-qrf', '--', '.'])
-  lib.run(['git', 'clean', '-qffdx'])
+  for root in roots:
+    if os.path.islink(root):
+      os.remove(root)
+    elif os.path.isdir(root):
+      shutil.rmtree(root, ignore_errors=True)
+    elif os.path.exists(root):
+      os.remove(root)
+  lib.git('rm', '-qrf', '--', '.')
+  lib.git('clean', '-qffdx')
 
 
 def replace_submodules_with_dirs():
   lib.log('Running gclient sync...')
-  repo_url = lib.get_out(['git', 'remote', 'get-url', 'origin']).strip()
+  repo_url = lib.git('remote', 'get-url', 'origin').strip()
   lib.run(['gclient', 'config', '--name=src', '--unmanaged', repo_url],
           cwd='..')
   lib.run(['gclient', 'sync', '--no-history'], cwd='..')
-  lib.run(['rm', '-f', '--', os.path.join('..', '.gclient')])
+  gclient_file = os.path.join('..', '.gclient')
+  if os.path.exists(gclient_file):
+    os.remove(gclient_file)
   lib.log('Removing Chromium submodules for Cobalt directories...')
   for submodule_dir in _COBALT_SUBMODULE_DIRS:
-    lib.run(['rm', '-rf', '--', os.path.join(submodule_dir, '.git')])
-    lib.run([
-        'git', 'rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir
-    ])
+    submodule_git = os.path.join(submodule_dir, '.git')
+    if os.path.isdir(submodule_git):
+      shutil.rmtree(submodule_git, ignore_errors=True)
+    elif os.path.exists(submodule_git):
+      os.remove(submodule_git)
+    lib.git('rm', '-qrf', '--cached', '--ignore-unmatch', '--', submodule_dir)
 
 
 def fetch_chromium_tree(chromium_sha):
@@ -83,7 +92,7 @@ def fetch_chromium_tree(chromium_sha):
 
 def get_upstream_chromium_sha(cobalt_sha):
   """Extracts the upstream Chromium commit SHA from the commit message body."""
-  body = lib.get_out(['git', 'log', '-1', '--format=%B', cobalt_sha])
+  body = lib.git('log', '-1', '--format=%B', cobalt_sha)
   match = re.search(r'Update to commit ([0-9a-fA-F]{40})', body)
   return match.group(1) if match else None
 
@@ -113,15 +122,14 @@ def verify_chromium_commit(sha):
             f'{upstream_sha}: {e}')
     return False
 
-  current_tree = lib.get_out(['git', 'rev-parse', 'HEAD^{tree}']).strip()
+  current_tree = lib.git('rev-parse', 'HEAD^{tree}').strip()
 
   if current_tree == expected_tree:
     lib.log(f'Verification passed: Tree {current_tree} matches Chromium '
             f'{upstream_sha}.')
     return True
 
-  diff_output = lib.get_out(['git', 'diff', '--name-status', sha,
-                             'HEAD']).strip()
+  diff_output = lib.git('diff', '--name-status', sha, 'HEAD').strip()
   lib.log(f'ERROR: Rolled-in tree ({current_tree}) differs from Chromium '
           f'{upstream_sha} ({expected_tree})!')
   if diff_output:
@@ -150,29 +158,27 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   """
   lib.log(f'Checking out clean Chromium state: {previous_sha}')
   remove_local_checkout()
-  lib.run(['git', 'checkout', previous_sha, '--', '.'])
+  lib.git('checkout', previous_sha, '--', '.')
 
   replace_submodules_with_dirs()
 
   lib.log('Committing Cobalt revert...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run([
-      'git', 'commit', '--no-verify', '-qm',
-      'CONFLICTED Chromium Cherry pick: Revert Cobalt.'
-  ])
-  revert_cobalt_sha = lib.get_out(['git', 'rev-parse', 'HEAD']).strip()
+  lib.git('add', '--', '.')
+  lib.git('commit', '--no-verify', '-qm',
+          'CONFLICTED Chromium Cherry pick: Revert Cobalt.')
+  revert_cobalt_sha = lib.git('rev-parse', 'HEAD').strip()
 
   lib.log(f'Checking out clean Chromium state: {previous_sha}')
   remove_local_checkout()
-  lib.run(['git', 'checkout', '-f', previous_sha, '--', '.'])
+  lib.git('checkout', '-f', previous_sha, '--', '.')
 
   lib.log('Committing submodules restore...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run(['git', 'commit', '--no-verify', '-qm', 'Restore submodules.'])
+  lib.git('add', '--', '.')
+  lib.git('commit', '--no-verify', '-qm', 'Restore submodules.')
 
   for sha in shas:
     lib.log('Cherry picking Chromium...')
-    lib.run(['git', 'cherry-pick', sha])
+    lib.git('cherry-pick', sha)
 
     if not verify_chromium_commit(sha):
       raise RuntimeError(
@@ -182,8 +188,8 @@ def chromium_cherry_pick(previous_sha, shas, metadata, autoroll_metadata):
   replace_submodules_with_dirs()
 
   lib.log('Committing submodules replace...')
-  lib.run(['git', 'add', '--', '.'])
-  lib.run(['git', 'commit', '--no-verify', '-qm', 'Remove submodules.'])
+  lib.git('add', '--', '.')
+  lib.git('commit', '--no-verify', '-qm', 'Remove submodules.')
 
   lib.log('Reverting Cobalt revert...')
   return lib.apply_and_commit('revert', revert_cobalt_sha, metadata, True,
@@ -205,9 +211,9 @@ def main():
     return
 
   if args.existing_pr_sha:
-    lib.run(['git', 'fetch', 'origin', args.existing_pr_sha])
-    commit_title = lib.get_out(
-        ['git', 'log', '-1', args.existing_pr_sha, '--format=%s']).strip()
+    lib.git('fetch', 'origin', args.existing_pr_sha)
+    commit_title = lib.git(
+        'log', '-1', args.existing_pr_sha, '--format=%s').strip()
     if commit_title.startswith('CONFLICTED'):
       lib.log('Autoroll branch has a resolved CONFLICTED commit. '
               'Squash and merge before autoroll will continue.')

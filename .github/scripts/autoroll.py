@@ -26,9 +26,9 @@ def main():
     return
 
   if args.existing_pr_sha:
-    lib.run(['git', 'fetch', 'origin', args.existing_pr_sha])
-    commit_title = lib.get_out(
-        ['git', 'log', '-1', args.existing_pr_sha, '--format=%s']).strip()
+    lib.git('fetch', 'origin', args.existing_pr_sha)
+    commit_title = lib.git(
+        'log', '-1', args.existing_pr_sha, '--format=%s').strip()
     if commit_title.startswith('CONFLICTED'):
       lib.log('Autoroll branch has a resolved CONFLICTED commit. '
               'Squash and merge before autoroll will continue.')
