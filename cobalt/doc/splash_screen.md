@@ -27,6 +27,9 @@ The table below illustrates the distinct phases and dismissal signals during app
 | **2. Cobalt First Frame Rendered** | Cobalt splash screen (e.g. animated logo / local splash asset) | Cobalt core / engine | `SbSystemHideSplashScreen()` | Cobalt renders its first visually non-empty paint (`WebContentsObserver::DidFirstVisuallyNonEmptyPaint`) |
 | **3. Web Application Ready** | Web application main UI (e.g. home page) | Web application JavaScript | `window.h5vcc.system.hideSplashScreen()` | Web application finishes document loading and initialization |
 
+> [!NOTE]
+> The **Dismissal API** column indicates the API called at the start of that phase to dismiss the visible UI from the *preceding* phase (e.g. calling `SbSystemHideSplashScreen()` upon entering Phase 2 dismisses the Phase 1 platform splash screen).
+
 ### Architectural Distinction: `SbSystemHideSplashScreen()` vs. `h5vcc.system.hideSplashScreen()`
 
 It is critical not to conflate the system/platform splash screen with the Cobalt splash screen:
