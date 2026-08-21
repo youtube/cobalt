@@ -148,10 +148,22 @@ void CleanupGpuProcessOnUI(base::OnceClosure callback) {
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
       base::BindOnce(
           [](base::OnceClosure callback, content::GpuProcessHost* host) {
-            if (host) {
-              host->ForceShutdown();
-            }
-            if (callback) {
+            if (host && host->gpu_service()) {
+              host->gpu_service()->OnBackgroundCleanup();
+              auto barrier_callback =
+                  mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                      base::BindOnce(
+                          [](base::OnceClosure cb,
+                             const gpu::VideoMemoryUsageStats&) {
+                            if (cb) {
+                              std::move(cb).Run();
+                            }
+                          },
+                          std::move(callback)),
+                      gpu::VideoMemoryUsageStats());
+              host->gpu_service()->GetVideoMemoryUsageStats(
+                  std::move(barrier_callback));
+            } else if (callback) {
               std::move(callback).Run();
             }
           },
@@ -160,8 +172,12 @@ void CleanupGpuProcessOnUI(base::OnceClosure callback) {
 
 void RestoreGpuProcessOnUI() {
   GpuProcessHost::CallOnUI(
-      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, true /* force_create */,
-      base::BindOnce([](content::GpuProcessHost* host) {}));
+      FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
+      base::BindOnce([](content::GpuProcessHost* host) {
+        if (host && host->gpu_service()) {
+          host->gpu_service()->OnForegrounded();
+        }
+      }));
 }
 #endif
 
