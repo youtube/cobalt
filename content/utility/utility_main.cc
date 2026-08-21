@@ -30,15 +30,18 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
 #include "content/public/utility/content_utility_client.h"
-#include "content/utility/on_device_model/on_device_model_sandbox_init.h"
 #include "content/utility/utility_thread_impl.h"
 #include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
-#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#include "content/utility/on_device_model/on_device_model_sandbox_init.h"  // nogncheck
+#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/file_descriptor_store.h"
