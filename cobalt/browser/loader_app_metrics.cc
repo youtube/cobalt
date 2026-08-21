@@ -28,50 +28,27 @@ namespace browser {
 namespace {
 
 const StarboardExtensionLoaderAppMetricsApi* GetLoaderAppMetricsExtension() {
-  const auto* loader_app_metrics =
+  const auto* metrics_extension =
       static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
           SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
 
-  if (!loader_app_metrics) {
+  if (!metrics_extension) {
     LOG(WARNING) << "LoaderAppMetrics: Extension not found.";
     return nullptr;
   }
 
-  if (strcmp(loader_app_metrics->name,
+  if (strcmp(metrics_extension->name,
              kStarboardExtensionLoaderAppMetricsName) != 0) {
     LOG(ERROR) << "LoaderAppMetrics: Extension name mismatch.";
     return nullptr;
   }
-  return loader_app_metrics;
+  return metrics_extension;
 }
 
-}  // namespace
-
-void RecordLoaderAppMetrics() {
-  const auto* loader_app_metrics = GetLoaderAppMetricsExtension();
-  if (!loader_app_metrics) {
-    return;
-  }
-
-  if (loader_app_metrics->version < 2) {
-    LOG(WARNING) << "LoaderAppMetrics: Extension version too low ("
-                 << loader_app_metrics->version << "). Need at least 2.";
-    return;
-  }
-
-  if (loader_app_metrics->version >= 3) {
-    base::UmaHistogramEnumeration("Cobalt.LoaderApp.SlotSelectionStatus",
-                                  loader_app_metrics->GetSlotSelectionStatus());
-  }
-
-  if (!loader_app_metrics->GetElfLibraryStoredCompressed()) {
-    LOG(INFO) << "LoaderAppMetrics: ELF was not stored compressed. Skipping "
-                 "decompression metric.";
-    return;
-  }
-
+void RecordLoaderAppTimeMetrics(
+    const StarboardExtensionLoaderAppMetricsApi* metrics_extension) {
   int64_t elf_decompression_duration_us =
-      loader_app_metrics->GetElfDecompressionDurationMicroseconds();
+      metrics_extension->GetElfDecompressionDurationMicroseconds();
 
   if (elf_decompression_duration_us < 0) {
     LOG(ERROR) << "LoaderAppMetrics: Decompression duration is negative, "
@@ -83,6 +60,55 @@ void RecordLoaderAppMetrics() {
                           base::Microseconds(elf_decompression_duration_us));
   LOG(INFO) << "LoaderAppMetrics: Logging ELF Decompression Duration: "
             << elf_decompression_duration_us << " us";
+}
+
+void RecordLoaderAppSpaceMetrics(
+    const StarboardExtensionLoaderAppMetricsApi* metrics_extension) {
+  int64_t max_sampled_used_cpu_bytes =
+      metrics_extension->GetMaxSampledUsedCpuBytesDuringElfLoad();
+
+  if (max_sampled_used_cpu_bytes < 0) {
+    LOG(ERROR) << "LoaderAppMetrics: Max sampled used CPU bytes is negative, "
+                  "not logging.";
+    return;
+  }
+
+  base::UmaHistogramMemoryMB(
+      "Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad",
+      static_cast<int>(max_sampled_used_cpu_bytes / 1000000));
+  LOG(INFO) << "LoaderAppMetrics: Logging Max Sampled Used CPU Memory During "
+               "ELF Load: "
+            << max_sampled_used_cpu_bytes << " bytes ("
+            << (max_sampled_used_cpu_bytes / 1000000) << " MB)";
+}
+
+}  // namespace
+
+void RecordLoaderAppMetrics() {
+  const auto* metrics_extension = GetLoaderAppMetricsExtension();
+  if (!metrics_extension) {
+    return;
+  }
+
+  if (metrics_extension->version < 2) {
+    LOG(WARNING) << "LoaderAppMetrics: Extension version too low ("
+                 << metrics_extension->version << "). Need at least 2.";
+    return;
+  }
+
+  if (metrics_extension->version >= 3) {
+    base::UmaHistogramEnumeration("Cobalt.LoaderApp.SlotSelectionStatus",
+                                  metrics_extension->GetSlotSelectionStatus());
+  }
+
+  if (!metrics_extension->GetElfLibraryStoredCompressed()) {
+    LOG(INFO) << "LoaderAppMetrics: ELF was not stored compressed. Skipping "
+                 "decompression metric.";
+    return;
+  }
+
+  RecordLoaderAppTimeMetrics(metrics_extension);
+  RecordLoaderAppSpaceMetrics(metrics_extension);
 }
 
 }  // namespace browser
