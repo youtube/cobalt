@@ -122,6 +122,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
                    StructureNotifyMask | KeyPressMask | KeyReleaseMask |
                    ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XMapWindow(display, window);
+  XSync(display, False);
 }
 
 SbWindowPrivate::~SbWindowPrivate() {

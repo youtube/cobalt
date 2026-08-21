@@ -50,6 +50,7 @@
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface_egl.h"
+#include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/init/gl_factory.h"
 
@@ -924,6 +925,25 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
   // check the feature on subsequent runs of Chrome. crbug.com/1423439
   [[maybe_unused]] bool default_angle_metal =
       base::FeatureList::IsEnabled(features::kDefaultANGLEMetal);
+
+#if BUILDFLAG(IS_COBALT)
+  if (!default_offscreen_surface_) {
+    gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
+    if (display) {
+      if (!display->IsInitialized()) {
+        gl::init::GetOrInitializeGLOneOffPlatformImplementation(
+            /*fallback_to_software_gl=*/false,
+            /*disable_gl_drawing=*/false,
+            /*init_extensions=*/true,
+            gl::GpuPreference::kDefault);
+      }
+      if (display->IsInitialized()) {
+        default_offscreen_surface_ =
+            gl::init::CreateOffscreenGLSurface(display, gfx::Size());
+      }
+    }
+  }
+#endif
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
   if (!surface) {

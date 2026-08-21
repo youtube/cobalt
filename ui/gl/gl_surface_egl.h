@@ -60,7 +60,7 @@ class GL_EXPORT GLSurfaceEGL : public GLSurface {
 
   EGLConfig config_ = nullptr;
   GLSurfaceFormat format_;
-  raw_ptr<GLDisplayEGL> display_ = nullptr;
+  raw_ptr<GLDisplayEGL, DisableDanglingPtrDetection> display_ = nullptr;
 };
 
 // Encapsulates an EGL surface bound to a view.

@@ -534,9 +534,11 @@ void NativeViewGLSurfaceEGL::Destroy() {
   vsync_provider_internal_ = nullptr;
 
   if (surface_) {
-    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
-      LOG(ERROR) << "eglDestroySurface failed with error "
-                 << GetLastEGLErrorString();
+    if (display_ && display_->GetDisplay() != EGL_NO_DISPLAY) {
+      if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+        LOG(ERROR) << "eglDestroySurface failed with error "
+                   << GetLastEGLErrorString();
+      }
     }
     surface_ = NULL;
   }
@@ -1032,9 +1034,11 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
-    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
-      LOG(ERROR) << "eglDestroySurface failed with error "
-                 << GetLastEGLErrorString();
+    if (display_ && display_->GetDisplay() != EGL_NO_DISPLAY) {
+      if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+        LOG(ERROR) << "eglDestroySurface failed with error "
+                   << GetLastEGLErrorString();
+      }
     }
     surface_ = NULL;
   }
