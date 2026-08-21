@@ -6318,6 +6318,7 @@ void NavigationRequest::CommitErrorPage(
     commit_params_->force_new_document_sequence_number = true;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If the outermost main frame is performing an error navigation, capture the
   // state of fenced frames rendered in the viewport before the entire FrameTree
   // is torn down. We have to do this now, because the renderer will change the
@@ -6330,6 +6331,7 @@ void NavigationRequest::CommitErrorPage(
       monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
     }
   }
+#endif
 
   PopulateDocumentTokenForCrossDocumentNavigation();
   // Use a separate cache shard, and no cookies, for error pages.
@@ -6484,6 +6486,7 @@ void NavigationRequest::CommitNavigation() {
     old_frame_host->RecordNavigationSuddenTerminationHandlers();
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If the outermost main frame is being navigated, capture the state of fenced
   // frames rendered in the viewport before the entire FrameTree is torn down.
   // We have to do this now, because the renderer will change the visibility of
@@ -6496,6 +6499,7 @@ void NavigationRequest::CommitNavigation() {
       monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
     }
   }
+#endif
 
   if (IsServedFromBackForwardCache() || IsPrerenderedPageActivation()) {
     CommitPageActivation();

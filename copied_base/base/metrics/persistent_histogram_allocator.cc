@@ -686,7 +686,6 @@ void GlobalHistogramAllocator::CreateWithLocalMemory(
       std::make_unique<LocalPersistentMemoryAllocator>(size, id, name))));
 }
 
-#if !BUILDFLAG(IS_NACL)
 // static
 bool GlobalHistogramAllocator::CreateWithFile(const FilePath& file_path,
                                               size_t size,
@@ -848,7 +847,6 @@ bool GlobalHistogramAllocator::CreateSpareFile(const FilePath& spare_path,
 
   return success;
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 // static
 void GlobalHistogramAllocator::CreateWithSharedMemoryRegion(
@@ -936,11 +934,6 @@ bool GlobalHistogramAllocator::MovePersistentFile(const FilePath& dir) {
 }
 
 bool GlobalHistogramAllocator::WriteToPersistentLocation() {
-#if BUILDFLAG(IS_NACL)
-  // NACL doesn't support file operations, including ImportantFileWriter.
-  NOTREACHED();
-  return false;
-#else
   // Stop if no destination is set.
   if (!HasPersistentLocation()) {
     NOTREACHED() << "Could not write \"" << Name() << "\" persistent histograms"
@@ -957,15 +950,11 @@ bool GlobalHistogramAllocator::WriteToPersistentLocation() {
   }
 
   return true;
-#endif
 }
 
 void GlobalHistogramAllocator::DeletePersistentLocation() {
   memory_allocator()->SetMemoryState(PersistentMemoryAllocator::MEMORY_DELETED);
 
-#if BUILDFLAG(IS_NACL)
-  NOTREACHED();
-#else
   if (!HasPersistentLocation()) {
     return;
   }
@@ -976,7 +965,6 @@ void GlobalHistogramAllocator::DeletePersistentLocation() {
   // new opens will not be possible.
   File file(persistent_location_,
             File::FLAG_OPEN | File::FLAG_READ | File::FLAG_DELETE_ON_CLOSE);
-#endif
 }
 
 GlobalHistogramAllocator::GlobalHistogramAllocator(

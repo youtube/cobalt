@@ -238,9 +238,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsDPR_DEPRECATED);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsResourceWidth_DEPRECATED);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsViewportWidth_DEPRECATED);
 
-<<<<<<< HEAD
-=======
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsXRFormFactor);
 
 #if BUILDFLAG(IS_COBALT)
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
@@ -250,7 +247,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kEvictMemoryCacheOnCriticalMemoryPressure);
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCompressParkableStrings);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kMaxDiskDataAllocatorCapacityMB);

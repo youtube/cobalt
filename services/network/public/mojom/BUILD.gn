@@ -982,7 +982,7 @@ mojom("url_loader_base") {
     },
   ]
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     cpp_typemaps += [
       {
         types = [

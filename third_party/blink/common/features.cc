@@ -448,13 +448,6 @@ BASE_FEATURE(kClientHintsResourceWidth_DEPRECATED,
              "ClientHintsResourceWidth_DEPRECATED",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
-=======
-// Enable `form-factor` client hint for XR devices.
-BASE_FEATURE(kClientHintsXRFormFactor,
-             "ClientHintsXRFormFactor",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_COBALT)
 // Enables zero-copy pass-through of network fetch responses in Cobalt by
 // bypassing BufferingBytesConsumer Oilpan heap buffering.
@@ -480,7 +473,6 @@ BASE_FEATURE(kEvictMemoryCacheOnCriticalMemoryPressure,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Enable legacy `viewport-width` client hint.
 BASE_FEATURE(kClientHintsViewportWidth_DEPRECATED,
              "ClientHintsViewportWidth_DEPRECATED",

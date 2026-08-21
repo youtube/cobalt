@@ -2529,15 +2529,13 @@ source_set("blink_platform_unittests_sources") {
     defines += [ "USE_MINIKIN_HYPHENATION" ]
   }
 
-<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt) {
     sources -= [ "text/text_encoding_detector_test.cc" ]
   }
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 source_set("bridge_ice_controller_tests") {

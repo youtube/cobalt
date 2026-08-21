@@ -3546,7 +3546,7 @@ TEST_F(FileUtilTest, ReadFileToStringWithUnknownFileSize) {
 }
 #endif  // !BUILDFLAG(IS_WIN)
 
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA) && \
+#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_FUCHSIA) && \
     !BUILDFLAG(IS_IOS)
 #define ChildMain WriteToPipeChildMain
 #define ChildMainString "WriteToPipeChildMain"
@@ -3693,7 +3693,7 @@ TEST_F(FileUtilTest, ReadFileToStringWithNamedPipe) {
 
   ASSERT_EQ(0, unlink(pipe_path.value().c_str()));
 }
-#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_FUCHSIA)
+#endif  // !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_FUCHSIA)
         // && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN)

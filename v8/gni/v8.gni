@@ -90,21 +90,6 @@ declare_args() {
   # Sets -DV8_LITE_MODE.
   v8_enable_lite_mode = false
 
-<<<<<<< HEAD
-  # We use target_os == "ios" here because it isn't equivalent to is_ios
-  # (is_ios is based on host_os).
-  if (target_os == "ios") {
-    if (target_platform == "iphoneos") {
-      # iOS executable code pages is in 18.4 SDK which the iOS + Blink targets.
-      v8_enable_lite_mode = !use_blink
-    } else if (target_platform == "tvos") {
-      # tvOS runs in single process mode and is not allowed to use JIT.
-      # TODO(crbug.com/394710095): Enable the v8 lite mode to run v8 with the
-      # jitless mode on tvOS.
-      v8_enable_lite_mode = true
-    }
-  }
-=======
   # WebAssembly interpreter (DrumBrake)  build flag.
   v8_enable_drumbrake = false
 
@@ -130,7 +115,6 @@ declare_args() {
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
       !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
       is_component_build
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.

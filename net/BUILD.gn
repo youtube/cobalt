@@ -2341,28 +2341,6 @@ static_library("test_support") {
 
   public_configs = [ ":net_test_config" ]
 
-<<<<<<< HEAD
-=======
-  if (use_remote_test_server) {
-    sources += [
-      "test/spawned_test_server/remote_test_server.cc",
-      "test/spawned_test_server/remote_test_server.h",
-      "test/spawned_test_server/remote_test_server_spawner_request.cc",
-      "test/spawned_test_server/remote_test_server_spawner_request.h",
-    ]
-  } else if (!is_ios && !is_starboard) {
-    sources += [
-      "test/spawned_test_server/local_test_server.cc",
-      "test/spawned_test_server/local_test_server.h",
-    ]
-    if (is_win) {
-      sources += [ "test/spawned_test_server/local_test_server_win.cc" ]
-    } else if (is_posix || is_fuchsia) {
-      sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
-    }
-  }
-
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (enable_python_utils) {
     sources += [
       "test/python_utils.cc",
@@ -3375,17 +3353,6 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.cc",
       "websockets/websocket_test_util.h",
     ]
-<<<<<<< HEAD
-=======
-
-    if (!is_ios && !is_starboard) {
-      # TODO(crbug.com/40812029): iOS does not have support for the spawned test
-      # server, which is used by this test. The long term plan is to add
-      # websocket support to the embedded test server and when that happens,
-      # this test could be enabled.
-      sources += [ "websockets/websocket_end_to_end_test.cc" ]
-    }
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (!disable_file_support) {

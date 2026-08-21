@@ -6,15 +6,12 @@
 
 #include "base/check_op.h"
 #include "base/debug/alias.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
-
-#if !BUILDFLAG(IS_NACL)
-#include "base/debug/crash_logging.h"
-#endif  // !BUILDFLAG(IS_NACL)
 
 namespace logging {
 
@@ -36,19 +33,15 @@ void DumpWithoutCrashing(LogMessage* log_message,
 
 void NotReachedDumpWithoutCrashing(LogMessage* log_message,
                                    const base::Location& location) {
-#if !BUILDFLAG(IS_NACL)
   SCOPED_CRASH_KEY_STRING1024("Logging", "NOTREACHED_MESSAGE",
                               log_message->BuildCrashString());
-#endif  // !BUILDFLAG(IS_NACL)
   DumpWithoutCrashing(log_message, location);
 }
 
 void DCheckDumpWithoutCrashing(LogMessage* log_message,
                                const base::Location& location) {
-#if !BUILDFLAG(IS_NACL)
   SCOPED_CRASH_KEY_STRING1024("Logging", "DCHECK_MESSAGE",
                               log_message->BuildCrashString());
-#endif  // !BUILDFLAG(IS_NACL)
   DumpWithoutCrashing(log_message, location);
 }
 

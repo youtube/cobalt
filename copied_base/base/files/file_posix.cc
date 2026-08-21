@@ -42,7 +42,7 @@ namespace {
 
 // NaCl doesn't provide the following system calls, so either simulate them or
 // wrap them in order to minimize the number of #ifdef's in this file.
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_AIX)
+#if !BUILDFLAG(IS_AIX)
 bool IsOpenAppend(PlatformFile file) {
   return (fcntl(file, F_GETFL) & O_APPEND) != 0;
 }
@@ -107,7 +107,7 @@ File::Error CallFcntlFlock(PlatformFile file,
 }
 #endif
 
-#else   // BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_AIX)
+#else   // !BUILDFLAG(IS_AIX)
 
 bool IsOpenAppend(PlatformFile file) {
   // NaCl doesn't implement fcntl. Since NaCl's write conforms to the POSIX
@@ -131,7 +131,7 @@ File::Error CallFcntlFlock(PlatformFile file,
   NOTIMPLEMENTED();  // NaCl doesn't implement flock struct.
   return File::FILE_ERROR_INVALID_OPERATION;
 }
-#endif  // BUILDFLAG(IS_NACL)
+#endif  // !BUILDFLAG(IS_AIX)
 
 }  // namespace
 
@@ -453,9 +453,7 @@ File::Error File::OSErrorToFileError(int saved_errno) {
     case EPERM:
       return FILE_ERROR_ACCESS_DENIED;
     case EBUSY:
-#if !BUILDFLAG(IS_NACL)  // ETXTBSY not defined by NaCl.
     case ETXTBSY:
-#endif
       return FILE_ERROR_IN_USE;
     case EEXIST:
       return FILE_ERROR_EXISTS;
@@ -479,8 +477,6 @@ File::Error File::OSErrorToFileError(int saved_errno) {
   }
 }
 
-// NaCl doesn't implement system calls to open files directly.
-#if !BUILDFLAG(IS_NACL)
 // TODO(erikkay): does it make sense to support FLAG_EXCLUSIVE_* here?
 void File::DoInitialize(const FilePath& path, uint32_t flags) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -564,17 +560,13 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   error_details_ = FILE_OK;
   file_.reset(descriptor);
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 bool File::Flush() {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
   SCOPED_FILE_TRACE("Flush");
 
-#if BUILDFLAG(IS_NACL)
-  NOTIMPLEMENTED();  // NaCl doesn't implement fsync.
-  return true;
-#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || \
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)
   return !HANDLE_EINTR(fdatasync(file_.get()));
 #elif BUILDFLAG(IS_APPLE)

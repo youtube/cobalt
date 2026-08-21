@@ -39,7 +39,7 @@
 #endif
 
 // On POSIX, the fd is shared using the mapping in GlobalDescriptors.
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX)
 #include "base/posix/global_descriptors.h"
 #endif
 
@@ -189,14 +189,10 @@ void AddFeatureAndFieldTrialFlags(CommandLine* cmd_line) {
 #endif  // !BUILDFLAG(IS_IOS)
 
 void OnOutOfMemory(size_t size) {
-#if BUILDFLAG(IS_NACL)
-  NOTREACHED();
-#else
   TerminateBecauseOutOfMemory(size);
-#endif
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
 // Returns whether the operation succeeded.
 bool DeserializeGUIDFromStringPieces(StringPiece first,
                                      StringPiece second,
@@ -215,7 +211,7 @@ bool DeserializeGUIDFromStringPieces(StringPiece first,
   *guid = token.value();
   return true;
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_IOS)
 
 }  // namespace
 
@@ -694,7 +690,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(const CommandLine& cmd_line,
                                                  uint32_t fd_key) {
   global_->create_trials_from_command_line_called_ = true;
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
   if (cmd_line.HasSwitch(switches::kFieldTrialHandle)) {
     std::string switch_value =
         cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
@@ -703,7 +699,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(const CommandLine& cmd_line,
                           result);
     DCHECK(result);
   }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_IOS)
 
   if (cmd_line.HasSwitch(switches::kForceFieldTrials)) {
     bool result = FieldTrialList::CreateTrialsFromString(
@@ -748,12 +744,10 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
     return;
   }
 
-#if !BUILDFLAG(IS_NACL)
   global_->field_trial_allocator_->UpdateTrackingHistograms();
   std::string switch_value = SerializeSharedMemoryRegionMetadata(
       global_->readonly_allocator_region_, launch_options);
   command_line->AppendSwitchASCII(switches::kFieldTrialHandle, switch_value);
-#endif  // !BUILDFLAG(IS_NACL)
 
   // Append --enable-features and --disable-features switches corresponding
   // to the features enabled on the command-line, so that child and browser
@@ -775,7 +769,7 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
 // static
 int FieldTrialList::GetFieldTrialDescriptor() {
   InstantiateFieldTrialAllocatorIfNeeded();
@@ -788,7 +782,7 @@ int FieldTrialList::GetFieldTrialDescriptor() {
   return global_->readonly_allocator_region_.GetPlatformHandle().fd;
 #endif
 }
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
 
 // static
 ReadOnlySharedMemoryRegion
@@ -1047,7 +1041,7 @@ void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
   global_ = instance;
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
 
 // static
 std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
@@ -1200,7 +1194,7 @@ bool FieldTrialList::CreateTrialsFromSwitchValue(
   return FieldTrialList::CreateTrialsFromSharedMemoryRegion(shm);
 }
 
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_IOS)
 
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
@@ -1274,9 +1268,7 @@ void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
   FeatureList::GetInstance()->AddFeaturesToAllocator(
       global_->field_trial_allocator_.get());
 
-#if !BUILDFLAG(IS_NACL)
   global_->readonly_allocator_region_ = std::move(shm.region);
-#endif
 }
 
 // static

@@ -16,6 +16,7 @@
 #define STARBOARD_EXTENSION_EXPERIMENTAL_EXPERIMENTAL_FEATURES_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

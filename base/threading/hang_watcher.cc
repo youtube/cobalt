@@ -166,6 +166,11 @@ void LogStatusHistogram(HangWatcher::ThreadType thread_type,
               UMA_HISTOGRAM_BOOLEAN, sample_ticks, monitoring_period,
               "HangWatcher.IsThreadHung.GpuProcess.IOThread", any_thread_hung);
           break;
+#if BUILDFLAG(IS_COBALT)
+        case HangWatcher::ThreadType::kRendererThread:
+          // Not recorded for now. This is used in single-process mode only.
+          break;
+#endif
         case HangWatcher::ThreadType::kMainThread:
           UMA_HISTOGRAM_SPLIT_BY_PROCESS_PRIORITY(
               UMA_HISTOGRAM_BOOLEAN, sample_ticks, monitoring_period,
@@ -541,8 +546,9 @@ void HangWatcher::UpdateConfiguration() {
     g_hang_watch_monitoring_period_us.store(configured_period->InMicroseconds(),
                                             std::memory_order_relaxed);
   } else {
-    g_hang_watch_monitoring_period_us.store(kMonitoringPeriod.InMicroseconds(),
-                                            std::memory_order_relaxed);
+    g_hang_watch_monitoring_period_us.store(
+        kHangWatcherMonitoringPeriod.Get().InMicroseconds(),
+        std::memory_order_relaxed);
   }
 
   g_hang_reporting_enabled.store(delegate->IsHangReportingEnabled(),
@@ -978,10 +984,7 @@ void HangWatcher::Run() {
 #endif
     Wait();
 
-<<<<<<< HEAD
-    if (IsWatchingThreads() &&
-=======
-    bool has_work = !IsWatchListEmpty();
+    bool has_work = IsWatchingThreads();
 #if BUILDFLAG(IS_COBALT)
     // If the watch list is empty but we have an active hang UUID, we still
     // have work to do (cleaning up the recovery state).
@@ -989,7 +992,6 @@ void HangWatcher::Run() {
 #endif
 
     if (has_work &&
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         g_keep_monitoring.load(std::memory_order_relaxed)) {
       Monitor();
       if (after_monitor_closure_for_testing_) {
@@ -1381,8 +1383,6 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   SCOPED_CRASH_KEY_BOOL("HangWatcher", "shutting-down",
                         g_shutting_down.load(std::memory_order_relaxed));
-<<<<<<< HEAD
-=======
 
 #if BUILDFLAG(IS_COBALT)
   int64_t configured_timeout =
@@ -1449,8 +1449,6 @@ void HangWatcher::DoDumpWithoutCrashing(
   }
 #endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
-#endif  // !BUILDFLAG(IS_NACL)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   // To avoid capturing more than one hang that blames a subset of the same
   // threads it's necessary to keep track of what is the furthest deadline

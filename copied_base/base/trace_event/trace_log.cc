@@ -354,7 +354,7 @@ void OnUpdateLegacyTraceEventDuration(
 
 }  // namespace
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 namespace {
 // Perfetto provides us with a fully formed JSON trace file, while
 // TraceResultBuffer wants individual JSON fragments without a containing
@@ -425,7 +425,7 @@ class JsonStringOutputWriter
   scoped_refptr<RefCountedString> buffer_ = new RefCountedString();
   bool did_strip_prefix_ = false;
 };
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 // A helper class that allows the lock to be acquired in the middle of the scope
 // and unlocks at the end of scope if locked.
@@ -650,11 +650,7 @@ TraceLog::TraceLog(int generation)
       use_worker_thread_(false) {
   CategoryRegistry::Initialize();
 
-#if BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
-  SetProcessID(0);
-#else
   SetProcessID(GetCurrentProcId());
-#endif
 
   logged_events_.reset(CreateTraceBuffer());
 
@@ -1271,7 +1267,7 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
                              bool discard_events) {
   use_worker_thread_ = use_worker_thread;
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   TrackEvent::Flush();
 
   if (!tracing_session_ || discard_events) {
@@ -1313,10 +1309,6 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
     auto data = tracing_session_->ReadTraceBlocking();
     OnTraceData(data.data(), data.size(), /*has_more=*/false);
   }
-#elif BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && BUILDFLAG(IS_NACL)
-  // Trace processor isn't built on NaCL, so we can't convert the resulting
-  // trace into JSON.
-  CHECK(false) << "JSON tracing isn't supported on NaCL";
 #else
   if (IsEnabled()) {
     // Can't flush when tracing is enabled because otherwise PostTask would
@@ -1366,10 +1358,10 @@ void TraceLog::FlushInternal(const TraceLog::OutputCallback& cb,
   }
 
   FinishFlush(gen, discard_events);
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 }
 
-#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 void TraceLog::OnTraceData(const char* data, size_t size, bool has_more) {
   if (proto_output_callback_) {
     scoped_refptr<RefCountedString> chunk = new RefCountedString();
@@ -1399,7 +1391,7 @@ void TraceLog::OnTraceData(const char* data, size_t size, bool has_more) {
   tracing_session_.reset();
   json_output_writer_.reset();
 }
-#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY) && !BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
 
 // Usually it runs on a different thread.
 void TraceLog::ConvertTraceEventsToTraceFormat(
@@ -1976,10 +1968,8 @@ void TraceLog::AddMetadataEventsWhileLocked() {
     }
   }
 
-#if !BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
   AddMetadataEventWhileLocked(0, "num_cpus", "number",
                               base::SysInfo::NumberOfProcessors());
-#endif
 
   auto current_thread_id = base::PlatformThread::CurrentId();
   if (process_sort_index_ != 0) {

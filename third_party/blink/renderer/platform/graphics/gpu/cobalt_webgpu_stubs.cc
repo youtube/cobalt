@@ -550,8 +550,10 @@ __attribute__((weak)) WGPUSurface  wgpuInstanceCreateSurface(WGPUInstance instan
 return     procs.instanceCreateSurface(instance, descriptor);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) WGPUStatus  wgpuInstanceGetWGSLLanguageFeatures(WGPUInstance instance, WGPUSupportedWGSLLanguageFeatures * features) {
-return     procs.instanceGetWGSLLanguageFeatures(instance, features);
+__attribute__((weak)) void wgpuInstanceGetWGSLLanguageFeatures(
+    WGPUInstance instance,
+    WGPUSupportedWGSLLanguageFeatures* features) {
+  return procs.instanceGetWGSLLanguageFeatures(instance, features);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUBool  wgpuInstanceHasWGSLLanguageFeature(WGPUInstance instance, WGPUWGSLLanguageFeatureName feature) {
@@ -1068,5 +1070,3 @@ DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuTextureViewRelease(WGPUTextureView textureView) {
     procs.textureViewRelease(textureView);
 }
-
-
