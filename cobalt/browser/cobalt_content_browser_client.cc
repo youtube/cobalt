@@ -640,10 +640,20 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto* global_features = GlobalFeatures::GetInstance();
   auto* experiment_config_manager =
       global_features->experiment_config_manager();
+
+  // It is critical that GetExperimentConfigType() is evaluated after
+  // InstantiateFieldTrialList(), because the latter triggers
+  // CleanExitBeacon::Initialize(), which reads the 'Variations' beacon file
+  // from DIR_CACHE and increments/syncs the crash streak into
+  // metrics_local_state.
+  // ExperimentConfigManager can then see the true crash streak and fall back
+  // to Safe Mode when needed.
   auto config_type = experiment_config_manager->GetExperimentConfigType();
   if (config_type == ExperimentConfigType::kEmptyConfig) {
     return;
   }
+
+  global_features->InitializeActiveConfigData(config_type);
   auto* experiment_config = global_features->experiment_config();
   const bool use_safe_config =
       (config_type == ExperimentConfigType::kSafeConfig);
