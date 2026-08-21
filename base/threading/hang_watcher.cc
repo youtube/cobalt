@@ -15,11 +15,10 @@
 #include "base/debug/leak_annotations.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/lock.h"
@@ -150,7 +149,7 @@ void LogStatusHistogram(HangWatcher::ThreadType thread_type,
               "HangWatcher.IsThreadHung.BrowserProcess."
               "RendererThread",
               any_thread_hung);
-          NOTREACHED();
+          break;
 #endif
       }
       break;
