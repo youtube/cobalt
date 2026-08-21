@@ -1968,7 +1968,6 @@ TEST_F(CompositorFrameReportingControllerTest, MainFrameBeforeCommit) {
       CompositorFrameReportingController::PipelineStage::kActivate));
 }
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Glossary of acronyms used in the tests below.
 // AMF - Activate Main Frame
 // AbMF - AbortMainFrame
@@ -2741,7 +2740,6 @@ TEST_F(CompositorFrameReportingControllerTest, VsyncIntervalArg) {
                                   std::vector<std::string>{"8", "1"},
                                   std::vector<std::string>{"32", "1"}));
 }
-#endif
 
 }  // namespace
 }  // namespace cc

@@ -6,46 +6,20 @@ complete a task. Everything is intended to work with gemini-cli.
 
 ## Directory Structure
 
-- `common.md`: Common prompt for gemini-cli
-- `common.minimal.md`: Core parts that are sub-included by `common.md`
-- `templates/`: Reusable snippets of prompts or that can be included in other
-  prompts.
+- `common.GEMINI.md`: Contains global, high-level context and instructions for
+  the agent with general guidelines for interacting with the Chromium project.
 - `tasks/`: This directory is intended to hold prompts and plans for complex,
   multi-step tasks. Each subdirectory within `tasks/` represents a specific
   task.
+- `templates/`: This directory contains reusable snippets of prompts or
+  instructions that can be included in other prompts.
 
-## Creating the System Instruction Prompt
+## Using Prompts
 
-Googler-only docs: http://go/chrome-coding-with-ai-agents
+`common.GEMINI.md` can be copied to `chromium/src/GEMINI.md` and modified with
+references to prompt templates to add functionality.
 
-Create a local, untracked file `//GEMINI.md`. Include the relevant
-prompts using @, for example, a typical desktop developer will use:
-
-```src/GEMINI.md
-@agents/prompts/common.md
-@agents/prompts/templates/desktop.md
-```
-
-An Android developer would use:
-
-```src/GEMINI.md
-@agents/prompts/common.md
-@agents/prompts/templates/android.md
-```
-
-You can confirm that prompts were successfully imported by running the `/memory
-show` command in gemini-cli.
-
-## Known problems
-
-All imports must be scoped to the current prompt file. a/prompt.md can import
-a/prompt2.md or a/b/prompt3.md, but cannot import c/prompt4.md. See
-https://github.com/google-gemini/gemini-cli/issues/4098.
-
-## Contributing
-
-Please freely add self-contained task prompts and prompt templates that match
-the format of the existing examples.
-
-Changes to `common.minimal.md` should be done carefully as it's meant to be used
-broadly.
+For example, if you plan to use ctags to find symbols in the codebase, you can
+append `@agents/prompts/templates/ctags.md` to the end of your `GEMINI.md` file
+to include ctags instructions. You can confirm the file was imported by using
+the `/memory show` command in gemini-cli.

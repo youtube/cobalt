@@ -40,7 +40,6 @@
 #include "content/public/browser/media_request_state.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/permission_controller.h"
-#include "content/public/common/buildflags.h"
 #include "media/base/video_facing.h"
 #include "media/capture/mojom/video_capture.mojom.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
@@ -397,7 +396,7 @@ class CONTENT_EXPORT MediaStreamManager
                           blink::mojom::MediaStreamType stream_type,
                           MediaRequestState new_state);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   void SetConditionalFocusWindowForTesting(base::TimeDelta window);
 
   void SetCapturedSurfaceControllerFactoryForTesting(
@@ -599,12 +598,6 @@ class CONTENT_EXPORT MediaStreamManager
   // Prepare the request with label |label| by starting device enumeration if
   // needed.
   void SetUpRequest(const std::string& label);
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void CompleteFastTrackSetUp(const std::string& label,
-                              base::WeakPtr<DeviceRequest> request,
-                              bool allowed);
-#endif
 
   // Prepare |request| of type MEDIA_DEVICE_AUDIO_CAPTURE and/or
   // MEDIA_DEVICE_VIDEO_CAPTURE for being posted to the UI by parsing

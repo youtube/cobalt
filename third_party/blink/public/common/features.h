@@ -19,9 +19,6 @@
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/forcedark/forcedark_switches.h"
 
-#include "build/build_config.h"
-#include "build/buildflag.h"
-
 namespace blink {
 namespace features {
 
@@ -238,15 +235,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsDPR_DEPRECATED);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsResourceWidth_DEPRECATED);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kClientHintsViewportWidth_DEPRECATED);
 
-
-#if BUILDFLAG(IS_COBALT)
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassBufferingBytesConsumer);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassHTMLPreloadScanner);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCobaltBypassResourceLoadScheduler);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kEvictMemoryCacheOnCriticalMemoryPressure);
-#endif  // BUILDFLAG(IS_COBALT)
-
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCompressParkableStrings);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kMaxDiskDataAllocatorCapacityMB);
@@ -254,20 +242,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLessAggressiveParkableString);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCombineNewWindowIPCs);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kConsumeCodeCacheOffThread);
-
-#if BUILDFLAG(IS_COBALT)
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kHighestPmfReporterConfigurable);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
-                                               kHighestPmfReporterIntervals);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    std::string,
-    kHighestPmfReporterMetricSuffixes);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryUsageMonitorConfigurable);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
-                                               kMemoryUsageMonitorPollingIntervalMs);
-#endif
-
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentCaptureConstantStreaming);
 
