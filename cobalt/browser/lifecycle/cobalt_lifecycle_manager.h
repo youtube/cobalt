@@ -51,7 +51,6 @@ enum class PendingAck {
   kBlur,
   kUnfreeze,
   kCookieFlush,
-  kGpuCleanup,
 };
 
 class CobaltLifecycleManagerObserver {
@@ -72,17 +71,19 @@ class CobaltLifecycleManagerObserver {
   // focus if it arrives too early.
   virtual void OnStartWaitingForReveal(content::WebContents* web_contents) {}
 
-  // Called when a WebContents has completed conceal (hidden).
+  // Called when all frames of a WebContents have reported hidden to begin
+  // platform/GPU conceal teardown.
   virtual void OnAllFramesConcealed(content::WebContents* web_contents) {}
+
+  // Called when the entire conceal sequence (including GPU cleanup and window
+  // destruction) has completed.
+  virtual void OnConcealCompleted(content::WebContents* web_contents) {}
 
   // Called when a WebContents has completed blur.
   virtual void OnAllFramesBlurred(content::WebContents* web_contents) {}
 
   // Called when all frames of a specific WebContents have completed resume.
   virtual void OnAllFramesResumed(content::WebContents* web_contents) {}
-
-  // Called when background GPU cleanup and EGL display termination complete.
-  virtual void OnGpuCleanupCompleted() {}
 
  protected:
   virtual ~CobaltLifecycleManagerObserver() = default;
@@ -165,8 +166,8 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
   void AddObserver(CobaltLifecycleManagerObserver* observer);
   void RemoveObserver(CobaltLifecycleManagerObserver* observer);
 
-  // Called when background GPU cleanup and EGL display termination complete.
-  void OnGpuCleanupCompleted();
+  // Called when background GPU cleanup and platform window conceal complete.
+  void OnConcealCompleted(content::WebContents* web_contents);
 
   // Called to start waiting for a specific ACK type.
   void StartWaitingForAck(content::WebContents* web_contents,

@@ -215,7 +215,6 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoConceal() override {
     content::Shell::OnConceal();
     WaitForAck(PendingAck::kConceal);
-    WaitForAck(PendingAck::kGpuCleanup);
     base::MemoryPressureListener::NotifyMemoryPressure(
         base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -427,8 +426,6 @@ class AppEventRunnerImpl : public AppEventRunner,
         pending_ack_ = PendingAck::kNone;
         return;
       }
-    } else if (ack_type == PendingAck::kGpuCleanup) {
-      // GPU cleanup is signaled asynchronously via OnGpuCleanupCompleted().
     } else {
       for (auto* web_contents : GetWebContents()) {
         CobaltLifecycleManager::GetInstance()->StartWaitingForAck(web_contents,
@@ -459,7 +456,7 @@ class AppEventRunnerImpl : public AppEventRunner,
     }
   }
 
-  void OnAllFramesConcealed(content::WebContents* web_contents) override {
+  void OnConcealCompleted(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kConceal) {
       if (quit_closure_) {
@@ -480,15 +477,6 @@ class AppEventRunnerImpl : public AppEventRunner,
   void OnAllFramesResumed(content::WebContents* web_contents) override {
     base::AutoLock lock(lock_);
     if (pending_ack_ == PendingAck::kUnfreeze) {
-      if (quit_closure_) {
-        std::move(quit_closure_).Run();
-      }
-    }
-  }
-
-  void OnGpuCleanupCompleted() override {
-    base::AutoLock lock(lock_);
-    if (pending_ack_ == PendingAck::kGpuCleanup) {
       if (quit_closure_) {
         std::move(quit_closure_).Run();
       }
