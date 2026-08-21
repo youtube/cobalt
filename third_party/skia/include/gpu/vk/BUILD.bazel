@@ -1,0 +1,25 @@
+load("//bazel:skia_rules.bzl", "skia_filegroup")
+
+package(
+    default_applicable_licenses = ["//:license"],
+)
+
+licenses(["notice"])
+
+# This is a separate gropu to make it easier to enforce that Graphite does not
+# include Ganesh-specific Vulkan headers.
+skia_filegroup(
+    name = "shared_public_hdrs",
+    srcs = [
+        "VulkanBackendContext.h",
+        "VulkanExtensions.h",
+        "VulkanMemoryAllocator.h",
+        "VulkanMutableTextureState.h",
+        "VulkanPreferredFeatures.h",
+        "VulkanTypes.h",
+    ],
+    visibility = [
+        "//src/gpu/ganesh/vk:__pkg__",
+        "//src/gpu/vk:__pkg__",
+    ],
+)
