@@ -640,10 +640,12 @@ void StarboardRenderer::SetSourceUrl(const std::string& source_url) {
 }
 
 void StarboardRenderer::OnEncryptedMediaInitDataEncountered(
-    const char* init_data_type,
-    const unsigned char* init_data,
-    unsigned int init_data_length) {
-  // TODO: Forward encrypted media init data to the EME/DRM layer.
+    const std::string& init_data_type,
+    const std::vector<uint8_t>& init_data) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (encrypted_media_init_data_cb_) {
+    encrypted_media_init_data_cb_.Run(init_data_type, init_data);
+  }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
