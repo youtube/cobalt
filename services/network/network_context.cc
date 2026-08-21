@@ -2997,7 +2997,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       &session_params, quic_context->params());
 
 #if BUILDFLAG(IS_COBALT)
-  session_params.use_quic_for_unknown_origins = true;
+  // TODO: b/550183348 - disabled as part of the 140.7298 roll.
+  session_params.use_quic_for_unknown_origins = false;
 #endif
 
   session_params.disable_idle_sockets_close_on_memory_pressure =
