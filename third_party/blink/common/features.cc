@@ -453,7 +453,7 @@ BASE_FEATURE(kClientHintsResourceWidth_DEPRECATED,
 // bypassing BufferingBytesConsumer Oilpan heap buffering.
 BASE_FEATURE(kCobaltBypassBufferingBytesConsumer,
              "CobaltBypassBufferingBytesConsumer",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Bypasses Blink HTMLPreloadScanner and HTMLResourcePreloader in Cobalt
 // since Cobalt UI is a single-page app with dynamically generated DOM.
