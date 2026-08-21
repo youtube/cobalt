@@ -31,6 +31,7 @@ class StarboardBridge {
   static StarboardBridge* GetInstance();
 
   void Initialize(JNIEnv* env, jobject obj);
+  bool is_initialized() const { return !j_starboard_bridge_.is_null(); }
 
   int64_t GetAppStartTimestamp(JNIEnv* env);
 
