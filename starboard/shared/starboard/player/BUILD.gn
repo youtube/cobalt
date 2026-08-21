@@ -109,8 +109,8 @@ if (is_android && !is_androidtv) {
     renaming_destinations = []
     foreach(_dmp, renaming_sources) {
       renaming_destinations +=
-          [ "test/starboard/shared/starboard/player/testdata/" +
-            get_path_info(_dmp, "file") ]
+          [ "app/cobalt/content/test/starboard/shared/starboard/player/" +
+            "testdata/" + get_path_info(_dmp, "file") ]
     }
 
     deps = [ ":player_download_test_data" ]
