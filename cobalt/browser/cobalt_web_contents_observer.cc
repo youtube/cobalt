@@ -23,6 +23,8 @@
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 #include "cobalt/build/configs/buildflags.h"
+#include "content/public/browser/browser_task_traits.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
@@ -199,7 +201,14 @@ void CobaltWebContentsObserver::DidGetUserInteraction(
   }
   LOG(INFO) << "CobaltWebContentsObserver::DidGetUserInteraction: type="
             << static_cast<int>(event.GetType()) << ", key_code=" << key_code;
-  CobaltAdaptiveResourceScheduler::GetInstance()->OnUserInteraction(key_code);
+  // Post task to the IO thread where CobaltAdaptiveResourceScheduler resides to
+  // ensure thread-safety.
+  content::GetIOThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &CobaltAdaptiveResourceScheduler::OnUserInteraction,
+          base::Unretained(CobaltAdaptiveResourceScheduler::GetInstance()),
+          key_code));
 }
 
 void CobaltWebContentsObserver::OnVisibilityChanged(

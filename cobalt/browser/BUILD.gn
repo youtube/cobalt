@@ -34,12 +34,6 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
-    "resource_scheduler/cobalt_adaptive_resource_scheduler.cc",
-    "resource_scheduler/cobalt_adaptive_resource_scheduler.h",
-    "resource_scheduler/cobalt_proxying_url_loader_factory.cc",
-    "resource_scheduler/cobalt_proxying_url_loader_factory.h",
-    "resource_scheduler/cobalt_resource_throttle.cc",
-    "resource_scheduler/cobalt_resource_throttle.h",
   ]
 
   if (is_androidtv) {
@@ -57,6 +51,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    ":resource_scheduler",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/lifecycle",
@@ -298,4 +293,19 @@ source_set("cobalt_crash_annotations") {
     sources += [ "crash_annotator/crash_annotator_jni.cc" ]
     deps += [ "//cobalt/android:jni_headers" ]
   }
+}
+
+source_set("resource_scheduler") {
+  sources = [
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.cc",
+    "resource_scheduler/cobalt_adaptive_resource_scheduler.h",
+    "resource_scheduler/cobalt_resource_throttle.cc",
+    "resource_scheduler/cobalt_resource_throttle.h",
+  ]
+  deps = [
+    "//base",
+    "//net",
+    "//services/network/public/cpp",
+    "//third_party/blink/public/common",
+  ]
 }

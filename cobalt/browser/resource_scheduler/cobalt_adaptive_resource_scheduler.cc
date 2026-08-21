@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "cobalt/browser/resource_scheduler/cobalt_proxying_url_loader_factory.h"
 #include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 
 namespace cobalt {
@@ -99,7 +98,7 @@ void CobaltAdaptiveResourceScheduler::RegisterDeferredThrottle(
   DCHECK(throttle);
   deferred_throttles_.insert(throttle);
   LOG(INFO) << "CobaltAdaptiveResourceScheduler: Registered deferred throttle. "
-               "Total: "
+               "Total in queue: "
             << deferred_throttles_.size();
 }
 
@@ -107,19 +106,6 @@ void CobaltAdaptiveResourceScheduler::UnregisterDeferredThrottle(
     CobaltResourceThrottle* throttle) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   deferred_throttles_.erase(throttle);
-}
-
-void CobaltAdaptiveResourceScheduler::RegisterProxyFactory(
-    CobaltProxyingURLLoaderFactory* factory) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(factory);
-  proxy_factories_.insert(factory);
-}
-
-void CobaltAdaptiveResourceScheduler::UnregisterProxyFactory(
-    CobaltProxyingURLLoaderFactory* factory) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  proxy_factories_.erase(factory);
 }
 
 size_t CobaltAdaptiveResourceScheduler::GetDeferredCount() const {
@@ -137,29 +123,23 @@ void CobaltAdaptiveResourceScheduler::OnScrollSettled() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   is_scrolling_ = false;
   LOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
-               "Transitioning to IDLE. Draining deferred queues.";
+               "Transitioning to IDLE. "
+            << "Draining " << deferred_throttles_.size()
+            << " deferred requests.";
   DrainDeferredQueue();
 }
 
 void CobaltAdaptiveResourceScheduler::DrainDeferredQueue() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // 1. Resume subresource requests from all active proxy factories.
-  for (auto* factory : proxy_factories_) {
-    if (factory) {
-      factory->ResumeDeferredRequests();
-    }
-  }
-
-  // 2. Resume any deferred throttles.
-  if (!deferred_throttles_.empty()) {
-    std::vector<CobaltResourceThrottle*> throttles_to_resume(
-        deferred_throttles_.begin(), deferred_throttles_.end());
-    deferred_throttles_.clear();
-
-    for (auto* throttle : throttles_to_resume) {
-      if (throttle) {
-        throttle->ResumeLoading();
-      }
+  // Pop throttles one-by-one from the set to avoid re-entrancy use-after-free
+  // bugs if resuming a throttle causes another throttle to be cancelled and
+  // destroyed.
+  while (!deferred_throttles_.empty()) {
+    auto it = deferred_throttles_.begin();
+    CobaltResourceThrottle* throttle = *it;
+    deferred_throttles_.erase(it);
+    if (throttle) {
+      throttle->ResumeLoading();
     }
   }
 }

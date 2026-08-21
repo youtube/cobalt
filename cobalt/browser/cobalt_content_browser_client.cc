@@ -48,7 +48,6 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
-#include "cobalt/browser/resource_scheduler/cobalt_proxying_url_loader_factory.h"
 #include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
@@ -559,9 +558,6 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
-  if (CobaltAdaptiveResourceScheduler::GetInstance()->IsEnabled()) {
-    CobaltProxyingURLLoaderFactory::MaybeProxy(factory_builder);
-  }
   if (header_client) {
     mojo::MakeSelfOwnedReceiver(
         std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),

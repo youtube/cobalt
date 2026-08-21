@@ -29,7 +29,6 @@
 namespace cobalt {
 
 class CobaltResourceThrottle;
-class CobaltProxyingURLLoaderFactory;
 
 // Feature flag to control the Cobalt Adaptive Resource Scheduler.
 BASE_DECLARE_FEATURE(kCobaltAdaptiveResourceScheduler);
@@ -41,6 +40,11 @@ BASE_DECLARE_FEATURE(kCobaltAdaptiveResourceScheduler);
 // non-critical requests (such as off-screen image thumbnails and background
 // telemetry) are deferred to prevent socket futex locks and thread contention
 // from starving Blink main JS and Compositor threads.
+//
+// Lifetime: This is a singleton managed by base::NoDestructor and lives for the
+// duration of the browser process.
+// Threading: This class is sequence-affine and must be accessed solely on the
+// IO/Network thread.
 class CobaltAdaptiveResourceScheduler {
  public:
   static CobaltAdaptiveResourceScheduler* GetInstance();
@@ -68,10 +72,6 @@ class CobaltAdaptiveResourceScheduler {
   void RegisterDeferredThrottle(CobaltResourceThrottle* throttle);
   void UnregisterDeferredThrottle(CobaltResourceThrottle* throttle);
 
-  // Register / Unregister Proxying URLLoaderFactories
-  void RegisterProxyFactory(CobaltProxyingURLLoaderFactory* factory);
-  void UnregisterProxyFactory(CobaltProxyingURLLoaderFactory* factory);
-
   // Total count of currently deferred throttles (useful for testing & metrics).
   size_t GetDeferredCount() const;
 
@@ -87,7 +87,7 @@ class CobaltAdaptiveResourceScheduler {
   // Called when the settle debounce timer expires.
   void OnScrollSettled();
 
-  // Drains deferred requests and throttles.
+  // Drains deferred requests and throttles in a re-entrant safe manner.
   void DrainDeferredQueue();
 
   SEQUENCE_CHECKER(sequence_checker_);
@@ -97,7 +97,6 @@ class CobaltAdaptiveResourceScheduler {
   base::OneShotTimer settle_timer_;
 
   std::set<CobaltResourceThrottle*> deferred_throttles_;
-  std::set<CobaltProxyingURLLoaderFactory*> proxy_factories_;
 
   base::WeakPtrFactory<CobaltAdaptiveResourceScheduler> weak_ptr_factory_{this};
 };

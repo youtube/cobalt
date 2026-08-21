@@ -19,11 +19,21 @@
 
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
 
+namespace network {
+struct ResourceRequest;
+}  // namespace network
+
 namespace cobalt {
 
-// A URLLoaderThrottle that inspects incoming resource requests and defers
-// non-critical requests (such as off-screen images and background telemetry)
-// during active spatial navigation / scrolling.
+// Intercepts URLLoader network requests to defer non-critical assets (e.g.,
+// image thumbnails, analytics pings) during active TV remote scrolling.
+//
+// Critical resources (Main HTML, CSS, Scripts, and High Priority requests)
+// are never deferred.
+//
+// Lifetime: Created per-request by ThrottlingURLLoader / ThrottleProvider.
+// Destroyed automatically when the network request completes or is cancelled.
+// Threading: Sequence-affine, executes on the IO/Network thread.
 class CobaltResourceThrottle : public blink::URLLoaderThrottle {
  public:
   static std::unique_ptr<CobaltResourceThrottle> MaybeCreate(
@@ -46,10 +56,11 @@ class CobaltResourceThrottle : public blink::URLLoaderThrottle {
       net::HttpRequestHeaders* modified_headers,
       net::HttpRequestHeaders* modified_cors_exempt_headers) override;
 
-  // Called by CobaltAdaptiveResourceScheduler when the scroll state settles.
+  // Called by CobaltAdaptiveResourceScheduler when the scroll settles.
   void ResumeLoading();
 
   bool is_deferred() const { return is_deferred_; }
+  bool is_deferrable() const { return is_deferrable_; }
 
  private:
   const bool is_deferrable_;
