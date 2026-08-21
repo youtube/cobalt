@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/run_loop.h"
 #include "build/buildflag.h"
 #include "cobalt/app/app_event_delegate.h"
@@ -34,6 +35,7 @@ void SbEventHandle(const SbEvent* event) {
   }
 
   if (event->type == kSbEventTypeStop) {
+    // Wait for the Stop transition to complete natively before teardown.
     base::RunLoop run_loop;
     s_lifecycle_delegate->SetQuitClosure(run_loop.QuitClosure());
     s_lifecycle_delegate->HandleEvent(event);
