@@ -83,6 +83,7 @@ source_set("utility") {
 
   if (is_cobalt) {
     deps -= [
+      "//content/utility/on_device_model:on_device_model_sandbox_init",
       "//services/on_device_model:on_device_model_service",
       "//services/on_device_model/public/cpp",
       "//services/on_device_model/public/mojom",
