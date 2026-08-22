@@ -29,6 +29,8 @@ static_library("user_agent") {
     "//v8:v8_version",
   ]
 
+  deps = [ "//cobalt/browser:features" ]
+
   if (is_android) {
     defines = [
       # Enable compile-time decisions based on the ABI

@@ -32,6 +32,13 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Enables emitting the Finch token in the User-Agent string for experiment
+// verification.
+extern const base::Feature kEnableUserAgentFinchToken;
+
+// Token value to emit in the User-Agent string.
+extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
+
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
 

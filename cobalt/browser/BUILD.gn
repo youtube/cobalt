@@ -84,7 +84,7 @@ source_set("browser") {
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
-    "//components/variations/service:service",
+    "//components/variations/service",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//starboard:starboard_group",
   ]
@@ -120,6 +120,7 @@ source_set("features") {
     "features.cc",
     "features.h",
   ]
+  public = [ "features.h" ]
   deps = [ "//base" ]
 }
 
