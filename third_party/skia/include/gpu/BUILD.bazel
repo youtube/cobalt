@@ -1,0 +1,17 @@
+load("//bazel:skia_rules.bzl", "skia_filegroup")
+
+package(
+    default_applicable_licenses = ["//:license"],
+)
+
+licenses(["notice"])
+
+skia_filegroup(
+    name = "shared_gpu_hdrs",
+    srcs = [
+        "GpuTypes.h",
+        "MutableTextureState.h",
+        "ShaderErrorHandler.h",
+    ],
+    visibility = ["//src/gpu:__subpackages__"],
+)
