@@ -45,6 +45,9 @@ public class JavaSwitches {
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
+  /** flag to enable smart flushing for DOM storage (0ms delay and onStop flush). */
+  public static final String ENABLE_DOM_STORAGE_SMART_FLUSHING = "EnableDomStorageSmartFlushing";
+
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -94,10 +97,6 @@ public class JavaSwitches {
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
-  /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
-  public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
-      "CobaltBypassBufferingBytesConsumer";
-
   /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
   public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
       "CobaltBypassResourceLoadScheduler";
@@ -140,6 +139,10 @@ public class JavaSwitches {
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      extraCommandLineArgs.add("--enable-features=DomStorageSmartFlushing");
+    }
 
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
@@ -284,11 +287,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {

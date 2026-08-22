@@ -605,15 +605,27 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
     return;
   }
   auto* web_contents = web_contents_observer_->web_contents();
-  CHECK(web_contents);
+  if (!web_contents) {
+    std::move(callback).Run();
+    return;
+  }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
-  CHECK(rfh);
+  if (!rfh) {
+    std::move(callback).Run();
+    return;
+  }
   auto* storage_partition = rfh->GetStoragePartition();
-  CHECK(storage_partition);
+  if (!storage_partition) {
+    std::move(callback).Run();
+    return;
+  }
   // Flushes localStorage.
   storage_partition->Flush();
   auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
+  if (!cookie_manager) {
+    std::move(callback).Run();
+    return;
+  }
   cookie_manager->FlushCookieStore(std::move(callback));
 }
 
