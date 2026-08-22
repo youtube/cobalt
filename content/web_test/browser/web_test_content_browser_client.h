@@ -10,11 +10,8 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "build/buildflag.h"
 #include "content/shell/browser/shell_content_browser_client.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/common/fake_bluetooth_chooser.mojom-forward.h"
-#endif
 #include "content/web_test/common/web_test.mojom-forward.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -31,10 +28,6 @@
 #include "third_party/blink/public/test/mojom/storage_access/storage_access_automation.test-mojom-forward.h"
 #include "third_party/blink/public/test/mojom/webid/federated_auth_request_automation.test-mojom-forward.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-forward.h"
-#endif
-
 namespace blink {
 namespace web_pref {
 struct WebPreferences;
@@ -47,20 +40,14 @@ class BinderMapWithContext;
 }  // namespace mojo
 
 namespace content {
-#if !BUILDFLAG(IS_COBALT)
 class FakeBluetoothChooser;
 class FakeBluetoothChooserFactory;
 class FakeBluetoothDelegate;
-#endif
 class MockBadgeService;
 class MockClipboardHost;
 class NavigationThrottleRegistry;
 class WebTestBrowserContext;
 class WebTestSensorProviderManager;
-
-#if BUILDFLAG(IS_COBALT)
-class StubH5vccRuntimeImpl;
-#endif
 
 class WebTestContentBrowserClient : public ShellContentBrowserClient {
  public:
@@ -74,11 +61,9 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   void SetPopupBlockingEnabled(bool block_popups_);
   void ResetMockClipboardHosts();
 
-#if !BUILDFLAG(IS_COBALT)
   // Retrieves the last created FakeBluetoothChooser instance.
   std::unique_ptr<FakeBluetoothChooser> GetNextFakeBluetoothChooser();
   void ResetFakeBluetoothDelegate();
-#endif
 
   void ResetWebSensorProviderAutomation();
 
@@ -120,9 +105,7 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
   bool CanAcceptUntrustedExchangesIfNeeded() override;
-#if !BUILDFLAG(IS_COBALT)
   BluetoothDelegate* GetBluetoothDelegate() override;
-#endif
   content::TtsPlatform* GetTtsPlatform() override;
   std::unique_ptr<LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,
@@ -166,11 +149,9 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
 
-#if !BUILDFLAG(IS_COBALT)
   // Creates and stores a FakeBluetoothChooserFactory instance.
   void CreateFakeBluetoothChooserFactory(
       mojo::PendingReceiver<mojom::FakeBluetoothChooserFactory> receiver);
-#endif
   void BindClipboardHost(
       RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::mojom::ClipboardHost> receiver);
@@ -196,12 +177,10 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       mojo::PendingReceiver<blink::test::mojom::DevicePostureProviderAutomation>
           receiver);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void BindFedCmAutomation(
       RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::test::mojom::FederatedAuthRequestAutomation>
           receiver);
-#endif
 
   void BindWebSensorProviderAutomation(
       RenderFrameHost* render_frame_host,
@@ -224,19 +203,12 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
 
   void BindNonAssociatedWebTestControlHost(
       mojo::PendingReceiver<mojom::NonAssociatedWebTestControlHost> receiver);
-#if BUILDFLAG(IS_COBALT)
-  void BindH5vccRuntime(
-      RenderFrameHost* render_frame_host,
-      mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver);
-#endif
 
   bool block_popups_ = true;
 
-#if !BUILDFLAG(IS_COBALT)
   // Stores the FakeBluetoothChooserFactory that produces FakeBluetoothChoosers.
   std::unique_ptr<FakeBluetoothChooserFactory> fake_bluetooth_chooser_factory_;
   std::unique_ptr<FakeBluetoothDelegate> fake_bluetooth_delegate_;
-#endif
   std::unique_ptr<MockClipboardHost> mock_clipboard_host_;
   std::unique_ptr<MockBadgeService> mock_badge_service_;
   mojo::UniqueReceiverSet<blink::test::mojom::DevicePostureProviderAutomation>
@@ -244,14 +216,8 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   std::unique_ptr<WebTestSensorProviderManager> sensor_provider_manager_;
   mojo::UniqueReceiverSet<blink::test::mojom::CookieManagerAutomation>
       cookie_managers_;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   mojo::UniqueReceiverSet<blink::test::mojom::FederatedAuthRequestAutomation>
       fedcm_managers_;
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-  std::unique_ptr<StubH5vccRuntimeImpl> stub_h5vcc_runtime_impl_;
-#endif
 };
 
 }  // namespace content

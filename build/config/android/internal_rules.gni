@@ -14,8 +14,7 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/kythe.gni")
 import("//build/util/generate_wrapper.gni")
 import("//build_overrides/build.gni")
-import("//starboard/build/config/android_toolchain.gni")
-if (current_toolchain == android_toolchain) {
+if (current_toolchain == default_toolchain) {
   import("//build/toolchain/concurrent_links.gni")
 }
 assert(is_android)
@@ -131,7 +130,7 @@ template("write_build_config") {
   _deps = []
   _type = invoker.type
 
-  if (current_toolchain == android_toolchain) {
+  if (current_toolchain == default_toolchain) {
     # Ensure targets match naming patterns so that __assetres, __header, __host,
     # and __validate targets work properly.
     if (filter_exclude([ _type ], _java_resource_types) == []) {
@@ -155,7 +154,7 @@ template("write_build_config") {
     _target_label = invoker.public_target_label
   }
 
-  if (current_toolchain != android_toolchain) {
+  if (current_toolchain != default_toolchain) {
     not_needed(invoker, "*")
     _params = {
       type = ""
@@ -175,7 +174,7 @@ template("write_build_config") {
         "Tried to build an Android target in a non-default toolchain.",
         "target: $_target_label",
         "current_toolchain: $current_toolchain",
-        "android_toolchain: $android_toolchain",
+        "default_toolchain: $default_toolchain",
       ]
     }
   } else {
@@ -966,9 +965,9 @@ if (enable_java_templates) {
 
       # https://crbug.com/1098752 Fix for bot OOM (https://crbug.com/1098333).
       if (defined(java_cmd_pool_size)) {
-        pool = "//build/config/android:java_cmd_pool($android_toolchain)"
+        pool = "//build/config/android:java_cmd_pool($default_toolchain)"
       } else {
-        pool = "//build/toolchain:link_pool($android_toolchain)"
+        pool = "//build/toolchain:link_pool($default_toolchain)"
       }
 
       # Lint requires generated sources and generated resources from the build.
@@ -1392,9 +1391,9 @@ if (enable_java_templates) {
 
       # http://crbug.com/725224. Fix for bots running out of memory.
       if (defined(java_cmd_pool_size)) {
-        pool = "//build/config/android:java_cmd_pool($android_toolchain)"
+        pool = "//build/config/android:java_cmd_pool($default_toolchain)"
       } else {
-        pool = "//build/toolchain:link_pool($android_toolchain)"
+        pool = "//build/toolchain:link_pool($default_toolchain)"
       }
     }
 
@@ -1582,9 +1581,9 @@ if (enable_java_templates) {
         if (!_is_library) {
           # http://crbug.com/725224. Fix for bots running out of memory.
           if (defined(java_cmd_pool_size)) {
-            pool = "//build/config/android:java_cmd_pool($android_toolchain)"
+            pool = "//build/config/android:java_cmd_pool($default_toolchain)"
           } else {
-            pool = "//build/toolchain:link_pool($android_toolchain)"
+            pool = "//build/toolchain:link_pool($default_toolchain)"
           }
         }
 
@@ -2314,7 +2313,7 @@ if (enable_java_templates) {
     if (defined(invoker.emit_ids_out_path)) {
       _outputs += [ invoker.emit_ids_out_path ]
       _rebased_emit_ids_path =
-          rebase_path(invoker.emit_ids_out_path, root_build_dir)
+          rebase_path(invoker.emit_ids_out_path, root_out_dir)
       _args += [ "--emit-ids-out=$_rebased_emit_ids_path" ]
     }
 

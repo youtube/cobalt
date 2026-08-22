@@ -231,9 +231,6 @@ class MockDemuxerStream : public DemuxerStream {
   StreamLiveness liveness_ = StreamLiveness::kUnknown;
   AudioDecoderConfig audio_decoder_config_;
   VideoDecoderConfig video_decoder_config_;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 class MockVideoDecoder : public VideoDecoder {
