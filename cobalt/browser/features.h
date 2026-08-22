@@ -19,6 +19,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace features {
@@ -42,9 +43,6 @@ extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
 
-// Use IPv4 for system host resolution.
-extern const base::Feature kUseIPv4ForDNS;
-
 // Enables overriding the default metrics collection interval with a fixed
 // value.
 extern const base::Feature kCobaltMetricsIntervalFeature;
@@ -54,6 +52,38 @@ extern const base::FeatureParam<int> kCpuMetricsIntervalParam;
 
 // Sets memory metrics collection interval in seconds (default 5 min).
 extern const base::FeatureParam<int> kMemoryMetricsIntervalParam;
+
+// Enables Cobalt Memory Attribution Manager.
+extern const base::Feature kCobaltMemoryAttributionManager;
+
+// Sets Cobalt Memory Attribution reporting interval in seconds (default 10
+// min).
+extern const base::FeatureParam<int>
+    kCobaltMemoryAttributionReportIntervalParam;
+
+// Enables custom memory buffer size for in-memory updates.
+extern const base::Feature kInMemoryUpdatesMemoryBuffer;
+
+// Sets the memory buffer size in bytes.
+extern const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam;
+
+// Disables showing the splash screen.
+extern const base::Feature kDisableSplashScreen;
+
+// Forces the display of a video as the splash screen.
+extern const base::Feature kForceVideoSplashScreen;
+
+// Enables video Picture-in-Picture support.
+extern const base::Feature kEnablePictureInPicture;
+
+// Enables native memory ablation study to verify Finch and memory metrics.
+extern const base::Feature kCobaltNativeMemoryAblation;
+
+// Memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
+
+// Delay before performing memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 
 }  // namespace features
 }  // namespace cobalt

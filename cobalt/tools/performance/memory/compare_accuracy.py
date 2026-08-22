@@ -119,7 +119,8 @@ def aggregate_smaps(snapshot: Dict[str, Any]) -> Dict[str, float]:
   for region in snapshot['regions']:
     name = region['name']
     rss = region['rss']
-    if 'libchrobalt.so' in name:
+    if 'libchrobalt.so' in name or 'libcobalt.so' in name or name.endswith(
+        '/cobalt'):
       res['libchrobalt'] += rss
     elif 'partition_alloc' in name:
       res['partition_alloc'] += rss

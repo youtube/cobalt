@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <dlfcn.h>
 
 #include <cstdlib>
 #include <cstring>
@@ -27,14 +28,14 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
 #include "starboard/shared/starboard/get_home_directory.h"
 
 namespace {
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
 // May override the content path if there is EvergreenConfig published.
 // The override allows for switching to different content paths based
 // on the Evergreen binary executed.
@@ -61,24 +62,29 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
 // status. The result being greater than |path_size| - 1 characters is a
 // failure. |out_path| may be written to in unsuccessful cases.
+//
+// NOTE: Depending on the environment, the executing module resolved here
+// can dynamically point to three distinct types:
+// 1. Plugin mode: The shared library file (e.g., libloader_app.so)
+// 2. Executable mode: The standalone executable (e.g., loader_app)
+// 3. Test mode: The native test binary (e.g., elf_loader_sandbox)
 bool GetExecutablePath(char* out_path, int path_size) {
   if (path_size < 1) {
     return false;
   }
 
-  char path[kSbFileMaxPath + 1];
-  ssize_t bytes_read = readlink("/proc/self/exe", path, kSbFileMaxPath);
-  if (bytes_read < 1) {
-    return false;
+  Dl_info info;
+  // Use dladdr to find the absolute path of the binary we are currently executing in.
+  if (dladdr(reinterpret_cast<void*>(&GetExecutablePath), &info) && info.dli_fname) {
+    std::vector<char> absolute_path(kSbFileMaxPath);
+    if (realpath(info.dli_fname, absolute_path.data()) != nullptr) {
+      if (starboard::strlcpy<char>(out_path, absolute_path.data(), path_size) < path_size) {
+        return true;
+      }
+    }
   }
 
-  path[bytes_read] = '\0';
-  if (bytes_read > path_size) {
-    return false;
-  }
-
-  starboard::strlcpy<char>(out_path, path, path_size);
-  return true;
+  return false;
 }
 
 // Places up to |path_size| - 1 characters of the path to the directory
@@ -274,7 +280,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path, kPathSize)){
         return false;
       }
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
       if (!GetEvergreenContentPathOverride(path, kPathSize)) {
         return false;
       }
@@ -317,7 +323,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
     case kSbSystemPathFontConfigurationDirectory:
     case kSbSystemPathFontDirectory:
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if BUILDFLAG(IS_STARBOARD)
       if (!GetContentDirectory(path, kPathSize)) {
         return false;
       }

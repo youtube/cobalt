@@ -21,6 +21,7 @@
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "starboard/window.h"
 
 namespace content {
 class RenderFrameHost;
@@ -37,6 +38,11 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   // receiver and its lifetime is scoped to the render_frame_host.
   static void Create(content::RenderFrameHost* render_frame_host,
                      mojo::PendingReceiver<mojom::H5vccSystem> receiver);
+  // Static window registration invoked by CobaltContentBrowserClient during
+  // window creation/destruction. Placing this on the base class avoids a GN
+  // circular dependency between cobalt_content_browser_client and h5vcc_system.
+  static void SetPrimarySbWindow(SbWindow window);
+  static SbWindow GetPrimarySbWindow();
 
   H5vccSystemImpl(const H5vccSystemImpl&) = delete;
   H5vccSystemImpl& operator=(const H5vccSystemImpl&) = delete;
@@ -51,6 +57,8 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
       GetTrackingAuthorizationStatusSyncCallback) override;
   void RequestTrackingAuthorization(
       RequestTrackingAuthorizationCallback) override;
+  void GetFriendlyName(GetFriendlyNameCallback) override;
+  void GetScreenDiagonal(GetScreenDiagonalCallback) override;
   void GetUserOnExitStrategy(GetUserOnExitStrategyCallback) override;
   void Exit() override;
   void HideSplashScreen() override;

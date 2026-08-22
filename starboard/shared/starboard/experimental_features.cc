@@ -14,48 +14,23 @@
 
 #include "starboard/shared/starboard/experimental_features.h"
 
-#include <memory>
 #include <optional>
+#include <ostream>
+#include <type_traits>
+#include <utility>
 
-#include "base/no_destructor.h"
-#include "base/threading/thread_local.h"
 #include "starboard/common/log.h"
-#include "starboard/extension/experimental_features.h"
+#include "starboard/extension/experimental/experimental_features.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
 namespace starboard {
-
 namespace {
 
-base::ThreadLocalOwnedPointer<ExperimentalFeatures>&
-GetExperimentalFeaturesTLS() {
-  static base::NoDestructor<base::ThreadLocalOwnedPointer<ExperimentalFeatures>>
-      experimental_features_tls;
-  return *experimental_features_tls;
-}
-
-ExperimentalFeatures* GetOrCreateExperimentalFeatures() {
-  auto& tls = GetExperimentalFeaturesTLS();
-  ExperimentalFeatures* ptr = tls.Get();
-  if (ptr) {
-    return ptr;
-  }
-
-  tls.Set(std::make_unique<ExperimentalFeatures>());
-  return tls.Get();
-}
-
-std::optional<int> FromIntPointer(const int* val) {
-  if (!val) {
-    return std::nullopt;
-  }
-  return *val;
-}
-
-std::optional<bool> FromBoolPointer(const bool* val) {
-  if (!val) {
-    return std::nullopt;
-  }
-  return *val;
+std::optional<ExperimentalFeatures>& GetThreadLocalExperimentalFeatures() {
+  thread_local std::optional<ExperimentalFeatures> instance;
+  static_assert(sizeof(instance) < 256,
+                "ExperimentalFeatures is too large for thread-local storage.");
+  return instance;
 }
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi
@@ -67,54 +42,52 @@ const StarboardExtensionExperimentalFeaturesConfigurationApi
 
 }  // namespace
 
+ExperimentalFeatures::ExperimentalFeatures(Map settings)
+    : settings_(std::move(settings)) {}
+
 void SetExperimentalFeaturesForCurrentThread(
     const StarboardExtensionExperimentalFeatures* extension_features) {
   // |extension_features| cannot be null. We use a pointer here to support C API
   // compatibility.
   SB_CHECK(extension_features);
+  ExperimentalFeatures::Map map;
+  if (extension_features->entries) {
+    for (size_t i = 0; i < extension_features->entry_count; ++i) {
+      if (const auto& [key, value] = extension_features->entries[i]; key) {
+        map.insert_or_assign(key, value);
+      }
+    }
+  }
+  auto& experimental_features = GetThreadLocalExperimentalFeatures();
+  experimental_features = ExperimentalFeatures(std::move(map));
 
-  ExperimentalFeatures experiment_features;
-
-  experiment_features.allow_audio_writing_on_pause =
-      extension_features->allow_audio_writing_on_pause;
-  experiment_features.disable_low_performance_sw_decoder =
-      extension_features->disable_low_performance_sw_decoder;
-  experiment_features.enable_av1_startup_optimization =
-      extension_features->enable_av1_startup_optimization;
-  experiment_features.enable_codec_output_checker =
-      extension_features->enable_codec_output_checker;
-  experiment_features.enable_video_renderer_vsp_adjustment =
-      extension_features->enable_video_renderer_vsp_adjustment;
-  experiment_features.flush_decoder_during_reset =
-      extension_features->flush_decoder_during_reset;
-  experiment_features.reset_audio_decoder =
-      extension_features->reset_audio_decoder;
-  experiment_features.skip_flush_on_decoder_teardown =
-      extension_features->skip_flush_on_decoder_teardown;
-  experiment_features.skip_video_frames_over_60_fps =
-      extension_features->skip_video_frames_over_60_fps;
-  experiment_features.use_dual_threads_for_video =
-      FromBoolPointer(extension_features->use_dual_threads_for_video);
-  experiment_features.video_decoder_initial_preroll_count =
-      FromIntPointer(extension_features->video_decoder_initial_preroll_count);
-  experiment_features.video_renderer_min_decoded_frames =
-      FromIntPointer(extension_features->video_renderer_min_decoded_frames);
-  experiment_features.video_renderer_min_input_buffers =
-      FromIntPointer(extension_features->video_renderer_min_input_buffers);
-
-  *GetOrCreateExperimentalFeatures() = experiment_features;
+  if (experimental_features->GetBool(
+          kMediaEnableSimdBasedAudioFormatSwitching)) {
+    DecodedAudio::EnableSimdBasedAudioFormatSwitching();
+  }
 }
 
 const ExperimentalFeatures& GetExperimentalFeaturesForCurrentThread() {
-  ExperimentalFeatures* current = GetExperimentalFeaturesTLS().Get();
-  SB_CHECK(current)
+  const auto& experimental_features = GetThreadLocalExperimentalFeatures();
+  SB_CHECK(experimental_features.has_value())
       << "ExperimentalFeatures are not set. This method was likely "
          "called on the wrong thread or a race condition occurred.";
-  return *current;
+  return *experimental_features;
 }
 
 const void* GetExperimentalFeaturesConfigurationApi() {
   return &kExperimentalFeaturesConfigurationApi;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ExperimentalFeatures& features) {
+  os << "{";
+  const char* delim = "";
+  for (const auto& [key, value] : features.settings_) {
+    os << std::exchange(delim, ", ") << key << "=";
+    std::visit([&os](const auto& val) { os << val; }, value);
+  }
+  return os << "}";
 }
 
 }  // namespace starboard

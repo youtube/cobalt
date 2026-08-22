@@ -4,30 +4,26 @@ Book: /youtube/cobalt/_book.yaml
 # Starboard Module Reference: `microphone.h`
 
 Defines functions for microphone creation, control, audio data fetching, and
-destruction. This module supports multiple calls to `SbMicrophoneOpen` and
-`SbMicrophoneClose`, and the implementation should handle multiple calls to one
-of those functions on the same microphone. For example, your implementation
-should handle cases where `SbMicrophoneOpen` is called twice on the same
-microphone without a call to `SbMicrophoneClose` in between.
+destruction. The implementation must handle multiple calls to `SbMicrophoneOpen`
+and `SbMicrophoneClose` on the same microphone. For example, calling
+`SbMicrophoneOpen` twice without an intervening `SbMicrophoneClose` must be
+handled gracefully.
 
 This API is not thread-safe and must be called from a single thread.
 
-How to use this API:
+API Usage:
 
-1.  Call `SbMicrophoneGetAvailableInfos` to get a list of available microphone
-    information.
+1.  Query available microphones by calling `SbMicrophoneGetAvailable`.
 
-1.  Create a supported microphone, using `SbMicrophoneCreate`, with enough
-    buffer size and sample rate. Use `SbMicrophoneIsSampleRateSupported` to
-    verify the sample rate.
+1.  Create a supported microphone using `SbMicrophoneCreate`, specifying a
+    supported sample rate and buffer size. Verify the sample rate with
+    `SbMicrophoneIsSampleRateSupported`.
 
-1.  Use `SbMicrophoneOpen` to open the microphone port and start recording audio
-    data.
+1.  Open the microphone port and start recording using `SbMicrophoneOpen`.
 
-1.  Periodically read out the data from microphone with `SbMicrophoneRead`.
+1.  Periodically read audio data using `SbMicrophoneRead`.
 
-1.  Call `SbMicrophoneClose` to close the microphone port and stop recording
-    audio data.
+1.  Close the port and stop recording using `SbMicrophoneClose`.
 
 1.  Destroy the microphone with `SbMicrophoneDestroy`.
 
@@ -51,20 +47,20 @@ All possible microphone types.
 
 *   `kSbMicrophoneCamera`
 
-    Built-in microphone in camera.
+    Built-in camera microphone.
 *   `kSbMicrophoneUSBHeadset`
 
-    Microphone in the headset that can be a wired or wireless USB headset.
+    USB headset microphone (wired or wireless).
 *   `kSbMicrophoneVRHeadset`
 
-    Microphone in the VR headset.
+    VR headset microphone.
 *   `kSBMicrophoneAnalogHeadset`
 
-    Microphone in the analog headset.
+    Analog headset microphone.
 *   `kSbMicrophoneUnknown`
 
-    Unknown microphone type. The microphone could be different than the other
-    enum descriptions or could fall under one of those descriptions.
+    Unknown microphone type. Used if the microphone does not map to other enum
+    values.
 
 ## Typedefs
 
@@ -100,7 +96,7 @@ Microphone information.
 
 *   `SbMicrophoneId id`
 
-    Microphone id.
+    Microphone ID.
 *   `SbMicrophoneType type`
 
     Microphone type.
@@ -109,23 +105,21 @@ Microphone information.
     The microphone's maximum supported sampling rate.
 *   `int min_read_size`
 
-    The minimum read size required for each read from microphone.
+    The minimum read size (in bytes) required for each read.
 *   `char label`
 
-    Name of the microphone. Can be empty. This should indicate the friendly name
-    of the microphone type. For example, "Headset Microphone". The string must
-    be null terminated.
+    A user-friendly name for the microphone (for example, "Headset Microphone").
+    Can be empty. The string must be null-terminated.
 
 ## Functions
 
 ### SbMicrophoneClose
 
-Closes the microphone port, stops recording audio on `microphone`, and clears
-the unread buffer if it is not empty. If the microphone has already been
-stopped, this call is ignored. The return value indicates whether the microphone
-is closed.
+Closes the microphone port, stops recording on `microphone`, and clears any
+unread data from the buffer. If the microphone is already stopped, this call is
+ignored. Returns `true` if the microphone is successfully closed.
 
-`microphone`: The microphone to close.
+*   `microphone`: The microphone to close.
 
 #### Declaration
 
@@ -135,23 +129,23 @@ bool SbMicrophoneClose(SbMicrophone microphone)
 
 ### SbMicrophoneCreate
 
-Creates a microphone with the specified ID, audio sample rate, and cached audio
-buffer size. Starboard only requires support for creating one microphone at a
-time, and implementations may return an error if a second microphone is created
-before the first is destroyed.
+Creates a microphone with the specified ID, sample rate, and buffer size.
+Starboard only requires support for one active microphone at a time; creating a
+second microphone before destroying the first may fail.
 
-The function returns the newly created SbMicrophone object. However, if you try
-to create a microphone that has already been initialized, if the sample rate is
-unavailable, or if the buffer size is invalid, the function should return
-`kSbMicrophoneInvalid`.
+Returns the newly created `SbMicrophone` object. Returns `kSbMicrophoneInvalid`
+if the microphone is already initialized, the sample rate is unsupported, or the
+buffer size is invalid.
 
-`id`: The ID that will be assigned to the newly created SbMicrophone.
-`sample_rate_in_hz`: The new microphone's audio sample rate in Hz.
-`buffer_size_bytes`: The size of the buffer where signed 16-bit integer audio
-data is temporarily cached to during the capturing. The audio data is removed
-from the audio buffer if it has been read, and new audio data can be read from
-this buffer in smaller chunks than this size. This parameter must be set to a
-value greater than zero and the ideal size is `2^n`.
+*   `id`: The ID that will be assigned to the newly created SbMicrophone.
+
+*   `sample_rate_in_hz`: The new microphone's audio sample rate in Hz.
+
+*   `buffer_size_bytes`: The size of the buffer where signed 16-bit integer
+    audio data is temporarily cached during capture. Audio data is removed from
+    the buffer after it is read. New data can be read from this buffer in chunks
+    smaller than the buffer size. This parameter must be greater than zero, and
+    ideally a power of two (`2^n`).
 
 #### Declaration
 
@@ -161,9 +155,8 @@ SbMicrophone SbMicrophoneCreate(SbMicrophoneId id, int sample_rate_in_hz, int bu
 
 ### SbMicrophoneDestroy
 
-Destroys a microphone. If the microphone is in started state, it is first
-stopped and then destroyed. Any data that has been recorded and not read is
-thrown away.
+Destroys a microphone. If the microphone is recording, it is stopped before
+being destroyed. Any unread recorded data is discarded.
 
 #### Declaration
 
@@ -173,16 +166,15 @@ void SbMicrophoneDestroy(SbMicrophone microphone)
 
 ### SbMicrophoneGetAvailable
 
-Retrieves all currently available microphone information and stores it in
-`out_info_array`. The return value is the number of the available microphones.
-If the number of available microphones is larger than `info_array_size`, then
-`out_info_array` is filled up with as many available microphones as possible and
-the actual number of available microphones is returned. A negative return value
-indicates that an internal error occurred.
+Retrieves information for all available microphones and stores it in
+`out_info_array`. Returns the number of available microphones. If this count
+exceeds `info_array_size`, the array is filled to capacity with available
+microphone info, and the total count of available microphones is returned. A
+negative return value indicates an error.
 
-`out_info_array`: All currently available information about the microphone is
-placed into this output parameter. `info_array_size`: The size of
-`out_info_array`.
+*   `out_info_array`: The destination buffer for available microphone info.
+
+*   `info_array_size`: The capacity of `out_info_array`.
 
 #### Declaration
 
@@ -202,7 +194,7 @@ static bool SbMicrophoneIdIsValid(SbMicrophoneId id)
 
 ### SbMicrophoneIsSampleRateSupported
 
-Indicates whether the microphone supports the sample rate.
+Returns whether the microphone supports the specified sample rate.
 
 #### Declaration
 
@@ -222,13 +214,12 @@ static bool SbMicrophoneIsValid(SbMicrophone microphone)
 
 ### SbMicrophoneOpen
 
-Opens the microphone port and starts recording audio on `microphone`.
+Opens the microphone port and starts recording on `microphone`. Once started,
+call `SbMicrophoneRead` periodically to retrieve audio data. If the microphone
+is already open, this call clears the unread buffer. Returns `true` if the
+microphone is successfully opened.
 
-Once started, the client needs to periodically call `SbMicrophoneRead` to
-receive the audio data. If the microphone has already been started, this call
-clears the unread buffer. The return value indicates whether the microphone is
-open. `microphone`: The microphone that will be opened and will start recording
-audio.
+*   `microphone`: The microphone to open.
 
 #### Declaration
 
@@ -241,19 +232,21 @@ bool SbMicrophoneOpen(SbMicrophone microphone)
 Retrieves the recorded audio data from the microphone and writes that data to
 `out_audio_data`.
 
-The return value is zero or the positive number of bytes that were read. Neither
-the return value nor `audio_data_size` exceeds the buffer size. A negative
-return value indicates that an error occurred.
+Returns the number of bytes read (greater than or equal to zero). The returned
+size does not exceed `audio_data_size` or the internal buffer size. Returns a
+negative value on error.
 
-This function should be called frequently. Otherwise, the microphone only
-buffers `buffer_size` bytes as configured in `SbMicrophoneCreate` and the new
-audio data is thrown out. No audio data is read from a stopped microphone.
+Call this function frequently. If the internal buffer (configured in
+`SbMicrophoneCreate`) fills up, new audio data is discarded. You cannot read
+data from a stopped microphone.
 
-`microphone`: The microphone from which to retrieve recorded audio data.
-`out_audio_data`: The buffer to which the retrieved data will be written.
-`audio_data_size`: The number of requested bytes. If `audio_data_size` is
-smaller than `min_read_size` of `SbMicrophoneInfo`, the extra audio data that
-has already been read from the device is discarded.
+*   `microphone`: The microphone to read from.
+
+*   `out_audio_data`: The destination buffer for the read data.
+
+*   `audio_data_size`: The number of bytes to read. If `audio_data_size` is less
+    than `min_read_size` (from `SbMicrophoneInfo`), any additional audio data
+    read from the device is discarded.
 
 #### Declaration
 

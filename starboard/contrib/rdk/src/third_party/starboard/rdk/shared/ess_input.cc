@@ -44,10 +44,7 @@
 #include <linux/input.h>
 #include <cstring>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -427,7 +424,7 @@ void EssInput::CreateKey(unsigned int key, SbInputEventType type, unsigned int m
   data->key_location = KeyCodeToSbKeyLocation(key);
   data->key_modifiers = modifiers;
 
-  Application::Get()->InjectInputEvent(data);
+  ApplicationRdk::Get()->InjectInputEvent(data);
 
   DeleteRepeatKey();
 
@@ -513,7 +510,4 @@ void EssInput::OnKeyReleased(unsigned int key) {
   OnKeyboardKey(key, kSbInputEventTypeUnpress);
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

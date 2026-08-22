@@ -21,6 +21,7 @@
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
 #include "starboard/configuration.h"
+
 namespace media {
 
 template <typename ReuseAllocatorBase>
@@ -28,19 +29,32 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
   BidirectionalFitDecoderBufferAllocatorStrategy(size_t initial_capacity,
-                                                 size_t allocation_increment,
-                                                 bool enable_decommit_on_idle)
-      : fallback_allocator_(enable_decommit_on_idle),
+                                                 size_t allocation_increment)
+      : fallback_allocator_(/*enable_decommit_on_idle=*/false,
+                            /*enable_page_alignment=*/false),
         bidirectional_fit_allocator_(&fallback_allocator_,
                                      initial_capacity,
                                      kSmallAllocationThreshold,
-                                     allocation_increment,
-                                     enable_decommit_on_idle) {}
+                                     allocation_increment) {}
 
-  void* Allocate(DemuxerStream::Type type,
-                 size_t size,
-                 size_t alignment) override {
-    return bidirectional_fit_allocator_.Allocate(size, alignment);
+  // Constructs a strategy with explicit decommit configurations.
+  explicit BidirectionalFitDecoderBufferAllocatorStrategy(
+      const DecoderBufferAllocator::Strategy::ExperimentConfig& config)
+      : fallback_allocator_(config.enable_decommit_on_idle,
+                            config.allocate_with_page_alignment),
+        bidirectional_fit_allocator_(&fallback_allocator_,
+                                     config.initial_capacity,
+                                     kSmallAllocationThreshold,
+                                     config.allocation_increment,
+                                     config.enable_decommit_on_idle,
+                                     config.retain_blocks,
+                                     config.conservative_decommit_blocks,
+                                     config.aggressive_decommit_on_suspend,
+                                     config.memset_on_reclaim,
+                                     config.mark_as_cold_on_reclaim) {}
+
+  void* Allocate(DemuxerStream::Type type, size_t size) override {
+    return bidirectional_fit_allocator_.Allocate(size);
   }
   void Free(DemuxerStream::Type type, void* p) override {
     bidirectional_fit_allocator_.Free(p);
@@ -55,6 +69,14 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
 
   size_t GetAllocated() const override {
     return bidirectional_fit_allocator_.GetAllocated();
+  }
+
+  void DecommitAllDecommitableBlocks() override {
+    bidirectional_fit_allocator_.DecommitAllDecommitableBlocks();
+  }
+
+  void TryToDecommitOneBlock(int cadence) override {
+    bidirectional_fit_allocator_.TryToDecommitOneBlock(cadence);
   }
 
  private:

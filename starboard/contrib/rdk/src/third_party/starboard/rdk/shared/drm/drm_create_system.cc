@@ -40,7 +40,7 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 #if defined(HAS_OCDM)
-  using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
+  using starboard::DrmSystemOcdm;
   std::string empty;
   if (!DrmSystemOcdm::IsKeySystemSupported(key_system, empty.c_str())) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;

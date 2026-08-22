@@ -219,7 +219,7 @@ config("default_libs") {
     # Targets should choose to explicitly link frameworks they require. Since
     # linking can have run-time side effects, nothing should be listed here.
     libs = []
-  } else if (is_cobalt && is_native_target) {
+  } else if (is_cobalt && is_native_toolchain) {
     # This build configuration is only used for the crashpad handler executable.
     # This binary needs dynamic linking but gets undefined symbols, which result
     # in symbol lookup errors at runtime, when also linked with pthread.

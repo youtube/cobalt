@@ -21,7 +21,7 @@
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/experimental/media_buffer_pool_memory_allocator.h"
-#include "starboard/common/reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 
 namespace starboard {
 namespace experimental {
@@ -39,8 +39,7 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
         bidirectional_fit_reuse_allocator_(&fallback_allocator_,
                                            initial_capacity,
                                            small_allocation_threshold,
-                                           allocation_increment,
-                                           /*enable_decommit_on_idle=*/false) {}
+                                           allocation_increment) {}
 
   ~MediaBufferPoolBidirectionalReuseAllocator() {
     SB_DCHECK_EQ(GetAllocated(), 0u);
@@ -86,7 +85,7 @@ class MediaBufferPoolBidirectionalReuseAllocator : public Allocator {
 
  private:
   MediaBufferPoolMemoryAllocator fallback_allocator_;
-  BidirectionalFitReuseAllocator<ReuseAllocatorBase>
+  BidirectionalFitReuseAllocator<ExternalMetadataReuseAllocatorBase>
       bidirectional_fit_reuse_allocator_;
 };
 

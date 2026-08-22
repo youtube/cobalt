@@ -30,6 +30,7 @@
 // limitations under the License.
 
 #include "starboard/player.h"
+#include "starboard/common/rect.h"
 
 #include "third_party/starboard/rdk/shared/player/player_internal.h"
 
@@ -41,5 +42,5 @@ void SbPlayerSetBounds(SbPlayer player,
                        int height) {
   if (player == kSbPlayerInvalid)
     return;
-  player->player_->SetBounds(z_index, x, y, width, height);
+  player->player_->SetBounds(z_index, ::starboard::Rect(x, y, width, height));
 }

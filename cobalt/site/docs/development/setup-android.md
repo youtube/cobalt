@@ -1,375 +1,125 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Set up your environment - Android
+# Set up your environment - AOSP
 
-These instructions explain how to build Cobalt with evergreen enabled for your workstation and run the api on Android device.
+These instructions explain how to build and run Cobalt for the AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`).
 
-## Build Instruction
+Before following these instructions, make sure you have set up your workstation and source checkout as described in [Set up your environment - Linux](setup-linux.md).
 
-<aside class="note">
-<b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
-sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
-return and complete the following steps.
-</aside>
+## Prerequisites
 
-1. Download source code and setup build environment
+1. Follow all steps in [Set up your environment - Linux](setup-linux.md) to install basic system dependencies, `depot_tools`, clone the Cobalt repository, and run `build/install-build-deps.sh`.
 
-    Please checkout to the latest LTS version. Ex: 24.lts.40
+2. Ensure your root `.gclient` file includes `android` in `target_os`:
 
-    ```sh
-    git clone https://github.com/youtube/cobalt.git
-    cd cobalt
-    export COBALT_SRC=${PWD}
-    export PYTHONPATH=${PWD}
-    export COBALT_USE_INTERNAL_BUILD=0
-    git checkout tags/24.lts.40
-    ```
-
-1. Enter the top-level of the Cobalt directory
-
-    ```sh
-    cd $COBALT_SRC
-    ```
-
-1. Download the Starboard toolchain and Android SDK
-
-    ```sh
-    ./starboard/tools/download_clang.sh
-    ./starboard/android/shared/download_sdk.sh
-    ```
-
-1. Install additional Linux packages
-
-    ```sh
-    sudo apt install binutils-arm-linux-gnueabi libgles2-mesa-dev mesa-common-dev
-    ```
-
-1. Make sure Android debug keystore is setup
-
-    ```sh
-    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
-    ```
-
-1. Enable python3 virtual environment
-
-    ```sh
-    python3 -m venv ~/.virtualenvs/cobalt_dev
-    source ~/.virtualenvs/cobalt_dev/bin/activate
-    ```
-
-### Download and configure the official Google-built Cobalt binaries from GitHub
-
-1. Create output directory for evergreen
-
-    - Create the directory with arguments that meet the target device specification
-      - Platform type, ex: arm-hardfp, arm-softfp, arm-64, etc
-      - CPU type, ex: arm
-      - Build type, ex: gold, qa
-      - Starboard API version, ex: 15
-    - An example to create directory for evergreen-arm-softfp with build_type=qa and sb_api_version=15
-      ```sh
-      gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" use_asan=false target_cpu=\"arm\" build_type=\"qa\" sb_api_version=15"
-      ```
-
-1. Select Google-prebuilt Cobalt binaries from [GitHub](https://github.com/youtube/cobalt/releases)
-
-    - Choose the correct evergreen version based on the target device specification
-
-      Please note that the selected prebuilt binary must meet the settings used to create evergreen directory in previous step.
-      - Cobalt version you checked out, ex: 24.lts.40
-      - Build type, ex: gold, qa
-      - Starboard API version, ex: 15
-    - Here is an example of 24.lts.40 with starboard API version 15
-      - [`24.lts.40 release`](https://github.com/youtube/cobalt/releases/tag/24.lts.40)
-      - `Gold version`: cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_release_20240426165046.crx
-      - `QA version`: cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_qa_20240426165046.crx
-    - For Cobalt 25 with starboard API version 16, you need to use compressed version
-      - [`25.lts.1 release`](https://github.com/youtube/cobalt/releases/tag/25.lts.1)
-      - `Gold version`: cobalt_evergreen_5.1.2_arm-softfp_sbversion-16_release_compressed_20240629001855.crx
-      - `QA version`: cobalt_evergreen_5.1.2_arm-softfp_sbversion-16_qa_compressed_20240629001855.crx
-    - Right click the file and copy file URL
-
-1. Download and unzip the file
-
-    ```sh
-    export LOCAL_CRX_DIR=/tmp/cobalt_dl
-    mkdir -p $LOCAL_CRX_DIR
-
-    # paste prebuilt library URL and Download it to /tmp
-    # Please update URL according to your need
-    COBALT_CRX_URL=https://github.com/youtube/cobalt/releases/download/24.lts.40/cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_qa_20240426165046.crx
-
-    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
-
-    # Unzip the downloaded CRX file
-    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
-    ```
-
-1. Copy the files to the appropriate directories for building
-
-    ```sh
-    cd $COBALT_SRC
-    mkdir -p out/evergreen-arm-softfp_qa/install/lib
-    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* out/evergreen-arm-softfp_qa/
-    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* out/evergreen-arm-softfp_qa/install/lib
-    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json out/evergreen-arm-softfp_qa/
-    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content out/evergreen-arm-softfp_qa/
-    ```
-
-### Compile Android APK using Ninja
-
-1. Generate output folder
-
-    ```sh
-    gn gen out/android-arm_qa --args="target_platform=\"android-arm\" target_os=\"android\" target_cpu=\"arm\" build_type=\"qa\" sb_api_version=15 sb_is_evergreen_compatible=true"
-    ```
-
-    Note that we removed the `sb_evergreen_compatible_enable_lite` build param.
-    To enable Evergreen-lite, you may either pass in command line flag `--evergreen_lite` or
-    set the `cobalt.EVERGREEN_LITE` property to be `true` in the AndroidManifest.xml
-
-1. Build Crashpad handler first
-
-    ```sh
-    ninja -C out/android-arm_qa native_target/crashpad_handler
-    ```
-
-1. Build loader_app APK
-
-    ```sh
-    ninja -C out/android-arm_qa loader_app_install
-    ```
-
-1. Check the output apk file. The output file is available at
-
-    ```sh
-    out/android-arm_qa/loader_app.apk
-    ```
-
-## Setup your device and deploy the apk
-
-### Configure your device to be in developer mode
-
-1.  From `Settings`, in the `System` row, select `About`
-1.  Scroll down to and click on `Android TV OS build` several times until a toast appears with
-    the message, "You are now a developer"
-1.  In the newly added "Developer options" settings menu, make sure `USB`
-    debugging is enabled
-
-**NOTE:** This instruction is based on Chromecast (Google TV). If you do not find the same setting, please check similar setting under **System, About and Build**.
-
-### Check the device is connected
-
-1. Connect your workstation with the Android device via USB
-
-1. Check device is connected
-
-    ```sh
-    adb devices
-    # It shows the device if it is connected
-    List of devices attached
-    35091HFGN5HVC2  device
+   ```python
+   target_os = [ 'linux', 'android' ]
    ```
 
-### Install the Evergreen loader APK on the device
+   Then synchronize dependencies from your top-level repository:
 
-```
-adb install out/android-arm_qa/loader_app.apk
-```
+   ```bash
+   cd ~/cobalt/src
+   gclient sync
+   ```
 
-### Launch the APK
+3. Set up an Android debug keystore required for signing development APKs:
 
-1.  Start the application with
+   ```bash
+   keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
+   ```
 
-    ```sh
-    adb shell am start dev.cobalt.coat/dev.cobalt.app.MainActivity
-    ```
+## Build and Run Cobalt for AOSP
 
-1.  For command line parameters use the `--esa` flag to specify the "args" array
-    as comma-separated values (with characters backslash-escaped as needed to
-    make it through both the shell on your workstation and the shell on the
-    device), e.g.:
+1. Configure the build directory for the target AOSP platform (`aosp-arm`, `aosp-arm64`, `aosp-x86`) using `cobalt/build/gn.py`.
 
-    ```sh
-    adb shell am start --esa args --flag_arg,--value_arg=something dev.cobalt.coat
-    ```
+   Use the `-c` flag to specify a `build_type` (`debug`, `devel`, `qa`, or `gold`).
 
-1. For Evergreen-lite, two ways to launch it depending on how you enable it
-    - Via command line flag
+   ```bash
+   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
+   ```
 
-    ```sh
-    adb shell "am start --esa args '--evergreen_lite=true' dev.cobalt.coat"
-    ```
+2. Compile the `cobalt_loader` target using `autoninja`:
 
-    - Via AndroidManifest.xml
-    ```sh
-    adb shell "am start dev.cobalt.coat"
-    ```
+   ```bash
+   autoninja -C out/aosp-arm_devel cobalt_loader
+   ```
 
-1.  To monitor log output, watch logcat in another shell with a filter for
-    starboard messages
+   This generates the application loader APK at `out/aosp-arm_devel/apks/cobalt.apk`.
 
-    ```sh
-    adb logcat -s starboard:*
-    ```
+3. Deploy and launch on an AOSP device or emulator:
 
-1.  To kill any existing running application process (even if it's no longer the
-    active app) use
+   Ensure your device is connected via ADB (`adb devices` or `adb connect <device_ip>:5555`).
 
-    ```sh
-    adb shell am force-stop dev.cobalt.coat
-    ```
+   Install the compiled APK:
 
+   ```bash
+   adb install -r out/aosp-arm_devel/apks/cobalt.apk
+   ```
+
+   Launch the application using `adb` (Package: `dev.cobalt.coat`, Activity: `dev.cobalt.app.MainActivity`):
+
+   ```bash
+   adb shell am start dev.cobalt.coat/dev.cobalt.app.MainActivity
+   ```
+
+   Pass runtime flags using `--esa commandLineArgs`:
+
+   ```bash
+   adb shell am start --esa commandLineArgs 'url=https://www.youtube.com/tv' dev.cobalt.coat/dev.cobalt.app.MainActivity
+   ```
+
+   To force-stop any running instance before relaunching:
+
+   ```bash
+   adb shell am force-stop dev.cobalt.coat
+   ```
 
 ## Running Tests
 
-There is no prebuilt nplb library on github server and the partners can build it
-from the source code. The build target just builds an .so file (e.g. libnplb.so). To
-run that on a device, it needs to be packaged into another loader APK.
+The No Platform Left Behind (NPLB) test suite verifies Starboard implementation on AOSP targets.
 
-### Build nplb library
+1. Compile the NPLB test suite:
 
-Similar to loader_app, create the directory with arguments that meet the target device specification. Here is an example:
-1. Generate evergreen folder
+   ```bash
+   cobalt/build/gn.py -p aosp-arm -c devel --no-rbe
+   autoninja -C out/aosp-arm_devel nplb_loader
+   ```
 
-    ```sh
-    gn gen out/evergreen-arm-softfp_devel --args="target_platform=\"evergreen-arm-softfp\" target_cpu=\"arm\" use_asan=false build_type=\"devel\" sb_api_version=15"
-    ```
+   This generates the test APK at `out/aosp-arm_devel/apks/nplb.apk`.
 
-1. Build nplb library
+2. Install the NPLB test APK on the target device:
 
-    ```sh
-    ninja -C out/evergreen-arm-softfp_devel nplb_install
-    ```
+   ```bash
+   adb install -r out/aosp-arm_devel/apks/nplb.apk
+   ```
 
-1. Generate apk output folder
+3. Launch NPLB on device passing the target compressed library argument via `--esa commandLineArgs`:
 
-    ```sh
-    gn gen out/android-arm_devel --args="target_platform=\"android-arm\" target_cpu=\"arm\" target_os=\"android\" sb_is_evergreen_compatible=true build_type=\"devel\" sb_api_version=15"
-    ```
+   ```bash
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
 
-### Build and run nplb test apk
+4. Pass standard Google Test filtering arguments:
 
-1. Build nplb apk
-
-    ```sh
-    ninja -C out/android-arm_devel nplb_evergreen_loader_install
-    ```
-
-1. Check the output apk file. The output file is available at
-
-    ```sh
-    out/android-arm_devel/nplb_evergreen_loader.apk
-    ```
-
-1. To run the nplb test, execute following command
-
-    ```sh
-    # install the apk
-    adb install out/android-arm_devel/nplb_evergreen_loader.apk
-
-    # launch the apk
-    adb shell "am start --esa args '--evergreen_library=app/cobalt/lib/libnplb.so,--evergreen_content=app/cobalt/content' dev.cobalt.coat"
-    ```
-
-1. Generate test result with XML format
-
-    Due to access permission constrains on AOSP, the xml file should be created
-    by `adb shell` first, before nplb apk writing test result in it.
-
-    ```sh
-    # create a file in a folder with read/write permission
-    adb shell "mkdir -p /data/local/tmp/"
-    adb shell "touch /data/local/tmp/nplb_testResult.xml"
-
-    # Make the file writable
-    adb shell "chmod a+w /data/local/tmp/nplb_testResult.xml"
-
-    # test and output to xml file
-    adb shell "am start --esa args '--evergreen_library=app/cobalt/lib/libnplb.so,--evergreen_content=app/cobalt/content,--gtest_output=xml:/data/local/tmp/nplb_testResult.xml' dev.cobalt.coat"
-    ```
-
-### Build and run nplb evergreen compat test apk
-
-1. Build nplb_evergreen_compat_tests apk
-
-    **NOTE:** Please finish nplb build in previous step before building nplb compat test
-
-    ```sh
-    ninja -C out/android-arm_devel nplb_evergreen_compat_tests_install
-    ```
-
-1. Check the output apk file. The output file is available at
-
-    ```sh
-    out/android-arm_devel/nplb_evergreen_compat_tests.apk
-    ```
-
-1. To run the nplb compat test, execute following command
-
-    ```sh
-    # install the apk
-    adb install out/android-arm_devel/nplb_evergreen_compat_tests.apk
-
-    # launch the apk
-    adb shell am start dev.cobalt.coat
-    ```
+   ```bash
+   # Run NPLB with a specific test filter (e.g. Memory tests)
+   adb shell "am start --esa commandLineArgs '--evergreen_library=app/cobalt/lib/libnplb.lz4,--evergreen_content=app/cobalt/content,--gtest_filter=*Memory*' dev.cobalt.coat/dev.cobalt.app.MainActivity"
+   ```
 
 ## Debugging
 
-Use `adb logcat` while Cobalt is running, or use `adb bugreport` shortly after
-exiting to view Android logs. You will need to filter or search for
-Cobalt-related output.
+To monitor log output, watch logcat with a filter for Starboard and Cobalt messages:
 
-As with the Linux build, use the `debug`, `devel`, or `qa` configs to trace
-Cobalt's callstacks.
+```bash
+adb logcat -s "starboard:*" "Cobalt:*"
+```
 
-### Build Cobalt library locally
+## Clean up or reset the environment
 
-**Partners should always use the [Google prebuilt binaries from GitHub](https://github.com/youtube/cobalt/releases)
-for certification or software release.** However, for testing or debugging,
-they can still build the library locally. Ex:
+To clean build artifacts:
 
-   ```sh
-   # Create directory for evergreen-arm-softfp with build_type=qa and sb_api_version=15
-   gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" use_asan=false target_cpu=\"arm\" build_type=\"qa\" sb_api_version=15"
-
-   # Build Cobalt library
-   ninja -C out/evergreen-arm-softfp_qa cobalt_install
-   ```
-
-   Once the Cobalt library is built, go back to [Compile Android APK using Ninja](#compile-android-apk-using-ninja) to build the APK.
-
-## Removing the Cobalt Android Environment
-
-1.  Unset ANDROID_HOME and or ANDROID_NDK_HOME in your shell and in .bashrc
-
-1.  Delete the SDK
-
-    ```sh
-    rm -rf ~/starboard-toolchains/AndroidSdk
-    ```
-
-1.  Delete NDK toolchains
-
-    ```sh
-    rm -rf  ~/starboard-toolchains/android*
-    ```
-
-1.  Delete cached Android files
-
-    ```sh
-    rm -rf ~/.android
-    ```
-
-    **NOTE:** Removing this directory will remove all signing keys even for
-    different projects, so only delete this if you truly want to remove the
-    entire Cobalt and Android Studio environment.
-
-1. Uninstall APK from device
-
-   ```sh
-   adb uninstall dev.cobalt.coat
-   ```
+```bash
+gn clean out/aosp-arm_devel
+```

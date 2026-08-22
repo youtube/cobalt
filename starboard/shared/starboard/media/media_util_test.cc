@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 extern bool operator==(const SbMediaColorMetadata&,
@@ -237,6 +238,17 @@ TEST(AudioStreamInfoTest, StreamOperator_Empty) {
             "{codec=opus, mime=(empty), channels=2, "
             "samples_per_second=48'000, bits_per_sample=16}");
 }
-}  // namespace
 
+TEST(MediaUtilTest, Resolutions) {
+  EXPECT_EQ(Resolution::k240p, Size(426, 240));
+  EXPECT_EQ(Resolution::k360p, Size(640, 360));
+  EXPECT_EQ(Resolution::k480p, Size(854, 480));
+  EXPECT_EQ(Resolution::k720p, Size(1280, 720));
+  EXPECT_EQ(Resolution::k1080p, Size(1920, 1080));
+  EXPECT_EQ(Resolution::k1440p, Size(2560, 1440));
+  EXPECT_EQ(Resolution::k4k, Size(3840, 2160));
+  EXPECT_EQ(Resolution::k8k, Size(7680, 4320));
+}
+
+}  // namespace
 }  // namespace starboard

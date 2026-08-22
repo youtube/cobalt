@@ -22,11 +22,14 @@
 
 #include "base/command_line.h"
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/network_service_util.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
@@ -41,7 +44,9 @@
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/events/devices/device_data_manager.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/views/views_delegate.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#endif
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
@@ -67,14 +72,6 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(bool, DestroyShell, (Shell * shell), (override));
   MOCK_METHOD(void, CleanUp, (Shell * shell), (override));
   MOCK_METHOD(void,
-              EnableUIControl,
-              (Shell * shell, UIControl control, bool is_enabled),
-              (override));
-  MOCK_METHOD(void,
-              SetAddressBarURL,
-              (Shell * shell, const GURL& url),
-              (override));
-  MOCK_METHOD(void,
               SetTitle,
               (Shell * shell, const std::u16string& title),
               (override));
@@ -88,6 +85,25 @@ class MockShellPlatformDelegate : public ShellPlatformDelegate {
   MOCK_METHOD(void, OnFreeze, (), (override));
   MOCK_METHOD(void, OnUnfreeze, (), (override));
   MOCK_METHOD(void, OnStop, (), (override));
+  MOCK_METHOD(void, MainFrameCreated, (Shell*), (override));
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  MOCK_METHOD(bool,
+              IsFullscreenForTabOrPending,
+              (Shell*, const WebContents*),
+              (const override));
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+  MockShellPlatformDelegate() {
+#if BUILDFLAG(IS_IOS)
+    // Initialize() on tvOS creates a display::Screen instance that is required
+    // by calls to Shell::CreateNewWindow().
+    ON_CALL(*this, Initialize)
+        .WillByDefault([this](const gfx::Size& default_window_size,
+                              bool is_visible) {
+          ShellPlatformDelegate::Initialize(default_window_size, is_visible);
+        });
+#endif
+  }
 
   void SetIsVisible(bool is_visible) { is_visible_ = is_visible; }
 };
@@ -100,24 +116,63 @@ class TestBrowserAccessibilityState : public BrowserAccessibilityStateImpl {
 class MojoInitializer {
  public:
   MojoInitializer() {
+#if defined(USE_AURA)
     if (!aura::Env::HasInstance()) {
       aura_env_ = aura::Env::CreateInstance();
     }
+#endif
     mojo::core::Init();
   }
 
  private:
+#if defined(USE_AURA)
   std::unique_ptr<aura::Env> aura_env_;
+#endif
 };
 
 class ShellTestBase : public ::testing::Test {
  public:
   ShellTestBase()
       : task_environment_(content::BrowserTaskEnvironment::IO_MAINLOOP,
-                          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+                          base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    // b/537618464: Using a separate thread for the NetworkService causes random
+    // crashes in tests using ShellTestBase. This also affects multiple upstream
+    // tests. It is unclear if it is related to the use of MOCK_TIME above or if
+    // it is just the fact that the tests create and destroy a
+    // BrowserTaskEnvironment too quickly.
+    //
+    // From https://chromium-review.googlesource.com/c/chromium/src/+/7656849:
+    // A short-term workaround for new tests to mitigate the integration
+    // issue between the dedicated `NetworkService` thread and
+    // `BrowserTaskEnvironment` (see crbug.com/493322520). If disabled,
+    // `NetworkService` will use IO thread instead. This is valid for these
+    // tests because they do not depend on whether the network service is
+    // running on a dedicated thread or the IO thread.
+    scoped_feature_list_.InitAndDisableFeature(
+        content::kNetworkServiceDedicatedThread);
+  }
   ~ShellTestBase() override = default;
 
   void SetUp() override {
+#if BUILDFLAG(IS_ANDROID)
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass looper_clazz = env->FindClass("android/os/Looper");
+    jmethodID my_looper_method = env->GetStaticMethodID(
+        looper_clazz, "myLooper", "()Landroid/os/Looper;");
+    jobject looper =
+        env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    if (!looper) {
+      jmethodID prepare_method =
+          env->GetStaticMethodID(looper_clazz, "prepare", "()V");
+      env->CallStaticVoidMethod(looper_clazz, prepare_method);
+      looper = env->CallStaticObjectMethod(looper_clazz, my_looper_method);
+    }
+    jclass thread_utils_clazz = env->FindClass("org/chromium/base/ThreadUtils");
+    jmethodID set_ui_thread_method = env->GetStaticMethodID(
+        thread_utils_clazz, "setUiThread", "(Landroid/os/Looper;)V");
+    env->CallStaticVoidMethod(thread_utils_clazz, set_ui_thread_method, looper);
+#endif
+
     ForceInProcessNetworkService();
     mojo::core::Init();
     ui::DeviceDataManager::CreateInstance();
@@ -144,8 +199,7 @@ class ShellTestBase : public ::testing::Test {
     browser_context_ = std::make_unique<TestBrowserContext>();
 
     if (!ui::ResourceBundle::HasSharedInstance()) {
-      ui::ResourceBundle::InitSharedInstanceWithLocale(
-          "en-US", nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+      ui::ResourceBundle::InitSharedInstanceWithPakPath(base::FilePath());
     }
   }
 
@@ -209,6 +263,7 @@ class ShellTestBase : public ::testing::Test {
   }
 
  protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestContentClient test_content_client_;
   TestContentBrowserClient test_content_browser_client_;

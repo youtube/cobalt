@@ -14,7 +14,7 @@
 
 #include "cobalt/updater/configurator.h"
 
-#include <regex>
+#include <cctype>
 #include <set>
 #include <utility>
 
@@ -73,7 +73,8 @@ namespace cobalt {
 namespace updater {
 
 Configurator::Configurator(
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    const std::string& user_agent)
     : pref_service_(CreatePrefService()),
       persisted_data_(update_client::CreatePersistedData(
           base::BindRepeating([](PrefService* p) { return p; },
@@ -88,6 +89,7 @@ Configurator::Configurator(
       patch_factory_(base::MakeRefCounted<PatcherFactory>()),
       crx_cache_(base::MakeRefCounted<update_client::CrxCache>(std::nullopt)),
       is_forced_update_(0),
+      user_agent_string_(user_agent),
       min_free_space_bytes_(48 * 1024 * 1024),  // 48MB
       allow_self_signed_packages_(false),
       require_network_encryption_(true) {
@@ -281,18 +283,32 @@ update_client::UpdaterStateProvider Configurator::GetUpdaterStateProvider()
 std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
                                            const std::string& version,
                                            const int sb_version) {
-  if (updater_channel == "ltsnightly" || updater_channel == "ltsnightlyqa") {
-    return kOmahaCobaltLTSNightlyAppID;
+  if (updater_channel == "27nightly" || updater_channel == "27nightlyqa") {
+    return kOmahaCobalt27NightlyAppID;
   }
   if (version.find(".lts.") == std::string::npos &&
       version.find(".master.") != std::string::npos) {
     return kOmahaCobaltTrunkAppID;
   }
   std::string channel(updater_channel);
-  // This regex matches to all static channels for C25 and newer in the format
+  // This matches to all static channels for C27 and newer in the format
   // of XXltsY.
-  if (std::regex_match(updater_channel,
-                       std::regex("(2[5-9]|[3-9][0-9])lts\\d+"))) {
+  bool is_static = false;
+  if (updater_channel.size() >= 6 && std::isdigit(updater_channel[0]) &&
+      std::isdigit(updater_channel[1]) &&
+      updater_channel.compare(2, 3, "lts") == 0) {
+    int major = (updater_channel[0] - '0') * 10 + (updater_channel[1] - '0');
+    if (major >= 27) {
+      is_static = true;
+      for (size_t i = 5; i < updater_channel.size(); ++i) {
+        if (!std::isdigit(updater_channel[i])) {
+          is_static = false;
+          break;
+        }
+      }
+    }
+  }
+  if (is_static) {
     channel = "static";
   }
   auto it = kChannelAndSbVersionToOmahaIdMap.find(channel +
@@ -301,21 +317,18 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
     return it->second;
   }
   LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
-            << "combination is undefined with the new Omaha configs.";
+            << "combination is undefined with the new Omaha configs. Using "
+               "prod config";
 
-  // All undefined channel requests go to prod configs except for static
-  // channel requests for C24 and older.
-  // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
-  if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
-      sb_version >= 14 && sb_version <= 16) {
-    it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
-                                               std::to_string(sb_version));
-    if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-      return it->second;
-    }
+  // All undefined channel requests go to prod configs
+  it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
+                                             std::to_string(sb_version));
+  if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
+    return it->second;
   }
-  LOG(INFO) << __func__ << " starboard version is invalid.";
-  return kOmahaCobaltAppID;
+  LOG(INFO) << __func__
+            << "Starboard version is invalid. Using dev-branch config.";
+  return kOmahaCobaltTrunkAppID;
 }
 
 std::string Configurator::GetAppGuid() const {

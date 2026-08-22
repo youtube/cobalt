@@ -24,6 +24,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_filters.h"
@@ -93,7 +94,7 @@ class MockSbPlayerInterface : public SbPlayerInterface {
     return kSbDecodeTargetInvalid;
   }
 
-#if SB_HAS(PLAYER_WITH_URL)
+#if BUILDFLAG(IS_IOS_TVOS)
   MOCK_METHOD6(CreateUrlPlayer,
                SbPlayer(const char*,
                         SbWindow,
@@ -106,9 +107,9 @@ class MockSbPlayerInterface : public SbPlayerInterface {
 
   bool GetUrlPlayerOutputModeSupported(
       SbPlayerOutputMode output_mode) override {
-    return true
+    return true;
   }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
   bool GetAudioConfiguration(
       SbPlayer player,

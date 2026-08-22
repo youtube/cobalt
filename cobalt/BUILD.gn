@@ -67,6 +67,7 @@ group("gn_all") {
       ":cobalt_loader",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
+      "//starboard/tools/zstd_compress:zstd_compress_unittest($host_toolchain)",
     ]
   }
   if (is_starboard && build_updater_sandbox) {
@@ -79,8 +80,8 @@ group("gn_all") {
     # databases on the host.
     if (is_starboard) {
       deps += [
-        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_target)",
-        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_target)",
+        "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)",
+        "//third_party/crashpad/crashpad/tools:crashpad_database_util($native_toolchain)",
       ]
     } else if (is_ios) {
       deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util($host_toolchain)" ]
@@ -89,6 +90,28 @@ group("gn_all") {
       deps += [ "//third_party/crashpad/crashpad/tools:crashpad_database_util" ]
     }
   }
+}
+
+# Target containing the SbEventHandle implementation, kept separate from ":common"
+# so tests defining their own entry point/mock can omit it or link it as needed.
+static_library("sb_event_handle") {
+  sources = [ "app/sb_event_handle.cc" ]
+  deps = [
+    ":common",
+    "//base",
+    "//starboard:starboard_group",
+  ]
+}
+
+# Target containing the default app/cobalt.cc entry point.
+static_library("cobalt_app") {
+  sources = [ "app/cobalt.cc" ]
+  deps = [
+    ":common",
+    ":sb_event_handle",
+    "//base",
+    "//starboard:starboard_group",
+  ]
 }
 
 group("cobalt_browsertests") {
@@ -106,6 +129,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos:plist_info",
       "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
@@ -120,11 +144,44 @@ if (is_ios && target_platform == "tvos") {
 
     intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
-    data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+    data_deps = [ "//tools/v8_context_snapshot" ]
 
     bundle_identifier = cobalt_bundle_identifier
     entitlements_path = "//cobalt/shell/app/tvos-entitlements.plist"
     info_plist = cobalt_info_plist
+  }
+
+  # Bundles the browser engine and starboard dependencies into a unified, non-thin
+  # static library for custom Apple TV application integration and CI packaging.
+  static_library("cobalt_archive") {
+    complete_static_lib = true
+
+    configs -= [ "//build/config/compiler:thin_archive" ]
+
+    sources = [ "app/tvos/main.mm" ]
+
+    deps = [
+      ":common",
+      "//base",
+      "//cobalt/browser/tvos:plist_info",
+      "//cobalt/browser/tvos/intents:yt_intents",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//components/crash/core/app",
+      "//content/public/app",
+      "//starboard:starboard_group",
+    ]
+  }
+
+  action("merge_rlibs_tvos_archive") {
+    script = "//cobalt/build/tvos/merge_rlibs_tvos_archive.sh"
+
+    deps = [ ":cobalt_archive" ]
+
+    inputs = [ "$target_out_dir/libcobalt_archive.a" ]
+
+    outputs = [ "$root_out_dir/cobalt.a" ]
+
+    args = [ rebase_path(root_out_dir, root_build_dir) ]
   }
 
   foreach(locale, cobalt_locales) {
@@ -148,20 +205,17 @@ if (is_ios && target_platform == "tvos") {
 
     outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
   }
-} else if (!is_android) {
+} else if (!is_androidtv) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {
     cobalt_target_type = "executable"
   }
   target(cobalt_target_type, "cobalt") {
-    testonly = true
-
-    sources = [ "app/cobalt.cc" ]
-
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
+      ":cobalt_app",
       ":common",
       "//base",
       "//starboard:starboard_headers_only",
@@ -172,9 +226,10 @@ if (is_ios && target_platform == "tvos") {
       deps += [ "//third_party/musl:headers" ]
     }
     if (is_starboard) {
-      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+      deps += [ "//ui/ozone/platform/starboard" ]
     } else {
       # Web test support only built for the linux-x64x11-no-starboard target.
+      testonly = true
       deps += [
         "//content/web_test:web_test_browser",
         "//content/web_test:web_test_common",
@@ -184,7 +239,7 @@ if (is_ios && target_platform == "tvos") {
 
     data_deps = [
       "//cobalt/shell:pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
   }
 
@@ -228,6 +283,8 @@ source_set("common") {
 
   deps = [
     "//base",
+    "//cc/base",
+    "//cobalt/browser:features",
     "//cobalt/browser:switches",
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
@@ -237,7 +294,7 @@ source_set("common") {
     "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//cobalt/utility",
-    "//components/memory_system:memory_system",
+    "//components/memory_system",
     "//content/public/app",
     "//gpu/command_buffer/service",
     "//media",
@@ -253,7 +310,11 @@ source_set("common") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
   }
 }
 
@@ -280,6 +341,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
+    "//cobalt/browser/cobalt_content_browser_client_unittest.cc",
     "//cobalt/browser/cobalt_crash_annotations_unittest.cc",
     "//cobalt/browser/cobalt_secure_navigation_throttle_unittest.cc",
     "//cobalt/browser/cobalt_web_contents_observer_unittest.cc",
@@ -287,29 +349,55 @@ test("cobalt_unittests") {
     "//cobalt/browser/experiments/experiment_config_manager_unittest.cc",
     "//cobalt/browser/global_features_unittest.cc",
     "//cobalt/browser/h5vcc_metrics/histogram_fetcher_test.cc",
+    "//cobalt/browser/h5vcc_native_stability/native_stability_manager_unittest.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/browser/memory_ablation_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_detailed_metrics_delegate_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_log_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
+    "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
+
+  # The symbolizer pipeline test requires launching external Python and
+  # llvm-symbolizer processes, which is not supported on Starboard and
+  # modular/Evergreen platforms due to subprocess spawning restrictions.
+  if (!is_starboard && !sb_is_modular) {
+    sources += [
+      "//cobalt/tools/performance/memory/symbolize_in_process_heap_unittest.cc",
+    ]
+  }
+
+  if (is_starboard || is_androidtv) {
+    sources += [ "//cobalt/browser/hang_watcher_delegate_impl_unittest.cc" ]
+  }
 
   if (is_starboard) {
     sources += [
       "//cobalt/app/app_event_delegate_unittest.cc",
       "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
+      "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
 
+  sources += [ "//cobalt/shell/browser/shell_test_support.h" ]
+
   if (!is_android) {
     sources += [
       "//cobalt/shell/browser/lifecycle_unittest.cc",
-      "//cobalt/shell/browser/shell_test_support.h",
       "//cobalt/shell/browser/splash_screen_unittest.cc",
+    ]
+  }
+
+  if (enable_in_app_dial) {
+    sources += [
+      "//cobalt/browser/dial/dial_http_server_unittest.cc",
+      "//cobalt/browser/dial/dial_udp_server_unittest.cc",
     ]
   }
 
@@ -326,10 +414,13 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//cobalt/browser/h5vcc_native_stability",
+    "//cobalt/browser/h5vcc_native_stability/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
+    "//cobalt/memory:unit_tests",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/metrics:test_support",
@@ -360,7 +451,7 @@ test("cobalt_unittests") {
     "//content/public/common:switches",
     "//content/test:test_support",
     "//gpu/config",
-    "//sandbox/policy:policy",
+    "//sandbox/policy",
     "//ui/events/devices",
   ]
 
@@ -382,5 +473,12 @@ test("cobalt_unittests") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]
+  }
+
+  if (enable_in_app_dial) {
+    deps += [
+      "//cobalt/browser/dial",
+      "//net:test_support",
+    ]
   }
 }

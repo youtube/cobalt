@@ -15,6 +15,7 @@
 #ifndef COBALT_UPDATER_UPDATER_MODULE_H_
 #define COBALT_UPDATER_UPDATER_MODULE_H_
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
@@ -85,6 +86,7 @@ class UpdaterModule {
  public:
   static void CreateInstance(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      const std::string& user_agent,
       base::TimeDelta update_check_delay);
 
   static UpdaterModule* GetInstance();
@@ -126,8 +128,9 @@ class UpdaterModule {
 
  private:
   // Private constructor and destructor to enforce singleton pattern.
-  explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
-                         base::TimeDelta update_check_delay);
+  UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
+                const std::string& user_agent,
+                base::TimeDelta update_check_delay);
   ~UpdaterModule();
 
   std::unique_ptr<base::Thread> updater_thread_;
@@ -136,8 +139,9 @@ class UpdaterModule {
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   scoped_refptr<Configurator> updater_configurator_;
   int update_check_count_ = 0;
-  bool is_updater_running_;
+  std::atomic<bool> is_updater_running_;
   base::TimeDelta update_check_delay_ = kDefaultUpdateCheckDelay;
+  std::string user_agent_;
 
   int GetUpdateCheckCount() { return update_check_count_; }
   void IncrementUpdateCheckCount() { update_check_count_++; }

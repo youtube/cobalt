@@ -21,7 +21,7 @@ runs:
   steps:
     - name: Create Test Summary
       id: test-summary
-      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
+      uses: test-summary/action@37b508cfee6d4d080eedd00b5bb240a6a784a6a5 # v2.6
       with:
         paths: ${{ inputs.results_glob }}
         output: test-report-summary.md
@@ -45,11 +45,18 @@ runs:
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
         # Check test status.
+        if [ "$RUNNER_DEBUG" == "1" ]; then
+          set -x
+        fi
         exit_code=0
 
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullglob to return empty string if the glob matches no files.
-        shopt -s globstar nullglob
+        shopt -s nullglob
+        # globstar is not supported on macOS default bash (3.2), so we only enable it on non-macOS platforms.
+        if [[ "$OSTYPE" != "darwin"* ]]; then
+          shopt -s globstar
+        fi
 
         result_xmls=(${RESULTS_GLOB})
         result_logs=(${LOG_GLOB})
@@ -115,6 +122,9 @@ runs:
       run: |
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
-        shopt -s globstar
+        # globstar is not supported on macOS default bash (3.2), so we only enable it on non-macOS platforms.
+        if [[ "$OSTYPE" != "darwin"* ]]; then
+          shopt -s globstar
+        fi
         ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
       shell: bash

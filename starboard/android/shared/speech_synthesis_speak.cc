@@ -16,6 +16,7 @@
 #include "starboard/speech_synthesis.h"
 // clang-format on
 
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "third_party/jni_zero/jni_zero.h"
 
@@ -33,9 +34,6 @@ void SbSpeechSynthesisSpeak(const char* text) {
 
   ScopedJavaLocalRef<jobject> j_tts_helper =
       starboard::StarboardBridge::GetInstance()->GetTextToSpeechHelper(env);
-
-  jstring text_string = env->NewStringUTF(text);
-  ScopedJavaLocalRef<jstring> j_text_string(env, text_string);
-
-  Java_CobaltTextToSpeechHelper_speak(env, j_tts_helper, j_text_string);
+  Java_CobaltTextToSpeechHelper_speak(
+      env, j_tts_helper, base::android::ConvertUTF8ToJavaString(env, text));
 }

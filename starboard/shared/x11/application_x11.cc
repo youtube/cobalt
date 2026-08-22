@@ -541,6 +541,8 @@ enum {
   kWheelRightButton = 7,
   kPointerBackButton = 8,
   kPointerForwardButton = 9,
+  kPointerForwardButtonAlt = 10,
+  kPointerBackButtonAlt = 11,
 };
 
 SbKey XButtonEventToSbKey(XButtonEvent* event) {
@@ -561,9 +563,11 @@ SbKey XButtonEventToSbKey(XButtonEvent* event) {
     case kWheelRightButton:
       return kSbKeyRight;
     case kPointerBackButton:
-      return kSbKeyBrowserBack;
+    case kPointerBackButtonAlt:
+      return kSbKeyMouse4;
     case kPointerForwardButton:
-      return kSbKeyBrowserForward;
+    case kPointerForwardButtonAlt:
+      return kSbKeyMouse5;
     default:
       return kSbKeyUnknown;
   }
@@ -779,9 +783,7 @@ void ApplicationX11::Composite() {
           }
           current_video_frames_[player] = cpu_video_frame;
         }
-        window->CompositeVideoFrame(frame_info.x, frame_info.y,
-                                    frame_info.width, frame_info.height,
-                                    cpu_video_frame);
+        window->CompositeVideoFrame(frame_info.rect, cpu_video_frame);
       }
       window->EndComposite();
     }
@@ -793,10 +795,7 @@ void ApplicationX11::Composite() {
 void ApplicationX11::AcceptFrame(SbPlayer player,
                                  const scoped_refptr<VideoFrame>& frame,
                                  int z_index,
-                                 int x,
-                                 int y,
-                                 int width,
-                                 int height) {
+                                 const Rect& rect) {
   std::lock_guard lock(frame_mutex_);
 
   if (frame->is_end_of_stream()) {
@@ -813,19 +812,13 @@ void ApplicationX11::AcceptFrame(SbPlayer player,
 
 void ApplicationX11::PlayerSetBounds(SbPlayer player,
                                      int z_index,
-                                     int x,
-                                     int y,
-                                     int width,
-                                     int height) {
+                                     const Rect& rect) {
   std::lock_guard lock(frame_mutex_);
 
   FrameInfo& frame_info = next_video_bounds_[player];
   frame_info.player = player;
   frame_info.z_index = z_index;
-  frame_info.x = x;
-  frame_info.y = y;
-  frame_info.width = width;
-  frame_info.height = height;
+  frame_info.rect = rect;
 
   // The bounds should only take effect once the UI frame is submitted. But we
   // also apply the bounds immediately so that there is no flicker.

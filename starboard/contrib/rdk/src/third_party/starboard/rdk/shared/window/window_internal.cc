@@ -33,27 +33,29 @@
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
-using namespace third_party::starboard::rdk::shared;
+
+using ::starboard::ApplicationRdk;
+using ::starboard::DisplayInfo;
 
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /* options */) { }
 
 SbWindowPrivate::~SbWindowPrivate() = default;
 
 void* SbWindowPrivate::Native() const {
-  return reinterpret_cast<void*>(Application::Get()->GetNativeWindow());
+  return reinterpret_cast<void*>(ApplicationRdk::Get()->GetNativeWindow());
 }
 
 int SbWindowPrivate::Width() const {
-  return Application::Get()->GetWindowWidth();
+  return ApplicationRdk::Get()->GetWindowWidth();
 }
 
 int SbWindowPrivate::Height() const {
-  return Application::Get()->GetWindowHeight();
+  return ApplicationRdk::Get()->GetWindowHeight();
 }
 
 float SbWindowPrivate::VideoPixelRatio() const {
   auto resolution_info = DisplayInfo::GetResolution();
-  int window_height = Application::Get()->GetWindowHeight();
+  int window_height = ApplicationRdk::Get()->GetWindowHeight();
   float ratio = resolution_info.Height / static_cast<float>(window_height);
   float max_ratio = ( window_height < 1080 )
     ? 1.5f : ( resolution_info.Height <= 2160 ? 2.f : 4.f );

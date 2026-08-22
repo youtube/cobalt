@@ -114,7 +114,6 @@
                 "obj/services/device/public/mojom/mojom_java.javac.jar",
                 "obj/services/device/screen_orientation/java.javac.jar",
                 "obj/services/device/time_zone_monitor/java.javac.jar",
-                "obj/services/device/usb/java.javac.jar",
                 "obj/services/device/vibration/android/vibration_manager_java.javac.jar",
                 "obj/services/device/wake_lock/power_save_blocker/java.javac.jar",
                 "obj/services/media_session/public/cpp/android/media_session_java.javac.jar",
@@ -144,7 +143,6 @@
                 "obj/third_party/blink/public/mojom/service_worker/storage_java.javac.jar",
                 "obj/third_party/blink/public/mojom/storage_key/storage_key_java.javac.jar",
                 "obj/third_party/blink/public/mojom/tokens/tokens_java.javac.jar",
-                "obj/third_party/blink/public/mojom/usb/usb_java.javac.jar",
                 "obj/third_party/blink/public/mojom/web_feature_mojo_bindings_java.javac.jar",
                 "obj/third_party/jni_zero/gendeps_java.javac.jar",
                 "obj/third_party/jni_zero/jni_zero_java.javac.jar",
@@ -600,10 +598,6 @@
                     "to_file": "jar/services_device_time_zone_monitor_java.jar"
                 },
                 {
-                    "from_file": "obj/services/device/usb/java.javac.jar",
-                    "to_file": "jar/services_device_usb_java.jar"
-                },
-                {
                     "from_file": "obj/services/device/vibration/android/vibration_manager_java.javac.jar",
                     "to_file": "jar/services_device_vibration_android_vibration_manager_java.jar"
                 },
@@ -718,10 +712,6 @@
                 {
                     "from_file": "obj/third_party/blink/public/mojom/tokens/tokens_java.javac.jar",
                     "to_file": "jar/third_party_blink_public_mojom_tokens_tokens_java.jar"
-                },
-                {
-                    "from_file": "obj/third_party/blink/public/mojom/usb/usb_java.javac.jar",
-                    "to_file": "jar/third_party_blink_public_mojom_usb_usb_java.jar"
                 },
                 {
                     "from_file": "obj/third_party/blink/public/mojom/web_feature_mojo_bindings_java.javac.jar",

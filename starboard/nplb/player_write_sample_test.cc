@@ -168,9 +168,6 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
-  if (!IsPartialAudioSupported()) {
-    GTEST_SKIP() << "The platform doesn't support partial audio.";
-  }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
@@ -242,9 +239,6 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
-  if (!IsPartialAudioSupported()) {
-    GTEST_SKIP() << "The platform doesn't support partial audio.";
-  }
   if (IsAudioPassthroughUsed(GetParam())) {
     GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
@@ -333,7 +327,8 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       const SbPlayerTestConfig& config,
       FakeGraphicsContextProvider* fake_graphics_context_provider)
       : config_(config),
-        fake_graphics_context_provider_(fake_graphics_context_provider) {}
+        fake_graphics_context_provider_(fake_graphics_context_provider),
+        success_(false) {}
 
   void Run() override {
     SbPlayerTestFixture player_fixture(config_,
@@ -356,13 +351,17 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       samples.AddVideoEOS();
     }
 
-    ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
-    ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+    player_fixture.Write(samples);
+    player_fixture.WaitForPlayerEndOfStream();
+    success_ = !player_fixture.HasError();
   }
+
+  bool success() const { return success_; }
 
  private:
   const SbPlayerTestConfig config_;
   FakeGraphicsContextProvider* fake_graphics_context_provider_;
+  std::atomic<bool> success_;
 };
 
 TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
@@ -389,8 +388,148 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   primary_player_thread.Start();
   secondary_player_thread.Start();
 
-  primary_player_thread.Join();
-  secondary_player_thread.Join();
+  primary_player_thread.WaitForFinish();
+  secondary_player_thread.WaitForFinish();
+
+  ASSERT_TRUE(primary_player_thread.success());
+  ASSERT_TRUE(secondary_player_thread.success());
+}
+
+TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {
+  if (!GetParam().video_filename || strlen(GetParam().video_filename) == 0) {
+    GTEST_SKIP() << "Audio-only config, skipping video codec switching test.";
+  }
+  if (GetParam().audio_filename && strlen(GetParam().audio_filename) > 0) {
+    GTEST_SKIP() << "Skipping video codec switching test on audio+video config "
+                    "to avoid redundancy.";
+  }
+
+  const int kVideoSamplesToWrite = 30;
+
+  const char* initial_video_filename = GetParam().video_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_video_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaVideoCodec initial_codec = initial_dmp_reader.video_codec();
+
+  ASSERT_GE(initial_dmp_reader.number_of_video_buffers(),
+            static_cast<size_t>(kVideoSamplesToWrite + 1));
+
+  TransitionSearchResult search_result = FindVideoTransitionTarget(
+      initial_dmp_reader.video_mime_type().c_str(), initial_codec,
+      GetParam().output_mode, GetParam().key_system);
+
+  if (!search_result.target_filename) {
+    if (!search_result.transition_supported) {
+      GTEST_SKIP() << "ChangeType transition from '"
+                   << initial_dmp_reader.video_mime_type() << "' to '"
+                   << search_result.failed_target_mime
+                   << "' is not supported on this platform.";
+    }
+    GTEST_SKIP()
+        << "Could not find a supported target video codec different from "
+        << initial_codec;
+  }
+  const char* target_video_filename = search_result.target_filename;
+
+  starboard::VideoDmpReader target_dmp_reader(
+      target_video_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  ASSERT_GE(target_dmp_reader.number_of_video_buffers(),
+            static_cast<size_t>(kVideoSamplesToWrite));
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  GroupedSamples samples_part1;
+  samples_part1.AddVideoSamples(0, kVideoSamplesToWrite);
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+
+  int64_t timestamp_offset =
+      player_fixture.GetVideoSampleTimestamp(kVideoSamplesToWrite);
+
+  player_fixture.SwitchVideoDmp(target_video_filename);
+
+  GroupedSamples samples_part2;
+  samples_part2.AddVideoSamples(0, kVideoSamplesToWrite, timestamp_offset);
+  samples_part2.AddVideoEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
+}
+
+TEST_P(SbPlayerWriteSampleTest, AudioCodecSwitching) {
+  if (!GetParam().audio_filename || strlen(GetParam().audio_filename) == 0) {
+    GTEST_SKIP() << "Video-only config, skipping audio codec switching test.";
+  }
+  if (GetParam().video_filename && strlen(GetParam().video_filename) > 0) {
+    GTEST_SKIP() << "Skipping audio codec switching test on audio+video config "
+                    "to avoid redundancy.";
+  }
+
+  const char* initial_audio_filename = GetParam().audio_filename;
+  starboard::VideoDmpReader initial_dmp_reader(
+      initial_audio_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  SbMediaAudioCodec initial_codec = initial_dmp_reader.audio_codec();
+
+  TransitionSearchResult search_result = FindAudioTransitionTarget(
+      initial_dmp_reader.audio_mime_type().c_str(), initial_codec,
+      GetParam().output_mode, GetParam().key_system);
+
+  if (!search_result.target_filename) {
+    if (!search_result.transition_supported) {
+      GTEST_SKIP() << "ChangeType transition from '"
+                   << initial_dmp_reader.audio_mime_type() << "' to '"
+                   << search_result.failed_target_mime
+                   << "' is not supported on this platform.";
+    }
+    GTEST_SKIP()
+        << "Could not find a supported target audio codec different from "
+        << initial_codec;
+  }
+  const char* target_audio_filename = search_result.target_filename;
+
+  SbPlayerTestFixture player_fixture(GetParam(),
+                                     &fake_graphics_context_provider_);
+  if (HasFatalFailure()) {
+    return;
+  }
+
+  const int64_t kDurationToPlay = 500'000;  // 0.5 seconds
+  int audio_samples_part1_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  ASSERT_GE(initial_dmp_reader.number_of_audio_buffers(),
+            static_cast<size_t>(audio_samples_part1_count + 2));
+
+  GroupedSamples samples_part1;
+  samples_part1.AddAudioSamples(0, audio_samples_part1_count);
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part1));
+
+  int64_t timestamp_offset =
+      player_fixture.GetAudioSampleTimestamp(audio_samples_part1_count);
+
+  SB_DLOG(INFO) << "Switching audio source to: " << target_audio_filename;
+  player_fixture.SwitchAudioDmp(target_audio_filename);
+
+  GroupedSamples samples_part2;
+  int audio_samples_part2_count =
+      player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
+
+  starboard::VideoDmpReader target_dmp_reader(
+      target_audio_filename, starboard::VideoDmpReader::kEnableReadOnDemand);
+  ASSERT_GE(target_dmp_reader.number_of_audio_buffers(),
+            static_cast<size_t>(audio_samples_part2_count));
+
+  samples_part2.AddAudioSamples(0, audio_samples_part2_count, timestamp_offset,
+                                0, 0);
+  samples_part2.AddAudioEOS();
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples_part2));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 }
 
 INSTANTIATE_TEST_SUITE_P(SbPlayerWriteSampleTests,

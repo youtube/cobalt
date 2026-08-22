@@ -20,13 +20,7 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/audio/audio.h>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace player {
-namespace elements {
-
 namespace {
 
 G_BEGIN_DECLS
@@ -137,9 +131,4 @@ GstElement *CreateAudioClippingElement(const gchar* name) {
   return GST_ELEMENT ( g_object_new (COBALT_AUDIO_CLIPPING_TYPE, name) );
 }
 
-}  // namespace elements
-}  // namespace player
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

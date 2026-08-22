@@ -20,6 +20,10 @@
 #include "components/update_client/update_client_errors.h"
 #include "components/zucchini/zucchini.h"
 
+#if defined(IN_MEMORY_UPDATES)
+#include "base/logging.h"
+#endif
+
 namespace update_client {
 
 namespace {
@@ -49,7 +53,9 @@ void Done(base::OnceCallback<
           [&]() -> base::expected<OperationResult, CategorizedError> {
             if (success) {
               OperationResult out_result = in_file_result;
+#if !defined(IN_MEMORY_UPDATES)
               out_result.response = out_file;
+#endif
               return out_result;
             }
 #else
@@ -57,7 +63,7 @@ void Done(base::OnceCallback<
             if (success) {
               return out_file;
             }
-#endif
+#endif  // BUILDFLAG(IS_STARBOARD)
             return base::unexpected<CategorizedError>(
                 {.category = ErrorCategory::kUnpack,
                  .code = static_cast<int>(UnpackerError::kXzFailed)});
@@ -73,13 +79,21 @@ base::OnceClosure XzOperation(
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
         callback) {
+#if defined(IN_MEMORY_UPDATES)
+  LOG(ERROR) << "Xz decoding Operation not supported with Cobalt IN_MEMORY_UPDATES";
+  Done(in_file_result, std::move(callback), event_adder, base::FilePath(), false);
+  return base::DoNothing();
+#else
   const base::FilePath& in_file = in_file_result.response;
+  base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
+#endif  // defined(IN_MEMORY_UPDATES)
 #else
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
-#endif
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
+#endif  // BUILDFLAG(IS_STARBOARD)
+#if !defined(IN_MEMORY_UPDATES)
   Unzipper* unzipper_raw = unzipper.get();
   return unzipper_raw->DecodeXz(
       in_file, dest_file,
@@ -97,6 +111,7 @@ base::OnceClosure XzOperation(
           .Then(base::BindPostTaskToCurrentDefault(base::BindOnce(
               &Done, std::move(callback), event_adder, dest_file))));
 #endif
+#endif  // !defined(IN_MEMORY_UPDATES)
 }
 
 }  // namespace update_client

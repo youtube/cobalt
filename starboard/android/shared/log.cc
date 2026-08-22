@@ -25,7 +25,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/log_mutex.h"
-#include "starboard/thread.h"
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;

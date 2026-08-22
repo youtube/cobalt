@@ -21,10 +21,7 @@
 #include <sys/types.h>
 #include <chrono>
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 class HangMonitor {
 public:
@@ -49,10 +46,7 @@ private:
   pid_t tid_ { 0 };
 };
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_HANG_DETECTOR_H_

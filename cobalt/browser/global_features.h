@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
 #include <optional>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
@@ -68,6 +69,12 @@ class GlobalFeatures {
     return experiment_config_manager_.get();
   }
 
+  // Record the active config data in the member variable to preserve the active
+  // config data for the current app life cycle in case it's needed after the
+  // config data in storage has been modified.
+  // Modified config data should only apply to the next app life cycle.
+  void InitializeActiveConfigData(ExperimentConfigType experiment_config_type);
+
   void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
   // Explicitly shuts down the metrics service. This is to ensure the
@@ -80,7 +87,9 @@ class GlobalFeatures {
   using SettingValue = std::variant<std::string, int64_t>;
 
   const absl::flat_hash_map<std::string, SettingValue>& GetSettings() const;
-  void SetSettings(const std::string& key, const SettingValue& value);
+  std::optional<SettingValue> GetSetting(std::string_view key) const;
+  void SetSettings(std::string_view key, const SettingValue& value);
+  void ClearSetting(std::string_view key);
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
@@ -96,11 +105,6 @@ class GlobalFeatures {
   void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
-  // Record the active config data in the member variable to preserve the active
-  // config data for the current app life cycle in case it's needed after the
-  // config data in storage has been modified.
-  // Modified config data should only apply to the next app life cycle.
-  void InitializeActiveConfigData();
 
   // Construct a FilePath for a pref file and ensure its parent directory
   // exists.

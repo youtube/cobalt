@@ -30,11 +30,7 @@
 
 #include "third_party/starboard/rdk/shared/audio_sink/gstreamer_audio_sink_type.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace audio_sink {
 
 // static
 GStreamerAudioSinkType* GStreamerAudioSinkType::CreateInstance() {
@@ -46,8 +42,4 @@ void GStreamerAudioSinkType::DestroyInstance(GStreamerAudioSinkType* instance) {
   delete instance;
 }
 
-}  // namespace audio_sink
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

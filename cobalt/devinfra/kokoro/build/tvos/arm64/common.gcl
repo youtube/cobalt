@@ -26,6 +26,16 @@ build = common.build {
       }
     },
   ]
+  action = super.get('action', []) + [
+    {
+      define_artifacts = {
+        regex = [
+          '**/*.tar.gz',
+          '**/*.zip',
+        ]
+      }
+    },
+  ]
   env_vars = super.env_vars + [
     {
       key = 'EXTRA_GN_ARGUMENTS'
@@ -50,6 +60,10 @@ build = common.build {
     {
       key = 'SCCACHE_GCS_OAUTH_URL'
       value = 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token'
+    },
+    {
+      key = 'GN_TARGET'
+      value = 'cobalt cobalt_archive'
     },
     {
       key = 'TARGET_PLATFORM'

@@ -10,4 +10,5 @@ declare_args() {
   # at some point once the feature is stable. See crbug.com/40418135.
   enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
                           is_win || is_desktop_android || is_fuchsia
+
 }

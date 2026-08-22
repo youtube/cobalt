@@ -14,16 +14,21 @@
 
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
+#include <optional>
+
 #include "base/functional/callback_helpers.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/mock_media_log.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_renderer_sink.h"
+#include "media/mojo/common/starboard/mojo_renderer_bypass_bridge.h"
 #include "media/mojo/mojom/renderer.mojom.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/video_overlay_factory.h"
@@ -44,15 +49,27 @@ using ::testing::StrictMock;
 
 namespace {
 
+struct FakeMojomRendererCallRecord {
+  bool initialize_with_bypass_bridge_called = false;
+  uint32_t last_bypass_bridge_id = 0;
+  std::optional<size_t> last_stream_count;
+};
+
 class FakeMojomRenderer : public mojom::Renderer {
  public:
-  FakeMojomRenderer() = default;
+  explicit FakeMojomRenderer(FakeMojomRendererCallRecord* record = nullptr)
+      : record_(record) {}
   ~FakeMojomRenderer() override = default;
 
   void Initialize(
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
-      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
+      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>
+          streams,
       InitializeCallback cb) override {
+    if (record_) {
+      record_->last_stream_count =
+          streams ? std::make_optional(streams->size()) : std::nullopt;
+    }
     std::move(cb).Run(true);
   }
   MOCK_METHOD1(Flush, void(FlushCallback));
@@ -60,24 +77,43 @@ class FakeMojomRenderer : public mojom::Renderer {
   MOCK_METHOD1(SetPlaybackRate, void(double));
   void SetVolume(float volume) override {}
   MOCK_METHOD2(SetCdm,
-               void(const absl::optional<base::UnguessableToken>&,
+               void(const std::optional<base::UnguessableToken>&,
                     SetCdmCallback));
   void SetLatencyHint(std::optional<::base::TimeDelta> latency_hint) override {}
+
+ private:
+  FakeMojomRendererCallRecord* record_ = nullptr;
 };
 
 class FakeStarboardRendererExtension
     : public mojom::StarboardRendererExtension {
  public:
-  FakeStarboardRendererExtension() = default;
+  explicit FakeStarboardRendererExtension(
+      FakeMojomRendererCallRecord* record = nullptr)
+      : record_(record) {}
   ~FakeStarboardRendererExtension() override = default;
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
   void OnSbWindowHandleReady(uint64_t sb_window_handle) override {}
+  void InitializeWithBypassBridge(
+      uint32_t bypass_bridge_id,
+      InitializeWithBypassBridgeCallback cb) override {
+    if (record_) {
+      record_->initialize_with_bypass_bridge_called = true;
+      record_->last_bypass_bridge_id = bypass_bridge_id;
+    }
+    std::move(cb).Run(true);
+  }
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD1(OnOverlayInfoChanged, void(const OverlayInfo& overlay_info));
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override {}
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url) override {}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+ private:
+  FakeMojomRendererCallRecord* record_ = nullptr;
 };
 
 class MockVideoRendererSink : public VideoRendererSink {
@@ -106,7 +142,7 @@ class MockRendererClientStarboard : public RendererClient {
   MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
   MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
   MOCK_METHOD1(OnVideoOpacityChange, void(bool));
-  MOCK_METHOD1(OnVideoFrameRateChange, void(absl::optional<int>));
+  MOCK_METHOD1(OnVideoFrameRateChange, void(std::optional<int>));
   MOCK_METHOD0(IsVideoStreamAvailable, bool());
 };
 
@@ -128,16 +164,18 @@ class StarboardRendererClientTest : public ::testing::Test {
     media_resource_ = std::make_unique<FakeMediaResource>(3, 9, false);
   }
 
-  void InitializeStarboardRendererClient(bool with_gpu_factories = true) {
+  void InitializeStarboardRendererClient(bool with_gpu_factories = true,
+                                         bool bypass_mojo_for_media = false) {
     mojo::PendingRemote<mojom::Renderer> renderer_remote;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeMojomRenderer>(),
+        std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
         renderer_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<mojom::StarboardRendererExtension>
         starboard_renderer_extensions_remote;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeStarboardRendererExtension>(),
+        std::make_unique<FakeStarboardRendererExtension>(
+            &fake_mojom_renderer_record_),
         starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
@@ -162,7 +200,8 @@ class StarboardRendererClientTest : public ::testing::Test {
         ,
         /*request_overlay_info_cb=*/base::DoNothing()
 #endif  // BUILDFLAG(IS_ANDROID)
-    );
+            ,
+        bypass_mojo_for_media);
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
@@ -174,6 +213,7 @@ class StarboardRendererClientTest : public ::testing::Test {
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
   std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
+  FakeMojomRendererCallRecord fake_mojom_renderer_record_;
 };
 
 TEST_F(StarboardRendererClientTest, CreateAndDestroy) {
@@ -188,6 +228,7 @@ TEST_F(StarboardRendererClientTest, InitializeWithGpuFactories) {
   starboard_renderer_client_->UpdateStarboardRenderingMode(
       StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
+  EXPECT_GT(fake_mojom_renderer_record_.last_stream_count.value_or(0), 0u);
 }
 
 TEST_F(StarboardRendererClientTest, InitializeWithoutGpuFactories) {
@@ -256,6 +297,91 @@ TEST_F(StarboardRendererClientTest,
 
   EXPECT_CALL(mock_video_renderer_sink_, Stop()).Times(0);
   starboard_renderer_client_->OnEnded();
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch("single-process");
+
+  InitializeStarboardRendererClient(/*with_gpu_factories=*/true,
+                                    /*bypass_mojo_for_media=*/true);
+
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  starboard_renderer_client_->Initialize(
+      media_resource_.get(), &renderer_client_, renderer_init_cb_.Get());
+  starboard_renderer_client_->UpdateStarboardRenderingMode(
+      StarboardRenderingMode::kPunchOut);
+
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(fake_mojom_renderer_record_.initialize_with_bypass_bridge_called);
+  EXPECT_EQ(fake_mojom_renderer_record_.last_stream_count,
+            std::optional<size_t>(0));
+  uint32_t bridge_id = fake_mojom_renderer_record_.last_bypass_bridge_id;
+  EXPECT_NE(bridge_id, 0u);
+
+  auto bridge = BypassBridgeRegistry::Get(bridge_id);
+  ASSERT_TRUE(bridge);
+  EXPECT_TRUE(bridge->IsActive());
+
+  starboard_renderer_client_.reset();
+  EXPECT_EQ(BypassBridgeRegistry::Get(bridge_id), nullptr);
+}
+
+TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge_Failure) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch("single-process");
+
+  // Create a fake extension that calls cb(false) when
+  // InitializeWithBypassBridge is invoked.
+  class FailingStarboardRendererExtension
+      : public FakeStarboardRendererExtension {
+   public:
+    void InitializeWithBypassBridge(
+        uint32_t bypass_bridge_id,
+        InitializeWithBypassBridgeCallback cb) override {
+      std::move(cb).Run(false);
+    }
+  };
+
+  mojo::PendingRemote<mojom::Renderer> renderer_remote;
+  mojo::MakeSelfOwnedReceiver(std::make_unique<FakeMojomRenderer>(),
+                              renderer_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<mojom::StarboardRendererExtension>
+      starboard_renderer_extensions_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FailingStarboardRendererExtension>(),
+      starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+      client_extension_remote;
+  auto client_extension_receiver =
+      client_extension_remote.InitWithNewPipeAndPassReceiver();
+  auto mojo_renderer = std::make_unique<MojoRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      /*video_overlay_factory=*/nullptr,
+      /*video_renderer_sink=*/nullptr, std::move(renderer_remote));
+  auto overlay_factory = std::make_unique<VideoOverlayFactory>();
+  auto client = std::make_unique<StarboardRendererClient>(
+      task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
+      std::move(mojo_renderer), std::move(overlay_factory),
+      &mock_video_renderer_sink_,
+      std::move(starboard_renderer_extensions_remote),
+      std::move(client_extension_receiver),
+      base::BindRepeating([]() -> uint64_t { return 0; }),
+      mock_gpu_factories_.get(),
+#if BUILDFLAG(IS_ANDROID)
+      /*request_overlay_info_cb=*/base::DoNothing(),
+#endif  // BUILDFLAG(IS_ANDROID)
+      /*bypass_mojo_for_media=*/true);
+
+  EXPECT_CALL(renderer_init_cb_,
+              Run(HasStatusCode(PIPELINE_ERROR_INITIALIZATION_FAILED)));
+  client->Initialize(media_resource_.get(), &renderer_client_,
+                     renderer_init_cb_.Get());
+  client->UpdateStarboardRenderingMode(StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
 }
 

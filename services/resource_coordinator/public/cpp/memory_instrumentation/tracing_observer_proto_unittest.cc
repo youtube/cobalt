@@ -23,6 +23,7 @@
 #include "services/tracing/public/cpp/perfetto/perfetto_traced_process.h"
 #include "services/tracing/public/cpp/perfetto/producer_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "third_party/perfetto/protos/perfetto/trace/memory_graph.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/profiling/smaps.pbzero.h"
 #include "third_party/perfetto/protos/perfetto/trace/ps/process_stats.pbzero.h"
@@ -131,7 +132,7 @@ memory_instrumentation::mojom::OSMemDump GetFakeOSMemDump(
     uint32_t resident_set_kb,
     uint32_t private_footprint_kb,
     uint32_t shared_footprint_kb) {
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
   // In Cobalt, mojom::OSMemDump has conditional, Cobalt-specific fields
   // (e.g. libchrobalt_pss_kb) that change the parameterized constructor signature
   // depending on build flags. We use the default constructor and set only the

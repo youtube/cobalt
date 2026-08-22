@@ -263,8 +263,7 @@ void PersistedDataImpl::SetLatestChannel(const std::string& channel) {
   }
   {
     ScopedDictPrefUpdate update(pref_service, kPersistedDataPreference);
-    base::Value::Dict* app_key = GetOrCreateAppKey("latestchannel", update.Get());
-    app_key->Set("latestchannel", channel);
+    update->Set("latestchannel", channel);
   }
   FlushPrefs(pref_service);
 }

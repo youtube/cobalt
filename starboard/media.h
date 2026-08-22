@@ -538,6 +538,21 @@ typedef struct SbMediaAudioSampleInfo {
 SB_EXPORT SbMediaSupportType
 SbMediaCanPlayMimeAndKeySystem(const char* mime, const char* key_system);
 
+// Returns whether the platform supports a transition from the stream
+// configuration described by |current_mime| to |new_mime| for an active
+// SbPlayer instance. Returns |true| if the transition is supported, and will
+// return |false| if the platform cannot support the changeType() call.
+//
+// More information on SourceBuffer.ChangeType() can be found at the following
+// link:
+//   https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype
+//
+// |current_mime|: The current active stream MIME configuration. Must not be
+// NULL.
+// |new_mime|: The target stream MIME configuration. Must not be NULL.
+SB_EXPORT bool SbMediaCanChangeType(const char* current_mime,
+                                    const char* new_mime);
+
 // Returns the number of audio outputs currently available on this device.
 // Even if the number of outputs or their audio configurations can't be
 // determined, it is expected that the platform will at least return a single
@@ -561,24 +576,6 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 #define kSbMediaVideoResolutionDimensionInvalid 0
 // Value used when a video's bits per pixel is not known.
 #define kSbMediaBitsPerPixelInvalid 0
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value
-// is no longer used when allocating media buffers.  This is verified explicitly
-// in nplb tests by ensuring its return value is sizeof(void*).
-//
-// The app MAY take best effort to allocate media buffers aligned to an optimal
-// alignment for the platform, but not guaranteed.  An implementation that has
-// specific alignment requirement should check the alignment of the incoming
-// buffer, and make a copy when necessary.
-//
-#if SB_API_VERSION < 16
-// The media buffer will be allocated using the returned alignment. Set this to
-// a larger value may increase the memory consumption of media buffers.
-//
-#endif  // SB_API_VERSION < 16
-SB_EXPORT int SbMediaGetBufferAlignment();
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
@@ -612,22 +609,6 @@ SB_EXPORT int64_t SbMediaGetBufferGarbageCollectionDurationThreshold();
 // can return 0.
 SB_EXPORT int SbMediaGetInitialBufferCapacity();
 
-// DEPRECATED with SB_API_VERSION 16
-//
-// SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is
-// no longer used when allocating media buffers.  This is verified explicitly
-// in nplb tests by ensuring its return value is 0.
-//
-// An implementation that has specific padding requirement should make a
-// copy of the incoming buffer when necessary.
-//
-#if SB_API_VERSION < 16
-// Extra bytes allocated at the end of a media buffer to ensure that the buffer
-// can be use optimally by specific instructions like SIMD. Set to 0 to remove
-// any padding.
-#endif  // SB_API_VERSION < 16
-SB_EXPORT int SbMediaGetBufferPadding();
-
 // When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 // isn't zero, media buffers will be allocated using a memory pool. Set the
 // following variable to true to allocate the media buffer pool memory on demand
@@ -638,30 +619,6 @@ SB_EXPORT int SbMediaGetBufferPadding();
 // media buffers allocated.
 // This is demonstrated to significantly reduce long-term memory fragmentation.
 SB_EXPORT bool SbMediaIsBufferPoolAllocateOnDemand();
-
-// The memory used when playing mp4 videos that is not in DASH format. The
-// resolution of such videos shouldn't go beyond 1080p. Its value should be
-// less than the sum of SbMediaGetAudioBufferBudget and
-// 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
-//
-// |codec|: the video codec associated with the buffer.
-//
-// |resolution_width|: the width of the video resolution.
-//
-// |resolution_height|: the height of the video resolution.
-//
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR
-// than non-HDR video.
-SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
-                                                int resolution_width,
-                                                int resolution_height,
-                                                int bits_per_pixel);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// This function is deprecated in Starboard 16 and no longer used. It's not
-// fully removed, only to emit warnings at build and test time.
-SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 
 // Specifies the maximum amount of memory used by video buffers of media source
 // before triggering a garbage collection. A large value will cause more memory

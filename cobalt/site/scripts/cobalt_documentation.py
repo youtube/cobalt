@@ -17,10 +17,7 @@ import os
 import shutil
 import sys
 
-_COBALT_DOC_LOCATIONS = [
-    'starboard/doc/evergreen/',
-    'starboard/doc/eap/',
-]
+_COBALT_DOC_LOCATIONS = ['starboard/doc/', 'cobalt/doc/']
 
 
 def get_header():

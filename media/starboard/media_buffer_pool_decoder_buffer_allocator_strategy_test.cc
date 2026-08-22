@@ -27,8 +27,6 @@ using starboard::experimental::MediaBufferPool;
 
 TEST(MediaBufferPoolDecoderBufferAllocatorStrategyTest,
      AllocateHugeBufferReturnsNull) {
-  constexpr size_t kAlignment = sizeof(void*);
-
   MediaBufferPool* pool = MediaBufferPool::Acquire();
 
   if (!pool) {
@@ -45,8 +43,7 @@ TEST(MediaBufferPoolDecoderBufferAllocatorStrategyTest,
   // allocators.
 
   // Verify huge video allocation returns nullptr.
-  EXPECT_EQ(strategy.Allocate(DemuxerStream::VIDEO, kHugeSize, kAlignment),
-            nullptr);
+  EXPECT_EQ(strategy.Allocate(DemuxerStream::VIDEO, kHugeSize), nullptr);
 }
 
 }  // namespace

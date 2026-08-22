@@ -38,11 +38,7 @@ extern const std::unordered_map<std::string, std::string>
 // errors, or any other error unrelated to parsing the manifest.
 extern const char kDefaultManifestVersion[];
 
-// Legacy prod config containing all prod, tests and static channels with all
-// SB versions of C25 and prior.
-extern const char kOmahaCobaltAppID[];
-
-extern const char kOmahaCobaltLTSNightlyAppID[];
+extern const char kOmahaCobalt27NightlyAppID[];
 
 extern const char kOmahaCobaltTrunkAppID[];
 

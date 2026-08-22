@@ -122,8 +122,10 @@
 #include "services/network/slop_bucket.h"
 #include "services/network/ssl_private_key_proxy.h"
 #include "services/network/throttling/scoped_throttling_token.h"
-#include "services/network/trust_tokens/trust_token_request_helper.h"
-#include "services/network/trust_tokens/trust_token_url_loader_interceptor.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_request_helper.h"  // nogncheck
+#include "services/network/trust_tokens/trust_token_url_loader_interceptor.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/url_loader_factory.h"
 #include "services/network/url_loader_util.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
@@ -353,7 +355,9 @@ URLLoader::URLLoader(
     base::StrictNumeric<int32_t> request_id,
     int keepalive_request_size,
     base::WeakPtr<KeepaliveStatisticsRecorder> keepalive_statistics_recorder,
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     std::unique_ptr<TrustTokenRequestHelperFactory> trust_token_helper_factory,
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     SharedDictionaryManager* shared_dictionary_manager,
     std::unique_ptr<SharedDictionaryAccessChecker> shared_dictionary_checker,
     ObserverWrapper<mojom::CookieAccessObserver> cookie_observer,
@@ -409,8 +413,10 @@ URLLoader::URLLoader(
       private_network_access_interceptor_(request,
                                           GetClientSecurityState(),
                                           options_),
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       trust_token_interceptor_(TrustTokenUrlLoaderInterceptor::MaybeCreate(
           std::move(trust_token_helper_factory))),
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       shared_dictionary_checker_(std::move(shared_dictionary_checker)),
       origin_access_list_(context.GetOriginAccessList()),
       cookie_observer_(std::move(cookie_observer)),
@@ -634,9 +640,10 @@ void URLLoader::ProcessOutboundTrustTokenInterceptor(
   // If no Trust Token parameters are specified, proceed to the next
   // interceptor.
   if (!request.trust_token_params) {
-    ProcessOutboundSharedStorageInterceptor();
+    ScheduleStart();
     return;
   }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // If trust_token_params exist, the interceptor MUST have been created in the
   // URLLoader constructor.
   CHECK(trust_token_interceptor_);
@@ -678,6 +685,9 @@ void URLLoader::ProcessOutboundTrustTokenInterceptor(
           weak_ptr_factory_.GetWeakPtr()),
       base::BindOnce(&URLLoader::OnDoneBeginningTrustTokenOperation,
                      weak_ptr_factory_.GetWeakPtr()));
+#else
+  ProcessOutboundSharedStorageInterceptor();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void URLLoader::OnDoneBeginningTrustTokenOperation(
@@ -1139,6 +1149,7 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
   ad_auction_event_record_request_helper_.HandleResponse(
       *url_request_, GetPermissionsPolicy());
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Parse and remove the Trust Tokens response headers, if any are expected,
   // potentially failing the request if an error occurs.
   if (response_ && response_->headers && trust_token_interceptor_) {
@@ -1150,6 +1161,7 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
     // |this| may have been deleted.
     return;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   ProcessInboundSharedStorageInterceptorOnResponseStarted();
 }
@@ -1177,8 +1189,41 @@ void URLLoader::ContinueOnResponseStarted() {
     options.struct_size = sizeof(MojoCreateDataPipeOptions);
     options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
     options.element_num_bytes = 1;
+#if BUILDFLAG(IS_COBALT)
+    // Dynamic allocation for Cobalt to save memory on low-end TVs.
+    // Video/audio streams get the large buffer; images and APIs get 128 KB.
+    bool is_media_stream = (request_destination_ == mojom::RequestDestination::kVideo ||
+                            request_destination_ == mojom::RequestDestination::kAudio);
+    // YouTube TV specific: check for /videoplayback URL path
+    if (!is_media_stream) {
+      is_media_stream = (url_request_->url().path() == "/videoplayback");
+    }
+    // General MSE: check for standard video/audio mime-types or YouTube's custom UMP format
+    if (!is_media_stream && response_ && !response_->mime_type.empty()) {
+      const std::string& mime = response_->mime_type;
+      is_media_stream = (base::StartsWith(mime, "video/", base::CompareCase::SENSITIVE) ||
+                         base::StartsWith(mime, "audio/", base::CompareCase::SENSITIVE) ||
+                         mime == "application/vnd.yt-ump");
+    }
+    if (base::FeatureList::IsEnabled(features::kCobaltDynamicMojoPipeSizing)) {
+      int configured_size = is_media_stream
+                                ? features::kCobaltDynamicMojoPipeSizingMediaSize.Get()
+                                : features::kCobaltDynamicMojoPipeSizingSubresourceSize.Get();
+      if (configured_size > 0) {
+        options.capacity_num_bytes = static_cast<uint32_t>(configured_size);
+      } else {
+        options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
+            DataPipeAllocationSize::kLargerSizeIfPossible);
+      }
+    } else {
+      options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
+          DataPipeAllocationSize::kLargerSizeIfPossible);
+    }
+
+#else
     options.capacity_num_bytes = GetDataPipeDefaultAllocationSize(
         DataPipeAllocationSize::kLargerSizeIfPossible);
+#endif  // BUILDFLAG(IS_COBALT)
     MojoResult result =
         mojo::CreateDataPipe(&options, response_body_stream_, consumer_handle_);
     if (result != MOJO_RESULT_OK) {
@@ -1934,9 +1979,11 @@ void URLLoader::NotifyCompleted(int error_code) {
     status.decoded_body_length = total_written_bytes_;
     status.resolve_error_info =
         url_request_->response_info().resolve_error_info;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     if (trust_token_interceptor_ && trust_token_interceptor_->status()) {
       status.trust_token_operation_status = *trust_token_interceptor_->status();
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     status.cors_error_status = cors_error_status_;
 
     if ((options_ & mojom::kURLLoadOptionSendSSLInfoForCertificateError) &&

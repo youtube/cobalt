@@ -6,7 +6,10 @@
   "test_package": true,
   "targets": [
     "cobalt",
-    "cobalt_loaded_content"
+    "cobalt_loaded_content",
+    "crash_sandbox_loaded_content",
+    "noop_sandbox_loaded_content",
+    "one_app_only_sandbox_loaded_content"
   ],
   "build_configs": [
     "debug",

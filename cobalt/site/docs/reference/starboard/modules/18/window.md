@@ -3,7 +3,7 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Module Reference: `window.h`
 
-Provides functionality to handle Window creation and management.
+Provides functionality to create and manage windows.
 
 ## Macros
 
@@ -33,21 +33,21 @@ Options that can be requested at window creation time.
 
 *   `SbWindowSize size`
 
-    The requested size of the new window. The value of `video_pixel_ratio` will
-    not be used or looked at.
+    The requested size of the new window. The value of `video_pixel_ratio` is
+    ignored.
 *   `bool windowed`
 
-    Whether the new window should be windowed or not. If not, the requested size
-    is really the requested resolution.
-*   `const char * name`
+    Specifies whether the new window is windowed. If `false`, the requested size
+    represents the requested resolution.
+*   `const char* name`
 
     The name of the window to create.
 
 ### SbWindowSize
 
 The size of a window in graphics rendering coordinates. The width and height of
-a window should correspond to the size of the graphics surface used for drawing
-that would be created to back that window.
+a window must correspond to the size of the backing graphics surface used for
+drawing.
 
 #### Members
 
@@ -66,39 +66,39 @@ that would be created to back that window.
     resolution. This is the most common case.
 
     Values greater than 1.0f mean that the video resolution is higher (denser,
-    larger) than the graphics resolution. This is a common case as devices often
-    have more video decoding capabilities than graphics rendering capabilities
-    (or memory, etc...).
+    larger) than the graphics resolution. This is common because devices often
+    have greater video decoding capabilities than graphics rendering
+    capabilities (due to memory constraints, etc.).
 
     Values less than 1.0f mean that the maximum video resolution is smaller than
     the graphics resolution.
 
-    A value of 0.0f means the ratio could not be determined, it should be
-    assumed to be the same as the graphics resolution (i.e. 1.0f).
+    A value of `0.0f` means the ratio cannot be determined; it is assumed to be
+    the same as the graphics resolution (i.e., `1.0f`).
 
 ## Functions
 
 ### SbWindowCreate
 
-Creates and returns a new system window with the given `options`, which may be
-`NULL`. The function returns `kSbWindowInvalid` if it cannot create the
-requested `SbWindow` due to policy, unsatisfiable options, or any other reason.
+Creates and returns a new system window with the specified `options` (which can
+be `NULL`). Returns `kSbWindowInvalid` if the window cannot be created due to
+policy, unsatisfiable options, or other reasons.
 
-If `options` are not specified, this function uses all defaults, which must work
-on every platform. In general, it defaults to creating a fullscreen window at
-the highest 16:9 resolution possible. If the platform does not support
-fullscreen windows, then it creates a normal, windowed window.
+If `options` are not specified, the function uses default values that must work
+on all platforms. By default, it creates a fullscreen window at the highest
+possible 16:9 resolution. If the platform does not support fullscreen windows,
+it creates a standard windowed window.
 
-Some devices are fullscreen-only, including many production targets for
-Starboard. In those cases, only one SbWindow may be created, and it must be
-fullscreen. Additionally, in those cases, the requested size will actually be
-the requested resolution.
+Some devices (including many production targets for Starboard) only support
+fullscreen windows. On these platforms, only one `SbWindow` can be created, and
+it must be fullscreen. The requested size is treated as the requested
+resolution.
 
-An SbWindow must be created to receive window-based events, like input events,
-even on fullscreen-only devices. These events are dispatched to the Starboard
-entry point.
+You must create an `SbWindow` to receive window-based events (such as input
+events), even on fullscreen-only devices. These events are dispatched to the
+Starboard entry point.
 
-`options`: Options that specify parameters for the window being created.
+*   `options`: Options that specify parameters for the window being created.
 
 #### Declaration
 
@@ -110,7 +110,7 @@ SbWindow SbWindowCreate(const SbWindowOptions *options)
 
 Destroys `window`, reclaiming associated resources.
 
-`window`: The `SbWindow` to destroy.
+*   `window`: The `SbWindow` to destroy.
 
 #### Declaration
 
@@ -122,8 +122,7 @@ bool SbWindowDestroy(SbWindow window)
 
 Gets the size of the diagonal between two opposing screen corners.
 
-A return value of 0 means that starboard does not know what the screen diagonal
-is.
+Returns `0` if Starboard cannot determine the screen diagonal.
 
 #### Declaration
 
@@ -134,10 +133,10 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window)
 ### SbWindowGetPlatformHandle
 
 Gets the platform-specific handle for `window`, which can be passed as an
-EGLNativeWindowType to initialize EGL/GLES. This return value is entirely
-platform-specific, so there are no constraints about expected ranges.
+`EGLNativeWindowType` to initialize EGL/GLES. The return value is
+platform-specific, with no constraints on expected ranges.
 
-`window`: The SbWindow to retrieve the platform handle for.
+*   `window`: The `SbWindow` to query.
 
 #### Declaration
 
@@ -147,11 +146,12 @@ void * SbWindowGetPlatformHandle(SbWindow window)
 
 ### SbWindowGetSize
 
-Retrieves the dimensions of `window` and sets `size` accordingly. This function
-returns `true` if it completes successfully. If the function returns `false`,
-then `size` will not have been modified.
+Retrieves the dimensions of `window` and writes them to `size`. Returns `true`
+if successful; otherwise, returns `false` and leaves `size` unchanged.
 
-`window`: The SbWindow to retrieve the size of. `size`: The retrieved size.
+*   `window`: The `SbWindow` to query.
+
+*   `size`: The destination buffer for the window size.
 
 #### Declaration
 
@@ -171,10 +171,10 @@ static bool SbWindowIsValid(SbWindow window)
 
 ### SbWindowSetDefaultOptions
 
-Sets the default options for system windows.
+Sets the default options for system windows in `options`.
 
-`options`: The option values to use as default values. This object must not be
-`NULL`.
+*   `options`: The destination buffer for the default options. Must not be
+    `NULL`.
 
 #### Declaration
 

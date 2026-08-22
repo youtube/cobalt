@@ -14,10 +14,11 @@
 
 # TODO: b/315170518 - Revert to static library after fixing
 # symbol visibility issues for windows based modular platform builds.
-if ((sb_is_modular || sb_is_evergreen_compatible) &&
-    current_toolchain == starboard_toolchain) {
+if (is_starboard && current_toolchain == starboard_toolchain) {
   source_set("starboard_layer_posix_abi_wrappers") {
     sources = [
+      "starboard_layer_posix__Exit_abi_wrappers.cc",
+      "starboard_layer_posix__Exit_abi_wrappers.h",
       "starboard_layer_posix_auxv_abi_wrappers.cc",
       "starboard_layer_posix_auxv_abi_wrappers.h",
       "starboard_layer_posix_directory_abi_wrappers.cc",
@@ -30,6 +31,10 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_fcntl_abi_wrappers.h",
       "starboard_layer_posix_getrandom_abi_wrappers.cc",
       "starboard_layer_posix_getrandom_abi_wrappers.h",
+      "starboard_layer_posix_inotify_abi_wrappers.cc",
+      "starboard_layer_posix_inotify_abi_wrappers.h",
+      "starboard_layer_posix_ioctl_abi_wrappers.cc",
+      "starboard_layer_posix_ioctl_abi_wrappers.h",
       "starboard_layer_posix_mmap_abi_wrappers.cc",
       "starboard_layer_posix_mmap_abi_wrappers.h",
       "starboard_layer_posix_pipe2_abi_wrappers.cc",
@@ -79,12 +84,15 @@ if (is_cobalt_hermetic_build && !sb_is_evergreen &&
     current_toolchain == cobalt_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
+      "cobalt_layer_posix__Exit_abi_wrappers.cc",
       "cobalt_layer_posix_auxv_abi_wrappers.cc",
       "cobalt_layer_posix_directory_abi_wrappers.cc",
       "cobalt_layer_posix_errno_abi_wrappers.cc",
       "cobalt_layer_posix_eventfd_abi_wrappers.cc",
       "cobalt_layer_posix_fcntl_abi_wrappers.cc",
       "cobalt_layer_posix_getrandom_abi_wrappers.cc",
+      "cobalt_layer_posix_inotify_abi_wrappers.cc",
+      "cobalt_layer_posix_ioctl_abi_wrappers.cc",
       "cobalt_layer_posix_mmap_abi_wrappers.cc",
       "cobalt_layer_posix_pipe2_abi_wrappers.cc",
       "cobalt_layer_posix_poll_abi_wrappers.cc",

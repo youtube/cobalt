@@ -28,11 +28,7 @@
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace media {
 namespace {
 
 GST_DEBUG_CATEGORY(cobalt_gst_media_utils);
@@ -448,8 +444,4 @@ GstCaps* CodecToGstCaps(SbMediaAudioCodec codec, const SbMediaAudioStreamInfo* i
 
 }
 
-}  // namespace media
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party

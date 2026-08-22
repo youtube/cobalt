@@ -40,19 +40,6 @@ const size_t kSbDefaultMmapThreshold = 256 * 1024U;
 // entry, not including the absolute path.
 const int32_t kSbFileMaxName = 64;
 
-// The current platform's maximum number of files that can be opened at the
-// same time by one process.
-const uint32_t kSbFileMaxOpen = 256;
-
-// The current platform's alternate file path component separator character.
-// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
-// character, then you can place that here. For example, on windows machines,
-// the primary separator character is probably '\', but the alternate is '/'.
-const char kSbFileAltSepChar = '/';
-
-// The string form of SB_FILE_ALT_SEP_CHAR.
-const char* kSbFileAltSepString = "/";
-
 // The current platform's maximum length of an absolute path.
 const uint32_t kSbFileMaxPath = 4096;
 
@@ -72,18 +59,8 @@ const bool kSbHasAc3Audio = true;
 // non-zero on platforms with webm/vp9 support.
 const bool kSbHasMediaWebmVp9Support = true;
 
-// On default Linux desktop, you must be a superuser in order to set real time
-// scheduling on threads.
-const bool kSbHasThreadPrioritySupport = false;
-
 // Determines the alignment that allocations should have on this platform.
 const size_t kSbMallocAlignment = 16;
-
-// The maximum number of thread local storage keys supported by this platform.
-const uint32_t kSbMaxThreadLocalKeys = 512;
-
-// The maximum length of a name for a thread, including the NULL-terminator.
-const int32_t kSbMaxThreadNameLength = 16;
 
 // Defines the path where memory debugging logs should be written to.
 const char* kSbMemoryLogPath = "/tmp/starboard";
@@ -121,39 +98,10 @@ const uint32_t kSbMediaVideoFrameAlignment = 256;
 // it.
 const size_t kSbMemoryPageSize = 4096;
 
-// Specifies the network receive buffer size in bytes, set via
-// SbSocketSetReceiveBufferSize().
-//
-// Setting this to 0 indicates that SbSocketSetReceiveBufferSize() should
-// not be called. Use this for OSs (such as Linux) where receive buffer
-// auto-tuning is better.
-//
-// On some platforms, this may affect max TCP window size which may
-// dramatically affect throughput in the presence of latency.
-//
-// If your platform does not have a good TCP auto-tuning mechanism,
-// a setting of (128 * 1024) here is recommended.
-const uint32_t kSbNetworkReceiveBufferSize = 0;
-
 // Defines the maximum number of simultaneous threads for this platform. Some
 // platforms require sharing thread handles with other kinds of system handles,
 // like mutexes, so we want to keep this managable.
 const uint32_t kSbMaxThreads = 90;
-
-// The current platform's search path component separator character. When
-// specifying an ordered list of absolute paths of directories to search for a
-// given reason, this is the character that appears between entries. For
-// example, the search path of "/etc/search/first:/etc/search/second" uses ':'
-// as a search path component separator character.
-const char kSbPathSepChar = ':';
-
-// The string form of SB_PATH_SEP_CHAR.
-const char* kSbPathSepString = ":";
-
-// Specifies the preferred byte order of color channels in a pixel. Refer to
-// starboard/configuration.h for the possible values. EGL/GLES platforms should
-// generally prefer a byte order of RGBA, regardless of endianness.
-const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 
 #if SB_API_VERSION < 16
 // The maximum number of users that can be signed in at the same time.
@@ -166,7 +114,4 @@ const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
 #if SB_API_VERSION >= 16
 SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
-
-// Platform can support partial audio frames
-SB_EXPORT extern const bool kHasPartialAudioFramesSupport = true;
 #endif

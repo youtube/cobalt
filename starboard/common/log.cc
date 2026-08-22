@@ -24,11 +24,11 @@
 #include <map>
 #include <sstream>
 
+#include "starboard/common/gettid.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
-#if defined(ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
 #endif
 
@@ -188,7 +188,7 @@ void LogMessage::Init(const char* file, int line) {
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
 #endif  // __ANDROID_API__ < 26
   stream_ << '[';
-  stream_ << name << '/' << SbThreadGetId() << ':';
+  stream_ << name << '/' << gettid() << ':';
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};

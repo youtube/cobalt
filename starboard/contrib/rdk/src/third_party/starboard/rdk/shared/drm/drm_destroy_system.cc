@@ -40,7 +40,7 @@
 void SbDrmDestroySystem(SbDrmSystem drm_system) {
   if (SbDrmSystemIsValid(drm_system)) {
 #if defined(HAS_OCDM)
-    using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
+    using starboard::DrmSystemOcdm;
     auto *ocdm = reinterpret_cast<DrmSystemOcdm*>( drm_system );
     ocdm->Invalidate();
     ocdm->Release();

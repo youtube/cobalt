@@ -20,13 +20,16 @@
 #include <string>
 #include <vector>
 
+#include "base/apple/foundation_util.h"
 #include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/strings/sys_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/tvos/plist_info.h"
 #include "cobalt/shell/browser/shell.h"
 #include "components/crash/core/app/crashpad.h"
 #include "content/public/app/content_main.h"
@@ -35,6 +38,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "net/base/apple/url_conversions.h"
 #include "starboard/common/command_line.h"
+#include "starboard/common/time.h"
 #include "starboard/tvos/shared/application_darwin.h"
 
 static int g_argc = 0;
@@ -168,7 +172,16 @@ static const char** g_argv = nullptr;
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+  base::CommandLine original_cmd_line(g_argc, g_argv);
+  if (!original_cmd_line.HasSwitch(cobalt::switches::kInitialURL)) {
+    const auto plistUrl = cobalt::GetValueFromPlistAsString("YTApplicationURL");
+    if (plistUrl.has_value()) {
+      original_cmd_line.AppendSwitchNative(cobalt::switches::kInitialURL,
+                                           *plistUrl);
+    }
+  }
+
+  const cobalt::CommandLinePreprocessor cobalt_cmd_line(original_cmd_line);
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
 
@@ -187,7 +200,13 @@ static const char** g_argv = nullptr;
   std::ranges::transform(processed_argv, std::back_inserter(char_argv),
                          [](const std::string& arg) { return arg.c_str(); });
 
-  _mainDelegate = std::make_unique<cobalt::CobaltMainDelegate>();
+  // This is similar to base::TimeTicks::Now() and a call to ToInternalValue()
+  // and follows what Starboard platforms measure in
+  // starboard::Application::RunLoop().
+  const int64_t startup_time_in_us = starboard::CurrentMonotonicTime();
+
+  _mainDelegate =
+      std::make_unique<cobalt::CobaltMainDelegate>(startup_time_in_us);
   _mainRunner = content::ContentMainRunner::Create();
   content::ContentMainParams params(_mainDelegate.get());
   params.argc = char_argv.size();

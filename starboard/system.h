@@ -14,8 +14,8 @@
 
 // Module Overview: Starboard System module
 //
-// Defines a broad set of APIs that allow the client application to query
-// build and runtime properties of the enclosing system.
+// Defines APIs that allow client applications to query build and runtime
+// properties of the host system.
 
 #ifndef STARBOARD_SYSTEM_H_
 #define STARBOARD_SYSTEM_H_
@@ -34,28 +34,26 @@ extern "C" {
 // A type that can represent a system error code across all Starboard platforms.
 typedef int SbSystemError;
 
-// Enumeration of special paths that the platform can define.
+// Enumerates special paths that the platform can define.
 typedef enum SbSystemPathId {
   // Path to where the local content files that ship with the binary are
   // available.
   kSbSystemPathContentDirectory,
 
-  // Path to the directory that can be used as a local file cache, if
-  // available.
+  // Path to the directory that can be used as a local file cache, if available.
   kSbSystemPathCacheDirectory,
 
   // Path to the directory where debug output (e.g. logs, trace output,
   // screenshots) can be written into.
   kSbSystemPathDebugOutputDirectory,
 
-  // Path to a directory where system font files can be found. Should only be
-  // specified on platforms that provide fonts usable by Starboard applications.
+  // Path to the directory containing system font files. Specify this path only
+  // on platforms that provide fonts usable by Starboard applications.
   kSbSystemPathFontDirectory,
 
-  // Path to a directory where system font configuration metadata can be
-  // found. May be the same directory as |kSbSystemPathFontDirectory|, but not
-  // necessarily. Should only be specified on platforms that provide fonts
-  // usable by Starboard applications.
+  // Path to the directory containing system font configuration metadata. This
+  // can be the same directory as |kSbSystemPathFontDirectory|. Specify this
+  // path only on platforms that provide fonts usable by Starboard applications.
   kSbSystemPathFontConfigurationDirectory,
 
   // Path to a directory where temporary files can be written.
@@ -64,10 +62,9 @@ typedef enum SbSystemPathId {
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
-  // Path to the directory dedicated for Evergreen Full permanent file storage.
-  // Both read and write access is required.
-  // The directory should be used only for storing the updates.
-  // See starboard/doc/evergreen/cobalt_evergreen_overview.md
+  // Path to the directory dedicated to Evergreen permanent file storage.
+  // Requires both read and write access. Use this directory only to store
+  // updates. See `starboard/doc/evergreen/cobalt_evergreen_overview.md`
   kSbSystemPathStorageDirectory,
 
   // Path to the directory for permanent files. Used for cookies and
@@ -75,23 +72,23 @@ typedef enum SbSystemPathId {
   kSbSystemPathFilesDirectory,
 } SbSystemPathId;
 
-// System properties that can be queried for. Many of these are used in
-// User-Agent string generation.
+// System properties that can be queried. Many of these are used to generate the
+// User-Agent string.
 typedef enum SbSystemPropertyId {
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
 
-  // The full model number of the main platform chipset, including any
-  // vendor-specific prefixes.
+  // The full model number of the main platform chipset, including any vendor-
+  // specific prefixes.
   kSbSystemPropertyChipsetModelNumber,
 
   // The production firmware version number which the device is currently
   // running.
   kSbSystemPropertyFirmwareVersion,
 
-  // A friendly name for this actual device. It may include user-personalization
-  // like "Upstairs Bedroom." It may be displayed to users as part of some kind
-  // of device selection (e.g. in-app DIAL).
+  // A user-friendly name for the device, which may include personalization
+  // (such as "Upstairs Bedroom"). It can be displayed to users during device
+  // selection (for example, in-app DIAL).
   kSbSystemPropertyFriendlyName,
 
   // A deprecated alias for |kSbSystemPropertyBrandName|.
@@ -114,26 +111,26 @@ typedef enum SbSystemPropertyId {
   // User-Agent, say.
   kSbSystemPropertyPlatformName,
 
-  // The Google Speech API key. The platform manufacturer is responsible
-  // for registering a Google Speech API key for their products. In the API
-  // Console (http://developers.google.com/console), you can enable the
-  // Speech APIs and generate a Speech API key.
+  // The Google Speech API key. Platform manufacturers must register a Google
+  // Speech API key for their products. You can enable the Speech APIs and
+  // generate a key in the [Google API
+  // Console](http://developers.google.com/console).
   kSbSystemPropertySpeechApiKey,
 
-  // A field that, if available, is appended to the user agent
+  // A field that, if available, is appended to the User-Agent.
   kSbSystemPropertyUserAgentAuxField,
 
-  // Advertising ID or IFA, typically a 128-bit UUID
-  // Please see https://iabtechlab.com/OTT-IFA for details.
-  // Corresponds to 'ifa' field. Note: `ifa_type` field is not provided.
+  // The Advertising ID or Identifier for Advertising (IFA), typically a 128-bit
+  // UUID. See [IAB Tech Lab](https://iabtechlab.com/OTT-IFA) for details. This
+  // corresponds to the `ifa` field. Note: the `ifa_type` field is not provided.
   kSbSystemPropertyAdvertisingId,
 
-  // Limit advertising tracking, treated as boolean. Set to nonzero to indicate
-  // a true value. Corresponds to 'lmt' field.
+  // Limits advertising tracking, treated as a boolean (non-zero indicates
+  // true). Corresponds to the `lmt` field.
   kSbSystemPropertyLimitAdTracking,
 
-  // Type of the device, e.g. such as "TV", "STB", "OTT"
-  // Please see Youtube Technical requirements for a full list of allowed values
+  // The device type, such as "TV", "STB", or "OTT". See the YouTube Technical
+  // Requirements for a full list of allowed values.
   kSbSystemPropertyDeviceType,
 } SbSystemPropertyId;
 
@@ -149,8 +146,8 @@ typedef enum SbSystemDeviceType {
   // type of network, e.g. cable or satellite.
   kSbSystemDeviceTypeOverTheTopBox,
 
-  // Set top boxes (STBs) stream content primarily over cable or satellite.
-  // Some STBs can also stream OTT content via the Internet.
+  // Set top boxes (STBs) stream content primarily over cable or satellite. Some
+  // STBs can also stream OTT content via the Internet.
   kSbSystemDeviceTypeSetTopBox,
 
   // A Smart TV is a TV that can directly run applications that stream OTT
@@ -170,46 +167,45 @@ typedef enum SbSystemDeviceType {
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;
 
-// Runtime capabilities are boolean properties of a platform that can't be
-// determined at compile-time. They may vary from device to device, but they
-// will not change over the course of a single execution. They often specify
-// particular behavior of other APIs within the bounds of their operating range.
+// Runtime capabilities are boolean platform properties that cannot be
+// determined at compile time. These properties can vary between devices but
+// remain constant during a single execution. They often dictate specific
+// behaviors of other APIs.
 typedef enum SbSystemCapabilityId {
   // Whether this system has reversed Enter and Back keys.
   kSbSystemCapabilityReversedEnterAndBack,
 
-  // Whether this system has the ability to report on GPU memory usage.
-  // If (and only if) a system has this capability will
-  // SbSystemGetTotalGPUMemory() and SbSystemGetUsedGPUMemory() be valid to
-  // call.
+  // Indicates whether the system can report GPU memory usage. You can only call
+  // `SbSystemGetTotalGPUMemory()` and `SbSystemGetUsedGPUMemory()` if this
+  // capability is present.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
 
   // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
   // function in the relevant module.
 } SbSystemCapabilityId;
 
-// Enumeration of possible values for the |type| parameter passed to  the
-// |SbSystemRaisePlatformError| function.
+// Enumerates possible values for the |type| parameter of
+// |SbSystemRaisePlatformError|.
 typedef enum SbSystemPlatformErrorType {
-  // Cobalt received a network connection error, or a network disconnection
-  // event. If the |response| passed to |SbSystemPlatformErrorCallback| is
-  // |kSbSystemPlatformErrorResponsePositive| then the request should be
-  // retried, otherwise the app should be stopped.
+  // Sent when Cobalt receives a network connection error or a network
+  // disconnection event. If the |response| passed to
+  // |SbSystemPlatformErrorCallback| is
+  // |kSbSystemPlatformErrorResponsePositive|, retry the request; otherwise,
+  // stop the application.
   kSbSystemPlatformErrorTypeConnectionError,
 } SbSystemPlatformErrorType;
 
-// Possible responses for |SbSystemPlatformErrorCallback|.
+// Defines possible responses for |SbSystemPlatformErrorCallback|.
 typedef enum SbSystemPlatformErrorResponse {
   kSbSystemPlatformErrorResponsePositive,
   kSbSystemPlatformErrorResponseNegative,
   kSbSystemPlatformErrorResponseCancel
 } SbSystemPlatformErrorResponse;
 
-// Type of callback function that may be called in response to an error
-// notification from |SbSystemRaisePlatformError|. |response| is a code to
-// indicate the user's response, e.g. if the platform raised a dialog to notify
-// the user of the error. |user_data| is the opaque pointer that was passed to
-// the call to |SbSystemRaisePlatformError|.
+// Callback function invoked in response to an error notification from
+// |SbSystemRaisePlatformError|. The |response| parameter indicates the user's
+// action (for example, if they dismissed a dialog). The |user_data| parameter
+// is the opaque pointer passed to |SbSystemRaisePlatformError|.
 typedef void (*SbSystemPlatformErrorCallback)(
     SbSystemPlatformErrorResponse response,
     void* user_data);
@@ -217,48 +213,41 @@ typedef void (*SbSystemPlatformErrorCallback)(
 // Private structure used to represent a raised platform error.
 typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
 
-// Cobalt calls this function to notify the platform that an error has occurred
-// in the application that the platform may need to handle. The platform is
-// expected to then notify the user of the error and to provide a means for
-// any required interaction, such as by showing a dialog.
+// Called by Cobalt to notify the platform of an application error that may
+// require platform handling. The platform should notify the user and provide
+// necessary interaction (for example, by showing a dialog).
 //
-// The return value is a boolean. If the platform cannot respond to the error,
-// then this function should return |false|, otherwise it should return |true|.
+// Returns `true` if the platform handles the error; otherwise, returns `false`.
 //
-// This function may be called from any thread, and it is the platform's
-// responsibility to decide how to handle an error received while a previous
-// error is still pending. If that platform can only handle one error at a
-// time, then it may queue the second error or ignore it by returning
-// |kSbSystemPlatformErrorInvalid|.
+// This function can be called from any thread. The platform must decide how to
+// handle concurrent errors. If it can only handle one error at a time, it can
+// queue or ignore subsequent errors.
 //
-// |type|: An error type, from the SbSystemPlatformErrorType enum,
-//    that defines the error.
-// |callback|: A function that may be called by the platform to let the caller
-//   know that the user has reacted to the error.
-// |user_data|: An opaque pointer that the platform should pass as an argument
-//   to the callback function, if it is called.
+// * |type|: The error type.
+// * |callback|: A callback function invoked when the user responds to the
+//   error.
+// * |user_data|: An opaque pointer passed to the callback function.
 SB_EXPORT bool SbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
     void* user_data);
 
-// Pointer to a function to compare two items. The return value uses standard
-// |*cmp| semantics:
-// - |< 0| if |a| is less than |b|
-// - |0| if the two items are equal
-// - |> 1| if |a| is greater than |b|
+// Pointer to a function that compares two items. The return value uses standard
+// `strcmp`-like semantics:
 //
-// |a|: The first value to compare.
-// |b|: The second value to compare.
+// * `< 0` if |a| is less than |b|
+// * `0` if the two items are equal
+// * `> 1` if |a| is greater than |b|
+// * |a|: The first value to compare.
+// * |b|: The second value to compare.
 typedef int (*SbSystemComparator)(const void* a, const void* b);
 
-// Breaks the current program into the debugger, if a debugger is attached.
-// If a debugger is not attached, this function aborts the program.
+// Breaks the program into the debugger if one is attached; otherwise, aborts
+// the program.
 SB_NORETURN SB_EXPORT void SbSystemBreakIntoDebugger();
 
-// Attempts to determine whether the current program is running inside or
-// attached to a debugger. The function returns |false| if neither of those
-// cases is true.
+// Determines whether the program is running inside or attached to a debugger.
+// Returns `false` otherwise.
 SB_EXPORT bool SbSystemIsDebuggerAttached();
 
 // Returns the number of processor cores available to this application. If the
@@ -267,29 +256,30 @@ SB_EXPORT bool SbSystemIsDebuggerAttached();
 SB_EXPORT int SbSystemGetNumberOfProcessors();
 
 // Returns the total CPU memory (in bytes) potentially available to this
-// application. If the process is sandboxed to a maximum allowable limit,
-// the function returns the lesser of the physical and sandbox limits.
+// application. If the process is sandboxed to a maximum allowable limit, the
+// function returns the lesser of the physical and sandbox limits.
 SB_EXPORT int64_t SbSystemGetTotalCPUMemory();
 
 // Returns the total physical CPU memory (in bytes) used by this application.
-// This value should always be less than (or, in particularly exciting
-// situations, equal to) SbSystemGetTotalCPUMemory().
+// This value should always be less than or equal to
+// `SbSystemGetTotalCPUMemory()`.
 SB_EXPORT int64_t SbSystemGetUsedCPUMemory();
 
-// Returns the total GPU memory (in bytes) available for use by this
-// application. This function may only be called the return value for calls to
-// SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is |true|.
+// Returns the total GPU memory (in bytes) available to the application. This
+// function can only be called if
+// `SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
+// `true`.
 SB_EXPORT int64_t SbSystemGetTotalGPUMemory();
 
-// Returns the current amount of GPU memory (in bytes) that is currently being
-// used by this application. This function may only be called if the return
-// value for calls to
-// SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is |true|.
+// Returns the amount of GPU memory (in bytes) used by the application. This
+// function can only be called if
+// `SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)` returns
+// `true`.
 SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 
-// Returns if the device is disconnected from network. "Disconnected" is chosen
-// over connected because disconnection can be determined with more certainty
-// than connection usually.
+// Returns whether the device is disconnected from the network. Disconnection is
+// parsed instead of connection because it can typically be determined with more
+// certainty.
 SB_EXPORT bool SbSystemNetworkIsDisconnected();
 
 // Retrieves the platform-defined system path specified by |path_id| and
@@ -313,42 +303,40 @@ SB_EXPORT bool SbSystemGetPath(SbSystemPathId path_id,
                                int path_length);
 
 // Retrieves the platform-defined system property specified by |property_id| and
-// places its value as a zero-terminated string into the user-allocated
-// |out_value| unless it is longer than |value_length| - 1. This implementation
-// must be thread-safe.
+// places its value as a null-terminated string into the user-allocated
+// |out_value| (unless the value is longer than |value_length| - 1). This
+// implementation must be thread-safe.
 //
-// This function returns |true| if the property is retrieved successfully. It
-// returns |false| under any of the following conditions and, in any such
-// case, |out_value| is not changed:
-// - |property_id| is invalid for this platform
-// - |value_length| is too short for the given result
-// - |out_value| is NULL
+// This function returns `true` if the property is retrieved successfully. It
+// returns `false` under any of the following conditions, leaving |out_value|
+// unchanged:
 //
-// |property_id|: The system path to be retrieved.
-// |out_value|: The platform-defined system property specified by |property_id|.
-// |value_length|: The length of the system property.
+// * |property_id| is invalid for this platform
+// * |value_length| is too short for the given result
+// * |out_value| is NULL
+// * |property_id|: The system property to retrieve.
+// * |out_value|: The destination buffer for the property value.
+// * |value_length|: The length of the destination buffer.
 SB_EXPORT bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                    char* out_value,
                                    int value_length);
 
-// Returns whether the platform has the runtime capability specified by
-// |capability_id|. Returns false for any unknown capabilities. This
+// Returns whether the platform supports the runtime capability specified by
+// |capability_id|. Returns `false` for unknown capabilities. This
 // implementation must be thread-safe.
 //
-// |capability_id|: The runtime capability to check.
+// * |capability_id|: The runtime capability to check.
 SB_EXPORT bool SbSystemHasCapability(SbSystemCapabilityId capability_id);
 
-// Gets the system's current POSIX-style Locale ID. The locale represents the
-// location, language, and cultural conventions that the system wants to use,
-// which affects which text is displayed to the user as well as how displayed
-// numbers, dates, currency, and similar values are formatted.
+// Gets the system's current POSIX-style locale ID. The locale represents the
+// location, language, and cultural conventions of the system, which determine
+// how text is displayed and how numbers, dates, and currency are formatted.
 //
-// At its simplest, the locale ID can just be a BCP 47 language code, like
-// |en_US|. Currently, POSIX also wants to include the encoding as in
-// |en_US.UTF8|. POSIX also allows a couple very bare-bones locales, like "C"
-// or "POSIX", but they are not supported here. POSIX also supports different
-// locale settings for a few different purposes, but Starboard only exposes one
-// locale at a time.
+// At its simplest, the locale ID can be a BCP 47 language code, such as
+// `en_US`. POSIX also includes the encoding (for example, `en_US.UTF8`). POSIX
+// allows basic locales like "C" or "POSIX", but Starboard does not support
+// them. While POSIX supports different locale settings for various purposes,
+// Starboard exposes only one locale at a time.
 //
 // RFC 5646 describes BCP 47 language codes:
 // https://tools.ietf.org/html/bcp47
@@ -357,188 +345,171 @@ SB_EXPORT bool SbSystemHasCapability(SbSystemCapabilityId capability_id);
 // http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html
 SB_EXPORT const char* SbSystemGetLocaleId();
 
-// A cryptographically secure random number generator that gets 64 random bits
-// and returns them as an |uint64_t|. This function does not require manual
+// A cryptographically secure random number generator that generates 64 random
+// bits and returns them as a `uint64_t`. This function does not require manual
 // seeding.
 SB_EXPORT uint64_t SbSystemGetRandomUInt64();
 
-// A cryptographically secure random number generator that produces an
-// arbitrary, non-negative number of |buffer_size| random, non-negative bytes.
-// The generated number is placed in |out_buffer|. This function does not
-// require manual seeding.
+// A cryptographically secure random number generator that generates
+// |buffer_size| random bytes and places them in |out_buffer|. This function
+// does not require manual seeding.
 //
-// |out_buffer|: A pointer for the generated random number. This value must
-//   not be null.
-// |buffer_size|: The size of the random number, in bytes.
+// * |out_buffer|: The destination buffer for the generated random bytes. Must
+//   not be `NULL`.
+// * |buffer_size|: The number of random bytes to generate.
 SB_EXPORT void SbSystemGetRandomData(void* out_buffer, int buffer_size);
 
 // Gets the last platform-specific error code produced by any Starboard call in
-// the current thread for diagnostic purposes. Semantic reactions to Starboard
-// function call results should be modeled explicitly.
+// the current thread for diagnostic purposes. Do not use this error code to
+// control program flow; handle function return values directly instead.
 SB_EXPORT SbSystemError SbSystemGetLastError();
 
 // Clears the last error set by a Starboard call in the current thread.
 SB_EXPORT void SbSystemClearLastError();
 
-// Generates a human-readable string for an error. The return value specifies
-// the total desired length of the string.
+// Generates a human-readable string for an error. The function returns the
+// total length of the generated string.
 //
-// |error|: The error for which a human-readable string is generated.
-// |out_string|: The generated string. This value may be null, and it is
-//   always terminated with a null byte.
-// |string_length|: The maximum length of the error string.
+// * |error|: The error for which to generate a string.
+// * |out_string|: The destination buffer for the generated string. This can be
+//   `NULL`. The output is always null-terminated.
+// * |string_length|: The maximum length of the error string.
 SB_EXPORT int SbSystemGetErrorString(SbSystemError error,
                                      char* out_string,
                                      int string_length);
 
 // Places up to |stack_size| instruction pointer addresses of the current
-// execution stack into |out_stack|. The return value specifies the number
-// of entries added.
+// execution stack into |out_stack|. Returns the number of entries added.
 //
-// The returned stack frames are in "downward" order from the calling frame
-// toward the entry point of the thread. So, if all the stack frames do not
-// fit, the ones truncated will be the less interesting ones toward the thread
-// entry point.
+// The returned stack frames are in downward order from the calling frame toward
+// the thread's entry point. If the buffer is too small, frames near the thread
+// entry point are truncated.
 //
-// This function is used in crash signal handlers and, therefore, it must
-// be async-signal-safe on platforms that support signals. The following
-// document discusses what it means to be async-signal-safe on POSIX:
+// This function is used in crash signal handlers and, therefore, it must be
+// async-signal-safe on platforms that support signals. The following document
+// discusses what it means to be async-signal-safe on POSIX:
 // http://pubs.opengroup.org/onlinepubs/009695399/functions/xsh_chap02_04.html#tag_02_04_03
 //
-// |out_stack|: A non-NULL array of |void *| of at least |stack_size| entries.
-// |stack_size|: The maximum number of instruction pointer addresses to be
-//   placed into |out_stack| from the current execution stack.
+// * |out_stack|: A buffer to store the instruction pointer addresses. Must not
+//   be
+//   `NULL` and must hold at least |stack_size| entries.
+// * |stack_size|: The maximum number of instruction pointer addresses to
+//   retrieve.
 SB_EXPORT int SbSystemGetStack(void** out_stack, int stack_size);
 
-// Looks up |address| as an instruction pointer and places up to
-// (|buffer_size - 1|) characters of the symbol associated with it in
-// |out_buffer|, which must not be NULL. |out_buffer| will be NULL-terminated.
+// Looks up |address| as an instruction pointer and places up to `buffer_size -
+// 1` characters of its associated symbol in |out_buffer|. The output is always
+// null-terminated. |out_buffer| must not be `NULL`.
 //
-// The return value indicates whether the function found a reasonable match
-// for |address|. If the return value is |false|, then |out_buffer| is not
-// modified.
+// The return value indicates whether the function found a reasonable match for
+// |address|. If the return value is `false`, then |out_buffer| is not modified.
 //
-// This function is used in crash signal handlers and, therefore, it must
-// be async-signal-safe on platforms that support signals.
+// This function is used in crash signal handlers and, therefore, it must be
+// async-signal-safe on platforms that support signals.
 SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
-// Requests that the application move into the Blurred state at the next
-// convenient point. This should roughly correspond to "unfocused application"
-// in a traditional window manager, where the application may be partially
-// visible.
+// Requests that the application transition to the `BLURRED` state. This
+// corresponds to an unfocused application in a traditional window manager,
+// where it may remain partially visible.
 //
-// This function eventually causes a |kSbEventTypeBlur| event to be dispatched
-// to the application. Before the |kSbEventTypeBlur| event is dispatched, some
-// work may continue to be done, and unrelated system events may be dispatched.
+// This function triggers a `kSbEventTypeBlur` event. Before the event is
+// dispatched, the application may continue working and receive other system
+// events.
 SB_EXPORT void SbSystemRequestBlur();
 
-// Requests that the application move into the Started state at the next
-// convenient point. This should roughly correspond to a "focused application"
-// in a traditional window manager, where the application is fully visible and
-// the primary receiver of input events.
+// Requests that the application transition to the `STARTED` (focused) state.
+// This corresponds to focusing the application, making it fully visible and
+// ready to receive input.
 //
-// This function eventually causes a |kSbEventTypeFocus| event to be
-// dispatched to the application. Before |kSbEventTypeFocus| is dispatched,
-// some work may continue to be done, and unrelated system events may be
-// dispatched.
+// This function triggers a `kSbEventTypeFocus` event. Before the event is
+// dispatched, the application may continue working and receive other system
+// events.
 SB_EXPORT void SbSystemRequestFocus();
 
-// Requests that the application move into the Concealed state at the next
-// convenient point. This should roughly correspond to "minimization" in a
-// traditional window manager, where the application is no longer visible.
-// However, the background tasks can still be running.
+// Requests that the application transition to the `CONCEALED` state. This
+// corresponds to minimizing the application, where it is no longer visible but
+// background tasks can continue running.
 //
-// This function eventually causes a |kSbEventTypeConceal| event to be
-// dispatched to the application. Before the |kSbEventTypeConceal| event is
-// dispatched, some work may continue to be done, and unrelated system events
-// may be dispatched.
+// This function triggers a `kSbEventTypeConceal` event. Before the event is
+// dispatched, the application may continue working and receive other system
+// events.
 //
-// In the Concealed state, the application will be invisible, but probably
-// still be running background tasks. The expectation is that an external
-// system event will bring the application out of the Concealed state.
+// In the `CONCEALED` state, the application is invisible but may continue
+// running background tasks. An external system event is expected to restore the
+// application.
 SB_EXPORT void SbSystemRequestConceal();
 
-// Requests that the application move into the Blurred state at the next
-// convenient point. This should roughly correspond to a "focused application"
-// in a traditional window manager, where the application is fully visible and
-// the primary receiver of input events.
+// Requests that the application transition to the `BLURRED` state. This
+// corresponds to revealing the application, making it visible again after being
+// concealed.
 //
-// This function eventually causes a |kSbEventTypeReveal| event to be
-// dispatched to the application. Before the |kSbEventTypeReveal| event is
-// dispatched, some work may continue to be done, and unrelated system events
-// may be dispatched.
+// This function triggers a `kSbEventTypeReveal` event. Before the event is
+// dispatched, the application may continue working and receive other system
+// events.
 SB_EXPORT void SbSystemRequestReveal();
 
-// Requests that the application move into the Frozen state at the next
-// convenient point.
+// Requests that the application transition to the `FROZEN` state.
 //
-// This function eventually causes a |kSbEventTypeFreeze| event to be
-// dispatched to the application. Before the |kSbEventTypeSuspend| event is
-// dispatched, some work may continue to be done, and unrelated system events
-// may be dispatched.
+// This function triggers a `kSbEventTypeFreeze` event. Before the event is
+// dispatched, the application may continue working and receive other system
+// events.
 //
-// In the Frozen state, the application will be resident, but probably not
-// running. The expectation is that an external system event will bring the
-// application out of the Frozen state.
+// In the `FROZEN` state, the application remains in memory but does not run. An
+// external system event is expected to resume the application.
 SB_EXPORT void SbSystemRequestFreeze();
 
-// Requests that the application be terminated gracefully at the next
-// convenient point. In the meantime, some work may continue to be done, and
-// unrelated system events may be dispatched. This function eventually causes
-// a |kSbEventTypeStop| event to be dispatched to the application. When the
-// process finally terminates, it returns |error_level|, if that has any
-// meaning on the current platform.
+// Requests that the application terminate gracefully. Before termination, the
+// application may continue working and receive other system events. This
+// function triggers a `kSbEventTypeStop` event. When the process terminates, it
+// returns |error_level| (if supported by the platform).
 //
-// |error_level|: An integer that serves as the return value for the process
+// * |error_level|: An integer that serves as the return value for the process
 //   that is eventually terminated as a result of a call to this function.
 SB_EXPORT void SbSystemRequestStop(int error_level);
 
-// Hides the system splash screen on systems that support a splash screen that
-// is displayed while the application is loading. This function may be called
-// from any thread and must be idempotent.
+// Hides the splash screen shown while the application loads. This function can
+// be called from any thread and must be idempotent.
 SB_EXPORT void SbSystemHideSplashScreen();
 
-// Returns false if the platform doesn't need resume after suspend support. In
-// such case Cobalt will free up the resource it retains for resume after
-// suspend.
-// Note that if this function returns false, the Starboard implementation cannot
-// send kSbEventTypeResume to the event handler.
-// The return value of this function cannot change over the life time of the
-// application.
+// Returns `false` if the platform does not support resuming after suspension.
+// In this case, Cobalt frees resources retained for resumption, and the
+// platform must not send `kSbEventTypeResume` events. The return value must
+// remain constant for the lifetime of the application.
 SB_EXPORT bool SbSystemSupportsResume();
 
-// Returns pointer to a constant global struct implementing the extension named
-// |name|, if it is implemented. Otherwise return NULL. The |name| string must
-// not be NULL.
+// Returns a pointer to the constant global structure implementing the extension
+// specified by |name|. If the extension is not implemented, the function
+// returns `NULL`. The |name| parameter must not be `NULL`.
 //
-// Extensions are used to implement behavior which is specific to the
-// combination of application & platform. An extension relies on a header file
-// in the "extension" subdirectory of an app, which is used by both the
-// application and the Starboard platform to define an extension API struct.
-// Since the header is used both above and below Starboard, it cannot include
-// any files from above Starboard. It may depend on Starboard headers. That
-// API struct has only 2 required fields which must be first: a const char*
-// |name|, storing the extension name, and a uint32_t |version| storing the
-// version number of the extension. All other fields may be C types (including
-// custom structs) or function pointers. The application will query for the
-// function by name using SbSystemGetExtension, and the platform returns a
-// pointer to the singleton instance of the extension struct. The singleton
-// struct should be constant after initialization, since the application may
-// only get the extension once, meaning updated values would be ignored. As
-// the version of extensions are incremented, fields may be added to the end
-// of the struct, but never removed (only deprecated).
+// Extensions implement behaviors specific to a particular application and
+// platform combination. They rely on a header file in the application's
+// `extension/` subdirectory to define the extension API structure. Because this
+// header is used both by the application and the Starboard platform, it must
+// not include any application-level headers. It can, however, depend on
+// Starboard headers.
+//
+// The API structure must begin with two required fields: a `const char* name`
+// (storing the extension name) and a `uint32_t version` (storing the extension
+// version). Remaining fields can be C types (including custom structures) or
+// function pointers.
+//
+// The application queries for the extension by name using
+// |SbSystemGetExtension|, and the platform returns a pointer to a singleton
+// structure instance. This singleton structure must remain constant after
+// initialization. When incrementing the extension version, you can append
+// fields to the structure, but you must never remove existing fields (mark them
+// as deprecated instead).
 SB_EXPORT const void* SbSystemGetExtension(const char* name);
 
-// Computes a HMAC-SHA256 digest of |message| into |digest| using the
-// application's certification secret. The |message| and the |digest|
-// pointers must not be NULL.
+// Computes a HMAC-SHA256 digest of |message| using the application's
+// certification secret, and writes it to |digest|. The |message| and |digest|
+// pointers must not be `NULL`.
 //
-// The output will be written into |digest|.  |digest_size_in_bytes| must be 32
-// (or greater), since 32-bytes will be written into it.
-// Returns false in the case of an error, or if it is not implemented.  In this
-// case the contents of |digest| will be undefined.
+// The |digest_size_in_bytes| parameter must be at least 32. Returns `false` if
+// an error occurs or if the function is not implemented; in these cases, the
+// contents of |digest| are undefined.
 SB_EXPORT bool SbSystemSignWithCertificationSecretKey(
     const uint8_t* message,
     size_t message_size_in_bytes,

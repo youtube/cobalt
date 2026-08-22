@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #include "starboard/nplb/audio_sink_helpers.h"
-#include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

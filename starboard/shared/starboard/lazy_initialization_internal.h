@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/lazy_initialization_public.h"
-#include "starboard/thread.h"
 
 // INITIALIZED_STATE_UNINITIALIZED is defined in the header.
 #define INITIALIZED_STATE_INITIALIZING 1

@@ -12,20 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <type_traits>
+
 #include "starboard/configuration.h"
 
 namespace nplb {
 namespace {
 
+// Unscoped enumeration without an explicit underlying type and with only
+// non-negative enumerators. This allows us to verify the compiler's default
+// ABI signedness and size rules for standard enumeration types.
 typedef enum GenericEnumType {
-  kOnlyTag,
+  kOnlyTag = 0,
 } GenericEnumType;
 
-// TODO b/452970985 : Fix this test to work with new compiler.
-// SB_COMPILE_ASSERT((static_cast<GenericEnumType>(-1) < 0) ==
-// SB_HAS_SIGNED_ENUM,
-//                   SB_HAS_SIGNED_ENUM_is_inconsistent_with_sign_of_enum);
+// Verify that the compiler's default underlying integral type for standard
+// enumerations matches the Starboard ABI configuration specification.
+SB_COMPILE_ASSERT(
+    std::is_signed<std::underlying_type<GenericEnumType>::type>::value ==
+        SB_HAS_SIGNED_ENUM,
+    SB_HAS_SIGNED_ENUM_is_inconsistent_with_sign_of_enum);
 
+// Verify that the size of standard enumerations matches the ABI specification.
 SB_COMPILE_ASSERT(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM,
                   SB_SIZE_OF_ENUM_is_inconsistent_with_sizeof_enum);
 

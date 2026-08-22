@@ -49,7 +49,6 @@ import org.chromium.base.test.util.InMemorySharedPreferences;
 import org.chromium.base.test.util.InMemorySharedPreferencesContext;
 import org.chromium.base.test.util.ScalableTimeout;
 import org.chromium.build.BuildConfig;
-import org.chromium.build.annotations.MainDex;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,7 +72,6 @@ import java.util.concurrent.TimeoutException;
  * Please beware that is this not a class runner. It is declared in test apk AndroidManifest.xml
  * <instrumentation>
  */
-@MainDex
 public class BaseChromiumAndroidJUnitRunner extends AndroidJUnitRunner {
     private static final String LIST_ALL_TESTS_FLAG =
             "org.chromium.base.test.BaseChromiumAndroidJUnitRunner.TestList";

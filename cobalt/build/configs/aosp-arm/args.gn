@@ -3,10 +3,4 @@ import("//cobalt/build/configs/evergreen-x64/args.gn")
 target_cpu = "arm"
 starboard_target_platform = "aosp-arm"
 arm_float_abi = "softfp"
-
-# TODO: b/453022760 - Investigate if this should be true and fix build failures
-# if so.
-arm_use_neon = false
-
-# TODO(b/380339614): Remove this flag after resolving build errors.
-treat_warnings_as_errors = false
+use_errorprone_java_compiler = false

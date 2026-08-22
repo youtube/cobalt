@@ -19,9 +19,10 @@
 #include "base/memory/ptr_util.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
-#include "gpu/command_buffer/service/test_memory_tracker.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_test_base.h"
 #include "gpu/command_buffer/service/texture_manager.h"
 #include "starboard/decode_target.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -48,17 +49,15 @@ bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
 namespace gpu {
 namespace {
 
-class StarboardGLTextureBackingTest : public testing::Test {
+class StarboardGLTextureBackingTest : public SharedImageTestBase {
  public:
-  StarboardGLTextureBackingTest()
-      : memory_tracker_(), tracker_(&memory_tracker_) {}
+  StarboardGLTextureBackingTest() = default;
 
-  void SetUp() override { g_release_count = 0; }
-
- protected:
-  SharedImageManager manager_;
-  TestMemoryTracker memory_tracker_;
-  MemoryTypeTracker tracker_;
+  void SetUp() override {
+    SharedImageTestBase::SetUp();
+    ASSERT_NO_FATAL_FAILURE(InitializeContext(GrContextType::kGL));
+    g_release_count = 0;
+  }
 };
 
 TEST_F(StarboardGLTextureBackingTest, Basic) {
@@ -86,9 +85,11 @@ TEST_F(StarboardGLTextureBackingTest, Basic) {
   EXPECT_EQ(backing->usage(), usage);
   EXPECT_EQ(backing->GetType(), SharedImageBackingType::kGLTexture);
 
-  auto factory_rep = manager_.Register(std::move(backing), &tracker_);
+  auto factory_rep =
+      shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
 
-  auto gl_rep = manager_.ProduceGLTexturePassthrough(mailbox, &tracker_);
+  auto gl_rep = shared_image_manager_.ProduceGLTexturePassthrough(
+      mailbox, &memory_type_tracker_);
   ASSERT_NE(gl_rep, nullptr);
   EXPECT_EQ(gl_rep->GetTexturePassthrough()->service_id(), 1u);
 
@@ -123,9 +124,11 @@ TEST_F(StarboardGLTextureBackingTest, Multiplanar) {
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
       texture_ids, texture_targets, decode_target);
 
-  auto factory_rep = manager_.Register(std::move(backing), &tracker_);
+  auto factory_rep =
+      shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
 
-  auto gl_rep = manager_.ProduceGLTexturePassthrough(mailbox, &tracker_);
+  auto gl_rep = shared_image_manager_.ProduceGLTexturePassthrough(
+      mailbox, &memory_type_tracker_);
   ASSERT_NE(gl_rep, nullptr);
   EXPECT_EQ(gl_rep->GetTexturePassthrough(0)->service_id(), 1u);
   EXPECT_EQ(gl_rep->GetTexturePassthrough(1)->service_id(), 2u);
@@ -155,8 +158,10 @@ TEST_F(StarboardGLTextureBackingTest, DrDcLock) {
       mailbox, format, size, color_space, surface_origin, alpha_type, usage,
       texture_ids, texture_targets, decode_target, drdc_lock);
 
-  auto factory_rep = manager_.Register(std::move(backing), &tracker_);
-  auto gl_rep = manager_.ProduceGLTexturePassthrough(mailbox, &tracker_);
+  auto factory_rep =
+      shared_image_manager_.Register(std::move(backing), &memory_type_tracker_);
+  auto gl_rep = shared_image_manager_.ProduceGLTexturePassthrough(
+      mailbox, &memory_type_tracker_);
 
   // BeginAccess should acquire the lock.
   // In a real scenario, we'd check if the lock is held, but RefCountedLock

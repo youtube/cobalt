@@ -32,17 +32,11 @@ struct _GstCaps;
 struct _GstBuffer;
 struct OpenCDMSystem;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace drm {
 
-namespace session {
 class Session;
-}
 
-class DrmSystemOcdm : public SbDrmSystemPrivate, public ::starboard::RefCountedThreadSafe<DrmSystemOcdm> {
+class DrmSystemOcdm : public SbDrmSystemPrivate, public RefCountedThreadSafe<DrmSystemOcdm> {
  public:
   class Observer {
    public:
@@ -82,7 +76,7 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public ::starboard::RefCountedT
                      int key_size,
                      const void* session_id,
                      int session_id_size) override;
-  DecryptStatus Decrypt(::starboard::InputBuffer* buffer) override;
+  DecryptStatus Decrypt(InputBuffer* buffer) override;
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
@@ -110,14 +104,14 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public ::starboard::RefCountedT
   void Invalidate();
 
  private:
-  session::Session* GetSessionById(const std::string& id);
+  Session* GetSessionById(const std::string& id);
   void AnnounceKeys();
 
   std::set<std::string> GetReadyKeysUnlocked() const;
 
   std::string key_system_;
   void* context_;
-  std::vector<std::unique_ptr<session::Session>> sessions_;
+  std::vector<std::unique_ptr<Session>> sessions_;
 
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
@@ -135,10 +129,6 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public ::starboard::RefCountedT
   std::vector<uint8_t> metrics_;
 };
 
-}  // namespace drm
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_DRM_DRM_SYSTEM_OCDM_H_

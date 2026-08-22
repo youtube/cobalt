@@ -82,6 +82,47 @@ absl::optional<bool> H5vccSystem::limitAdTracking() {
   return limit_ad_tracking;
 }
 
+ScriptPromise<IDLString> H5vccSystem::getFriendlyName(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetFriendlyName(
+      WTF::BindOnce(&H5vccSystem::OnGetFriendlyName, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetFriendlyName(ScriptPromiseResolver<IDLString>* resolver,
+                                    const String& result) {
+  resolver->Resolve(result);
+}
+
+ScriptPromise<IDLDouble> H5vccSystem::getScreenDiagonal(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLDouble>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetScreenDiagonal(
+      WTF::BindOnce(&H5vccSystem::OnGetScreenDiagonal, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetScreenDiagonal(
+    ScriptPromiseResolver<IDLDouble>* resolver,
+    double result) {
+  resolver->Resolve(result);
+}
+
 ScriptPromise<IDLString> H5vccSystem::getTrackingAuthorizationStatus(
     ScriptState* script_state,
     ExceptionState& exception_state) {

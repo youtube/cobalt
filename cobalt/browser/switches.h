@@ -35,6 +35,10 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
 
+// Enable H5VCC settings via command line:
+// --enable-h5vcc-settings=Key1=Val1;Key2=Val2
+constexpr char kEnableH5vccSettings[] = "enable-h5vcc-settings";
+
 }  // namespace switches
 }  // namespace cobalt
 

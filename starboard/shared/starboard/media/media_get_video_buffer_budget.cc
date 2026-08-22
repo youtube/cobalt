@@ -13,12 +13,16 @@
 // limitations under the License.
 
 #include "starboard/media.h"
+#include "starboard/shared/starboard/media/resolutions.h"
+
+using ::starboard::Resolution;
 
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  if ((resolution_width <= 1920 && resolution_height <= 1080) ||
+  starboard::Size resolution(resolution_width, resolution_height);
+  if (resolution.FitsWithin(Resolution::k1080p) ||
       resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
     // Specifies the maximum amount of memory used by video buffers of media
@@ -27,7 +31,7 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     return 30 * 1024 * 1024;
   }
 
-  if (resolution_width <= 3840 && resolution_height <= 2160) {
+  if (resolution.FitsWithin(Resolution::k4k)) {
     if (bits_per_pixel <= 8) {
       // Specifies the maximum amount of memory used by video buffers of media
       // source before triggering a garbage collection when the video resolution

@@ -38,6 +38,10 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
     "bidirectional_fit_reuse_allocator.h",
     "check.h",
     "check_op.cc",
@@ -51,18 +55,21 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
+    "embedded_metadata_reuse_allocator_base.cc",
+    "embedded_metadata_reuse_allocator_base.h",
     "expected.h",
     "experimental/media_buffer_pool.cc",
     "experimental/media_buffer_pool.h",
     "experimental/media_buffer_pool_bidirectional_reuse_allocator.h",
     "experimental/media_buffer_pool_memory_allocator.h",
+    "external_metadata_reuse_allocator_base.cc",
+    "external_metadata_reuse_allocator_base.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
-    "in_place_reuse_allocator_base.cc",
-    "in_place_reuse_allocator_base.h",
+    "gettid.h",
     "log.cc",
     "media.cc",
     "media.h",
@@ -70,6 +77,7 @@ static_library("common") {
     "metrics/stats_tracker.h",
     "murmurhash2.cc",
     "murmurhash2.h",
+    "no_destructor.h",
     "pass_key.h",
     "paths.cc",
     "paths.h",
@@ -79,6 +87,8 @@ static_library("common") {
     "process.cc",
     "process.h",
     "queue.h",
+    "rect.cc",
+    "rect.h",
     "ref_counted.cc",
     "ref_counted.h",
     "result.h",
@@ -92,6 +102,7 @@ static_library("common") {
     "size.h",
     "source_location.cc",
     "source_location.h",
+    "span.h",
     "spin_lock.cc",
     "spin_lock.h",
     "storage.cc",
@@ -105,7 +116,9 @@ static_library("common") {
     "time.h",
   ]
 
-  if (!is_android) {
+  deps = [ "//third_party/modp_b64" ]
+
+  if (!is_android && !is_ios) {
     sources += [ "thread_platform_base.cc" ]
   }
 }
@@ -122,15 +135,20 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "app_key_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
     "expected_test.cc",
+    "file_atomic_replace_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
+    "no_destructor_test.cc",
     "player_test.cc",
     "queue_test.cc",
+    "rect_test.cc",
+    "ref_counted_test.cc",
     "result_test.cc",
     "semaphore_test.cc",
     "size_test.cc",

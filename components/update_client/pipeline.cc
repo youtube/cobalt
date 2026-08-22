@@ -245,7 +245,9 @@ Operation SkipIfCached(
                 // Skip the operation, and return the path to the next step.
 #if BUILDFLAG(IS_STARBOARD)
                 OperationResult cached_result = path_in;
+#if !defined(IN_MEMORY_UPDATES)
                 cached_result.response = cached_path.value();
+#endif
                 std::move(callback).Run(cached_result);
 #else
                 std::move(callback).Run(cached_path.value());

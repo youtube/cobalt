@@ -20,18 +20,16 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.app.Activity;
 import android.widget.FrameLayout;
-
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.Robolectric;
-import org.robolectric.annotation.Config;
-
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 /** Tests for the ShellManager. */
 @RunWith(RobolectricTestRunner.class)
@@ -45,7 +43,6 @@ public class ShellManagerTest {
   private ShellManager mShellManager;
   private FrameLayout mRootView;
   @Mock private ContentViewRenderView mMockContentViewRenderView;
-
 
   @Before
   public void setUp() {

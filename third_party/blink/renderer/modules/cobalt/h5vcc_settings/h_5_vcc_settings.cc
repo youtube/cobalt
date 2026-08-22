@@ -147,25 +147,17 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const ExceptionContext& exception_context = exception_state.GetContext();
 
-  if (name == "DecoderBuffer.EnableDecommitableAllocatorStrategy") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-          ::media::DecoderBufferAllocator::
-              EnableDecommitableAllocatorStrategy();
-          return true;
-        });
-  }
-  if (name == "DecoderBuffer.EnableMediaBufferPoolAllocatorStrategy") {
-    return ProcessSettingAsEnableOnly(
-        script_state, exception_context, name, *value, [] {
-          ::media::DecoderBufferAllocator::EnableMediaBufferPoolStrategy();
-          return true;
-        });
-  }
-  // "DecoderBuffer." settings must be handled before this catch-all block.
   if (name.StartsWith("DecoderBuffer.")) {
-    return Reject(script_state, exception_context,
-                  name + " isn't a supported setting.");
+    return ProcessSettingAs<int>(
+        script_state, exception_context, name, *value,
+        [name](int value) -> Result {
+          auto result =
+              ::media::DecoderBufferAllocator::SetSetting(name.Utf8(), value);
+          if (!result.has_value()) {
+            return base::unexpected(String::FromUTF8(result.error()));
+          }
+          return base::ok();
+        });
   }
 
   if (name == "Media.AppendFirstSegmentSynchronously") {
@@ -175,6 +167,13 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
                                         enable;
                                     return base::ok();
                                   });
+  }
+  if (name == "Media.720pVideoBufferSizeClampMb") {
+    return ProcessSettingAsPositiveInt(
+        script_state, exception_context, name, *value, [](int int_value) {
+          ::media::Set720pVideoBufferSizeClamp(int_value);
+          return true;
+        });
   }
   if (name == "Media.ExperimentalMaxPendingBytesPerParse") {
     return ProcessSettingAsPositiveInt(

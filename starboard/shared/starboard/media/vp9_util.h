@@ -20,6 +20,7 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/common/span.h"
 
 namespace starboard {
 
@@ -34,30 +35,25 @@ class Vp9FrameParser {
  public:
   static constexpr size_t kMaxNumberOfSubFrames = 8;
 
-  Vp9FrameParser(const void* vp9_frame, size_t size);
+  explicit Vp9FrameParser(Span<const uint8_t> vp9_frame);
 
   size_t number_of_subframes() const {
     SB_DCHECK_GT(number_of_subframes_, 0U);
     return number_of_subframes_;
   }
+  Span<const uint8_t> subframe(size_t index) const {
+    SB_DCHECK_LT(index, number_of_subframes_);
+    return subframes_[index];
+  }
   const uint8_t* address_of_subframe(size_t index) const {
-    SB_DCHECK_LT(index, number_of_subframes_);
-    return subframes_[index].address;
+    return subframe(index).data();
   }
-  size_t size_of_subframe(size_t index) const {
-    SB_DCHECK_LT(index, number_of_subframes_);
-    return subframes_[index].size;
-  }
+  size_t size_of_subframe(size_t index) const { return subframe(index).size(); }
 
  private:
-  struct Subframe {
-    const uint8_t* address = nullptr;
-    size_t size = 0;
-  };
+  bool ParseSuperFrame(Span<const uint8_t> frame);
 
-  bool ParseSuperFrame(const uint8_t* frame, size_t size);
-
-  Subframe subframes_[kMaxNumberOfSubFrames];
+  Span<const uint8_t> subframes_[kMaxNumberOfSubFrames];
   size_t number_of_subframes_ = 0;
 };
 

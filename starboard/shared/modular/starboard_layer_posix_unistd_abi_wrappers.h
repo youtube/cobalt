@@ -231,11 +231,23 @@ SB_EXPORT musl_uid_t __abi_wrap_getuid();
 
 SB_EXPORT musl_pid_t __abi_wrap_getpid();
 
+SB_EXPORT musl_pid_t __abi_wrap_gettid();
+
 SB_EXPORT int __abi_wrap_access(const char* path, int amode);
 
 SB_EXPORT int __abi_wrap_fchown(int fd, musl_uid_t owner, musl_gid_t group);
 
 SB_EXPORT int __abi_wrap_unlinkat(int fildes, const char* path, int musl_flag);
+
+SB_EXPORT ssize_t __abi_wrap_pread(int fd,
+                                   void* buf,
+                                   size_t size,
+                                   musl_off_t ofs);
+
+SB_EXPORT ssize_t __abi_wrap_pwrite(int fd,
+                                    const void* buf,
+                                    size_t size,
+                                    musl_off_t ofs);
 
 #ifdef __cplusplus
 }  // extern "C"

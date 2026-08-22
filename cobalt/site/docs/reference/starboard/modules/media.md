@@ -107,9 +107,9 @@ Possible audio sample types.
 
 ### SbMediaRangeId
 
-This corresponds to the WebM Range enum which is part of WebM color data (see [http://www.webmproject.org/docs/container/#Range](http://www.webmproject.org/docs/container/#Range)
-). H.264 only uses a bool, which corresponds to the LIMITED/FULL values. Chrome-
-specific values start at 1000.
+This corresponds to the WebM Range enum which is part of WebM color data (see [http://www.webmproject.org/docs/container/#Range](http://www.webmproject.org/docs/container/#Range)).
+H.264 only uses a bool, which corresponds to the LIMITED/FULL values.
+Chrome-specific values start at 1000.
 
 #### Values
 
@@ -173,6 +173,7 @@ Types of video elementary streams that could be supported.
 *   `kSbMediaVideoCodecAv1`
 *   `kSbMediaVideoCodecVp8`
 *   `kSbMediaVideoCodecVp9`
+*   `kSbMediaVideoCodecAv2`
 
 ## Structs
 
@@ -221,7 +222,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `SbMediaAudioCodec codec`
 
     The audio codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the audio stream when `codec` isn't kSbMediaAudioCodecNone. It
     may point to an empty string if the mime is not available, and it can only
@@ -238,7 +239,7 @@ The set of information required by the decoder or player for each audio stream.
 *   `uint16_t audio_specific_config_size`
 
     The size, in bytes, of the audio_specific_config.
-*   `const void * audio_specific_config`
+*   `const void* audio_specific_config`
 
     The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
 
@@ -316,8 +317,8 @@ luminosity than is possible with standard digital imaging.
     and chroma values from red, green, and blue color primaries. For clarity,
     the value and meanings for MatrixCoefficients are adopted from Table 4 of
     ISO/IEC 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3: Reserved,
-    4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020 Non-
-    constant Luminance, 10: BT2020 Constant Luminance).
+    4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8: YCOCG, 9: BT2020
+    Non-constant Luminance, 10: BT2020 Constant Luminance).
 *   `SbMediaRangeId range`
 
     [Color Space field] Clipping of the color ranges. (0: Unspecified, 1:
@@ -396,12 +397,12 @@ The set of information required by the decoder or player for each video stream.
 *   `SbMediaVideoCodec codec`
 
     The video codec of this sample.
-*   `const char * mime`
+*   `const char* mime`
 
     The mime of the video stream when `codec` isn't kSbMediaVideoCodecNone. It
     may point to an empty string if the mime is not available, and it can only
     be set to NULL when `codec` is kSbMediaVideoCodecNone.
-*   `const char * max_video_capabilities`
+*   `const char* max_video_capabilities`
 
     Indicates the max video capabilities required. The web app will not provide
     a video stream exceeding the maximums described by this parameter. Allows
@@ -429,11 +430,30 @@ The set of information required by the decoder or player for each video stream.
     Color Space, and Color elements: MatrixCoefficients, BitsPerChannel,
     ChromaSubsamplingHorz, ChromaSubsamplingVert, CbSubsamplingHorz,
     CbSubsamplingVert, ChromaSitingHorz, ChromaSitingVert, Range,
-    TransferCharacteristics, and Primaries described here: [https://matroska.org/technical/specs/index.html](https://matroska.org/technical/specs/index.html)
-    . This will only be specified on frames where the HDR metadata and color /
+    TransferCharacteristics, and Primaries described here: [https://matroska.org/technical/specs/index.html](https://matroska.org/technical/specs/index.html).
+    This will only be specified on frames where the HDR metadata and color /
     color space might have changed (e.g. keyframes).
 
 ## Functions
+
+### SbMediaCanChangeType
+
+Returns whether the platform supports a transition from the stream configuration
+described by `current_mime` to `new_mime` for an active SbPlayer instance.
+Returns `true` if the transition is supported, and will return `false` if the
+platform cannot support the changeType() call.
+
+More information on SourceBuffer.ChangeType() can be found at the following
+link: [https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype](https://www.w3.org/TR/media-source/#dom-sourcebuffer-changetype)
+
+`current_mime`: The current active stream MIME configuration. Must not be NULL.
+`new_mime`: The target stream MIME configuration. Must not be NULL.
+
+#### Declaration
+
+```
+bool SbMediaCanChangeType(const char *current_mime, const char *new_mime)
+```
 
 ### SbMediaCanPlayMimeAndKeySystem
 
@@ -489,9 +509,9 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char *mime, const char *
 
 Specifies the maximum amount of memory used by audio buffers of media source
 before triggering a garbage collection. A large value will cause more memory
-being used by audio buffers but will also make the app less likely to re-
-download audio data. Note that the app may experience significant difficulty if
-this value is too low.
+being used by audio buffers but will also make the app less likely to
+re-download audio data. Note that the app may experience significant difficulty
+if this value is too low.
 
 #### Declaration
 
@@ -530,25 +550,6 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAlignment
-
-DEPRECATED with SB_API_VERSION 16
-
-SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value is
-no longer used when allocating media buffers. This is verified explicitly in
-nplb tests by ensuring its return value is sizeof(void*).
-
-The app MAY take best effort to allocate media buffers aligned to an optimal
-alignment for the platform, but not guaranteed. An implementation that has
-specific alignment requirement should check the alignment of the incoming
-buffer, and make a copy when necessary.
-
-#### Declaration
-
-```
-int SbMediaGetBufferAlignment()
-```
-
 ### SbMediaGetBufferAllocationUnit
 
 When the media stack needs more memory to store media buffers, it will allocate
@@ -580,23 +581,6 @@ further reduced on systems with extremely low memory.
 int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
-### SbMediaGetBufferPadding
-
-DEPRECATED with SB_API_VERSION 16
-
-SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is no
-longer used when allocating media buffers. This is verified explicitly in nplb
-tests by ensuring its return value is 0.
-
-An implementation that has specific padding requirement should make a copy of
-the incoming buffer when necessary.
-
-#### Declaration
-
-```
-int SbMediaGetBufferPadding()
-```
-
 ### SbMediaGetInitialBufferCapacity
 
 The amount of memory that will be used to store media buffers allocated during
@@ -608,28 +592,6 @@ fragmentation and can avoid failures to allocate incrementally. This can return
 
 ```
 int SbMediaGetInitialBufferCapacity()
-```
-
-### SbMediaGetProgressiveBufferBudget
-
-The memory used when playing mp4 videos that is not in DASH format. The
-resolution of such videos shouldn't go beyond 1080p. Its value should be less
-than the sum of SbMediaGetAudioBufferBudget and
-'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
-
-`codec`: the video codec associated with the buffer.
-
-`resolution_width`: the width of the video resolution.
-
-`resolution_height`: the height of the video resolution.
-
-`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
-video.
-
-#### Declaration
-
-```
-int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width, int resolution_height, int bits_per_pixel)
 ```
 
 ### SbMediaGetVideoBufferBudget
@@ -671,17 +633,4 @@ fragmentation.
 
 ```
 bool SbMediaIsBufferPoolAllocateOnDemand()
-```
-
-### SbMediaIsBufferUsingMemoryPool
-
-DEPRECATED with SB_API_VERSION 16
-
-This function is deprecated in Starboard 16 and no longer used. It's not fully
-removed, only to emit warnings at build and test time.
-
-#### Declaration
-
-```
-bool SbMediaIsBufferUsingMemoryPool()
 ```

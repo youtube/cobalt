@@ -36,16 +36,21 @@ namespace media {
 
 using starboard::AlignDown;
 using starboard::AlignUp;
+using starboard::Allocator;
+using DecommitMode = starboard::Allocator::DecommitMode;
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
 // using posix_memalign() and free().
 class StarboardMemoryAllocator : public starboard::Allocator {
  public:
-  explicit StarboardMemoryAllocator(bool enable_decommit)
+  StarboardMemoryAllocator(bool enable_decommit, bool enable_page_alignment)
       : enable_decommit_(enable_decommit),
+        enable_page_alignment_(enable_page_alignment),
         page_size_(static_cast<size_t>(sysconf(_SC_PAGESIZE))) {
     LOG(INFO) << "StarboardMemoryAllocator: decommit is "
-              << (enable_decommit_ ? "enabled" : "disabled") << ".";
+              << (enable_decommit_ ? "enabled" : "disabled")
+              << ", page alignment is "
+              << (enable_page_alignment_ ? "enabled" : "disabled") << ".";
   }
 
   void* Allocate(size_t size) override {
@@ -57,7 +62,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
 
   void* AllocateForAlignment(size_t* size, size_t alignment) override {
-    if (enable_decommit_) {
+    if (enable_page_alignment_) {
       alignment = std::max(alignment, page_size_);
       *size = AlignUp(*size, page_size_);
     }
@@ -67,20 +72,34 @@ class StarboardMemoryAllocator : public starboard::Allocator {
   }
   void Free(void* memory) override { free(memory); }
 
-  void Decommit(void* memory, size_t size) override {
+  void Decommit(void* memory, size_t size, DecommitMode mode) override {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-    uintptr_t start = reinterpret_cast<uintptr_t>(memory);
     CHECK(enable_decommit_);
-    CHECK_EQ(start % page_size_, 0U);
-    CHECK_EQ(size % page_size_, 0U);
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
-    // Align down the size to prevent decommitting past the end just in case
-    // the user explicitly passes an altered, unaligned size block.
-    size_t aligned_size = AlignDown(size, page_size_);
+    uint8_t* start = static_cast<uint8_t*>(memory);
+    uint8_t* end = start + size;
+    uint8_t* aligned_start = AlignUp(start, page_size_);
+    uint8_t* aligned_end = AlignDown(end, page_size_);
 
-    if (aligned_size > 0) {
-      madvise(memory, aligned_size, MADV_DONTNEED);
+    if (aligned_start < aligned_end) {
+      size_t aligned_size = aligned_end - aligned_start;
+
+      if (mode == DecommitMode::kCold) {
+#if defined(MADV_COLD)
+        madvise(aligned_start, aligned_size, MADV_COLD);
+#endif  // defined(MADV_COLD)
+        return;
+      }
+
+      // MADV_FREE is not supported on all kernel versions/configurations. If it
+      // fails, fallback to MADV_DONTNEED to ensure memory is still decommitted.
+      if (mode == DecommitMode::kConservative &&
+          madvise(aligned_start, aligned_size, MADV_FREE) == 0) {
+        return;
+      }
+
+      madvise(aligned_start, aligned_size, MADV_DONTNEED);
     }
   }
 
@@ -97,6 +116,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
 
  private:
   const bool enable_decommit_;
+  const bool enable_page_alignment_;
   const size_t page_size_;
 };
 

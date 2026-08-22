@@ -17,16 +17,19 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
 #include "starboard/event.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
+
+enum class PendingAck;
 
 // AppEventRunner defines an interface for managing the system-level
 // execution of the Cobalt process. This abstraction allows for injecting
@@ -46,12 +49,18 @@ class AppEventRunner {
   virtual void InitializeSystem() = 0;
 
   // Creates the main delegate for the content process.
-  virtual void CreateMainDelegate(absl::optional<int64_t> startup_timestamp,
+  virtual void CreateMainDelegate(std::optional<int64_t> startup_timestamp,
                                   bool is_visible,
                                   const char* initial_deep_link) = 0;
 
   // Returns the main delegate.
   virtual cobalt::CobaltMainDelegate* GetMainDelegate() = 0;
+
+  // Returns all active WebContents.
+  virtual std::vector<content::WebContents*> GetWebContents() = 0;
+
+  // Returns the currently active pending transition ACK.
+  virtual PendingAck pending_ack() const = 0;
 
   // Lifecycle signals called from the application.
   // These functions check and update the running, visible, focused, and frozen
@@ -63,7 +72,7 @@ class AppEventRunner {
   void OnFocus();
   void OnConceal();
   void OnReveal();
-  void OnFreeze();
+  void OnFreeze(base::OnceClosure callback = base::DoNothing());
   void OnUnfreeze();
 
   // Handlers for non-lifecycle SbEventType events
@@ -95,7 +104,7 @@ class AppEventRunner {
   virtual void DoFocus() = 0;
   virtual void DoConceal() = 0;
   virtual void DoReveal() = 0;
-  virtual void DoFreeze() = 0;
+  virtual void DoFreeze(base::OnceClosure callback) = 0;
   virtual void DoUnfreeze() = 0;
 
   std::atomic<bool> is_running_{false};

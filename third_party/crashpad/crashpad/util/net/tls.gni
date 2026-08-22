@@ -23,7 +23,7 @@ declare_args() {
   # libcurl. For now will keep the c25 status quo and use raw sockets with
   # BoringSSL as the backend.
   if (crashpad_is_fuchsia || crashpad_is_android ||
-          (is_cobalt && is_native_target)) {
+      (is_cobalt && is_native_toolchain)) {
     crashpad_http_transport_impl = "socket"
   } else if (crashpad_is_linux) {
     crashpad_http_transport_impl = "libcurl"

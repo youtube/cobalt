@@ -150,19 +150,19 @@ class ProducerConcurrentThread : public Thread {
 
 TEST_F(QueueIntTest, PollEmptyQueueReturnsDefault) {
   EXPECT_EQ(0, queue_.Poll());  // Default for int is 0
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueuePointerTest, PollEmptyQueueReturnsNullptr) {
   EXPECT_EQ(nullptr, queue_.Poll());  // Default for pointer is nullptr
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, PutAndPoll) {
   queue_.Put(10);
-  EXPECT_EQ(1, queue_.Size());
+  EXPECT_EQ(1U, queue_.Size());
   EXPECT_EQ(10, queue_.Poll());
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
   EXPECT_EQ(0, queue_.Poll());  // Should be empty now
 }
 
@@ -175,11 +175,11 @@ TEST_F(QueuePointerTest, PutAndPollPointers) {
   queue_.Put(obj1);
   queue_.Put(obj2);
 
-  EXPECT_EQ(2, queue_.Size());
+  EXPECT_EQ(2U, queue_.Size());
   EXPECT_EQ(obj1, queue_.Poll());
-  EXPECT_EQ(1, queue_.Size());
+  EXPECT_EQ(1U, queue_.Size());
   EXPECT_EQ(obj2, queue_.Poll());
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueUniquePointerTest, PutAndPollUniquePointers) {
@@ -192,13 +192,13 @@ TEST_F(QueueUniquePointerTest, PutAndPollUniquePointers) {
   queue_.Put(std::move(obj1));
   queue_.Put(std::move(obj2));
 
-  EXPECT_EQ(2, queue_.Size());
+  EXPECT_EQ(2U, queue_.Size());
   UniqueTestObject retrieved_obj1 = queue_.Poll();
   EXPECT_EQ(raw_obj1, retrieved_obj1.get());
-  EXPECT_EQ(1, queue_.Size());
+  EXPECT_EQ(1U, queue_.Size());
   UniqueTestObject retrieved_obj2 = queue_.Poll();
   EXPECT_EQ(raw_obj2, retrieved_obj2.get());
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
@@ -210,13 +210,13 @@ TEST_F(QueueIntTest, GetBlocksUntilItemIsAvailable) {
   putter_thread.Join();
 
   EXPECT_EQ(42, received_value);
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, GetTimedReturnsDefaultOnTimeout) {
   int received_value = queue_.GetTimed(kMillisInUs * 50);
   EXPECT_EQ(0, received_value);
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
@@ -228,7 +228,7 @@ TEST_F(QueueIntTest, GetTimedRetrievesItemWithinTimeout) {
   putter_thread.Join();
 
   EXPECT_EQ(99, received_value);
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, WakeWakesUpGetCall) {
@@ -240,7 +240,7 @@ TEST_F(QueueIntTest, WakeWakesUpGetCall) {
   waker_thread.Join();
 
   EXPECT_EQ(0, received_value);  // Default value for int
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, WakeWakesUpGetTimedCall) {
@@ -252,29 +252,29 @@ TEST_F(QueueIntTest, WakeWakesUpGetTimedCall) {
   waker_thread.Join();
 
   EXPECT_EQ(0, received_value);  // Default value for int
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, MultiplePutsAndGets) {
   for (int i = 0; i < 100; ++i) {
     queue_.Put(i);
   }
-  EXPECT_EQ(100, queue_.Size());
+  EXPECT_EQ(100U, queue_.Size());
 
   for (int i = 0; i < 100; ++i) {
     EXPECT_EQ(i, queue_.Get());
   }
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 TEST_F(QueueIntTest, ClearEmptiesQueue) {
   queue_.Put(1);
   queue_.Put(2);
   queue_.Put(3);
-  EXPECT_EQ(3, queue_.Size());
+  EXPECT_EQ(3U, queue_.Size());
 
   queue_.Clear();
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
   EXPECT_EQ(0, queue_.Poll());
 }
 
@@ -294,10 +294,10 @@ TEST_F(QueuePointerTest, RemoveSpecificItem) {
   queue_.Put(obj3);
   queue_.Put(obj4);
 
-  EXPECT_EQ(4, queue_.Size());
+  EXPECT_EQ(4U, queue_.Size());
   queue_.Remove(obj2);  // Should remove the first instance of obj2
 
-  EXPECT_EQ(3, queue_.Size());
+  EXPECT_EQ(3U, queue_.Size());
   EXPECT_EQ(obj1, queue_.Poll());
   EXPECT_EQ(obj3, queue_.Poll());
   EXPECT_EQ(obj4, queue_.Poll());
@@ -313,11 +313,11 @@ TEST_F(QueuePointerTest, RemoveNonExistentItem) {
   queue_.Put(obj1);
   queue_.Put(obj2);
 
-  EXPECT_EQ(2, queue_.Size());
+  EXPECT_EQ(2U, queue_.Size());
   auto non_existent_obj_owner = std::make_unique<TestObject>(99);
   queue_.Remove(non_existent_obj_owner.get());  // Should do nothing
 
-  EXPECT_EQ(2, queue_.Size());
+  EXPECT_EQ(2U, queue_.Size());
   EXPECT_EQ(obj1, queue_.Poll());
   EXPECT_EQ(obj2, queue_.Poll());
 }
@@ -372,7 +372,7 @@ TEST_F(QueueIntTest, ConcurrentPutAndGet) {
 
   EXPECT_EQ(kTotalItems, produced_count.load());
   EXPECT_EQ(kTotalItems, consumed_count.load());
-  EXPECT_EQ(0, queue_.Size());
+  EXPECT_EQ(0U, queue_.Size());
 }
 
 }  // namespace

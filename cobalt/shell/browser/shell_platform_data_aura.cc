@@ -18,18 +18,24 @@
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/shell/browser/shell.h"
 #include "ui/aura/client/default_capture_client.h"
 #include "ui/aura/env.h"
 #include "ui/aura/layout_manager.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/aura/window_tree_host_platform.h"
 #include "ui/base/ime/init/input_method_factory.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/platform_window/platform_window_init_properties.h"
 #include "ui/wm/core/base_focus_rules.h"
 #include "ui/wm/core/focus_controller.h"
+
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#endif
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/aura/screen_ozone.h"
@@ -112,7 +118,18 @@ ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size,
 
   host_ = aura::WindowTreeHost::Create(std::move(properties));
   host_->InitHost();
+  auto* host_platform = static_cast<aura::WindowTreeHostPlatform*>(host_.get());
+#if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
+  auto* pw_starboard = static_cast<ui::PlatformWindowStarboard*>(
+      host_platform->platform_window());
+  bool is_waiting = content::Shell::GetPlatform()->IsWaitingForRevealAck();
+  pw_starboard->SetWaitingForRevealAck(is_waiting);
+  if (!is_waiting) {
+    host_->window()->Show();
+  }
+#else
   host_->window()->Show();
+#endif
   host_->window()->SetLayoutManager(
       std::make_unique<FillLayout>(host_->window()));
 

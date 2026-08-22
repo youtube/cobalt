@@ -36,10 +36,7 @@
 #include "starboard/event.h"
 #include "starboard/input.h"
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 class EssInput {
 public:
@@ -63,9 +60,6 @@ private:
   int64_t key_repeat_interval_ { 0 };
 };
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_ESS_INPUT_H_

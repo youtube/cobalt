@@ -32,11 +32,10 @@ namespace starboard {
 // This class encapsulate a media buffer.
 class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
  public:
-  template <typename SampleInfo>
   InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
               void* context,
-              const SampleInfo& sample_info);
+              const SbPlayerSampleInfo& sample_info);
 
   ~InputBuffer();
 
@@ -99,41 +98,6 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
 };
 
 using InputBuffers = std::vector<scoped_refptr<InputBuffer>>;
-
-template <typename SampleInfo>
-InputBuffer::InputBuffer(SbPlayerDeallocateSampleFunc deallocate_sample_func,
-                         SbPlayer player,
-                         void* context,
-                         const SampleInfo& sample_info)
-    : deallocate_sample_func_(deallocate_sample_func),
-      player_(player),
-      context_(context),
-      sample_type_(sample_info.type),
-      data_(static_cast<const uint8_t*>(sample_info.buffer)),
-      size_(sample_info.buffer_size),
-      timestamp_(sample_info.timestamp) {
-  SB_DCHECK(deallocate_sample_func);
-
-  if (sample_type_ == kSbMediaTypeAudio) {
-    audio_sample_info_ = sample_info.audio_sample_info;
-  } else {
-    SB_DCHECK_EQ(sample_type_, kSbMediaTypeVideo);
-    video_sample_info_ = sample_info.video_sample_info;
-  }
-  TryToAssignDrmSampleInfo(sample_info.drm_info);
-  if (sample_info.side_data_count > 0) {
-    SB_DCHECK_EQ(sample_info.side_data_count, 1);
-    SB_DCHECK(sample_info.side_data);
-    SB_DCHECK_EQ(sample_info.side_data->type, kMatroskaBlockAdditional);
-    SB_DCHECK(sample_info.side_data->data);
-    // Make a copy anyway as it is possible to release |data_| earlier in
-    // SetDecryptedContent().
-    side_data_.assign(
-        sample_info.side_data->data,
-        sample_info.side_data->data + sample_info.side_data->size);
-  }
-}
-
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_

@@ -19,9 +19,9 @@
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#if BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#endif  // BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
 void FreezeDone(void* /*context*/) {
   // Stop all thread execution after fully transitioning into Frozen.
@@ -33,7 +33,7 @@ void FreezeDone(void* /*context*/) {
 }
 
 void SbSystemRequestFreeze() {
-#if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#if BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
   if (::loader_app::IsPendingRestart()) {
     SbLogRawFormatF("\nPending update restart . Stopping.\n");
     SbLogFlush();
@@ -45,5 +45,5 @@ void SbSystemRequestFreeze() {
 #else
   // Let the platform decide if directly transit into Frozen.
   starboard::Application::Get()->Freeze(NULL, &FreezeDone);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
+#endif  // BUILDFLAG(IS_STARBOARD) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }

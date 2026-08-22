@@ -10,6 +10,7 @@ import("//build/config/python.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//build/toolchain/toolchain.gni")
+import("//content/browser/devtools/features.gni")
 import("//media/media_options.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -208,6 +209,7 @@ source_set("prerequisites") {
     "//ui/native_theme",
     "//url",
     "//v8",
+    "//third_party/blink/public:buildflags",
   ]
   deps = [ "//third_party/blink/public:scaled_resources" ]
 
@@ -292,7 +294,53 @@ component("core") {
   sources += rebase_path(blink_core_sources_html, "", "html")
   sources += rebase_path(blink_core_sources_imagebitmap, "", "imagebitmap")
   sources += rebase_path(blink_core_sources_input, "", "input")
-  sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  if (enable_devtools_backend) {
+    sources += rebase_path(blink_core_sources_inspector, "", "inspector")
+  } else {
+    sources += [
+      "inspector/cobalt/devtools_agent_stub.cc",
+      "inspector/cobalt/worker_inspector_controller_stub.cc",
+      "inspector/cobalt/inspector_animation_agent_stub.cc",
+      "inspector/cobalt/inspector_network_agent_stub.cc",
+      "inspector/cobalt/inspector_page_agent_stub.cc",
+      "inspector/cobalt/devtools_session_stub.cc",
+      "inspector/cobalt/inspector_dom_agent_stub.cc",
+      "inspector/cobalt/inspector_log_agent_stub.cc",
+      "inspector/cobalt/inspector_audits_agent_stub.cc",
+      "inspector/cobalt/inspector_css_agent_stub.cc",
+      "inspector/cobalt/inspector_performance_agent_stub.cc",
+      "inspector/cobalt/inspector_dom_debugger_agent_stub.cc",
+      "inspector/cobalt/inspector_layer_tree_agent_stub.cc",
+      "inspector/cobalt/inspector_emulation_agent_stub.cc",
+      "inspector/cobalt/inspector_dom_snapshot_agent_stub.cc",
+      "inspector/cobalt/inspector_event_breakpoints_agent_stub.cc",
+      "inspector/cobalt/inspector_media_agent_stub.cc",
+      "inspector/cobalt/inspector_performance_timeline_agent_stub.cc",
+      "inspector/cobalt/inspector_preload_agent_stub.cc",
+      "inspector/cobalt/inspector_overlay_agent_stub.cc",
+      "inspector/cobalt/main_thread_debugger_stub.cc",
+      "inspector/cobalt/inspector_media_context_impl_stub.cc",
+      "inspector/cobalt/worker_thread_debugger_stub.cc",
+      "inspector/console_message.cc",
+      "inspector/console_message_storage.cc",
+      "inspector/dev_tools_emulator.cc",
+      "inspector/dev_tools_host.cc",
+      "inspector/exception_metadata.cc",
+      "inspector/identifiers_factory.cc",
+      "inspector/inspector_audits_issue.cc",
+      "inspector/inspector_issue.cc",
+      "inspector/inspector_issue_conversion.cc",
+      "inspector/inspector_issue_reporter.cc",
+      "inspector/inspector_issue_storage.cc",
+      "inspector/inspector_task_runner.cc",
+      "inspector/inspector_trace_events.cc",
+      "inspector/invalidation_set_to_selector_map.cc",
+      "inspector/request_debug_header_scope.cc",
+      "inspector/style_rule_to_style_sheet_contents_map.cc",
+      "inspector/thread_debugger_common_impl.cc",
+      "inspector/v8_inspector_string.cc",
+    ]
+  }
   sources += rebase_path(blink_core_sources_intersection_observer,
                          "",
                          "intersection_observer")
@@ -464,6 +512,13 @@ component("core") {
 
   if (is_cobalt && use_starboard_media) {
     deps += [ "//starboard:starboard_group" ]
+  }
+
+  if (is_cobalt && !cobalt_is_release_build) {
+    sources += [
+      "inspector/cobalt_memory_metrics_helper.cc",
+      "inspector/cobalt_memory_metrics_helper.h",
+    ]
   }
 }
 
@@ -1568,6 +1623,10 @@ source_set("unit_tests") {
   }
 
   data_deps = [ ":unit_tests_data" ]
+
+  if (is_cobalt && !cobalt_is_release_build) {
+    sources += [ "inspector/cobalt_memory_metrics_helper_test.cc" ]
+  }
 
   if (use_aura) {
     sources += [ "scroll/scrollbar_theme_aura_test.cc" ]

@@ -26,11 +26,7 @@ public class HTMLMediaElementExtension implements CobaltJavaScriptAndroidObject 
     String canPlayType(String mimeType, String keySystem);
   }
 
-  private final Context mContext;
-
-  public HTMLMediaElementExtension(Context context) {
-    this.mContext = context;
-  }
+  public HTMLMediaElementExtension(Context context) {}
 
   @Override
   public String getJavaScriptInterfaceName() {

@@ -141,7 +141,7 @@ SbEglSurface SbEglCreateWindowSurface(SbEglDisplay dpy,
 
 SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   NativeDisplayType display_type;
-  EssCtx *ctx = third_party::starboard::rdk::shared::Application::Get()->GetEssCtx();
+  EssCtx *ctx = starboard::ApplicationRdk::Get()->GetEssCtx();
 
   if (EssContextGetEGLDisplayType(ctx, &display_type) == false) {
     SB_LOG(ERROR) << "EssContextGetEGLDisplayType failed! Going to try display_id=" << display_id << '.';

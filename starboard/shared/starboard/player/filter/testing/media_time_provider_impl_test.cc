@@ -15,7 +15,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

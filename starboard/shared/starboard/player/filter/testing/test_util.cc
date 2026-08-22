@@ -21,6 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/shared/starboard/media/resolutions.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -271,13 +272,9 @@ VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;
   video_stream_info.color_metadata.range = kSbMediaRangeIdLimited;
 
-  video_stream_info.frame_size = {1920, 1080};
+  video_stream_info.frame_size = Resolution::k1080p;
 
   return video_stream_info;
-}
-
-bool IsPartialAudioSupported() {
-  return true;
 }
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,

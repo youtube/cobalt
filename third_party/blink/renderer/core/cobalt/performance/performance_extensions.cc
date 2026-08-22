@@ -14,8 +14,6 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
-#include "base/notreached.h"
-#include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
@@ -74,6 +72,64 @@ uint64_t PerformanceExtensions::measureReservedVirtualMemory(
   return virtual_memory_size;
 }
 
+uint64_t PerformanceExtensions::measureRssHighWaterMarkMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t rss_hwm_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureRssHighWaterMarkMemory(&rss_hwm_memory);
+  return rss_hwm_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedRssAnonMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t rss_anon_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureUsedRssAnonMemory(&rss_anon_memory);
+  return rss_anon_memory;
+}
+
+uint64_t PerformanceExtensions::measureTotalCpuMemory(ScriptState* script_state,
+                                                      const Performance&) {
+  uint64_t total_cpu_memory = 0;
+  BindRemotePerformance(script_state)->MeasureTotalCpuMemory(&total_cpu_memory);
+  return total_cpu_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedPssMemory(ScriptState* script_state,
+                                                     const Performance&) {
+  uint64_t pss_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedPssMemory(&pss_memory);
+  return pss_memory;
+}
+
+uint64_t PerformanceExtensions::measureApplicationLimitMemory(
+    ScriptState* script_state,
+    const Performance&) {
+  uint64_t app_limit_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureApplicationLimitMemory(&app_limit_memory);
+  return app_limit_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedGpuMemory(
+    ScriptState* script_state,
+    const Performance&,
+    ExceptionState& exception_state) {
+  bool is_supported = false;
+  uint64_t used_gpu_memory = 0;
+  BindRemotePerformance(script_state)
+      ->MeasureUsedGpuMemory(&is_supported, &used_gpu_memory);
+  if (!is_supported) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotSupportedError,
+        "GPU memory measurement is not supported on this platform.");
+    return 0;
+  }
+  return used_gpu_memory;
+}
+
 ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
     ScriptState* script_state,
     const Performance& performance_obj,
@@ -89,11 +145,6 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       script_state, exception_state.GetContext());
   ScriptPromise<IDLDouble> promise = resolver->Promise();
 
-#if BUILDFLAG(IS_IOS_TVOS)
-  // TODO - b/487001977: Implement startup time measurement for tvOS.
-  resolver->Reject(MakeGarbageCollected<DOMException>(
-      DOMExceptionCode::kNotSupportedError, "Not implemented on iOS/tvOS."));
-#else
   int64_t startup_timestamp = 0;
   BindRemotePerformance(script_state)
       ->GetAppStartupTimeStamp(&startup_timestamp);
@@ -103,7 +154,6 @@ ScriptPromise<IDLDouble> PerformanceExtensions::getAppStartupTimeStamp(
       base::TimeTicks::FromInternalValue(startup_timestamp),
       true /* allow_negative_value */,
       context->CrossOriginIsolatedCapability()));
-#endif
 
   return promise;
 }

@@ -65,8 +65,11 @@ def discover_targets(test_targets_dir, platform):
   if os.path.exists(target_file):
     with open(target_file, 'r', encoding='utf-8') as f:
       data = json.load(f)
-      if 'test_targets' in data:
-        discovered_targets.extend(data['test_targets'])
+      # The schema is a list of dicts, which pairs each target with its
+      # executable (if defined).
+      for entry in data:
+        if isinstance(entry, dict) and 'target' in entry:
+          discovered_targets.append(entry['target'])
   return discovered_targets
 
 

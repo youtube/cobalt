@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/gpu_gles2_export.h"
 #include "starboard/decode_target.h"
@@ -30,6 +31,10 @@
 #endif
 
 namespace gpu {
+
+namespace gles2 {
+class Texture;
+}
 
 class GPU_GLES2_EXPORT StarboardGLTextureBacking
     : public ClearTrackingSharedImageBacking {

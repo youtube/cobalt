@@ -14,53 +14,15 @@
 
 #include "starboard/android/shared/starboard_test_environment.h"
 
-#include <cstdint>
-#include <iterator>
-
-#include "starboard/shared/starboard/feature_list.h"
-#include "starboard/shared/starboard/features.h"
+#include "starboard/shared/starboard/features_test_util.h"
 
 namespace starboard {
-// The initialization function accepts an array of SbFeatures and
-// SbFeatureParams as arguments, so these macros help create that array to pass
-// to the initializer. To see more info about how these macros work and how they
-// help initialize the feature list instance, please refer to
-// //starboard/extension/feature_config.h for more info.
-//
-// We disable clang-format here as there are issues between
-// clang-format and cpplint when running pre-commit on this code.
-// clang-format off
-#define FEATURE_LIST_START const SbFeature kStarboardFeatures[] = {
-#define FEATURE_LIST_END };
-#define FEATURE_PARAM_LIST_START const SbFeatureParam kStarboardParams[] = {
-#define FEATURE_PARAM_LIST_END };
-// clang-format on
-
-#define STARBOARD_FEATURE(feature, name, default_state) features::feature,
-
-#define STARBOARD_FEATURE_PARAM(T, param_object_name, feature_object_name, \
-                                param_name, default_value)                 \
-  features::param_object_name,
-
-#define STARBOARD_FEATURE_PARAM_TIME_TYPE int64_t
-
-#include "starboard/extension/feature_config.h"
-
-#undef STARBOARD_FEATURE
-#undef STARBOARD_FEATURE_PARAM
-#undef FEATURE_LIST_START
-#undef FEATURE_LIST_END
-#undef FEATURE_PARAM_LIST_START
-#undef FEATURE_PARAM_LIST_END
-#undef STARBOARD_FEATURE_PARAM_TIME_TYPE
 
 StarboardTestEnvironment::StarboardTestEnvironment() = default;
 
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  features::FeatureList::InitializeFeatureList(
-      kStarboardFeatures, std::size(kStarboardFeatures), kStarboardParams,
-      std::size(kStarboardParams));
+  features::InitializeStarboardFeatureListWithDefaults();
 }
 }  // namespace starboard

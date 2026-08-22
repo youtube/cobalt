@@ -225,6 +225,7 @@ void ShellBrowserMainParts::PostMainMessageLoopRun() {
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(nullptr);
 #endif
+  base::RunLoop().RunUntilIdle();
   performance_manager_lifetime_.reset();
 }
 

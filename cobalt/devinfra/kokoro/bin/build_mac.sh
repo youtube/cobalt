@@ -60,13 +60,10 @@ pipeline () {
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
 
-    # TODO(b/294130306): Move build_info to gn packaging.
     local build_info_path="${out_dir}/gen/build_info.json"
-    cp "${build_info_path}" "${package_dir}/"
 
     # Create release package.
-    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/simple_packager.py" \
-      "${WORKSPACE_COBALT}" \
+    python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/tvos/tvos_packager.py" \
       "${out_dir}" \
       "${package_dir}" \
       "${build_info_path}"

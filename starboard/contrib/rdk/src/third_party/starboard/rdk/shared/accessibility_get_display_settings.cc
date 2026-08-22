@@ -42,6 +42,6 @@ bool SbAccessibilityGetDisplaySettings(
     return false;
   }
 
-  return third_party::starboard::rdk::shared::Accessibility::GetDisplaySettings(out_setting);
+  return starboard::Accessibility::GetDisplaySettings(out_setting);
 }
 #endif

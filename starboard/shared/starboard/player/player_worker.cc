@@ -54,7 +54,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            void* context)
     : job_thread_(JobThread::Create(
           "player_worker",
-          ThreadOptions().SetPriority(kSbThreadPriorityHigh))),
+          ThreadOptions().SetPriority(ThreadPriority::kHigh))),
       audio_codec_(audio_codec),
       video_codec_(video_codec),
       handler_(std::move(handler)),
@@ -79,6 +79,8 @@ PlayerWorker::~PlayerWorker() {
   ON_INSTANCE_RELEASED(PlayerWorker);
 
   job_thread_->ScheduleAndWait([this] {
+    job_thread_->RemoveJobByToken(&write_pending_sample_job_token_);
+
     handler_->Stop();
     handler_.reset();
 

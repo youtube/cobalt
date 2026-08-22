@@ -9,8 +9,10 @@
 #include <sys/types.h>
 #include <utime.h>
 
+#if __ANDROID_API__ < 26
 // Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);
+#endif  // __ANDROID_API__ < 26
 
 // Not exposed or implemented in Bionic.
 extern "C" char* mkdtemp(char* path);

@@ -1,6 +1,9 @@
 {
   "failing_tests": [
+    "MessageTest.DestructInvalidMessageHandle",
+    "NullTraceWriterDeathTest.NewTracePacketTakeStreamWriterNoFinish",
     "ScopedDirTest.CloseOutOfScope",
+    "SubprocessTest.Entrypoint",
     "UtilsTest.EintrWrapper"
   ]
 }

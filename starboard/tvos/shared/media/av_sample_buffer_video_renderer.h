@@ -23,6 +23,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -66,7 +67,7 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
   bool CanAcceptMoreData() const override;
 
   // Both of the following two functions can be called on any threads.
-  void SetBounds(int z_index, int x, int y, int width, int height) override;
+  void SetBounds(int z_index, const Rect& rect) override;
   SbDecodeTarget GetCurrentDecodeTarget() override {
     return kSbDecodeTargetInvalid;
   }

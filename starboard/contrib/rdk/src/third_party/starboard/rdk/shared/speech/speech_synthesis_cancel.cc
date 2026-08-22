@@ -32,5 +32,5 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 
 void SbSpeechSynthesisCancel() {
-  third_party::starboard::rdk::shared::TextToSpeech::Cancel();
+  starboard::TextToSpeech::Cancel();
 }

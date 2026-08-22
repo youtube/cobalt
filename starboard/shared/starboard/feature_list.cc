@@ -155,6 +155,11 @@ bool FeatureList::IsEnabledByName(const std::string& feature_name) {
   FeatureList* instance = GetInstance();
   std::lock_guard lock(instance->mutex_);
 
+  auto override_it = instance->overridden_features_.find(feature_name);
+  if (override_it != instance->overridden_features_.end()) {
+    return override_it->second;
+  }
+
   // IsEnabled can only be called after the FeatureList has been initialized.
   SB_CHECK(instance->IsInitialized())
       << "Starboard features and parameters are not initialized.";
@@ -217,4 +222,63 @@ int64_t FeatureList::GetParam(const SbFeatureParamExt<int64_t>& param) {
   return std::get<int64_t>(
       instance->params_[param.feature_name][param.param_name].second);
 }
+
+// static
+void FeatureList::SetFeatureForTesting(const std::string& feature_name,
+                                       bool enabled) {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  instance->overridden_features_[feature_name] = enabled;
+}
+
+// static
+void FeatureList::SetFeatureForTesting(const SbFeature& feature, bool enabled) {
+  SetFeatureForTesting(feature.name, enabled);
+}
+
+// static
+void FeatureList::ClearFeatureForTesting(const std::string& feature_name) {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  instance->overridden_features_.erase(feature_name);
+}
+
+// static
+void FeatureList::ClearFeatureForTesting(const SbFeature& feature) {
+  ClearFeatureForTesting(feature.name);
+}
+
+// static
+void FeatureList::ClearAllFeaturesForTesting() {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  instance->overridden_features_.clear();
+}
+
+// static
+bool FeatureList::HasOverrideForTesting(const std::string& feature_name) {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  return instance->overridden_features_.find(feature_name) !=
+         instance->overridden_features_.end();
+}
+
+// static
+std::optional<bool> FeatureList::GetOverrideForTesting(
+    const SbFeature& feature) {
+  return GetOverrideForTesting(feature.name);
+}
+
+// static
+std::optional<bool> FeatureList::GetOverrideForTesting(
+    const std::string& feature_name) {
+  FeatureList* instance = GetInstance();
+  std::lock_guard lock(instance->mutex_);
+  auto it = instance->overridden_features_.find(feature_name);
+  if (it != instance->overridden_features_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
 }  // namespace starboard::features

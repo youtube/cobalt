@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 #define COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 
+#include <optional>
+
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_service.h"
@@ -25,6 +27,17 @@ enum class ExperimentConfigType {
   kRegularConfig,
   kSafeConfig,
   kEmptyConfig,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class FinchConfigOutcome {
+  kRegularConfig = 0,
+  kSafeConfig = 1,
+  kEmptyConfigCrashStreak = 2,
+  kEmptyConfigExpired = 3,
+  kEmptyConfigRollback = 4,
+  kMaxValue = kEmptyConfigRollback
 };
 
 // This class manages the content of the experiment config stored on disk.
@@ -66,6 +79,8 @@ class ExperimentConfigManager {
   const raw_ptr<PrefService> experiment_config_;
   // PrefService for metrics local state.
   const raw_ptr<PrefService> metrics_local_state_;
+
+  std::optional<ExperimentConfigType> cached_config_type_;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            StoreSafeConfigWithRegularConfig);

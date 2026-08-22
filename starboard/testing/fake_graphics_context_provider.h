@@ -15,6 +15,8 @@
 #ifndef STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 #define STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 
+#include <sys/types.h>
+
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -81,7 +83,7 @@ class FakeGraphicsContextProvider {
   Queue<std::function<void()>> functor_queue_;
 
   std::unique_ptr<GlesContextThread> gles_context_thread_;
-  std::atomic<SbThreadId> gles_context_thread_id_{kSbThreadInvalidId};
+  std::atomic<pid_t> gles_context_thread_id_{0};
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };

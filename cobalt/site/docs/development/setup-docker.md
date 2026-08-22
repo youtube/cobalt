@@ -1,102 +1,77 @@
 Project: /youtube/cobalt/_project.yaml
 Book: /youtube/cobalt/_book.yaml
 
-# Set up your environment - Docker
+# Set up Docker for Building Cobalt
 
-We provide <a
-href="https://github.com/youtube/cobalt/tree/main/docker/linux/">Docker image definitions</a> to simplify managing build environments.
+We provide Docker image definitions to simplify managing Cobalt build environments on Linux.
 
-The instructions below assume Docker is installed and is able to run basic
-hello-world verification. `docker compose` command is expected to be available as well.
+## Prerequisites
 
-## Set up your workstation
+These instructions assume:
+- You have already set up your Cobalt repository workspace on the host machine.
+- Docker is installed and running on your host Linux machine. If you need to install Docker, refer to the [official Docker installation guide for Linux](https://docs.docker.com/engine/install/).
 
-Clone the Cobalt code repository. The following `git` command creates a
-`cobalt` directory that contains the repository:
+## 1. Building the Linux Docker Image
 
-```
-$ git clone https://github.com/youtube/cobalt.git
-$ cd cobalt
-```
+To build the `linux` builder Docker image, run one of the following commands from your workspace root (the directory containing `docker-compose.yaml`):
 
-### Usage
+Using `docker compose`:
 
-The simplest usage is:
-
-```
-docker compose run <platform>
+```bash
+docker compose build linux
 ```
 
-By default, a `debug` build will be built, with `cobalt` as a target.
-You can override this with an environment variable, e.g.
+Or using Docker directly:
 
-```
-docker compose run -e CONFIG=devel -e TARGET=nplb <platform>
-```
-
-where config is one of the four optimization levels, `debug`, `devel`,
-`qa` and `gold`, and target is the build target passed to ninja
-
-See <a
-href="https://github.com/youtube/cobalt#building-and-running-the-code">Cobalt README</a> for full details.
-
-Builds will be available in your `${COBALT_SRC}/out` directory.
-
-<aside class="note">
-Note that Docker runs processes as root user by default, hence
-output files in `src/out/<platform>` directory have `root` as file owner.
-</aside>
-
-#### Windows Builds
-
-We have a separate docker compose file for windows. Use the -f or --file flags
-to specify a configuration file to use.
-
-```
-docker compose -f docker-compose-windows.yml run win-win32
+```bash
+docker build -t linux cobalt/docker/linux
 ```
 
-### Customization
+## 2. Launching the Linux Container
 
-To parametrize base operating system images used for the build, pass
-`BASE_OS` as an argument to `docker compose` as follows:
+To run build commands in the container environment, first launch the container:
 
-```
-docker compose build --build-arg BASE_OS="ubuntu:bionic" base
-```
-
-This parameter is defined in `docker/linux/base/Dockerfile` and is passed
-to Docker `FROM ...` statement.
-
-Available parameters for customizing container execution are:
-
-**BASE_OS**: passed to `base` image at build time to select a Debian-based
-   base os image and version. Defaults to Debian 10. `ubuntu:bionic` and
-   `ubuntu:xenial` are other tested examples.
-
-**PLATFORM**: Cobalt build platform, passed to GN
-
-**CONFIG**: Cobalt build config, passed to GN. Defaults to `debug`
-
-**TARGET**: Build target, passed to `ninja`
-
-The `docker-compose.yml` contains the currently defined experimental build
-configurations. Edit or add new `service` entries as needed, to build custom
-configurations.
-
-
-### Pre-built images
-
-Note: Pre-built images from a public container registry are not yet available.
-
-### Troubleshooting
-
-To debug build issues, enter the shell of the corresponding build container
-by launching the bash shell, i.e.
-
-```
-docker compose run linux-x64x11 /bin/bash
+```bash
+docker run --rm \
+  --user $(id -u):$(id -g) \
+  -e HOME=/tmp \
+  -v /path/to/workspace:/cobalt \
+  -w /cobalt/src \
+  -e PYTHONPATH="/cobalt/src" \
+  -it linux /bin/bash
 ```
 
-and try to build Cobalt with the <a
-href="https://github.com/youtube/cobalt#building-and-running-the-code">usual GN / ninja flow.</a>
+> Warning: The `/path/to/workspace` must contain both the repository checkout in `src/` and the `depot_tools` checkout.
+
+
+## 3. Building Cobalt inside the Container
+
+Once inside the interactive container shell (at `/cobalt/src`), run the following commands sequentially to configure and build the Cobalt target:
+
+1. **Set the environment PATH variable**:
+   Configure the search path to locate `depot_tools` and `ninja` correctly:
+
+   ```bash
+   export PATH="/cobalt/tools/depot_tools:/cobalt/src/third_party/ninja:/cobalt/src:$PATH"
+   ```
+
+2. **(Optional) Clean stale build locks**:
+   If a previous compilation attempt was interrupted, a stale lock file might block siso. Clean it by running:
+
+   ```bash
+   rm -f out/linux-x64x11_devel/.siso_lock
+   ```
+
+3. **Generate the build configuration files** for the `linux-x64x11` platform in the `devel` configuration with Remote Build Execution (RBE) disabled:
+
+   ```bash
+   python3 cobalt/build/gn.py -p linux-x64x11 -C devel --no-rbe
+   ```
+
+4. **Compile the Cobalt target** using `autoninja`:
+
+   ```bash
+   autoninja -C out/linux-x64x11_devel cobalt
+   ```
+
+Completed builds are generated in the `out/linux-x64x11_devel` directory of your workspace.

@@ -45,30 +45,21 @@ class JobThread {
   static std::unique_ptr<JobThread> Create(
       std::string_view thread_name,
       const ThreadOptions& options =
-          ThreadOptions().SetPriority(kSbThreadPriorityNormal));
+          ThreadOptions().SetPriority(ThreadPriority::kNormal));
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
     return job_queue_->BelongsToCurrentThread();
   }
 
-  JobQueue::JobToken Schedule(const JobQueue::Job& job,
-                              int64_t delay_usec = 0) {
-    return job_queue_->Schedule(job, delay_usec);
-  }
-
-  JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
+  JobQueue::JobToken Schedule(JobQueue::Job job, int64_t delay_usec = 0) {
     return job_queue_->Schedule(std::move(job), delay_usec);
-  }
-
-  void ScheduleAndWait(const JobQueue::Job& job) {
-    job_queue_->ScheduleAndWait(job);
   }
 
   // TODO: Calling ScheduleAndWait with a call to JobQueue::StopSoon will cause
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
-  void ScheduleAndWait(JobQueue::Job&& job) {
+  void ScheduleAndWait(JobQueue::Job job) {
     job_queue_->ScheduleAndWait(std::move(job));
   }
 

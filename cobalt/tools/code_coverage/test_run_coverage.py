@@ -296,11 +296,11 @@ class RunCoverageTest(unittest.TestCase):
         'android-arm64/test_targets.json' in path)
 
     # Mock the content of test_targets.json for android-arm
-    mock_arm_json_content = (
-        '{"test_targets": ["android_arm_target1", "android_arm_target2"]}')
+    mock_arm_json_content = ('[{"target": "android_arm_target1"}, '
+                             '{"target": "android_arm_target2"}]')
     # Mock the content of test_targets.json for android-arm64
-    mock_arm64_json_content = (
-        '{"test_targets": ["android_arm64_target1", "android_arm64_target2"]}')
+    mock_arm64_json_content = ('[{"target": "android_arm64_target1"}, '
+                               '{"target": "android_arm64_target2"}]')
 
     def open_side_effect(file_path, *args, **kwargs):
       del args, kwargs  # unused

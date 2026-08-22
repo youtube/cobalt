@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/common/rect.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -45,7 +46,7 @@ struct SbPlayerPrivate {
   virtual void WriteSamples(const SbPlayerSampleInfo* sample_infos,
                             int number_of_sample_infos) = 0;
   virtual void WriteEndOfStream(SbMediaType stream_type) = 0;
-  virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
+  virtual void SetBounds(int z_index, const starboard::Rect& rect) = 0;
 
   virtual void GetInfo(SbPlayerInfo* out_player_info) = 0;
   virtual void SetPause(bool pause) = 0;
@@ -76,7 +77,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   void WriteSamples(const SbPlayerSampleInfo* sample_infos,
                     int number_of_sample_infos) final;
   void WriteEndOfStream(SbMediaType stream_type) final;
-  void SetBounds(int z_index, int x, int y, int width, int height) final;
+  void SetBounds(int z_index, const Rect& rect) final;
   void GetInfo(SbPlayerInfo* out_player_info) final;
 
   // TODO (b/456786219): as SbPlayer doesn't support pause, we should remove

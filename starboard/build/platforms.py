@@ -34,8 +34,6 @@ PLATFORMS = {
     'android-arm64': 'starboard/android/arm64',
     'android-x86': 'starboard/android/x86',
     'aosp-arm': 'starboard/aosp/arm',
-    'raspi-2': 'starboard/raspi/2',
-    'raspi-2-skia': 'starboard/raspi/2/skia',
     'rdk-arm': 'starboard/contrib/rdk/src/third_party/starboard/rdk/arm',
     'evergreen-x64': 'starboard/evergreen/x64',
     'evergreen-arm-hardfp': 'starboard/evergreen/arm/hardfp',

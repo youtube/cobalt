@@ -27,6 +27,7 @@
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/test_data_util.h"
@@ -48,7 +49,6 @@ struct Operation {
   std::string handle;
   DemuxerStream::Type buffer_type;
   int size;
-  int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
 };
 
 int StringToInt(std::string_view input) {
@@ -86,11 +86,10 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
 
     std::vector<Operation> operations;
     std::unordered_set<std::string> handles;
-
     for (auto&& allocation : allocations) {
       auto tokens = base::SplitStringUsingSubstr(
           allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-      CHECK_GE(tokens.size(), 4u);
+      CHECK_EQ(tokens.size(), 4u);
 
       const std::string& handle = tokens[1];
       const DemuxerStream::Type buffer_type =
@@ -101,21 +100,16 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
             buffer_type == DemuxerStream::AUDIO ||
             buffer_type == DemuxerStream::VIDEO);
 
-      if (tokens.size() == 5) {
-        // In the format of "allocate <handle> <buffer_type> <size>
-        // <alignment>"
-        CHECK_EQ(tokens[0], "allocate");
+      if (tokens[0] == "allocate") {
+        // In the format of "allocate <handle> <buffer_type> <size>"
         CHECK_EQ(handles.count(handle), 0u);
-
-        int alignment = StringToInt(tokens[4]);
 
         handles.insert(handle);
 
-        operations.emplace_back(Operation{Operation::Type::kAllocate, handle,
-                                          buffer_type, size, alignment});
+        operations.emplace_back(
+            Operation{Operation::Type::kAllocate, handle, buffer_type, size});
       } else {
         // In the format of "free <handle> <buffer_type> <size>"
-        CHECK_EQ(tokens.size(), 4u);
         CHECK_EQ(tokens[0], "free");
         CHECK_EQ(handles.erase(handle), 1u);
 
@@ -152,8 +146,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
     if (operation.operation_type == Operation::Type::kAllocate) {
       CHECK_EQ(handle_to_handle_map.count(operation.handle), 0u);
 
-      Handle h = allocator.Allocate(operation.buffer_type, operation.size,
-                                    operation.alignment);
+      Handle h = allocator.Allocate(operation.buffer_type, operation.size);
 
       handle_to_handle_map[operation.handle] = h;
       max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
@@ -228,8 +221,8 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
         if (operation.operation_type == Operation::Type::kAllocate) {
           CHECK_EQ(handle_to_handle_map.count(operation.handle), 0u);
 
-          handle_to_handle_map[operation.handle] = allocator.Allocate(
-              operation.buffer_type, operation.size, operation.alignment);
+          handle_to_handle_map[operation.handle] =
+              allocator.Allocate(operation.buffer_type, operation.size);
           max_allocated =
               std::max(max_allocated, allocator.GetAllocatedMemory());
           max_capacity =
@@ -266,6 +259,25 @@ INSTANTIATE_TEST_SUITE_P(DecoderBufferAllocatorTests,
                            std::replace(name.begin(), name.end(), '/', '_');
                            return name;
                          });
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     IsBufferPoolAllocateOnDemandMetric) {
+  base::HistogramTester histogram_tester;
+
+  {
+    DecoderBufferAllocator allocator(
+        /*is_memory_pool_allocated_on_demand=*/true, 0, 0);
+    histogram_tester.ExpectBucketCount(
+        "Cobalt.Media.IsBufferPoolAllocateOnDemand", true, 1);
+  }
+
+  {
+    DecoderBufferAllocator allocator(
+        /*is_memory_pool_allocated_on_demand=*/false, 1024, 1024);
+    histogram_tester.ExpectBucketCount(
+        "Cobalt.Media.IsBufferPoolAllocateOnDemand", false, 1);
+  }
+}
 
 }  // namespace
 }  // namespace media

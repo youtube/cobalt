@@ -24,21 +24,13 @@
 
 typedef struct _GstCaps GstCaps;
 
-namespace third_party {
 namespace starboard {
-namespace rdk {
-namespace shared {
-namespace media {
 
 bool GstRegistryHasElementForMediaType(SbMediaVideoCodec codec);
 bool GstRegistryHasElementForMediaType(SbMediaAudioCodec codec);
 GstCaps* CodecToGstCaps(SbMediaAudioCodec codec, const SbMediaAudioStreamInfo* info = nullptr);
 GstCaps* CodecToGstCaps(SbMediaVideoCodec codec);
 
-}  // namespace media
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard
-}  // namespace third_party
 
 #endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_MEDIA_GST_MEDIA_UTILS_H_

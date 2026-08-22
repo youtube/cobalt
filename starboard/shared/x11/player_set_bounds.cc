@@ -17,6 +17,7 @@
 // clang-format on
 
 #include "starboard/common/log.h"
+#include "starboard/common/rect.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/x11/application_x11.h"
 
@@ -30,7 +31,7 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
-  player->SetBounds(z_index, x, y, width, height);
-  starboard::ApplicationX11::Get()->PlayerSetBounds(player, z_index, x, y,
-                                                    width, height);
+  starboard::Rect rect(x, y, width, height);
+  player->SetBounds(z_index, rect);
+  starboard::ApplicationX11::Get()->PlayerSetBounds(player, z_index, rect);
 }

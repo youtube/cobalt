@@ -33,6 +33,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif
+
 namespace base {
 class WatchHangsInScope;
 namespace internal {
@@ -106,17 +110,6 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] WatchHangsInScope {
 // within a single process. This instance must outlive all monitored threads.
 class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
  public:
-#if BUILDFLAG(IS_COBALT)
-  // Delegate interface to allow embedders to control HangWatcher behavior.
-  class BASE_EXPORT Delegate {
-   public:
-    virtual ~Delegate() = default;
-    // Returns true if hang reporting should be enabled
-    // potentially overriding default settings.
-    virtual bool IsHangReportingEnabled() = 0;
-  };
-#endif
-
   // Describes the type of a process for logging purposes.
   enum class ProcessType {
     kUnknownProcess = 0,
@@ -141,6 +134,41 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kMax = kCompositorThread
 #endif
   };
+
+#if BUILDFLAG(IS_COBALT)
+  // Re-polls the delegate to update the cached configuration values (e.g.
+  // timeout, thread scopes).
+  static void UpdateConfiguration();
+
+  // Delegate interface to allow embedders to control HangWatcher behavior.
+  class BASE_EXPORT Delegate {
+   public:
+    virtual ~Delegate() = default;
+    virtual void RecordHangStarted(const std::string& hang_uuid) {}
+    virtual void RecordHangRecovered(const std::string& hang_uuid) {}
+    // Returns true if hang reporting should be enabled
+    // potentially overriding default settings.
+    virtual bool IsHangReportingEnabled() = 0;
+    // Returns a custom timeout for hang watching, or std::nullopt to use
+    // default.
+    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
+    // Returns a custom monitoring period, or std::nullopt to use default.
+    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns whether crash dumps are enabled for a specific thread type.
+    // Returns std::nullopt if the embedder has no specific override.
+    virtual std::optional<bool> IsThreadDumpingEnabled(
+        ThreadType thread_type) = 0;
+    // Returns whether long hang detection is enabled. Returns std::nullopt
+    // if the embedder has no specific override.
+    virtual std::optional<bool> IsLongHangDetectionEnabled() = 0;
+    // Returns whether force kill is enabled on long hang. Returns std::nullopt
+    // if the embedder has no specific override.
+    virtual std::optional<bool> IsLongHangKillEnabled() = 0;
+    // Returns the threshold duration for a long hang. Returns std::nullopt
+    // if the embedder has no specific override.
+    virtual std::optional<base::TimeDelta> GetLongHangTimeout() = 0;
+  };
+#endif
 
   // Notes on lifetime:
   //   1) The first invocation of the constructor will set the global instance
@@ -177,6 +205,14 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Thread safe functions to verify if hang watching is activated. If called
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
+#if BUILDFLAG(IS_COBALT)
+  // suspends hang watching when the application is frozen.
+  static void Suspend();
+
+  // resumes hang watching after the application is unfrozen, ignoring
+  // pre-freeze deadlines.
+  static void Resume();
+#endif
   static bool IsThreadPoolHangWatchingEnabled();
   static bool IsIOThreadHangWatchingEnabled();
   static bool IsCompositorThreadHangWatchingEnabled();
@@ -277,6 +313,11 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
 #if BUILDFLAG(IS_COBALT)
   // Sets the delegate for the HangWatcher. Must be called before Start().
   static void SetDelegate(Delegate* delegate);
+
+  // Set a closure to be called instead of LOG(FATAL) when a long hang is
+  // detected. The native abort is forced when long hang kill is enabled and a
+  // thread hangs for a duration exceeding the long hang timeout.
+  void SetForceKillClosureForTesting(base::RepeatingClosure closure);
 #endif
 
  private:
@@ -370,6 +411,51 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Inspects the state of all registered threads to check if they are hung and
   // invokes the appropriate closure if so.
   void Monitor() LOCKS_EXCLUDED(watch_state_lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  // Checks if any previously hung threads have recovered. If all threads have
+  // resumed, it notifies the delegate and clears the active hang UUID.
+  // Also checks if hang have crossed long hang threshold and force kill, if
+  // configured.
+  void CheckHangState() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Generates a new UUID, saves it as the active hang UUID, and notifies the
+  // delegate and Crashpad that a new hang incident has begun.
+  // NOTE: RecordHang() is the upstream Chromium method that simply triggers
+  // DumpWithoutCrashing(). RecordHangStarted() is Cobalt-specific for NSE.
+  void RecordHangStarted() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Communicates the unique hang identifier from RecordHangStarted() to a
+  // subsequent execution of CheckHangState().
+  // NOTE: Even if multiple threads hang simultaneously (or in an overlapping
+  // cascade), they all share this single UUID. The UUID is only cleared when
+  // *all* threads recover. 90% of hangs are single-threaded though.
+  std::string active_hang_uuid_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // This is used to estimate duration of the hang and trigger long hang
+  // actions.
+  base::TimeTicks hang_start_time_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // This is used to prevent multiple long hang actions for the same hang.
+  bool long_hang_logged_ GUARDED_BY_CONTEXT(hang_watcher_thread_checker_) =
+      false;
+
+  // Iterates through the registered threads to determine if any thread has
+  // been hung for a duration exceeding the long hang timeout. Emits a UMA
+  // metric once per long hang and optionally forces a native abort.
+  // Note: If multiple threads hang in an overlapping cascade (e.g., Thread A
+  // hangs for 6s, then Thread B hangs, and Thread A recovers), the total
+  // continuous incident time is preserved. If Thread B continues hanging for
+  // 4s, the Long Hang timeout (e.g., 10s) will trigger even though neither
+  // thread independently hung for a full 10 seconds. This is deliberate, as it
+  // tracks global process unresponsiveness.
+  void CheckForLongHangs(base::TimeTicks now)
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  RepeatingClosure force_kill_closure_for_testing_;
+#endif
 
   // Record the hang crash dump and perform the necessary housekeeping before
   // and after.

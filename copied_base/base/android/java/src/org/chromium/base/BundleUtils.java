@@ -24,7 +24,6 @@ import dalvik.system.PathClassLoader;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.compat.ApiHelperForO;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.build.BuildConfig;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -38,19 +37,22 @@ import java.util.Map;
  * Important notes about bundle status as interpreted by this class:
  *
  * <ul>
- *   <li>If {@link BuildConfig#BUNDLES_SUPPORTED} is false, then we are definitely not in a bundle,
+ *   <li>If {@link #BUNDLES_SUPPORTED} is false, then we are definitely not in a bundle,
  *   and ProGuard is able to strip out the bundle support library.</li>
- *   <li>If {@link BuildConfig#BUNDLES_SUPPORTED} is true, then we MIGHT be in a bundle.
+ *   <li>If {@link #BUNDLES_SUPPORTED} is true, then we MIGHT be in a bundle.
  *   {@link BundleUtils#sIsBundle} is the source of truth.</li>
  * </ul>
  *
  * We need two fields to store one bit of information here to ensure that ProGuard can optimize out
- * the bundle support library (since {@link BuildConfig#BUNDLES_SUPPORTED} is final) and so that
+ * the bundle support library (since {@link #BUNDLES_SUPPORTED} is final) and so that
  * we can dynamically set whether or not we're in a bundle for targets that use static shared
  * library APKs.
  */
 public class BundleUtils {
     private static final String TAG = "BundleUtils";
+
+    private static final boolean BUNDLES_SUPPORTED = false;
+    private static final boolean ISOLATED_SPLITS_ENABLED = false;
     private static final String LOADED_SPLITS_KEY = "split_compat_loaded_splits";
     private static Boolean sIsBundle;
     private static final Object sSplitLock = new Object();
@@ -91,7 +93,7 @@ public class BundleUtils {
      * @return true if the current build is a bundle.
      */
     public static boolean isBundle() {
-        if (!BuildConfig.BUNDLES_SUPPORTED) {
+        if (!BUNDLES_SUPPORTED) {
             return false;
         }
         assert sIsBundle != null;
@@ -103,7 +105,7 @@ public class BundleUtils {
     }
 
     public static boolean isolatedSplitsEnabled() {
-        return BuildConfig.ISOLATED_SPLITS_ENABLED;
+        return ISOLATED_SPLITS_ENABLED;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)

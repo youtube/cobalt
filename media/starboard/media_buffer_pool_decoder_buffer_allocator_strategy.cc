@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/sbmedia_interface.h"
 
 namespace media {
 
@@ -29,15 +30,15 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
     : media_buffer_pool_(media_buffer_pool),
       video_buffer_initial_capacity_(video_buffer_initial_capacity),
       video_buffer_allocation_increment_(video_buffer_allocation_increment),
-      audio_fallback_allocator_(/*enable_decommit_on_idle=*/false),
-      audio_allocator_(
-          &audio_fallback_allocator_,
-          // Pre-allocate sufficient capacity for audio buffers to
-          // avoid expansions in most scenarios.
-          SbMediaGetAudioBufferBudget() + kAudioAllocationIncrement,
-          kSmallAllocationThreshold,
-          kAudioAllocationIncrement,
-          /*enable_decommit_on_idle=*/false),
+      audio_fallback_allocator_(/*enable_decommit_on_idle=*/false,
+                                /*enable_page_alignment=*/false),
+      audio_allocator_(&audio_fallback_allocator_,
+                       // Pre-allocate sufficient capacity for audio buffers to
+                       // avoid expansions in most scenarios.
+                       GetSbMediaInterface()->GetAudioBufferBudget() +
+                           kAudioAllocationIncrement,
+                       kSmallAllocationThreshold,
+                       kAudioAllocationIncrement),
       video_allocator_(new MediaBufferPoolBidirectionalReuseAllocator(
           media_buffer_pool_,
           video_buffer_initial_capacity,
@@ -48,10 +49,9 @@ MediaBufferPoolDecoderBufferAllocatorStrategy::
 
 void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
     DemuxerStream::Type type,
-    size_t size,
-    size_t alignment) {
+    size_t size) {
   if (type == DemuxerStream::AUDIO) {
-    return audio_allocator_.Allocate(size, alignment);
+    return audio_allocator_.Allocate(size);
   }
 
 #if !defined(OFFICIAL_BUILD)
@@ -59,7 +59,7 @@ void* MediaBufferPoolDecoderBufferAllocatorStrategy::Allocate(
 #endif  // !defined(OFFICIAL_BUILD)
 
   // The MediaBufferPoolMemoryAllocator handles pool expansion.
-  return video_allocator_->Allocate(size, alignment);
+  return video_allocator_->Allocate(size);
 }
 
 void MediaBufferPoolDecoderBufferAllocatorStrategy::Free(
@@ -102,6 +102,11 @@ size_t MediaBufferPoolDecoderBufferAllocatorStrategy::GetCapacity() const {
 
 size_t MediaBufferPoolDecoderBufferAllocatorStrategy::GetAllocated() const {
   return audio_allocator_.GetAllocated() + video_allocator_->GetAllocated();
+}
+
+void MediaBufferPoolDecoderBufferAllocatorStrategy::
+    DecommitAllDecommitableBlocks() {
+  audio_allocator_.DecommitAllDecommitableBlocks();
 }
 
 }  // namespace media

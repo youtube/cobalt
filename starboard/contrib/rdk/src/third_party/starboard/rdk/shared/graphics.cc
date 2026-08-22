@@ -18,8 +18,6 @@
 #include "starboard/extension/graphics.h"
 
 namespace starboard {
-namespace rdk {
-namespace shared {
 
 namespace {
 
@@ -49,6 +47,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace shared
-}  // namespace rdk
 }  // namespace starboard

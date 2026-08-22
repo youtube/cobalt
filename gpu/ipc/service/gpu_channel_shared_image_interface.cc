@@ -185,7 +185,11 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
       , std::move(drdc_lock)
 #endif
       );
-  
+
+  if (!backing) {
+    return nullptr;
+  }
+
   SharedImageMetadata metadata{backing->format(),
                                backing->size(),
                                backing->color_space(),

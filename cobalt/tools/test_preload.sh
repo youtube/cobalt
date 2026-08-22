@@ -16,9 +16,10 @@
 # Integration test for Cobalt Preload on Linux.
 # Verifies that Cobalt starts in a hidden state and reveals on SIGCONT.
 
+source cobalt/tools/test_common.sh
+
 PORT=9223
 LOG_FILE="preload_run.log"
-EXECUTABLE=${TEST_PRELOAD_EXECUTABLE:-"./out/linux-x64x11-modular_devel/cobalt_loader"}
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -28,27 +29,9 @@ function log {
   echo -e "${GREEN}[TEST] $(date +'%H:%M:%S') - $1${NC}"
 }
 
-# Ensure no previous test instances or Cobalt processes are running.
-pgrep -f "[t]est_preload.sh" > /tmp/test_preload_pids.tmp || true
-OTHER_TEST_PIDS=""
-while read pid; do
-  if [ -n "$pid" ] && [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
-    OTHER_TEST_PIDS="$OTHER_TEST_PIDS $pid"
-  fi
-done < /tmp/test_preload_pids.tmp
-OTHER_TEST_PIDS=${OTHER_TEST_PIDS# }
-
-WAITER_PIDS=$(pgrep -f "[w]ait_for_state.sh" | grep -vw $$ | grep -vw $PPID || true)
-COBALT_PIDS=$(pgrep -f "[c]obalt_loader" | grep -vw $$ | grep -vw $PPID || true)
-
-if [ -n "$OTHER_TEST_PIDS" ] || [ -n "$WAITER_PIDS" ] || [ -n "$COBALT_PIDS" ]; then
-  echo "FAILURE: Previous test instance or Cobalt process is still running."
-  [ -n "$OTHER_TEST_PIDS" ] && echo "Found test_preload.sh PIDs: $OTHER_TEST_PIDS"
-  [ -n "$WAITER_PIDS" ] && echo "Found wait_for_state.sh PIDs: $WAITER_PIDS"
-  [ -n "$COBALT_PIDS" ] && echo "Found cobalt_loader PIDs: $COBALT_PIDS"
-  echo "Please kill them before running this test."
-  exit 1
-fi
+parse_args "test_preload.sh" "$@"
+check_running_processes "test_preload.sh"
+run_build_if_needed
 
 log "Starting cobalt_loader in preload mode with DevTools on port $PORT..."
 rm -f $LOG_FILE

@@ -137,7 +137,9 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult result_;
 #endif
+#if !defined(IN_MEMORY_UPDATES)
   base::FilePath path_;
+#endif
   std::unique_ptr<Unzipper> unzipper_;
   base::OnceCallback<void(const Result& result)> callback_;
   base::FilePath unpack_path_;

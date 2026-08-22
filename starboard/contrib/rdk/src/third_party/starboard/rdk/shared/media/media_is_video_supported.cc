@@ -39,8 +39,6 @@
 #include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-using third_party::starboard::rdk::shared::DisplayInfo;
-
 namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
@@ -87,8 +85,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
   }
 
   return bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 60 &&
-         third_party::starboard::rdk::shared::media::
-             GstRegistryHasElementForMediaType(video_codec);
+         GstRegistryHasElementForMediaType(video_codec);
 }
 
 }  // namespace starboard

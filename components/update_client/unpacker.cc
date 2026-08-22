@@ -50,7 +50,9 @@ Unpacker::Unpacker(const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
     : result_(crx_operation_result),
+#if !defined(IN_MEMORY_UPDATES)
       path_(crx_operation_result.response),
+#endif
       unzipper_(std::move(unzipper)),
       callback_(std::move(callback)) {}
 

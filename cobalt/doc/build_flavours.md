@@ -4,8 +4,6 @@ This document details naming conventions and common idioms for
 build/preprocessor flags in Cobalt. This only applies to Cobalt on Chromium,
 i.e. versions 26 (included) and later, i.e. project "Chrobalt" and after.
 
-Note: This document is heavily inspired on the internal go/cobalt-naming doc.
-
 The existing Cobalt and Starboard build logic defines a number of variables
 that developers are free to rely upon. Some important patterns follow.
 
@@ -98,7 +96,7 @@ buildflag_header("foo_buildflags") {
   header = "foo_buildflags.h"
 
   flags = [
-    This uses the GN build flag enable_doom_melon as the definition.
+    # This uses the GN build flag enable_doom_melon as the definition.
     "ENABLE_DOOM_MELON=$enable_doom_melon",
   ]
 }

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/no_destructor.h"
@@ -35,9 +36,10 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
@@ -54,13 +56,17 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/overlay_window.h"
+#include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
+#include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
 #include "net/base/url_util.h"
@@ -100,34 +106,55 @@ constexpr char kMusicTopic[] = "music";
 // Helper function to check if a URL is a valid deep link for a specific topic.
 // It requires both a "launch" parameter and a matching "topic" parameter.
 bool IsDeepLinkTopic(const GURL& link_url, std::string_view target_topic) {
-  if (!link_url.is_valid() || !link_url.has_query()) {
+  if (!link_url.is_valid()) {
     return false;
   }
 
-  std::string query = link_url.query();
-  // Decode URL encoded characters in the entire query string first so that
-  // QueryIterator can correctly split on ampersands, even if they were encoded.
-  std::string unescaped_query = base::UnescapeURLComponent(
-      query, base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
-                 base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
-  GURL unescaped_url;
-  GURL::Replacements replacements;
-  replacements.SetQueryStr(unescaped_query);
-  unescaped_url = link_url.ReplaceComponents(replacements);
+  // Helper lambda to check a query string
+  auto check_query_string = [&](std::string_view query_str) {
+    std::string unescaped_query = base::UnescapeURLComponent(
+        query_str,
+        base::UnescapeRule::REPLACE_PLUS_WITH_SPACE |
+            base::UnescapeRule::URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS);
 
-  bool has_launch = false;
-  bool has_target_topic = false;
+    // Use GURL::Replacements to safely set the query string without worrying
+    // about special characters like '#' truncating the query.
+    GURL dummy_url("http://dummy/");
+    GURL::Replacements replacements;
+    replacements.SetQueryStr(unescaped_query);
+    dummy_url = dummy_url.ReplaceComponents(replacements);
 
-  for (net::QueryIterator it(unescaped_url); !it.IsAtEnd(); it.Advance()) {
-    if (!has_launch && it.GetKey() == "launch") {
-      has_launch = true;
-    } else if (!has_target_topic && it.GetKey() == "topic" &&
-               it.GetUnescapedValue() == target_topic) {
-      has_target_topic = true;
+    bool has_launch = false;
+    bool has_target_topic = false;
+
+    for (net::QueryIterator it(dummy_url); !it.IsAtEnd(); it.Advance()) {
+      if (!has_launch && it.GetKey() == "launch") {
+        has_launch = true;
+      } else if (!has_target_topic && it.GetKey() == "topic" &&
+                 it.GetUnescapedValue() == target_topic) {
+        has_target_topic = true;
+      }
+
+      if (has_launch && has_target_topic) {
+        return true;
+      }
     }
+    return false;
+  };
 
-    if (has_launch && has_target_topic) {
-      return true;
+  // 1. Check the standard query part
+  if (link_url.has_query() && check_query_string(link_url.query())) {
+    return true;
+  }
+
+  // 2. Check the fragment part if it looks like a query (starts with '?')
+  if (link_url.has_ref()) {
+    std::string ref = link_url.ref();
+    if (!ref.empty() && ref[0] == '?') {
+      // Skip the leading '?'
+      if (check_query_string(std::string_view(ref).substr(1))) {
+        return true;
+      }
     }
   }
 
@@ -197,8 +224,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
       splash_topic_(topic),
       skip_for_testing_(skip_for_testing),
-      is_video_splash_screen_(base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kForceVideoSplashScreen)) {
+      is_video_splash_screen_(base::FeatureList::IsEnabled(
+          cobalt::features::kForceVideoSplashScreen)) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -388,12 +415,6 @@ void Shell::SetShellCreatedCallback(
 }
 
 // static
-bool Shell::ShouldHideToolbar() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellHideToolbar);
-}
-
-// static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
   for (Shell* window : windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
@@ -572,11 +593,6 @@ void Shell::DidStartLoading() {
 }
 
 void Shell::DidStopLoading() {
-  // Set initial focus to the web content.
-  if (web_contents()->GetRenderWidgetHostView()) {
-    web_contents()->GetRenderWidgetHostView()->Focus();
-  }
-
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
     VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
@@ -757,19 +773,6 @@ void Shell::Stop() {
   web_contents_->Stop();
 }
 
-void Shell::UpdateNavigationControls(bool should_show_loading_ui) {
-  int current_index = web_contents_->GetController().GetCurrentEntryIndex();
-  int max_index = web_contents_->GetController().GetEntryCount() - 1;
-
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::BACK_BUTTON,
-                              current_index > 0);
-  g_platform->EnableUIControl(this, ShellPlatformDelegate::FORWARD_BUTTON,
-                              current_index < max_index);
-  g_platform->EnableUIControl(
-      this, ShellPlatformDelegate::STOP_BUTTON,
-      should_show_loading_ui && web_contents_->IsLoading());
-}
-
 void Shell::ShowDevTools() {
   if (!devtools_frontend_) {
     auto* devtools_frontend = ShellDevToolsFrontend::Show(web_contents());
@@ -862,12 +865,6 @@ WebContents* Shell::OpenURLFromTab(
   return target;
 }
 
-void Shell::LoadingStateChanged(WebContents* source,
-                                bool should_show_loading_ui) {
-  UpdateNavigationControls(should_show_loading_ui);
-  g_platform->SetIsLoading(this, source->IsLoading());
-}
-
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,
     const blink::mojom::FullscreenOptions& options) {
@@ -949,13 +946,6 @@ bool Shell::CanOverscrollContent() {
 #endif
 }
 
-void Shell::NavigationStateChanged(WebContents* source,
-                                   InvalidateTypes changed_flags) {
-  if (changed_flags & INVALIDATE_TYPE_URL) {
-    g_platform->SetAddressBarURL(this, source->GetVisibleURL());
-  }
-}
-
 JavaScriptDialogManager* Shell::GetJavaScriptDialogManager(
     WebContents* source) {
   if (!dialog_manager_) {
@@ -983,12 +973,14 @@ void Shell::RendererUnresponsive(
 }
 
 void Shell::ActivateContents(WebContents* contents) {
-  // TODO(danakj): Move this to ShellPlatformDelegate.
-  contents->Focus();
+  if (!g_platform->IsWaitingForRevealAck()) {
+    contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
+  }
 }
 
-bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
-  return true;
+bool Shell::IsBackForwardCacheSupported(WebContents& /*web_contents*/) {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kDisableBackForwardCache);
 }
 
 PreloadingEligibility Shell::IsPrerender2Supported(
@@ -1022,7 +1014,20 @@ bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
 }
 
 PictureInPictureResult Shell::EnterPictureInPicture(WebContents* web_contents) {
-  return PictureInPictureResult::kNotSupported;
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return PictureInPictureResult::kNotSupported;
+  }
+  return PictureInPictureWindowManager::GetInstance()
+      .EnterVideoPictureInPicture(web_contents);
+}
+
+void Shell::ExitPictureInPicture() {
+  if (!base::FeatureList::IsEnabled(
+          cobalt::features::kEnablePictureInPicture)) {
+    return;
+  }
+  PictureInPictureWindowManager::GetInstance().ExitPictureInPicture();
 }
 
 bool Shell::ShouldResumeRequestsForCreatedWindow() {
@@ -1077,6 +1082,10 @@ bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
   return true;
 }
 
+bool Shell::ShouldFocusPageAfterCrash(WebContents* source) {
+  return !g_platform->IsWaitingForRevealAck();
+}
+
 gfx::Size Shell::GetShellDefaultSize() {
   static gfx::Size default_shell_size;  // Only go through this method once.
 
@@ -1122,6 +1131,19 @@ void Shell::OnVisibilityChanged(Visibility visibility) {
     // Retry the pending focus now that the window is visible in Aura.
     Focus();
   }
+
+  // When the OS backgrounds the app (resulting in Visibility::HIDDEN state),
+  // tearing down the PiP session from here ensures the
+  // VideoPictureInPictureWindowController pauses the video and destroys the UI
+  // overlay window.
+  // See: b/532272209
+  if (base::FeatureList::IsEnabled(cobalt::features::kEnablePictureInPicture) &&
+      visibility == content::Visibility::HIDDEN && web_contents() &&
+      web_contents()->HasPictureInPictureVideo()) {
+    content::PictureInPictureWindowController::
+        GetOrCreateVideoPictureInPictureController(web_contents())
+            ->Close(/*should_pause_video=*/true);
+  }
 }
 
 void Shell::LoadProgressChanged(double progress) {
@@ -1148,6 +1170,13 @@ void Shell::LoadProgressChanged(double progress) {
     }
   }
 }
+
+#if BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
+base::WeakPtr<on_screen_keyboard::PlatformOnScreenKeyboard>
+Shell::GetPlatformOnScreenKeyboard() {
+  return g_platform->GetOrCreatePlatformOnScreenKeyboard(this);
+}
+#endif  // BUILDFLAG(ENABLE_NATIVE_ON_SCREEN_KEYBOARD)
 
 void Shell::ScheduleSwitchToMainWebContents() {
   if (splash_screen_start_time_.is_null()) {
