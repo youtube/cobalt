@@ -114,6 +114,10 @@ public class JavaSwitches {
   public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
+  public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
+
+  /** flag to force GPU memory available in MB. */
+  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
 
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
@@ -168,6 +172,22 @@ public class JavaSwitches {
               + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
     } else {
       jsFlags.add("--initial-old-space-size=64");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_MAX_OLD_SPACE_SIZE)) {
+      jsFlags.add(
+          "--max-old-space-size="
+              + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      jsFlags.add("--max-old-space-size=512");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB)) {
+      extraCommandLineArgs.add(
+          "--force-gpu-mem-available-mb="
+              + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--force-gpu-mem-available-mb=64");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
