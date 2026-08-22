@@ -97,10 +97,6 @@ public class JavaSwitches {
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
-  /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
-  public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
-      "CobaltBypassBufferingBytesConsumer";
-
   /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
   public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
       "CobaltBypassResourceLoadScheduler";
@@ -311,11 +307,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {

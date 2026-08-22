@@ -33,6 +33,7 @@ namespace browser {
 void CobaltHangWatcherDelegate::Initialize() {
   static base::NoDestructor<CobaltHangWatcherDelegate> instance;
   base::HangWatcher::SetDelegate(instance.get());
+  base::HangWatcher::UpdateConfiguration();
 }
 
 CobaltHangWatcherDelegate::CobaltHangWatcherDelegate()
@@ -147,6 +148,30 @@ std::optional<bool> CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
   }
 
   return std::nullopt;
+}
+
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangDetectionEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangDetection");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangKillEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangKill");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<base::TimeDelta> CobaltHangWatcherDelegate::GetLongHangTimeout() {
+  auto val = GetIntSetting("LongHangTimeoutSeconds");
+  if (!val.has_value() || *val <= 0) {
+    return std::nullopt;
+  }
+  return base::Seconds(*val);
 }
 
 void CobaltHangWatcherDelegate::RecordHangStarted(
