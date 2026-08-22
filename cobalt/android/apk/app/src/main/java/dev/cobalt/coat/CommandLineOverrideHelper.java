@@ -158,6 +158,7 @@ public final class CommandLineOverrideHelper {
     StringJoiner enableFeatureOverrides = getDefaultEnableFeatureOverridesList();
     StringJoiner disableFeatureOverrides = getDefaultDisableFeatureOverridesList();
     StringJoiner blinkEnableFeatureOverrides = getDefaultBlinkEnableFeatureOverridesList();
+    StringJoiner traceStartupOverrides = new StringJoiner(",");
     StringJoiner enableH5vccSettings = new StringJoiner(";");
 
     if (params != null) {
@@ -185,6 +186,8 @@ public final class CommandLineOverrideHelper {
                 disableFeatureOverrides.add(v);
               } else if (key.equals("--enable-blink-features")) {
                 blinkEnableFeatureOverrides.add(v);
+              } else if (key.equals("--trace-startup")) {
+                traceStartupOverrides.add(v);
               } else if (key.equals("--enable-h5vcc-settings")) {
                 enableH5vccSettings.add(v);
               } else {
@@ -210,6 +213,11 @@ public final class CommandLineOverrideHelper {
     CommandLine.getInstance()
         .appendSwitchesAndArguments(
             new String[] {"--enable-blink-features=" + blinkEnableFeatureOverrides.toString()});
+    if (traceStartupOverrides.length() > 0) {
+      CommandLine.getInstance()
+          .appendSwitchesAndArguments(
+              new String[] {"--trace-startup=" + traceStartupOverrides.toString()});
+    }
     if (enableH5vccSettings.length() > 0) {
       CommandLine.getInstance()
           .appendSwitchesAndArguments(
