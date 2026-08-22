@@ -189,6 +189,7 @@ source_set("features") {
     "features.cc",
     "features.h",
   ]
+  public = [ "features.h" ]
   deps = [
     "//base",
     "//cobalt/build/configs:buildflags",
