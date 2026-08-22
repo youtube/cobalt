@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """Token usage and metrics tracking for AI-driven Cobalt rebase pipeline."""
 
 import dataclasses

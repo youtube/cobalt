@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """AI-driven GN build generation and self-healing resolver library.
 
 Provides GNGenResolver, which executes `cobalt/build/gn.py`, parses GN
@@ -43,54 +42,33 @@ def extract_gn_target_files(
   """Extracts all referenced GN build files and line numbers from output."""
   unique_gn_files: Dict[str, Optional[int]] = {}
 
-  # 1. Resolve GN targets: "The target: //gpu/command_buffer/service:impl"
-  target_matches = re.findall(r"target(?:\(s\))?:\s+//([a-zA-Z0-9_/\.\-]+):",
-                              output)
+  # 1. Universal scan: Match ANY //path/to/file.gn[i] with optional line number
+  all_gn_matches = re.findall(
+      r"//([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
+      output,
+  )
+  for f, line_str in all_gn_matches:
+    full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
+    if os.path.isfile(full_p) and full_p not in unique_gn_files:
+      target_line = int(line_str) if line_str else None
+      unique_gn_files[full_p] = target_line
+
+  # 2. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
+  target_matches = re.findall(
+      r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-]+):",
+      output,
+  )
   for t_dir in target_matches:
     gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
-    if os.path.isfile(gn_path):
+    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
       unique_gn_files[gn_path] = None
 
-  # 2. Resolve source errors: "ERROR at //gpu/command_buffer/service/err.cc"
+  # 3. Resolve source errors: "ERROR at //gpu/command_buffer/service/err.cc"
   src_pattern = (r"ERROR at //([a-zA-Z0-9_/\.\-]+)/[a-zA-Z0-9_/\.\-]+\."
                  r"(?:cc|h|mm|cpp|c):")
   for s_dir in re.findall(src_pattern, output):
     gn_path = os.path.join(repo_path, s_dir, "BUILD.gn")
-    if os.path.isfile(gn_path):
-      unique_gn_files[gn_path] = None
-
-  # 3. Direct .gn / .gni matches from error trace
-  gn_error_matches = re.findall(
-      r"(?:ERROR at //|[/\s])([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
-      output,
-  )
-  for f, line_str in gn_error_matches:
-    if "BUILDCONFIG.gn" in f and unique_gn_files:
-      continue
-    full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
-    if os.path.isfile(full_p):
-      target_line = int(line_str) if line_str else None
-      if full_p not in unique_gn_files or target_line is not None:
-        unique_gn_files[full_p] = target_line
-
-  # 4. Resolve caller in "whence it was imported" and "Previous declaration"
-  import_matches = re.findall(
-      r"See //([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?:\s+"
-      r"(?:whence it was imported|Previous declaration)",
-      output,
-  )
-  for f, line_str in import_matches:
-    full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
-    if os.path.isfile(full_p):
-      target_line = int(line_str) if line_str else None
-      unique_gn_files[full_p] = target_line
-
-  # 5. Resolve unresolved dependencies: "needs //path/to/target:name"
-  needs_matches = re.findall(
-      r"needs\s+//([a-zA-Z0-9_/\.\-]+):[a-zA-Z0-9_/\.\-]+", output)
-  for target_dir in needs_matches:
-    gn_path = os.path.join(repo_path, target_dir, "BUILD.gn")
-    if os.path.isfile(gn_path):
+    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
       unique_gn_files[gn_path] = None
 
   return unique_gn_files
@@ -165,9 +143,9 @@ class GNGenResolver(BaseResolver):
     error_summary = stripped.splitlines()[0] if stripped else "GN Error"
     target_files = extract_gn_target_files(build_output, self.repo_path)
     is_structural = any(kw in build_output.lower() for kw in (
-        "unexpected token '}'",
-        "unexpected token '{'",
+        "unexpected token",
         "expecting assignment",
+        "syntax error",
     ))
     return [
         GNDiagnostic(
@@ -187,6 +165,12 @@ class GNGenResolver(BaseResolver):
     if not isinstance(diagnostic, GNDiagnostic):
       return "", self.model, ""
 
+    # Fast-path: Automatically remove stray conflict marker lines
+    for gnf, target_line in diagnostic.target_files.items():
+      stray_res = self.check_and_clean_stray_marker(gnf, target_line)
+      if stray_res is not None:
+        return stray_res
+
     send_full_file = use_pro or diagnostic.is_structural_break
     file_contexts = []
     primary_target = ""
@@ -198,13 +182,14 @@ class GNGenResolver(BaseResolver):
         with open(gnf, "r", encoding="utf-8", errors="replace") as gf:
           file_content = gf.read()
         rel_f = os.path.relpath(gnf, self.repo_path)
-        if send_full_file or target_line is None:
+        if (send_full_file or target_line is None or
+            len(file_content.splitlines()) <= 800):
           file_contexts.append(
               f"### Full File: {rel_f}\n```gn\n{file_content}\n```")
         else:
           lines = file_content.splitlines(keepends=True)
-          start_idx = max(0, target_line - 60)
-          end_idx = min(len(lines), target_line + 60)
+          start_idx = max(0, target_line - 150)
+          end_idx = min(len(lines), target_line + 150)
           snippet = "".join(lines[start_idx:end_idx])
           file_contexts.append(
               f"### File: {rel_f} (Lines {start_idx + 1}-{end_idx})\n"
@@ -224,7 +209,6 @@ class GNGenResolver(BaseResolver):
         error_trace=diagnostic.raw_output[:32768],
         file_context="\n\n".join(file_contexts),
         attempt_history=history_str,
-        past_experience=self.past_experience,
         use_pro=use_pro,
     )
     patch = res.get("patch", "")

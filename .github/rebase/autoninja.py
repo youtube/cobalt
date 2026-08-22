@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """AI-driven autoninja compiler self-healing feedback loop library.
 
 Provides AutoninjaResolver, which iteratively builds with autoninja,
@@ -25,6 +24,39 @@ from reasoning_engine import CobaltReasoningEngine
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+SOURCE_CODE_EXTENSIONS = (
+    ".cc",
+    ".cpp",
+    ".c",
+    ".h",
+    ".hpp",
+    ".java",
+    ".kt",
+    ".mm",
+    ".m",
+)
+
+BUILD_FILE_EXTENSIONS = (
+    ".gn",
+    ".gni",
+    ".star",
+    ".starlark",
+)
+
+TEXT_FILE_EXTENSIONS = SOURCE_CODE_EXTENSIONS + BUILD_FILE_EXTENSIONS + (
+    ".py",
+    ".js",
+    ".ts",
+    ".xml",
+    ".json",
+    ".rst",
+    ".md",
+    ".txt",
+    ".sh",
+)
+
+MAX_CONTEXT_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @dataclasses.dataclass
@@ -69,6 +101,25 @@ def find_referencing_build_file(
   except (OSError, subprocess.SubprocessError):
     pass
   return None, 1
+
+
+def find_build_file_for_object(
+    obj_str: str,
+    repo_path: str,
+) -> Optional[str]:
+  """Finds the BUILD.gn responsible for an object path like obj/foo/baz.o."""
+  clean = obj_str.strip().lstrip("./")
+  if clean.startswith("obj/"):
+    clean = clean[4:]
+  # Strip archive member syntax: libfreetype.a(autofit.o) -> libfreetype.a
+  clean = re.sub(r"\(.*?\)", "", clean)
+  dir_cand = os.path.dirname(clean)
+  while dir_cand and dir_cand != ".":
+    gn_cand = os.path.join(repo_path, dir_cand, "BUILD.gn")
+    if os.path.isfile(gn_cand):
+      return gn_cand
+    dir_cand = os.path.dirname(dir_cand)
+  return None
 
 
 def parse_compiler_errors(build_output: str,
@@ -129,7 +180,7 @@ def parse_compiler_errors(build_output: str,
     else:
       i += 1
 
-  # Fallback: Parse Ninja missing dependency / missing rule graph errors
+  # Fallback 1: Parse Ninja missing dependency / missing rule graph errors
   if not diagnostics:
     ninja_missing_pattern = re.compile(
         r"[\"']([^\"']+)[\"'],\s+needed by\s+[\"']([^\"']+)[\"'],"
@@ -164,6 +215,39 @@ def parse_compiler_errors(build_output: str,
                 notes=diag_notes,
             ))
         break
+
+  # Fallback 2: Parse linker errors (ld.lld, lld-link, clang++ linker errors)
+  if not diagnostics:
+    lld_error_pattern = re.compile(
+        r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
+    obj_match_pattern = re.compile(
+        r"obj/([a-zA-Z0-9_/\.\-]+(?:\([a-zA-Z0-9_/\.\-]+\))?)")
+    linker_lines = []
+    primary_err = ""
+    target_build_file = None
+
+    for line in lines:
+      clean_l = re.sub(r"\x1b\[[0-9;]*m", "", line).strip()
+      if m := lld_error_pattern.search(clean_l):
+        if not primary_err:
+          primary_err = m.group(1).strip()
+        linker_lines.append(clean_l)
+        if not target_build_file:
+          if obj_m := obj_match_pattern.search(clean_l):
+            target_build_file = find_build_file_for_object(
+                obj_m.group(0), repo_path)
+
+    if primary_err:
+      target_f = target_build_file or os.path.join(repo_path, "BUILD.gn")
+      diagnostics.append(
+          CompilerDiagnostic(
+              file_path=target_f,
+              line_number=1,
+              column=1,
+              error_message=f"Linker error: {primary_err}",
+              raw_snippet="\n".join(linker_lines[:20]),
+              notes=[],
+          ))
 
   return diagnostics
 
@@ -253,19 +337,71 @@ class AutoninjaResolver(BaseResolver):
       history_records: List[Dict[str, Any]],
       use_pro: bool,
   ) -> Tuple[str, str, str]:
+    if isinstance(diagnostic, str):
+      error_trace = diagnostic[:32768]
+      history_items = []
+      for h in history_records[-5:]:
+        it = h.get("iteration", "")
+        hf = h.get("file", "")
+        he = h.get("error", "")
+        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
+      history_str = "\n".join(history_items)
+
+      res = self.reasoning_engine.heal_compiler_error(
+          error_trace=error_trace,
+          file_context="",
+          target_file="",
+          history=history_str,
+          use_pro=use_pro,
+      )
+      patch = res.get("patch", "")
+      model_used = res.get("model_used", self.model)
+      return patch, model_used, self.target
+
     if not isinstance(diagnostic, CompilerDiagnostic):
       return "", self.model, ""
 
+    # Fast-path: Automatically remove stray conflict marker lines
+    stray_res = self.check_and_clean_stray_marker(diagnostic.file_path,
+                                                  diagnostic.line_number)
+    if stray_res is not None:
+      return stray_res
+
     file_context = ""
-    if os.path.isfile(diagnostic.file_path):
+    is_source_code = diagnostic.file_path.endswith(SOURCE_CODE_EXTENSIONS)
+    is_text_file = diagnostic.file_path.endswith(TEXT_FILE_EXTENSIONS)
+
+    if is_text_file and os.path.isfile(diagnostic.file_path):
       try:
-        with open(
-            diagnostic.file_path, "r", encoding="utf-8", errors="replace") as f:
-          lines = f.readlines()
-        s_line = max(1, diagnostic.line_number - 30)
-        e_line = min(len(lines), diagnostic.line_number + 30)
-        file_context = "".join(f"{s_line + i}: {l}"
-                               for i, l in enumerate(lines[s_line - 1:e_line]))
+        # Protect against opening abnormally huge files into memory
+        if os.path.getsize(diagnostic.file_path) <= MAX_CONTEXT_FILE_SIZE_BYTES:
+          with open(
+              diagnostic.file_path,
+              "r",
+              encoding="utf-8",
+              errors="replace",
+          ) as f:
+            lines = f.readlines()
+          is_build_file = diagnostic.file_path.endswith(BUILD_FILE_EXTENSIONS)
+          send_full_file = is_build_file or (
+              is_source_code and
+              (use_pro or
+               self.file_error_counts.get(diagnostic.file_path, 0) >= 3))
+          if send_full_file:
+            rel_path = os.path.relpath(diagnostic.file_path, self.repo_path)
+            label = "build" if is_build_file else "source"
+            print(
+                f"  [{self.name}] Sending full {label} file context "
+                f"({len(lines)} lines) for {rel_path}...",
+                file=sys.stderr,
+            )
+            file_context = "".join(f"{i + 1}: {l}" for i, l in enumerate(lines))
+          else:
+            s_line = max(1, diagnostic.line_number - 30)
+            e_line = min(len(lines), diagnostic.line_number + 30)
+            file_context = "".join(
+                f"{s_line + i}: {l}" for i, l in enumerate(lines[s_line -
+                                                                 1:e_line]))
       except OSError:
         pass
 
@@ -289,7 +425,6 @@ class AutoninjaResolver(BaseResolver):
         file_context=file_context,
         target_file=diagnostic.file_path,
         history=history_str,
-        past_experience=self.past_experience,
         use_pro=use_pro,
     )
     patch = res.get("patch", "")

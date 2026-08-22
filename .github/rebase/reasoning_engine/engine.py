@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """Vertex AI Reasoning Engine Agent for Cobalt Chromium Rebase.
 
 Provides unified conflict resolution, GN configuration healing, and
@@ -8,7 +7,9 @@ All domain instructions are dynamically loaded from markdown skill files
 under the skills/ directory.
 """
 
+import json
 import os
+import re
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -68,6 +69,7 @@ class CobaltReasoningEngine:
       flash_model: Optional[str] = None,
       pro_model: str = "gemini-2.5-pro",
       skills_dir: Optional[str] = None,
+      gcs_memory_uri: Optional[str] = None,
   ):
     self.resource_id = (
         resource_id or os.environ.get("REASONING_ENGINE_ID") or
@@ -76,9 +78,15 @@ class CobaltReasoningEngine:
         project_id or os.environ.get("GCP_PROJECT") or
         os.environ.get("GOOGLE_CLOUD_PROJECT"))
     self.location = location
-    self.flash_model = flash_model or "gemini-3.7-flash"
+    self.flash_model = flash_model or "gemini-2.5-flash"
     self.pro_model = pro_model
     self.skills_dir = skills_dir or SKILLS_DIR
+    self.gcs_memory_uri = (
+        gcs_memory_uri or os.environ.get("GCS_MEMORY_URI") or
+        (f"gs://{self.project_id}/rebase_memory/knowledge_bank.json"
+         if self.project_id else None))
+    self.memory_cache: Optional[List[Dict[str, Any]]] = None
+    self.storage_client: Any = None
     self.skill_cache: Dict[str, str] = {
         "cobalt_rebase":
             load_skill("cobalt_rebase", self.skills_dir),
@@ -99,18 +107,157 @@ class CobaltReasoningEngine:
         project=self.project_id,
         location=self.location,
     )
+    # Prevent cloud container from recursively proxying to itself
+    self.resource_id = None
+    self.remote_engine = None
+
+  def _get_storage_client(self) -> Any:
+    """Lazy loads Google Cloud Storage client in cloud or local environment."""
+    if self.storage_client is None:
+      try:
+        from google.cloud import storage  # pylint: disable=import-outside-toplevel
+        self.storage_client = storage.Client(project=self.project_id)
+      except Exception:  # pylint: disable=broad-exception-caught
+        self.storage_client = None
+    return self.storage_client
+
+  def _load_memory(self) -> List[Dict[str, Any]]:
+    """Loads knowledge memory from GCS or returns cached memory."""
+    if self.memory_cache is not None:
+      return self.memory_cache
+    self.memory_cache = []
+    if not self.gcs_memory_uri or not self.gcs_memory_uri.startswith("gs://"):
+      return self.memory_cache
+
+    client = self._get_storage_client()
+    if client is None:
+      return self.memory_cache
+
+    try:
+      path_part = self.gcs_memory_uri[5:]
+      if "/" not in path_part:
+        return self.memory_cache
+      bucket_name, blob_name = path_part.split("/", 1)
+      bucket = client.bucket(bucket_name)
+      blob = bucket.blob(blob_name)
+      if blob.exists():
+        data = blob.download_as_text(encoding="utf-8")
+        loaded = json.loads(data)
+        if isinstance(loaded, list):
+          self.memory_cache = loaded
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(
+          f"  [REASONING_ENGINE] Notice: Could not read memory from GCS: {e}",
+          file=sys.stderr,
+      )
+    return self.memory_cache
+
+  def get_past_experience(self, query: str, max_items: int = 3) -> str:
+    """Retrieves relevant past fixes from knowledge bank."""
+    memory = self._load_memory()
+    if not memory:
+      return ""
+
+    q_lower = query.lower()
+    q_words = set(re.findall(r"\w+", q_lower))
+    scored = []
+    for item in memory:
+      desc = item.get("issue_description", "").lower()
+      target = item.get("target_file", "").lower()
+      combined = f"{desc} {target}"
+      score = sum(1 for w in q_words if w in combined)
+      if score > 0:
+        scored.append((score, item))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top_items = [item for _, item in scored[:max_items]]
+    if not top_items:
+      return ""
+
+    blocks = []
+    for idx, item in enumerate(top_items, 1):
+      desc = item.get("issue_description", "")
+      sol = item.get("solution_diff", "")
+      tf = item.get("target_file", "")
+      target_line = f"Target File: {tf}\n" if tf else ""
+      blocks.append(f"Example #{idx}:\n{target_line}Issue: {desc}\nFix:\n{sol}")
+    return "\n\n".join(blocks)
+
+  def record_successful_fix(
+      self,
+      issue_description: str,
+      solution_diff: str,
+      target_file: str = "",
+  ) -> bool:
+    """Records a verified fix into GCS knowledge memory bank."""
+    remote = self._get_remote_engine()
+    if remote is not None:
+      try:
+        return bool(
+            remote.query(
+                action="record_successful_fix",
+                issue_description=issue_description,
+                solution_diff=solution_diff,
+                target_file=target_file,
+            ))
+      except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+    memory = self._load_memory()
+    for item in memory:
+      if item.get("solution_diff") == solution_diff:
+        return True
+
+    record = {
+        "timestamp": time.time(),
+        "target_file": target_file,
+        "issue_description": issue_description,
+        "solution_diff": solution_diff,
+    }
+    memory.append(record)
+    self.memory_cache = memory
+
+    if self.gcs_memory_uri and self.gcs_memory_uri.startswith("gs://"):
+      client = self._get_storage_client()
+      if client:
+        try:
+          path_part = self.gcs_memory_uri[5:]
+          if "/" in path_part:
+            bucket_name, blob_name = path_part.split("/", 1)
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            blob.upload_from_string(
+                json.dumps(memory, indent=2),
+                content_type="application/json",
+            )
+            return True
+        except Exception as e:  # pylint: disable=broad-exception-caught
+          print(
+              "  [REASONING_ENGINE] Warning: Could not write memory to GCS: "
+              f"{e}",
+              file=sys.stderr,
+          )
+    return True
 
   def _get_remote_engine(self) -> Any:
     """Initializes and returns remote Vertex AI Reasoning Engine proxy."""
-    if self.remote_engine is None and self.resource_id:
+    if self.client is None and self.remote_engine is None and self.resource_id:
       try:
         import vertexai  # pylint: disable=import-outside-toplevel
         from vertexai.preview import reasoning_engines  # pylint: disable=import-outside-toplevel
-        vertexai.init(project=self.project_id, location=self.location)
         res_name = self.resource_id
-        if not res_name.startswith("projects/"):
-          res_name = (f"projects/{self.project_id}/locations/{self.location}/"
+        loc = self.location
+        if res_name.startswith("projects/"):
+          if "/locations/" in res_name:
+            loc = res_name.split("/locations/", 1)[1].split("/", 1)[0]
+        else:
+          # Vertex AI Reasoning Engines are regional endpoints (us-central1)
+          res_loc = ("us-central1"
+                     if self.location == "global" else self.location)
+          res_name = (f"projects/{self.project_id}/locations/{res_loc}/"
                       f"reasoningEngines/{self.resource_id}")
+          loc = res_loc
+        vertexai.init(project=self.project_id, location=loc)
         print(
             "  [REASONING_ENGINE] Connecting to hosted Reasoning Engine: "
             f"{res_name}",
@@ -220,6 +367,10 @@ class CobaltReasoningEngine:
     if action in ("heal_compiler", "heal_compiler_break",
                   "heal_compiler_error"):
       return self.heal_compiler_error(**kwargs)
+    if action in ("record_successful_fix", "record_fix"):
+      return {"success": self.record_successful_fix(**kwargs)}
+    if action in ("get_past_experience", "load_past_experience"):
+      return {"experience": self.get_past_experience(**kwargs)}
     if action == "chat":
       return self.chat(**kwargs)
     raise ValueError(f"Unknown Reasoning Engine action: {action}")
@@ -266,9 +417,12 @@ class CobaltReasoningEngine:
     rebase_skill = self._get_skill("cobalt_rebase")
     conflict_skill = self._get_skill("conflict_resolution")
 
+    effective_past = (
+        past_experience or
+        self.get_past_experience(f"{file_path} {raw_conflict}"))
     past_lessons_section = (
-        f"--- Past Successful Lessons ---\n{past_experience}\n\n"
-        if past_experience else "")
+        f"--- Past Successful Lessons ---\n{effective_past}\n\n"
+        if effective_past else "")
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
@@ -338,6 +492,10 @@ class CobaltReasoningEngine:
     rebase_skill = self._get_skill("cobalt_rebase")
     gn_skill = self._get_skill("gn_healing")
 
+    effective_past = (
+        past_experience or self.get_past_experience(f"gn {error_trace}"))
+    past_lessons_section = (f"Past Successful Lessons:\n{effective_past}\n\n"
+                            if effective_past else "")
     investigation_section = (
         f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
         if investigation_history else "")
@@ -348,7 +506,7 @@ class CobaltReasoningEngine:
     prompt = (f"GN Build Error:\n--------------------\n{error_trace}\n"
               "--------------------\n\n"
               f"{investigation_section}"
-              f"Past Successful Lessons:\n{past_experience}\n\n"
+              f"{past_lessons_section}"
               f"Prior Attempt History:\n{attempt_history}\n\n"
               f"Relevant File Definitions:\n{file_context}\n\n"
               "Instructions:\n"
@@ -375,25 +533,34 @@ class CobaltReasoningEngine:
 
   def heal_compiler_error(
       self,
-      target: str,
-      diagnostics: str,
+      target: str = "",
+      diagnostics: str = "",
       source_contexts: str = "",
       *,
+      error_trace: str = "",
+      file_context: str = "",
+      target_file: str = "",
+      history: str = "",
       past_experience: str = "",
       investigation_history: str = "",
       use_pro: bool = False,
   ) -> Dict[str, Any]:
     """Diagnoses and repairs C++/Java compilation errors on Vertex AI."""
+    eff_target = target or target_file or "cobalt"
+    eff_diag = diagnostics or error_trace
+    eff_ctx = source_contexts or file_context
+    eff_inv = investigation_history or history
+
     remote = self._get_remote_engine()
     if remote is not None:
       try:
         return remote.query(
             action="heal_compiler_error",
-            target=target,
-            diagnostics=diagnostics,
-            source_contexts=source_contexts,
+            target=eff_target,
+            diagnostics=eff_diag,
+            source_contexts=eff_ctx,
             past_experience=past_experience,
-            investigation_history=investigation_history,
+            investigation_history=eff_inv,
             use_pro=use_pro,
         )
       except Exception as e:  # pylint: disable=broad-exception-caught
@@ -406,32 +573,52 @@ class CobaltReasoningEngine:
     rebase_skill = self._get_skill("cobalt_rebase")
     compiler_skill = self._get_skill("compiler_healing")
 
+    effective_past = (
+        past_experience or self.get_past_experience(f"{eff_target} {eff_diag}"))
+    past_lessons_section = (
+        f"Past Successful Rebase Lessons:\n{effective_past}\n\n"
+        if effective_past else "")
     investigation_section = (
-        f"--- Investigation Tool Results ---\n{investigation_history}\n\n"
-        if investigation_history else "")
+        f"--- Investigation Tool Results ---\n{eff_inv}\n\n" if eff_inv else "")
 
-    sys_inst = (
-        "You are an expert Chromium and Cobalt C++/Java compiler engineer.\n\n"
-        f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
-        f"--- Compiler Healing Skill ---\n{compiler_skill}\n")
-    prompt = (f"autoninja build for \"{target}\" failed.\n\n"
-              f"Compiler Diagnostics:\n--------------------\n{diagnostics}\n"
+    is_gn_target = (
+        eff_target.endswith((".gn", ".gni")) or target_file.endswith(
+            (".gn", ".gni")))
+    gn_skill_text = self._get_skill("gn_healing") if is_gn_target else ""
+    gn_skill_section = (f"\n\n--- GN Healing Skill ---\n{gn_skill_text}"
+                        if is_gn_target else "")
+
+    sys_inst = ("You are an expert Chromium and Cobalt systems engineer.\n\n"
+                f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
+                f"--- Compiler Healing Skill ---\n{compiler_skill}"
+                f"{gn_skill_section}\n")
+    prompt = (f"autoninja build for \"{eff_target}\" failed.\n\n"
+              f"Compiler Diagnostics:\n--------------------\n{eff_diag}\n"
               "--------------------\n\n"
               f"{investigation_section}"
-              f"Past Successful Rebase Lessons:\n{past_experience}\n\n"
-              f"Offending Source Code Excerpts:\n{source_contexts}\n\n"
+              f"{past_lessons_section}"
+              f"Offending Source Code Excerpts:\n{eff_ctx}\n\n"
               "Instructions:\n"
-              "- If you need to inspect referencing BUILD.gn files, headers, "
-              "or search for relocated APIs, output a single TOOL_ command "
-              "(e.g. `TOOL_READ_FILE: <path> <start>-<end>` or "
-              "`TOOL_GREP: <symbol>`).\n"
-              "- Otherwise output the final SEARCH / REPLACE block:\n"
-              "FILE: <relative_filepath>\n"
-              "<<<<<<< SEARCH\n"
-              "<exact lines to replace>\n"
-              "=======\n"
-              "<fixed replacement lines>\n"
-              ">>>>>>> REPLACE")
+              "- When encountering undeclared identifiers, unknown types, or "
+              "incomplete types, DO NOT guess namespaces. Use TOOL_GREP to "
+              "find the defining header in Chromium:\n"
+              "  TOOL_GREP: <symbol>\n"
+              "- If you need to inspect referencing BUILD.gn files or read "
+              "headers, output a single TOOL_ command (e.g. `TOOL_READ_FILE: "
+              "<path> <start>-<end>` or `TOOL_FIND_FILE: <pattern>`).\n"
+              "- Otherwise output the final SEARCH / REPLACE or DELETE block:\n"
+              "  * To replace / add include:\n"
+              "  FILE: <relative_filepath>\n"
+              "  <<<<<<< SEARCH\n"
+              "  <exact lines to replace>\n"
+              "  =======\n"
+              "  <fixed replacement lines>\n"
+              "  >>>>>>> REPLACE\n"
+              "  * To delete obsolete code:\n"
+              "  FILE: <relative_filepath>\n"
+              "  <<<<<<< DELETE\n"
+              "  <exact lines to delete>\n"
+              "  >>>>>>> DELETE")
     resp = self._generate_content_with_retry(
         model=chosen_model,
         contents=prompt,

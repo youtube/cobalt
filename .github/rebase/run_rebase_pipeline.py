@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """End-to-end automated Cobalt Chromium rebase pipeline runner.
 
 Executes all rebase phases in sequence:
@@ -24,10 +23,6 @@ from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
 from reasoning_engine import CobaltReasoningEngine
-from rebase_memory import (
-    pull_memory_from_gcs,
-    sync_memory_to_gcs,
-)
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -193,10 +188,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
   if effective_target == "cobalt" and args.platform.startswith("android"):
     effective_target = "cobalt_apk"
 
-  # Pull existing knowledge memory from GCS if configured
-  if args.gcs_memory_uri:
-    pull_memory_from_gcs(gcs_uri=args.gcs_memory_uri)
-
   start_time = time.time()
   print("=" * 80, file=sys.stderr)
   print(
@@ -206,7 +197,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
   if args.reasoning_engine_id:
     print(f"  - Reasoning Engine: {args.reasoning_engine_id}", file=sys.stderr)
   else:
-    effective_model = args.model or "gemini-3.7-flash"
+    effective_model = args.model or "gemini-2.5-flash"
     print(f"  - Model:      {effective_model}", file=sys.stderr)
   print(f"  - Platform:   {args.platform}", file=sys.stderr)
   print(f"  - Config:     {args.build_type}", file=sys.stderr)
@@ -225,6 +216,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
       location=args.location,
       flash_model=args.model,
       skills_dir=args.skills_dir,
+      gcs_memory_uri=args.gcs_memory_uri,
   )
 
   # Phase 1: Conflict Resolver
@@ -415,10 +407,6 @@ def run_pipeline(args: argparse.Namespace) -> int:
       elapsed_seconds=elapsed,
       repo_path=args.repo_path,
   )
-
-  # Sync persistent knowledge memory bank to GCS if configured
-  if args.gcs_memory_uri:
-    sync_memory_to_gcs(gcs_uri=args.gcs_memory_uri)
 
   print("\n" + "=" * 80, file=sys.stderr)
   print(

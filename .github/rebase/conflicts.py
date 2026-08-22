@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """Unified AI-driven merge conflict resolver library for Cobalt Chromium rebase.
 
 Provides ConflictResolver, which resolves merge conflicts across all files in
@@ -20,6 +19,7 @@ from base_resolver import (
     BaseResolver,
     execute_local_tool,
     get_chromium_milestone,
+    is_unmodified_third_party,
 )
 from gclient_sync import GClientSyncResolver
 from reasoning_engine import CobaltReasoningEngine, load_skill
@@ -182,6 +182,13 @@ def extract_git_context(repo_path: str,) -> Tuple[str, Dict[str, str]]:
   return "\n".join(ctx_lines), meta
 
 
+def is_ignored_conflict_path(rel_path: str) -> bool:
+  """Excludes test suites, rebase tooling, and build output dirs."""
+  norm = rel_path.replace("\\", "/")
+  return (norm.startswith("out/") or norm.startswith(".github/rebase/") or
+          norm.startswith("results/"))
+
+
 def find_all_conflicted_files(repo_path: str) -> List[str]:
   """Finds all files in git working tree that have unmerged conflict markers."""
   conflicted = []
@@ -198,7 +205,7 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
       conflicted = [
           l.strip()
           for l in res.stdout.splitlines()
-          if l.strip() and not l.startswith("out/")
+          if l.strip() and not is_ignored_conflict_path(l.strip())
       ]
   except (OSError, subprocess.SubprocessError):
     pass
@@ -218,7 +225,7 @@ def find_all_conflicted_files(repo_path: str) -> List[str]:
         conflicted = [
             l.strip()
             for l in res2.stdout.splitlines()
-            if l.strip() and not l.startswith("out/")
+            if l.strip() and not is_ignored_conflict_path(l.strip())
         ]
     except (OSError, subprocess.SubprocessError):
       pass
@@ -314,10 +321,12 @@ def query_gemini_for_conflict(
     engine: Optional[CobaltReasoningEngine] = None,
     token_tracker: Optional[TokenUsage] = None,
     mock_mode: bool = False,
+    use_pro: bool = False,
 ) -> str:
   """Queries Gemini via Vertex AI Reasoning Engine."""
   reasoning_engine = engine or CobaltReasoningEngine()
-  model = reasoning_engine.flash_model
+  model = (
+      reasoning_engine.pro_model if use_pro else reasoning_engine.flash_model)
   if mock_mode:
     if token_tracker:
       prompt_est = len(prompt) // 4
@@ -349,9 +358,10 @@ def query_gemini_for_conflict(
       t_tok = resp.usage_metadata.total_token_count or (p_tok + c_tok)
       token_tracker.add(p_tok, c_tok, t_tok, model)
 
-    if not resp or not resp.text:
-      raise GeminiAPIError(f"Empty text in Gemini response for model {model}")
-    return clean_output(resp.text)
+    if resp is None:
+      raise GeminiAPIError(f"No response from Gemini for model {model}")
+    raw_text = resp.text if resp.text is not None else ""
+    return clean_output(raw_text)
   except Exception as e:  # pylint: disable=broad-exception-caught
     raise GeminiAPIError(
         f"Gemini API request failed through Reasoning Engine: {e}") from e
@@ -382,6 +392,26 @@ def resolve_file_conflicts(
 
   lang = detect_language(file_path)
   rel_path = os.path.relpath(file_path, repo_path)
+
+  # 1. Fast-path: Check if this is an unmodified third_party file
+  if is_unmodified_third_party(file_path, repo_path):
+    print(
+        f"\n[resolve_conflicts] Fast-path: {rel_path} is unmodified "
+        f"third_party. Resolving {len(blocks)} conflict(s) with "
+        "upstream (theirs)...",
+        file=sys.stderr,
+    )
+    for block in blocks:
+      content = content.replace(block.raw_block, block.theirs_content, 1)
+    with open(file_path, "w", encoding="utf-8") as f:
+      f.write(content)
+    print(
+        f"  [OK] Resolved all {len(blocks)} block(s) in {rel_path} "
+        "using upstream.",
+        file=sys.stderr,
+    )
+    return True
+
   print(
       f"\n[resolve_conflicts] Resolving {len(blocks)} conflict(s) in "
       f"{rel_path} ({lang})...",
@@ -404,33 +434,46 @@ def resolve_file_conflicts(
               "Resolve this conflict. Return ONLY the resolved code block "
               "replacement.")
 
-    resolved_code = ""
-    for _ in range(max_tool_rounds):
-      try:
-        resp = query_gemini_for_conflict(
-            prompt=prompt,
-            system_instruction=sys_instruction,
-            engine=engine,
-            token_tracker=token_tracker,
-            mock_mode=mock_mode,
+    resolved_code: Optional[str] = None
+    for attempt in range(2):
+      use_pro = attempt > 0
+      if use_pro:
+        print(
+            f"    [PRO_RETRY] Retrying Block #{block.index} with Pro model...",
+            file=sys.stderr,
         )
-      except GeminiAPIError as e:
-        print(f"    [FAIL] API Error: {e}", file=sys.stderr)
+      active_prompt = prompt
+      for _ in range(max_tool_rounds):
+        try:
+          resp = query_gemini_for_conflict(
+              prompt=active_prompt,
+              system_instruction=sys_instruction,
+              engine=engine,
+              token_tracker=token_tracker,
+              mock_mode=mock_mode,
+              use_pro=use_pro,
+          )
+        except GeminiAPIError as e:
+          print(f"    [FAIL] API Error: {e}", file=sys.stderr)
+          break
+
+        tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", resp.strip(),
+                               re.MULTILINE)
+        if tool_match:
+          tool_cmd = tool_match.group(1).strip()
+          print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
+          tool_output = execute_local_tool(tool_cmd, repo_path)
+          active_prompt += (
+              f"\n\nTool Call: `{tool_cmd}`\nResult:\n```\n{tool_output}\n```")
+          continue
+
+        resolved_code = resp
         break
 
-      tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", resp.strip(), re.MULTILINE)
-      if tool_match:
-        tool_cmd = tool_match.group(1).strip()
-        print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
-        tool_output = execute_local_tool(tool_cmd, repo_path)
-        prompt += (
-            f"\n\nTool Call: `{tool_cmd}`\nResult:\n```\n{tool_output}\n```")
-        continue
+      if resolved_code is not None and "<<<<<<<" not in resolved_code:
+        break
 
-      resolved_code = resp
-      break
-
-    if not resolved_code or "<<<<<<<" in resolved_code:
+    if resolved_code is None or "<<<<<<<" in resolved_code:
       print(
           f"    [ESCALATE] Block #{block.index} could not be cleanly resolved.",
           file=sys.stderr,

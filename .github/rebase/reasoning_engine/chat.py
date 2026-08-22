@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """Interactive Chat CLI for Cobalt Chromium Rebase Reasoning Engine.
 
 Allows engineers to converse directly with Vertex AI Gemini models pre-loaded
@@ -15,7 +14,7 @@ import argparse
 import os
 import readline  # pylint: disable=unused-import
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # Ensure reasoning_engine package can be imported
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +25,39 @@ if PARENT_DIR not in sys.path:
   sys.path.insert(0, PARENT_DIR)
 
 # pylint: disable=wrong-import-position
-from rebase_memory import load_latest_failure
 from reasoning_engine.engine import CobaltReasoningEngine
+
+
+def load_latest_failure(repo_root: Optional[str] = None) -> str:
+  """Retrieves the latest failure description from logs."""
+  root = repo_root or os.path.abspath(
+      os.path.join(
+          os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+  log_file = os.path.join(root, "out", "rebase_pipeline.log")
+  if os.path.isfile(log_file):
+    try:
+      with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+      err_block = []
+      for line in reversed(lines[-300:]):
+        sline = line.strip()
+        if (sline.startswith(("ERROR at //", "[FAIL]", "FAILED:", "Error:",
+                              "Traceback (most recent call last):")) or
+            "Can't include this header" in sline):
+          err_block.insert(0, sline)
+          if len(err_block) >= 20:
+            break
+        elif err_block:
+          err_block.insert(0, sline)
+          if len(err_block) >= 20:
+            break
+      if err_block:
+        return "\n".join(err_block)
+      tail_lines = [line.strip() for line in lines[-25:] if line.strip()]
+      return "\n".join(tail_lines)
+    except OSError:
+      pass
+  return "No recent failure records found."
 
 
 def print_banner(
@@ -83,8 +113,8 @@ def main():
   )
   parser.add_argument(
       "--model",
-      default=os.environ.get("GEMINI_MODEL", "gemini-3.7-flash"),
-      help="Default Gemini model (default: gemini-3.7-flash)",
+      default=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+      help="Default Gemini model (default: gemini-2.5-flash)",
   )
   parser.add_argument(
       "--mode",

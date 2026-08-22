@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """Base abstract class for AI-driven self-healing command resolvers.
 
 Provides the foundational execution loop, multi-turn filesystem tools,
@@ -8,6 +7,7 @@ shared by all rebase phases (gclient sync, gn gen, and autoninja).
 """
 
 import abc
+import collections
 import os
 import re
 import subprocess
@@ -16,7 +16,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
 from reasoning_engine import CobaltReasoningEngine
-from rebase_memory import load_past_experience, record_failure, record_successful_fix
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -116,26 +115,32 @@ def resolve_repo_file_path(raw_path: str, repo_path: str) -> str:
 def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   """Checks if a file is pure third-party source code without Cobalt changes."""
   rel = os.path.relpath(file_path, repo_path)
-  # GN build configs (*.gn, *.gni, *.star) are Chromium/Cobalt recipes
-  if rel.endswith((".gn", ".gni", ".star")):
-    return False
   if not rel.startswith("third_party/"):
     return False
-  # Cobalt/Starboard-specific files hosted under third_party
-  if "cobalt" in rel.lower() or "starboard" in rel.lower():
+  # Cobalt/Starboard-specific directories or files hosted under third_party
+  rel_lower = rel.lower()
+  if "cobalt" in rel_lower or "starboard" in rel_lower:
     return False
   try:
     with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-      content = f.read()
+      lines = f.readlines()
+    # Strip git conflict marker lines so commit messages don't trigger false
+    # positives
+    code_lines = [
+        l for l in lines
+        if not (l.startswith("<<<<<<<") or l.startswith(">>>>>>>") or
+                l.startswith("======="))
+    ]
+    content = "".join(code_lines)
     if any(
         m in content for m in (
             "BUILDFLAG(IS_COBALT)",
             "BUILDFLAG(USE_STARBOARD_MEDIA)",
-            "STARBOARD",
-            "Cobalt",
-            "Starboard",
+            "defined(STARBOARD)",
             "is_starboard",
             "is_cobalt",
+            "checkout_cobalt_internal",
+            "checkout_copybara",
         )):
       return False
   except OSError:
@@ -145,16 +150,33 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
 
 def apply_search_replace(file_path: str, search_block: str,
                          replace_block: str) -> bool:
-  """Applies a SEARCH/REPLACE block edit to a file."""
+  """Applies a SEARCH/REPLACE block edit to a file.
+
+  Note on Sanitization:
+    LLMs occasionally hallucinate git 3-way merge conflict syntax (`=======`,
+    `<<<<<<<`, `>>>>>>>`) inside replacement blocks when operating on flat
+    configuration files. We strip any accidental marker lines to prevent
+    polluting the codebase with orphan markers that break GN/compiler parsing.
+  """
   if not os.path.isfile(file_path):
     return False
+
+  # Sanitize replace_block against rogue conflict markers from model output
+  sanitized_lines = [
+      line for line in replace_block.splitlines()
+      if not line.startswith("=======") and not line.startswith("<<<<<<<") and
+      not line.startswith(">>>>>>>")
+  ]
+  clean_replace = "\n".join(sanitized_lines)
+  if replace_block.endswith("\n"):
+    clean_replace += "\n"
 
   with open(file_path, "r", encoding="utf-8", errors="replace") as f:
     content = f.read()
 
   # 1. Exact match
   if search_block in content:
-    new_content = content.replace(search_block, replace_block, 1)
+    new_content = content.replace(search_block, clean_replace, 1)
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(new_content)
     return True
@@ -162,25 +184,39 @@ def apply_search_replace(file_path: str, search_block: str,
   # 2. Whitespace-trimmed match
   s_stripped = search_block.strip()
   if s_stripped and s_stripped in content:
-    new_content = content.replace(s_stripped, replace_block.strip(), 1)
+    new_content = content.replace(s_stripped, clean_replace.strip(), 1)
     with open(file_path, "w", encoding="utf-8") as f:
       f.write(new_content)
     return True
 
+  c_lines = content.splitlines()
+
   # 3. Normalized line-by-line match
   s_lines = [line.strip() for line in search_block.splitlines() if line.strip()]
-  if not s_lines:
-    return False
+  if s_lines:
+    for i in range(len(c_lines) - len(s_lines) + 1):
+      window = [c_lines[i + j].strip() for j in range(len(s_lines))]
+      if window == s_lines:
+        new_lines = c_lines[:i] + clean_replace.splitlines(
+        ) + c_lines[i + len(s_lines):]
+        with open(file_path, "w", encoding="utf-8") as f:
+          f.write("\n".join(new_lines) + "\n")
+        return True
 
-  c_lines = content.splitlines()
-  for i in range(len(c_lines) - len(s_lines) + 1):
-    window = [c_lines[i + j].strip() for j in range(len(s_lines))]
-    if window == s_lines:
-      new_lines = c_lines[:i] + replace_block.splitlines(
-      ) + c_lines[i + len(s_lines):]
-      with open(file_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(new_lines) + "\n")
-      return True
+  # 4. Token-normalized & line-number stripped match (for auto-generated files)
+  def norm(l: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"^\s*\d+:\s*", "", l)).strip()
+
+  s_norm = [norm(l) for l in search_block.splitlines() if norm(l)]
+  if s_norm:
+    for i in range(len(c_lines) - len(s_norm) + 1):
+      window = [norm(c_lines[i + j]) for j in range(len(s_norm))]
+      if window == s_norm:
+        new_lines = c_lines[:i] + clean_replace.splitlines(
+        ) + c_lines[i + len(s_norm):]
+        with open(file_path, "w", encoding="utf-8") as f:
+          f.write("\n".join(new_lines) + "\n")
+        return True
 
   return False
 
@@ -201,10 +237,11 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
   if not os.path.isfile(file_path):
     return []
 
-  if is_unmodified_third_party(file_path, repo_path):
+  if (not file_path.endswith((".gn", ".gni", ".star")) and
+      is_unmodified_third_party(file_path, repo_path)):
     print(
-        f"  [GUARD] Rejecting unified diff on unmodified third-party file: "
-        f"{rel_file}. Patch the referencing BUILD.gn instead.",
+        f"  [GUARD] Rejecting unified diff on unmodified third-party source "
+        f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
         file=sys.stderr,
     )
     return []
@@ -259,11 +296,40 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
 
 
 def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
-  """Parses and dispatches AI patch responses (SEARCH/REPLACE or diffs)."""
+  """Parses and dispatches AI patch responses (SEARCH/REPLACE, DELETE, diffs).
+  """
   clean_text = patch_text.strip()
   clean_text = re.sub(r"^```[a-zA-Z0-9_-]*\n", "", clean_text)
   clean_text = re.sub(r"\n```$", "", clean_text)
 
+  # 1. Explicit DELETE block: <<<<<<< DELETE ... >>>>>>> DELETE
+  if "<<<<<<< DELETE" in clean_text and ">>>>>>> DELETE" in clean_text:
+    del_pattern = re.compile(
+        r"(?:FILE|Target File):\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
+        r"<<<<<<<\s*DELETE\n(.*?)\n>>>>>>>\s*DELETE",
+        re.DOTALL,
+    )
+    matches = del_pattern.findall(clean_text)
+    if matches:
+      modified_files = []
+      for rel_file, delete_b in matches:
+        target_file = resolve_repo_file_path(rel_file, repo_path)
+        if (not target_file.endswith((".gn", ".gni", ".star")) and
+            is_unmodified_third_party(target_file, repo_path)):
+          print(
+              f"  [GUARD] Rejecting DELETE on unmodified third-party source "
+              f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
+              file=sys.stderr,
+          )
+          return []
+        applied = apply_search_replace(target_file, delete_b, "")
+        if applied:
+          modified_files.append(target_file)
+        else:
+          return []
+      return modified_files
+
+  # 2. SEARCH / REPLACE format: <<<<<<< SEARCH ... ======= ... >>>>>>> REPLACE
   if "<<<<<<< SEARCH" in clean_text and "=======" in clean_text:
     sr_pattern = re.compile(
         r"(?:FILE|Target File):\s*([a-zA-Z0-9_/\.\-]+)\s*\n"
@@ -274,11 +340,26 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
     if matches:
       modified_files = []
       for rel_file, search_b, replace_b in matches:
-        target_file = resolve_repo_file_path(rel_file, repo_path)
-        if is_unmodified_third_party(target_file, repo_path):
+        if not replace_b.strip():
           print(
-              f"  [GUARD] Rejecting patch on unmodified third-party file: "
-              f"{rel_file}. Patch the referencing BUILD.gn instead.",
+              f"  [GUARD] Rejecting empty REPLACE block in {rel_file}. "
+              "Use <<<<<<< DELETE ... >>>>>>> DELETE for intentional removals.",
+              file=sys.stderr,
+          )
+          return []
+        if re.search(r"^(?:FILE|Target File):", replace_b, re.MULTILINE):
+          print(
+              f"  [GUARD] Rejecting malformed REPLACE block in {rel_file} "
+              "containing nested FILE directives.",
+              file=sys.stderr,
+          )
+          return []
+        target_file = resolve_repo_file_path(rel_file, repo_path)
+        if (not target_file.endswith((".gn", ".gni", ".star")) and
+            is_unmodified_third_party(target_file, repo_path)):
+          print(
+              f"  [GUARD] Rejecting patch on unmodified third-party source "
+              f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
               file=sys.stderr,
           )
           return []
@@ -399,6 +480,25 @@ def execute_local_tool(cmd: str, repo_path: str) -> str:
   return f"[ERROR] Unknown tool command: {clean_cmd}"
 
 
+def extract_build_progress(build_output: str, siso_output: str = "") -> str:
+  """Extracts step progress like [11465/39291] or [50222/50832]."""
+  combined = f"{build_output}\n{siso_output}"
+  matches = re.findall(r"\[\s*(\d+)\s*/\s*(\d+)\s*\]", combined)
+  if matches:
+    done_str, total_str = matches[-1]
+    done, total = int(done_str), int(total_str)
+    pct = (done / total * 100) if total > 0 else 0.0
+    return f"[{done}/{total}] ({pct:.1f}%)"
+
+  siso_matches = re.findall(r"Done:(\d+).*?Total:(\d+)", combined)
+  if siso_matches:
+    done_str, total_str = siso_matches[-1]
+    done, total = int(done_str), int(total_str)
+    pct = (done / total * 100) if total > 0 else 0.0
+    return f"[{done}/{total}] ({pct:.1f}%)"
+  return ""
+
+
 class BaseResolver(abc.ABC):
   """Abstract base class for all self-healing rebase command execution loops."""
 
@@ -414,7 +514,7 @@ class BaseResolver(abc.ABC):
     self.max_iterations = max_iterations
     self.on_patch_applied_fn = on_patch_applied_fn
     self.reasoning_engine = engine or CobaltReasoningEngine()
-    self.past_experience = load_past_experience()
+    self.file_error_counts: Dict[str, int] = collections.defaultdict(int)
 
   @property
   def model(self) -> str:
@@ -449,6 +549,30 @@ class BaseResolver(abc.ABC):
     if self.on_patch_applied_fn:
       self.on_patch_applied_fn(modified_files)
 
+  def check_and_clean_stray_marker(
+      self,
+      file_path: str,
+      target_line: Optional[int],
+  ) -> Optional[Tuple[str, str, str]]:
+    """Fast-path: Automatically removes stray git conflict marker lines."""
+    if not target_line or not os.path.isfile(file_path):
+      return None
+    try:
+      with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.readlines()
+      if 1 <= target_line <= len(lines):
+        err_line = lines[target_line - 1].strip()
+        if err_line.startswith(("=======", "<<<<<<<", ">>>>>>>")):
+          rel_f = os.path.relpath(file_path, self.repo_path)
+          clean_patch = (f"--- a/{rel_f}\n"
+                         f"+++ b/{rel_f}\n"
+                         f"@@ -{target_line},1 +{target_line},0 @@\n"
+                         f"-{lines[target_line - 1]}")
+          return clean_patch, "auto-stray-marker-cleaner", rel_f
+    except OSError:
+      pass
+    return None
+
   def execute_investigation_tools(
       self,
       initial_patch: str,
@@ -458,7 +582,7 @@ class BaseResolver(abc.ABC):
     """Runs multi-turn tool loop if model requested a TOOL_ command."""
     current_patch = initial_patch
     model_used = self.model
-    investigation_history: List[str] = []
+    history_records: List[Dict[str, Any]] = []
 
     for round_idx in range(1, max_rounds + 1):
       tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", current_patch.strip(),
@@ -473,12 +597,15 @@ class BaseResolver(abc.ABC):
           file=sys.stderr,
       )
       tool_output = execute_local_tool(tool_cmd, self.repo_path)
-      investigation_history.append(
-          f"### Tool Request: {tool_cmd}\n```\n{tool_output}\n```")
+      history_records.append({
+          "iteration": f"Tool-{round_idx}",
+          "file": tool_cmd,
+          "error": tool_output,
+      })
 
       patch_res, m_used, _ = self.resolve_diagnostic(
           diagnostic=diagnostic,
-          history_records=[],
+          history_records=history_records,
           use_pro=True,
       )
       current_patch = patch_res
@@ -507,6 +634,10 @@ class BaseResolver(abc.ABC):
         return True
 
       diagnostics = self.extract_diagnostics(output, siso_out)
+      progress_str = extract_build_progress(output, siso_out)
+      if progress_str:
+        print(f"[{self.name}] Build Progress: {progress_str}", file=sys.stderr)
+
       if not diagnostics:
         print(
             f"[{self.name}] [WARNING] Command failed but no structured "
@@ -517,25 +648,59 @@ class BaseResolver(abc.ABC):
 
       first_diag = diagnostics[0]
       diag_msg = getattr(first_diag, "error_message", str(first_diag))
+      diag_file = getattr(first_diag, "file_path", "")
+      diag_line = getattr(first_diag, "line_number", 0)
+      loc_str = ""
+      if diag_file:
+        try:
+          rel_f = os.path.relpath(diag_file, self.repo_path)
+          loc_str = f" in {rel_f}:{diag_line}"
+        except ValueError:
+          loc_str = f" in {diag_file}:{diag_line}"
+
       error_summary = diag_msg.strip().splitlines()[0] if diag_msg else ""
       print(
           f"[{self.name}] Detected {len(diagnostics)} error(s):\n"
-          f"  - Error: {error_summary}",
+          f"  - Error{loc_str}: {error_summary}",
           file=sys.stderr,
       )
+      if raw_snip := getattr(first_diag, "raw_snippet", ""):
+        snippet_lines = raw_snip.strip().splitlines()[:5]
+        print(
+            "  [Compiler Snippet]:\n    " + "\n    ".join(snippet_lines),
+            file=sys.stderr,
+        )
+
+      # Track per-file error counts across build run and across iterations
+      file_diag_counts: Dict[str, int] = collections.defaultdict(int)
+      for d in diagnostics:
+        f_path = getattr(d, "file_path", "")
+        if f_path:
+          file_diag_counts[f_path] += 1
+
+      target_f = getattr(first_diag, "file_path", "")
+      if target_f:
+        self.file_error_counts[target_f] += 1
+
+      hit_multi_errors = (
+          self.file_error_counts.get(target_f, 0) >= 3 or
+          file_diag_counts.get(target_f, 0) >= 3)
 
       # Repetition check -> escalate to Pro model
-      if error_summary == last_error_summary:
+      if (error_summary == last_error_summary or
+          self.file_error_counts.get(target_f, 0) >= 2):
         stuck_count += 1
       else:
         stuck_count = 0
       last_error_summary = error_summary
 
-      use_pro = stuck_count >= 1
+      use_pro = stuck_count >= 1 or hit_multi_errors
       if use_pro:
+        reason = (f"file hit {self.file_error_counts.get(target_f, 0)} errors"
+                  if hit_multi_errors else f"repetition count: {stuck_count}")
         print(
-            f"  [{self.name}] [PRO_REASONING] Repeated error detected "
-            f"(count: {stuck_count}). Escalating to Pro model...",
+            f"  [{self.name}] [PRO_REASONING] Escalating to Pro model "
+            f"({reason})...",
             file=sys.stderr,
         )
 
@@ -557,13 +722,6 @@ class BaseResolver(abc.ABC):
             f"[{self.name}] [FAIL] Model returned empty patch.",
             file=sys.stderr,
         )
-        record_failure(
-            phase=self.name,
-            target=rel_target or "unknown",
-            error_message=error_summary,
-            attempt_num=iteration,
-            details=output[:2000],
-        )
         continue
 
       print(
@@ -580,13 +738,10 @@ class BaseResolver(abc.ABC):
             file=sys.stderr,
         )
         self.on_patch_applied(modified_files)
-        record_successful_fix(
-            category=self.name,
+        self.reasoning_engine.record_successful_fix(
+            issue_description=error_summary,
+            solution_diff=patch,
             target_file=rel_target,
-            error_signature=error_summary,
-            fix_summary=(
-                f"Resolved on iteration {iteration}/{self.max_iterations}"),
-            solution_snippet=patch,
         )
         history_records.append({
             "iteration": iteration,
@@ -599,13 +754,15 @@ class BaseResolver(abc.ABC):
             f"[{self.name}] [FAIL] Could not apply patch to {rel_target}.",
             file=sys.stderr,
         )
-        record_failure(
-            phase=self.name,
-            target=rel_target or "unknown",
-            error_message=error_summary,
-            attempt_num=iteration,
-            details=output[:2000],
-        )
+        history_records.append({
+            "iteration": iteration,
+            "file": rel_target,
+            "error": (
+                f"Patch failed to apply to {rel_target}. Ensure <<<<<<< SEARCH "
+                "matches exact file lines and >>>>>>> REPLACE contains clean "
+                "code without stray conflict markers."),
+            "status": "FAILED_TO_APPLY",
+        })
 
     print(
         f"[{self.name}] [FAIL] Exhausted maximum iterations "

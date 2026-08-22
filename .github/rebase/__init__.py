@@ -1,5 +1,4 @@
 """Cobalt Rebase Automation Package.
-# pylint: disable=duplicate-code
 
 Contains tools and agents for automated Chromium rebase, conflict resolution,
 and self-healing compiler/sync feedback loops.

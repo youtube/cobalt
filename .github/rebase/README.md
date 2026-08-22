@@ -43,10 +43,9 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
                                      |
                                      v
 +-----------------------------------------------------------------------------+
-| Phase 5: Knowledge Bank Sync & Report Generation (rebase_memory.py)         |
-|   - Records working code patches to out/memory/knowledge_bank.json          |
-|   - Uploads knowledge bank to Google Cloud Storage (GCS) if configured      |
-|   - Generates final execution summary in results/M140_rebase_summary.md     |
+| Phase 5: Comprehensive Report Generation (M140_rebase_summary.md)           |
+|   - Generates final execution metrics and verification summary              |
+|   - Deployed Reasoning Engine maintains GCS knowledge memory server-side   |
 +-----------------------------------------------------------------------------+
 ```
 
@@ -62,14 +61,14 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 ├── gclient_sync.py        # [PHASE 2] GClientSyncResolver library (toolchain sync)
 ├── gn_gen.py              # [PHASE 3] GNGenResolver library (GN build verification)
 ├── autoninja.py           # [PHASE 4] AutoninjaResolver library (compiler feedback loop)
-├── rebase_memory.py       # [PHASE 5] GCS long-term knowledge bank & metrics
 ├── run_rebase_pipeline.py # [ORCHESTRATOR] Clean orchestrator managing Phase 1-5 execution
 ├── token_usage.py         # Token tracking and cost metrics
 ├── test_rebase_suite.py   # Comprehensive unit test suite
 │
 └── reasoning_engine/      # [DEPLOYED TO VERTEX AI]
-    ├── engine.py          # CobaltReasoningEngine service definition
+    ├── engine.py          # CobaltReasoningEngine service & native GCS memory bank
     ├── deploy.py          # Vertex AI deployment & lifecycle CLI
+    ├── chat.py            # Interactive terminal debugger
     └── skills/            # Declarative domain instructions (Markdown)
         ├── cobalt_rebase.md       # Master guidelines & behavior preservation
         ├── compiler_healing.md    # Compiler & linker break repair heuristics
@@ -215,15 +214,17 @@ Rebase heuristics and error patterns are maintained in declarative Markdown file
 
 ---
 
-## 6. Long-Term Knowledge Bank & GCS Sync
+## 6. Long-Term Knowledge Bank & Server-Side GCS Memory
 
-Verified fixes are recorded in `out/memory/knowledge_bank.json` and fed into future Gemini prompts as few-shot working examples.
+The Reasoning Engine natively manages the knowledge memory bank on Google Cloud Storage (`gs://<bucket>/rebase_memory/knowledge_bank.json`).
+* **Zero Client Setup**: Rebase workers and Cloudtop instances do not need to pull or manage memory files locally.
+* **Auto-Retrieval**: When diagnosing errors, the Reasoning Engine automatically queries its cloud memory bank and injects relevant past lessons into prompts.
+* **Real-time Synchronization**: When an AI fix is verified and passes compilation, `CobaltReasoningEngine` records the resolution directly into GCS in real-time.
 
-To persist the knowledge bank across ephemeral build machines via GCS:
+Configure your GCS bucket URI (or set default `$GCS_MEMORY_URI`):
 ```bash
 export GCS_MEMORY_URI="gs://your-bucket-name/rebase_memory/knowledge_bank.json"
 ```
-The pipeline automatically **pulls** existing memory at startup and **pushes** new fixes upon completion using the native `google-cloud-storage` client library.
 
 ---
 

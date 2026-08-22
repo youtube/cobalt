@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# pylint: disable=duplicate-code
 """AI-driven gclient sync and toolchain self-healing resolver library.
 
 Provides GClientSyncResolver, which executes `gclient sync -D`, automatically

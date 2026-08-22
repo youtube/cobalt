@@ -10,6 +10,15 @@ If you need to inspect files or locate relocated sources, output a single tool c
 - `TOOL_GREP: <symbol_or_target>` (e.g. `TOOL_GREP: gles2_cmd_utils.h`)
 - `TOOL_GIT_SHOW: <commit>:<path>` (e.g. `TOOL_GIT_SHOW: HEAD:gpu/command_buffer/service/BUILD.gn`)
 
+### Upstream Differential Analysis Protocol:
+When a target definition in `BUILD.gn` fails or is suspected of merge/rebase anomalies:
+1. Always inspect how upstream Chromium structured the target in the new milestone using `TOOL_GIT_SHOW: <upstream_commit_or_HEAD^2>:<path>` or `TOOL_READ_FILE: <path>`.
+2. Compare upstream's clean target definitions against the local rebased file to identify:
+   - Target type changes (e.g. `source_set` converted to `component` or `static_library`).
+   - Obsolete wrapper targets that were deleted upstream (e.g. removed circular dependency shims).
+   - Upstream visibility lists (`visibility = [ "//build/config/<package>:*" ]`).
+3. Apply upstream's canonical target structure as the baseline, grafting ONLY the necessary Starboard/Cobalt runtime extensions (e.g. `if (is_starboard) { deps += [ ... ]; defines += [ ... ] }`) inside the target body.
+
 ## Core Healing Rules
 1. SOURCE FILE NOT FOUND (M140 Relocations):
    - In M140, many source files were reorganized into subdirectories or sub-targets (e.g. `shared_image/*`).
@@ -26,11 +35,24 @@ If you need to inspect files or locate relocated sources, output a single tool c
    - Do NOT delete or modify args inside `third_party/` packages.
    - Look at the caller file listed in "whence it was imported" (e.g. `skia/BUILD.gn`).
    - Remove or replace the erroneous `import("//third_party/.../skia.gni")` in the caller file with the standard Chromium config import (e.g. `import("//build/config/freetype/freetype.gni")`).
-5. STRICT OUTPUT:
-   - When returning the fix, output ONLY standard SEARCH / REPLACE blocks:
-     FILE: <relative_filepath>
-     <<<<<<< SEARCH
-     <exact lines to replace>
-     =======
-     <fixed replacement lines>
-     >>>>>>> REPLACE
+5. COMPONENT DEFINITIONS & PLATFORM GUARDS:
+   - Component / library targets expected by other build configurations (e.g. `component("foo")` or `static_library("foo")`) must be defined unconditionally for all platforms.
+   - Do NOT wrap entire target definitions inside an `else` branch of a platform check (e.g. `if (is_starboard) ... else component(...)`); instead, define the target unconditionally and place platform-specific configs, defines, or deps (`if (is_starboard) { ... }`) directly inside the target body.
+   - Do NOT create intermediate property scopes/dictionaries (e.g. `_foo_common_props = { ... }`). In GN, scopes do not inherit default toolchain configs, so assigning `configs` in a scope breaks target architecture flags or causes `Item not found` / `Item type does not match`. Define the target (`component("foo") { ... }`) directly with its `sources`, `configs -= [...]`, and `configs += [...]`.
+   - Ensure `visibility` includes the standard configuration wrapper (e.g. `visibility = [ "//build/config/foo:foo" ]`) rather than obsolete targets (like `//third_party:freetype_harfbuzz`).
+   - Do NOT add non-existent, hallucinated targets to `deps`.
+6. STRICT OUTPUT:
+   - When returning the fix, output ONLY standard SEARCH / REPLACE or DELETE blocks:
+     * For replacements:
+       FILE: <relative_filepath>
+       <<<<<<< SEARCH
+       <exact lines to replace>
+       =======
+       <fixed replacement lines>
+       >>>>>>> REPLACE
+
+     * For deletions (e.g. removing obsolete flags):
+       FILE: <relative_filepath>
+       <<<<<<< DELETE
+       <exact lines to delete>
+       >>>>>>> DELETE
