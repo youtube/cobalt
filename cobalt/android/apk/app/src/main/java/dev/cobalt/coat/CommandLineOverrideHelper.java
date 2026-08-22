@@ -76,8 +76,6 @@ public final class CommandLineOverrideHelper {
     }
     // Hide scrollbars to avoid memory allocation.
     paramOverrides.add("--hide-scrollbars");
-    // Force GPU memory available to 64MB.
-    paramOverrides.add("--force-gpu-mem-available-mb=64");
 
     return paramOverrides;
   }
@@ -87,8 +85,6 @@ public final class CommandLineOverrideHelper {
 
     // Trades a little V8 performance for significant memory savings.
     paramOverrides.add("--optimize-for-size");
-    // Set max old space size to 512MB.
-    paramOverrides.add("--max-old-space-size=512");
 
     // Disable decommitting pooled pages to prevent virtual memory fragmentation.
     paramOverrides.add("--no-decommit-pooled-pages");
