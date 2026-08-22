@@ -38,8 +38,6 @@ static_library("user_agent") {
     ]
   }
 
-  deps = []
-
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   }
