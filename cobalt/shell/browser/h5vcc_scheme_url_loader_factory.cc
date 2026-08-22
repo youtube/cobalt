@@ -25,6 +25,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/types/expected.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
@@ -309,9 +310,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
   void OnCacheMatched(const std::string& cache_name,
-                      blink::mojom::MatchResultPtr result) {
-    if (!result->is_response()) {
-      const auto status = result->get_status();
+                      base::expected<blink::mojom::MatchResponsePtr,
+                                     blink::mojom::CacheStorageError> result) {
+    if (!result.has_value()) {
+      const auto status = result.error();
       SplashScreenFetchedState state =
           SplashScreenFetchedState::kErrorOnReadCache;
       // If the cache entry is not found, or the splash cache is not found in
@@ -327,8 +329,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
               cache_name.c_str(), static_cast<int>(status)),
           state);
     }
+
+    blink::mojom::MatchResponsePtr match_response = std::move(result).value();
+    if (!match_response->is_response()) {
+      return DisconnectCacheAndSendFallback(
+          base::StringPrintf(
+              "Unexpected response type from cache %s. Fallback to builtin.",
+              cache_name.c_str()),
+          SplashScreenFetchedState::kErrorOnReadCache);
+    }
+
     LOG(INFO) << "Found splash video in cache: " << cache_name;
-    auto& response = result->get_response();
+    auto& response = match_response->get_response();
     if (!response->blob || response->blob->size == 0) {
       return DisconnectCacheAndSendFallback(
           base::StringPrintf(

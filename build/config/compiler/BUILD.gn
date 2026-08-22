@@ -2813,15 +2813,6 @@ config("optimize_max") {
 # TODO(crbug.com/41259697) - rework how all of these configs are related
 # so that we don't need this disclaimer.
 config("optimize_speed") {
-<<<<<<< HEAD
-  ldflags = common_optimize_on_ldflags
-  if (is_win) {
-    # Favor speed over size, /O2 must be before the common flags.
-    # /O2 implies /Ot, /Oi, and /GF.
-    cflags = [ "/O2" ] + common_optimize_on_cflags
-    if (is_clang) {
-      cflags += [ "/clang:-O3" ]
-=======
   if (is_nacl && is_nacl_irt) {
     # The NaCl IRT is a special case and always wants its own config.
     # Various components do:
@@ -2849,12 +2840,7 @@ config("optimize_speed") {
       } else {
         cflags = [ "-O3" ] + common_optimize_on_cflags
       }
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
-  } else if (optimize_for_fuzzing) {
-    cflags = [ "-O1" ] + common_optimize_on_cflags
-  } else {
-    cflags = [ "-O3" ] + common_optimize_on_cflags
   }
   rustflags = [ "-Copt-level=3" ]
 }
@@ -2869,16 +2855,11 @@ config("optimize_fuzzing") {
 # The default optimization applied to all targets. This will be equivalent to
 # either "optimize" or "no_optimize", depending on the build flags.
 config("default_optimization") {
-<<<<<<< HEAD
-  if (is_debug) {
-=======
   if (is_nacl && is_nacl_irt) {
     # The NaCl IRT is a special case and always wants its own config.
     # It gets optimized the same way regardless of the type of build.
     configs = [ "//build/config/nacl:irt_optimize" ]
-  } else if (is_debug || is_cobalt && cobalt_debugging_enabled) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    configs = [ ":no_optimize" ]
+  } else if (is_debug || (is_cobalt && cobalt_debugging_enabled)) {    configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")
 

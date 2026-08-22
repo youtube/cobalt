@@ -285,6 +285,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             false, // Do not start a separate GPU process
             // TODO(b/377025565): Figure out what this means
             false, // Do not start in "minimal" or paused mode
+            false, // singleProcess - Cobalt typically runs as a single process
+            false, // scheduleFlushStartupTasks - Preserve existing behavior
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
@@ -513,8 +515,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       try {
         matcher.setRuleList(new ArrayList<String>());
         Log.d(
-              TAG,
-              "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+            TAG,
+            "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
         javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
             javascriptAndroidObject,
             javascriptAndroidObject.getJavaScriptInterfaceName(),

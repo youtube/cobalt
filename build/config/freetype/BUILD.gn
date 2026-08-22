@@ -12,3 +12,13 @@ group("freetype") {
     public_deps = [ "//third_party/freetype" ]
   }
 }
+
+# This config is applied to targets that depend on FreeType.
+config("freetype_target_config") {
+  defines = []
+  if (use_system_freetype) {
+    # When using system freetype, we need to define FT_CONFIG_OPTION_SYSTEM_ZLIB
+    # to make freetype use system zlib.
+    defines += [ "FT_CONFIG_OPTION_SYSTEM_ZLIB" ]
+  }
+}

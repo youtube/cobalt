@@ -160,12 +160,7 @@ source_set("impl_for_embedder") {
       "channel_posix.h",
     ]
 
-<<<<<<< HEAD
-    if (is_linux || is_chromeos || is_android) {
-=======
-    if ((is_linux || is_chromeos || is_android) && !is_nacl && !is_starboard) {
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-      sources += [
+    if ((is_linux || is_chromeos || is_android) && !is_nacl) {      sources += [
         "channel_linux.cc",
         "channel_linux.h",
       ]

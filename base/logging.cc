@@ -122,13 +122,10 @@ typedef FILE* FileHandle;
 #include "base/fuchsia/scoped_fx_logger.h"
 #endif
 
-<<<<<<< HEAD
-=======
 #if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
 #include "base/logging/rust_logger.rs.h"
-#endif
+#endif  // !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
 
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace logging {
 
 namespace {
@@ -566,12 +563,9 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   }
 #endif
 
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // Connects Rust logging with the //base logging functionality.
+#if !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))  // Connects Rust logging with the //base logging functionality.
   internal::init_rust_log_crate();
+#endif  // !BUILDFLAG(IS_NACL) && (!BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC))
 
   // Ignore file options unless logging to file is set.
   if ((g_logging_destination & LOG_TO_FILE) == 0) {

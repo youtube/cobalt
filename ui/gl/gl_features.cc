@@ -191,9 +191,6 @@ bool UsePassthroughCommandDecoder() {
           build_info->android_build_fp(),
           kPassthroughCommandDecoderBlockListByAndroidBuildFP.Get()))
     return false;
-<<<<<<< HEAD
-=======
-
   // Only check system info once and cache if the vendor is blocked.
   static std::optional<bool> gpu_vendor_blocked;
   if (!gpu_vendor_blocked.has_value()) {
@@ -224,11 +221,10 @@ bool UsePassthroughCommandDecoder() {
       base::MatchPattern(build_info->model(), "SHIELD*"))
     return false;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of e893a2487be (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return true;
-#endif  // defined(PASSTHROUGH_COMMAND_DECODER_LAUNCHED)
+#endif  // !BUILDFLAG(ENABLE_VALIDATING_COMMAND_DECODER)
 }
 
 #if DCHECK_IS_ON()

@@ -675,7 +675,8 @@ void LocalStorageImpl::OnDatabaseOpened(DbStatus status) {
     // database, or ultimately fallback to an in-memory database.
 #if BUILDFLAG(IS_COBALT)
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseOpenError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::GetLevelDBStatusUMAValue(
+                                      ToLevelDBStatus(status)),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
     DeleteAndRecreateDatabase();
@@ -715,7 +716,8 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
         db_version > kCurrentLocalStorageSchemaVersion) {
 #if BUILDFLAG(IS_COBALT)
       base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseVersionMismatch",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::GetLevelDBStatusUMAValue(
+                                      ToLevelDBStatus(status)),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
       DeleteAndRecreateDatabase();
@@ -727,7 +729,8 @@ void LocalStorageImpl::OnGotDatabaseVersion(DbStatus status,
     // Other read error. Possibly database corruption.
 #if BUILDFLAG(IS_COBALT)
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseReadError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::GetLevelDBStatusUMAValue(
+                                      ToLevelDBStatus(status)),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
     DeleteAndRecreateDatabase();
@@ -987,7 +990,7 @@ void LocalStorageImpl::OnCommitResult(DbStatus status) {
     // will have been deleted before the commit finishes.
 #if BUILDFLAG(IS_COBALT)
     base::UmaHistogramEnumeration("Cobalt.LocalStorage.DatabaseCommitError",
-                                  leveldb_env::GetLevelDBStatusUMAValue(status),
+                                  leveldb_env::GetLevelDBStatusUMAValue(ToLevelDBStatus(status)),
                                   leveldb_env::LEVELDB_STATUS_MAX);
 #endif
     DeleteAndRecreateDatabase();
