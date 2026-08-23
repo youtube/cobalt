@@ -47,7 +47,6 @@ class InstallTest(unittest.TestCase):
                   encoding='utf-8') as f:
             f.write('{"name": "sample_server_2", "version": "2.0.0"}')
 
-<<<<<<< HEAD
         self.internal_mcp_dir = Path(
             self.tmpdir) / 'internal' / 'agents' / 'extensions'
         self.internal_mcp_dir.mkdir(parents=True)
@@ -58,8 +57,6 @@ class InstallTest(unittest.TestCase):
                   encoding='utf-8') as f:
             f.write('{"name": "sample_server_3", "version": "3.0.0"}')
 
-=======
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     def tearDown(self):
         """Tears down the test environment."""
         shutil.rmtree(self.tmpdir)
@@ -76,7 +73,6 @@ class InstallTest(unittest.TestCase):
         hash3 = install.get_dir_hash(self.server1_dir)
         self.assertNotEqual(hash1, hash3)
 
-<<<<<<< HEAD
     def test_find_mcp_dir_for_server(self):
         """Tests the find_mcp_dir_for_server function."""
         mcp_dirs = [self.mcp_dir, self.internal_mcp_dir]
@@ -99,8 +95,6 @@ class InstallTest(unittest.TestCase):
         self.assertIn(self.mcp_dir, mcp_dirs)
         self.assertIn(self.internal_mcp_dir, mcp_dirs)
 
-=======
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     @patch('subprocess.check_output', side_effect=FileNotFoundError)
     def test_get_dir_hash_fallback(self, mock_check_output):
         """Tests the get_dir_hash function's fallback mechanism."""
@@ -169,7 +163,6 @@ class InstallTest(unittest.TestCase):
 
     @patch('install.get_extension_dir')
     @patch('install.add_server')
-<<<<<<< HEAD
     @patch('install.find_mcp_dir_for_server')
     def test_main_add_global(self, mock_find_mcp, mock_add_server,
                              mock_get_extension_dir):
@@ -179,23 +172,12 @@ class InstallTest(unittest.TestCase):
         with patch('sys.argv', ['install.py', 'add', '-g', 'sample_server_1']):
             with patch('install.get_mcp_dirs', return_value=[self.mcp_dir]):
                 install.main()
-=======
-    @patch('pathlib.Path.resolve')
-    def test_main_add_global(self, mock_resolve, mock_add_server,
-                             mock_get_extension_dir):
-        """Tests the main function with the add command and --global flag."""
-        mock_resolve.return_value = self.mcp_dir
-        mock_get_extension_dir.return_value = self.global_extension_dir
-        with patch('sys.argv', ['install.py', 'add', '-g', 'sample_server_1']):
-            install.main()
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         mock_add_server.assert_called_once_with('sample_server_1',
                                                 self.mcp_dir,
                                                 self.global_extension_dir)
 
     @patch('install.update_server')
     @patch('install.get_installed_servers', return_value=['sample_server_1'])
-<<<<<<< HEAD
     @patch('install.find_mcp_dir_for_server')
     def test_main_update_all(self, mock_find_mcp, mock_get_installed,
                              mock_update_server):
@@ -216,26 +198,6 @@ class InstallTest(unittest.TestCase):
                 install.main()
         self.assertIn("Error: Server 'invalid_server' not found",
                       mock_stderr.getvalue())
-=======
-    @patch('pathlib.Path.resolve')
-    def test_main_update_all(self, mock_resolve, mock_get_installed,
-                             mock_update_server):
-        """Tests the main function with the update command and no servers."""
-        mock_resolve.return_value = self.mcp_dir
-        with patch('sys.argv', ['install.py', 'update']):
-            install.main()
-            mock_update_server.assert_called_once()
-
-    @patch('sys.stderr', new_callable=io.StringIO)
-    @patch('pathlib.Path.resolve')
-    def test_main_invalid_server(self, mock_resolve, mock_stderr):
-        """Tests that main handles invalid server names gracefully."""
-        mock_resolve.return_value = self.mcp_dir
-        with patch('sys.argv', ['install.py', 'add', 'invalid_server']):
-            install.main()
-            self.assertIn("Error: Server 'invalid_server' not found",
-                          mock_stderr.getvalue())
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 
 if __name__ == '__main__':
