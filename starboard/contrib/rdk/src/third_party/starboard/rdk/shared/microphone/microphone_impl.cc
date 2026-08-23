@@ -29,7 +29,7 @@ namespace {
 
 const SbMicrophoneId kMicrophoneId = reinterpret_cast<SbMicrophoneId>(1);
 const int kSampleRateInHz = 16000;
-const int kMinReadSizeBytes = 320;
+const int kMinReadSizeBytes = 256;
 const char kMicrophoneLabel[] = "RDK Microphone";
 const char logtag[] = "sbMicImpl";
 class SbMicrophoneImpl : public SbMicrophonePrivate {
