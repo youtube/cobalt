@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
+import org.chromium.base.BuildInfo;
 
 /** Defines the constant names for feature switches used in Kimono. */
 public class JavaSwitches {
@@ -186,7 +187,7 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--force-gpu-mem-available-mb="
               + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
-    } else {
+    } else if (!"arm64".equals(BuildInfo.getArch())) {
       extraCommandLineArgs.add("--force-gpu-mem-available-mb=64");
     }
 
