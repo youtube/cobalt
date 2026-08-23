@@ -14,6 +14,8 @@
 
 #include "ui/events/keycodes/keyboard_code_conversion_starboard.h"
 
+#include "build/buildflag.h"
+
 namespace ui {
 
 DomCode SbKeyToDomCode(SbKey sb_key) {
@@ -1334,8 +1336,13 @@ KeyboardCode SbKeyToKeyboardCode(SbKey sb_key) {
       return VKEY_NEXT;
     case kSbKeySubtitle:
       return VKEY_SUBTITLES;
+#if BUILDFLAG(IS_COBALT)
+    case kSbKeyMicrophone:
+      return VKEY_MICROPHONE;
+#else
     case kSbKeyMicrophone:
       return VKEY_MICROPHONE_MUTE_TOGGLE;
+#endif
     case kSbKeyGamepadDPadUp:
       return VKEY_UP;
     case kSbKeyGamepadDPadDown:
