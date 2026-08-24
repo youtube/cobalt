@@ -72,6 +72,7 @@ class SbPlayerBridge {
     uint64_t* audio_bytes_decoded;
     uint64_t* video_bytes_decoded;
     base::TimeDelta* media_time;
+    base::TimeDelta* duration;
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
@@ -147,7 +148,6 @@ class SbPlayerBridge {
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,
                                       base::TimeDelta* buffer_length_time);
   void GetVideoResolution(int* frame_width, int* frame_height);
-  base::TimeDelta GetDuration();
   base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
