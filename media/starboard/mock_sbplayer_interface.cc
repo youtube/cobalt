@@ -16,8 +16,43 @@
 
 namespace media {
 
-MockSbPlayerInterface::MockSbPlayerInterface() = default;
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::Return;
+
+MockSbPlayerInterface::MockSbPlayerInterface() {
+  SetupDefaultExpectations();
+}
 
 MockSbPlayerInterface::~MockSbPlayerInterface() = default;
+
+void MockSbPlayerInterface::SetupDefaultExpectations() {
+  ON_CALL(*this, GetPreferredOutputMode(_))
+      .WillByDefault(Return(kSbPlayerOutputModePunchOut));
+  ON_CALL(*this, Destroy(_)).WillByDefault(Invoke([](SbPlayer player) {
+    if (player) {
+      delete reinterpret_cast<MockSbPlayer*>(player);
+    }
+  }));
+  ON_CALL(*this, GetMaximumNumberOfSamplesPerWrite(_, _))
+      .WillByDefault(Return(1));
+  ON_CALL(*this, SetPlaybackRate(_, _)).WillByDefault(Return(true));
+  ON_CALL(*this, SetVolume(_, _)).WillByDefault(Return());
+  ON_CALL(*this, GetCurrentFrame(_))
+      .WillByDefault(Return(kSbDecodeTargetInvalid));
+#if BUILDFLAG(IS_IOS_TVOS)
+  ON_CALL(*this, GetUrlPlayerOutputModeSupported(_))
+      .WillByDefault(Return(true));
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  ON_CALL(*this, GetAudioConfiguration(_, _, _))
+      .WillByDefault(
+          Invoke([](SbPlayer /*player*/, int /*index*/,
+                    SbMediaAudioConfiguration* out_audio_configuration) {
+            if (out_audio_configuration) {
+              *out_audio_configuration = {};
+            }
+            return true;
+          }));
+}
 
 }  // namespace media

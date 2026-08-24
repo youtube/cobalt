@@ -133,7 +133,7 @@ class StarboardRendererTest : public testing::Test {
   NiceMock<MockMediaResource> media_resource_;
   NiceMock<MockRendererClient> renderer_client_;
   std::vector<std::unique_ptr<StrictMock<MockDemuxerStream>>> streams_;
-  StrictMock<MockSbPlayerInterface> mock_sbplayer_interface_;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface_;
   ScopedSbPlayerInterfaceForTesting scoped_sbplayer_interface_{
       &mock_sbplayer_interface_};
   SbPlayerDecoderStatusFunc decoder_status_cb_ = nullptr;

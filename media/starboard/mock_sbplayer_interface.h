@@ -40,6 +40,8 @@ class MockSbPlayerInterface : public SbPlayerInterface {
   MockSbPlayerInterface();
   ~MockSbPlayerInterface() override;
 
+  void SetupDefaultExpectations();
+
   MOCK_METHOD(SbPlayer,
               Create,
               (SbWindow,
@@ -51,34 +53,26 @@ class MockSbPlayerInterface : public SbPlayerInterface {
                void*,
                SbDecodeTargetGraphicsContextProvider*),
               (override));
-  SbPlayerOutputMode GetPreferredOutputMode(
-      const SbPlayerCreationParam* /*creation_param*/) override {
-    return kSbPlayerOutputModePunchOut;
-  }
-  void Destroy(SbPlayer player) override {
-    if (player) {
-      delete reinterpret_cast<MockSbPlayer*>(player);
-    }
-  }
+  MOCK_METHOD(SbPlayerOutputMode,
+              GetPreferredOutputMode,
+              (const SbPlayerCreationParam*),
+              (override));
+  MOCK_METHOD(void, Destroy, (SbPlayer), (override));
   MOCK_METHOD(void, Seek, (SbPlayer, base::TimeDelta, int), (override));
   MOCK_METHOD(void,
               WriteSamples,
               (SbPlayer, SbMediaType, const SbPlayerSampleInfo*, int),
               (override));
-  int GetMaximumNumberOfSamplesPerWrite(SbPlayer /*player*/,
-                                        SbMediaType /*sample_type*/) override {
-    return 1;
-  }
+  MOCK_METHOD(int,
+              GetMaximumNumberOfSamplesPerWrite,
+              (SbPlayer, SbMediaType),
+              (override));
   MOCK_METHOD(void, WriteEndOfStream, (SbPlayer, SbMediaType), (override));
   MOCK_METHOD(void, SetBounds, (SbPlayer, int, int, int, int, int), (override));
-  bool SetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) override {
-    return true;
-  }
-  void SetVolume(SbPlayer /*player*/, double /*volume*/) override {}
+  MOCK_METHOD(bool, SetPlaybackRate, (SbPlayer, double), (override));
+  MOCK_METHOD(void, SetVolume, (SbPlayer, double), (override));
   MOCK_METHOD(void, GetInfo, (SbPlayer, SbPlayerInfo*), (override));
-  SbDecodeTarget GetCurrentFrame(SbPlayer /*player*/) override {
-    return kSbDecodeTargetInvalid;
-  }
+  MOCK_METHOD(SbDecodeTarget, GetCurrentFrame, (SbPlayer), (override));
 
 #if BUILDFLAG(IS_IOS_TVOS)
   MOCK_METHOD(SbPlayer,
@@ -91,25 +85,20 @@ class MockSbPlayerInterface : public SbPlayerInterface {
                void*),
               (override));
   MOCK_METHOD(void, SetUrlPlayerDrmSystem, (SbPlayer, SbDrmSystem), (override));
-  bool GetUrlPlayerOutputModeSupported(
-      SbPlayerOutputMode /*output_mode*/) override {
-    return true;
-  }
+  MOCK_METHOD(bool,
+              GetUrlPlayerOutputModeSupported,
+              (SbPlayerOutputMode),
+              (override));
   MOCK_METHOD(void,
               GetUrlPlayerExtraInfo,
               (SbPlayer, SbUrlPlayerExtraInfo*),
               (override));
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
-  bool GetAudioConfiguration(
-      SbPlayer /*player*/,
-      int /*index*/,
-      SbMediaAudioConfiguration* out_audio_configuration) override {
-    if (out_audio_configuration) {
-      *out_audio_configuration = {};
-    }
-    return true;
-  }
+  MOCK_METHOD(bool,
+              GetAudioConfiguration,
+              (SbPlayer, int, SbMediaAudioConfiguration*),
+              (override));
 };
 
 }  // namespace media
