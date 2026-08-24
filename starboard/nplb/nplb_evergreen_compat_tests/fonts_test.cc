@@ -26,10 +26,6 @@
 #error These tests apply only to EVERGREEN_COMPATIBLE platforms.
 #endif
 
-#if defined(ANDROID)
-#error These tests are not applicable to AOSP
-#endif
-
 namespace nplb {
 
 namespace {
