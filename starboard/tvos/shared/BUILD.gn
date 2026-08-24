@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/buildflags.gni")
 import("//starboard/shared/starboard/player/buildfiles.gni")
 
 if (is_internal_build) {
@@ -245,5 +246,9 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/drm_update_session.cc",
       "media/drm_system_platform.mm",
     ]
+  }
+
+  if (use_starboard_media) {
+    defines = [ "USE_STARBOARD_MEDIA" ]
   }
 }
