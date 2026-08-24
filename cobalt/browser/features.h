@@ -19,6 +19,7 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/time/time.h"
 
 namespace cobalt {
 namespace features {
@@ -31,6 +32,13 @@ extern const base::Feature kTestFinchFeature;
 
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
+
+// Enables emitting the Finch token in the User-Agent string for experiment
+// verification.
+extern const base::Feature kEnableUserAgentFinchToken;
+
+// Token value to emit in the User-Agent string.
+extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
 
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
@@ -67,6 +75,15 @@ extern const base::Feature kForceVideoSplashScreen;
 
 // Enables video Picture-in-Picture support.
 extern const base::Feature kEnablePictureInPicture;
+
+// Enables native memory ablation study to verify Finch and memory metrics.
+extern const base::Feature kCobaltNativeMemoryAblation;
+
+// Memory ablation size to allocate in Megabytes (default: 0).
+extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
+
+// Delay before performing memory ablation (default: 0s).
+extern const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam;
 
 }  // namespace features
 }  // namespace cobalt

@@ -14,6 +14,8 @@
 
 import("//build/config/android/rules.gni")
 import("//cobalt/android/manifest.gni")
+import("//starboard/content/fonts/variables.gni")
+import("//starboard/content/ssl/certs.gni")
 
 template("modular_apk") {
   _name = invoker.module_name
@@ -30,22 +32,39 @@ template("modular_apk") {
     forward_variables_from(invoker, [ "testonly" ])
     disable_compression = true
 
-    renaming_sources = [
-      "$root_build_dir/app/${_name}/content/fonts/fonts.xml",
-      "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4",
-    ]
-    renaming_destinations = [
-      "app/cobalt/content/fonts/fonts.xml",
-      "app/cobalt/lib/${_lib_name}.lz4",
-    ]
+    renaming_sources = [ "$root_build_dir/app/${_name}/lib/${_lib_name}.lz4" ]
+    renaming_destinations = [ "app/cobalt/lib/${_lib_name}.lz4" ]
+
+    # Cobalt Evergreen uses the empty font package.
+    renaming_sources +=
+        [ "$root_build_dir/app/${_name}/content/fonts/fonts.xml" ]
+    renaming_destinations += [ "app/cobalt/content/fonts/fonts.xml" ]
+
+    # The platform provides the fonts from cobalt_font_package.
+    renaming_sources += [ "$root_build_dir/fonts/fonts.xml" ]
+    renaming_destinations += [ "fonts/fonts.xml" ]
+    foreach(_font, font_files) {
+      _font_file = get_path_info(_font, "file")
+      renaming_sources += [ "$root_build_dir/fonts/$_font_file" ]
+      renaming_destinations += [ "fonts/$_font_file" ]
+    }
 
     deps = [
       ":copy_${_name}_empty_fonts($default_toolchain)",
       ":copy_${_name}_lib($default_toolchain)",
+      "//starboard/content/fonts:copy_fonts($default_toolchain)",
+      "//starboard/content/fonts:fonts_xml($default_toolchain)",
     ]
 
+    foreach(_cert, network_certs) {
+      renaming_sources += [ _cert ]
+      renaming_destinations +=
+          [ "app/cobalt/content/ssl/certs/" + get_path_info(_cert, "file") ]
+    }
+
     if (_name == "cobalt") {
-      sources = [ "$root_build_dir/cobalt_shell.pak" ]
+      renaming_sources += [ "$root_build_dir/cobalt_shell.pak" ]
+      renaming_destinations += [ "app/cobalt/content/cobalt_shell.pak" ]
       deps += [ "//cobalt/shell:pak($default_toolchain)" ]
     }
 

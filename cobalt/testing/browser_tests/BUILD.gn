@@ -412,6 +412,7 @@ test("cobalt_browsertests") {
     bundle_deps = [
       ":cobalt_shell_pak_bundle_data",
       ":cobalt_test_bundle_data",
+      "//content/test:content_test_bundle_data",
     ]
     deps += [ "//starboard/common" ]
   }

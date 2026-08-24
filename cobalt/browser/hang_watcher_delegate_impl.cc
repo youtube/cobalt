@@ -25,6 +25,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/build/configs/buildflags.h"
 
 namespace cobalt {
 namespace browser {
@@ -33,6 +34,7 @@ namespace browser {
 void CobaltHangWatcherDelegate::Initialize() {
   static base::NoDestructor<CobaltHangWatcherDelegate> instance;
   base::HangWatcher::SetDelegate(instance.get());
+  base::HangWatcher::UpdateConfiguration();
 }
 
 CobaltHangWatcherDelegate::CobaltHangWatcherDelegate()
@@ -149,20 +151,48 @@ std::optional<bool> CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
   return std::nullopt;
 }
 
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangDetectionEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangDetection");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<bool> CobaltHangWatcherDelegate::IsLongHangKillEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangKill");
+  if (val.has_value()) {
+    return *val != 0;
+  }
+  return std::nullopt;
+}
+
+std::optional<base::TimeDelta> CobaltHangWatcherDelegate::GetLongHangTimeout() {
+  auto val = GetIntSetting("LongHangTimeoutSeconds");
+  if (!val.has_value() || *val <= 0) {
+    return std::nullopt;
+  }
+  return base::Seconds(*val);
+}
+
 void CobaltHangWatcherDelegate::RecordHangStarted(
     const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangStarted(hang_uuid);
   }
+#endif
 }
 
 void CobaltHangWatcherDelegate::RecordHangRecovered(
     const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangRecovered(hang_uuid);
   }
+#endif
 }
 
 }  // namespace browser

@@ -34,6 +34,8 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
     "h5vcc_settings_impl.cc",
     "h5vcc_settings_impl.h",
+    "memory_ablation.cc",
+    "memory_ablation.h",
   ]
 
   if (is_androidtv) {
@@ -188,6 +190,7 @@ source_set("features") {
     "features.cc",
     "features.h",
   ]
+  public = [ "features.h" ]
   deps = [
     "//base",
     "//cobalt/build/configs:buildflags",
@@ -236,6 +239,7 @@ if (is_starboard || is_androidtv) {
       ":global_features",
       "//base",
       "//cobalt/browser/h5vcc_native_stability:h5vcc_native_stability",
+      "//cobalt/build/configs:buildflags",
     ]
   }
 }
