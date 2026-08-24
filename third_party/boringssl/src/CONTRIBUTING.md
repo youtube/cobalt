@@ -49,6 +49,13 @@ version of it. (Use the `git rebase` or `git commit --amend` commands.)
 For more detailed instructions, see the
 [Gerrit User Guide](https://gerrit-review.googlesource.com/Documentation/intro-user.html).
 
+As an alternative to pushing to `refs/for/main`: if you have Chromium's
+`depot_tools` installed, you can simply run `git cl upload` to upload a change.
+This also has the advantage of automatically running any relevant `PRESUBMIT.py`
+checks. See [depot_tools
+documentation](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools.html)
+for more info.
+
 ### Copyright headers
 New files contributed directly to BoringSSL should use the following copyright
 header, where `YEAR` is the year the file was added:

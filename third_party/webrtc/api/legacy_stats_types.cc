@@ -10,9 +10,8 @@
 
 #include "api/legacy_stats_types.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <utility>
 

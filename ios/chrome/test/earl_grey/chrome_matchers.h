@@ -127,6 +127,12 @@ id<GREYMatcher> PrimaryToolbar();
 // Returns a matcher for a cancel button.
 id<GREYMatcher> CancelButton();
 
+// Returns a matcher for a cancel button in an action sheet.
+id<GREYMatcher> ActionSheetCancelButton();
+
+// Returns a matcher for a close button.
+id<GREYMatcher> CloseButton();
+
 // Returns the matcher for an enabled cancel button in a navigation bar.
 id<GREYMatcher> NavigationBarCancelButton();
 
@@ -147,6 +153,10 @@ id<GREYMatcher> ReloadButton();
 
 // Returns a matcher for the stop loading button.
 id<GREYMatcher> StopButton();
+
+// Returns a matcher for the search bar's clear text button, which is displayed
+// when the search bar is non-empty. Tapping it clears the search text.
+id<GREYMatcher> SearchBarClearTextButton();
 
 // Returns a matcher for the omnibox.
 id<GREYMatcher> Omnibox();
@@ -405,12 +415,6 @@ id<GREYMatcher> SettingsMenuSafetyCheckButton();
 // screen.
 id<GREYMatcher> SettingsMenuNotificationsButton();
 
-// Returns a matcher for the payment request collection view.
-id<GREYMatcher> PaymentRequestView();
-
-// Returns a matcher for the error confirmation view for payment request.
-id<GREYMatcher> PaymentRequestErrorView();
-
 // Returns a matcher for the voice search button on the main Settings screen.
 id<GREYMatcher> VoiceSearchButton();
 
@@ -463,17 +467,11 @@ id<GREYMatcher> NTPFeedMenuEnableButton();
 // Returns a matcher for the NTP Feed menu button which disables the feed.
 id<GREYMatcher> NTPFeedMenuDisableButton();
 
-// Returns a matcher for the warning message while filling in payment requests.
-id<GREYMatcher> WarningMessageView();
-
-// Returns a matcher for the payment picker cell.
-id<GREYMatcher> PaymentRequestPickerRow();
-
-// Returns a matcher for the payment request search bar.
-id<GREYMatcher> PaymentRequestPickerSearchBar();
-
 // Returns a matcher for the New Window button on the Tools menu.
 id<GREYMatcher> OpenNewWindowMenuButton();
+
+// Returns a matcher for the search bar.
+id<GREYMatcher> SearchBar();
 
 // Returns a matcher for the system selection callout.
 id<GREYMatcher> SystemSelectionCallout();
@@ -519,6 +517,9 @@ id<GREYMatcher> ReadingListMarkAsUnreadButton();
 
 // Returns a matcher for the Delete option on the updated context menus.
 id<GREYMatcher> DeleteButton();
+
+// Returns a matcher for the swipe action Delete button.
+id<GREYMatcher> SwipeActionDeleteButton();
 
 // Returns a matcher for the Copy item on the old-style context menu.
 id<GREYMatcher> ContextMenuCopyButton();

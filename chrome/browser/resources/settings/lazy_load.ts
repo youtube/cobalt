@@ -19,7 +19,7 @@ import './clear_browsing_data_dialog/clear_browsing_data_account_indicator.js';
 import './clear_browsing_data_dialog/clear_browsing_data_dialog.js';
 import './clear_browsing_data_dialog/clear_browsing_data_dialog_v2.js';
 import './clear_browsing_data_dialog/clear_browsing_data_time_picker.js';
-import './search_engines_page/search_engines_page.js';
+import './search_page/search_engines_page.js';
 import './simple_confirmation_dialog.js';
 import './clear_browsing_data_dialog/other_google_data_dialog.js';
 import './privacy_page/anti_abuse_page.js';
@@ -62,7 +62,7 @@ import './people_page/account_page.js';
 import './people_page/manage_profile.js';
 // </if>
 import './people_page/signout_dialog.js';
-import './people_page/sync_controls.js';
+import './people_page/sync_controls_page.js';
 import './people_page/sync_page.js';
 // Sections
 import './a11y_page/a11y_page_index.js';
@@ -97,6 +97,7 @@ export {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.j
 export {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 export {CrSliderElement} from 'chrome://resources/cr_elements/cr_slider/cr_slider.js';
 export {CrTextareaElement} from 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
+export {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 export {getToastManager} from 'chrome://resources/cr_elements/cr_toast/cr_toast_manager.js';
 export {CrTooltipElement} from 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 export {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
@@ -122,7 +123,7 @@ export {SettingsAddressRemoveConfirmationDialogElement} from './autofill_page/ad
 export {SettingsAutofillAiAddOrEditDialogElement} from './autofill_page/autofill_ai_add_or_edit_dialog.js';
 export {SettingsAutofillAiSectionElement} from './autofill_page/autofill_ai_section.js';
 export {AutofillManagerImpl, AutofillManagerProxy, PersonalDataChangedListener} from './autofill_page/autofill_manager_proxy.js';
-export {SettingsAutofillSectionElement} from './autofill_page/autofill_section.js';
+export {AutofillAddressOptInChange, SettingsAutofillSectionElement} from './autofill_page/autofill_section.js';
 export {CountryDetailManagerProxy, CountryDetailManagerProxyImpl} from './autofill_page/country_detail_manager_proxy.js';
 export {SettingsCreditCardEditDialogElement} from './autofill_page/credit_card_edit_dialog.js';
 export {SettingsCreditCardListEntryElement} from './autofill_page/credit_card_list_entry.js';
@@ -221,11 +222,11 @@ export {SettingsSafetyHubEntryPointElement} from './safety_hub/safety_hub_entry_
 export {SettingsSafetyHubModuleElement, SiteInfo, SiteInfoWithTarget} from './safety_hub/safety_hub_module.js';
 export {SettingsSafetyHubPageElement} from './safety_hub/safety_hub_page.js';
 export {SettingsSafetyHubUnusedSitePermissionsModuleElement} from './safety_hub/unused_site_permissions_module.js';
-export {SettingsOmniboxExtensionEntryElement} from './search_engines_page/omnibox_extension_entry.js';
-export {SettingsSearchEngineEditDialogElement} from './search_engines_page/search_engine_edit_dialog.js';
-export {SettingsSearchEngineEntryElement} from './search_engines_page/search_engine_entry.js';
-export {SettingsSearchEnginesListElement} from './search_engines_page/search_engines_list.js';
-export {SettingsSearchEnginesPageElement} from './search_engines_page/search_engines_page.js';
+export {SettingsOmniboxExtensionEntryElement} from './search_page/omnibox_extension_entry.js';
+export {SettingsSearchEngineEditDialogElement} from './search_page/search_engine_edit_dialog.js';
+export {SettingsSearchEngineEntryElement} from './search_page/search_engine_entry.js';
+export {SettingsSearchEnginesListElement} from './search_page/search_engines_list.js';
+export {SettingsSearchEnginesPageElement} from './search_page/search_engines_page.js';
 export {SettingsSimpleConfirmationDialogElement} from './simple_confirmation_dialog.js';
 export {AddSiteDialogElement} from './site_settings/add_site_dialog.js';
 export {AllSitesElement} from './site_settings/all_sites.js';

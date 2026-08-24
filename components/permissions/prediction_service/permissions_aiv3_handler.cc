@@ -23,9 +23,9 @@ PermissionsAiv3Handler::PermissionsAiv3Handler(
     optimization_guide::OptimizationGuideModelProvider* model_provider,
     optimization_guide::proto::OptimizationTarget optimization_target,
     RequestType request_type,
+    std::unique_ptr<PermissionsAiv3Encoder> model_executor,
     scoped_refptr<base::SequencedTaskRunner> model_executor_task_runner,
-    scoped_refptr<base::SequencedTaskRunner> reply_task_runner,
-    std::unique_ptr<PermissionsAiv3Encoder> model_executor)
+    scoped_refptr<base::SequencedTaskRunner> reply_task_runner)
     : ModelHandler<ModelOutput, const ModelInput&>(
           model_provider,
           model_executor_task_runner,
@@ -43,10 +43,6 @@ PermissionsAiv3Handler::PermissionsAiv3Handler(
           model_provider,
           optimization_target,
           request_type,
-          /*model_executor_task_runner=*/
-          base::ThreadPool::CreateSequencedTaskRunner(
-              {base::MayBlock(), base::TaskPriority::USER_BLOCKING}),
-          /*reply_task_runner-=*/base::SequencedTaskRunner::GetCurrentDefault(),
           /*model_executor=*/
           std::make_unique<PermissionsAiv3Encoder>(request_type)) {}
 
@@ -71,12 +67,53 @@ void PermissionsAiv3Handler::OnModelUpdated(
 void PermissionsAiv3Handler::ExecuteModel(ExecutionCallback callback,
                                           std::unique_ptr<SkBitmap> snapshot) {
   if (snapshot.get()) {
+    base::UmaHistogramBoolean(
+        "Permissions.AIv3.ModelExecutionAlreadyInProgress",
+        is_execution_in_progress_);
+    // If an execution is already in progress, there is no way to cancel it and
+    // we cannot wait until it is done because this will add extra latency, so
+    // we will return an empty response to the callback.
+    if (is_execution_in_progress_) {
+      VLOG(1) << "[PermissionsAIv3] ExecuteModel: Execution already in "
+                 "progress. Returning empty response.";
+      // The callback is no longer valid because a new execution was requested
+      // while the previous one was still in progress.
+      is_callback_valid_ = false;
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    is_execution_in_progress_ = true;
+    is_callback_valid_ = true;
+
     ModelInput input;
     input.snapshot = *snapshot;
     input.metadata = model_metadata_;
-    ExecuteModelWithInput(std::move(callback), input);
+
+    ExecutionCallback on_complete_callback =
+        base::BindOnce(&PermissionsAiv3Handler::OnModelExecutionComplete,
+                       weak_factory_.GetWeakPtr(), std::move(callback));
+
+    ExecuteModelWithInput(std::move(on_complete_callback), input);
   } else {
     std::move(callback).Run(std::nullopt);
+  }
+}
+
+void PermissionsAiv3Handler::OnModelExecutionComplete(
+    ExecutionCallback original_callback,
+    const std::optional<PermissionRequestRelevance>& relevance) {
+  is_execution_in_progress_ = false;
+
+  if (is_callback_valid_) {
+    std::move(original_callback).Run(relevance);
+  } else {
+    VLOG(1) << "[PermissionsAIv3] OnModelExecutionComplete: Callback is no "
+               "longer valid. Ignoring the result.";
+    // The callback is no longer valid because a new execution was requested
+    // while the previous one was still in progress. We will return an empty
+    // response to the callback because there is no UI to which the relevance
+    // can be applied.
+    std::move(original_callback).Run(std::nullopt);
   }
 }
 

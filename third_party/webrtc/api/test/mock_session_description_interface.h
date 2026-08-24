@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
 #include "test/gmock.h"
@@ -39,7 +40,7 @@ class MockSessionDescriptionInterface : public SessionDescriptionInterface {
   MOCK_METHOD(bool, RemoveCandidate, (const IceCandidate*), (override));
   MOCK_METHOD(size_t,
               RemoveCandidates,
-              (const std::vector<Candidate>&),
+              (absl::string_view, const std::vector<Candidate>&),
               (override));
   MOCK_METHOD(size_t, number_of_mediasections, (), (const, override));
   MOCK_METHOD(const IceCandidateCollection*,

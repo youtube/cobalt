@@ -58,17 +58,6 @@ template <typename Z>
 static constexpr bool is_offset_type =
     std::is_integral_v<Z> && sizeof(Z) <= sizeof(ptrdiff_t);
 
-enum class MetadataKind { kWritable, kReadOnly };
-
-template <const MetadataKind kind, typename T>
-struct MaybeConst {
-  using Type = std::conditional_t<kind == MetadataKind::kReadOnly, T const, T>;
-};
-
-template <const MetadataKind kind, typename T>
-using MaybeConstT = typename MaybeConst<kind, T>::Type;
-
-template <MetadataKind>
 struct SlotSpanMetadata;
 
 }  // namespace internal

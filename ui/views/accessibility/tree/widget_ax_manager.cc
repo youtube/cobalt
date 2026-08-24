@@ -11,6 +11,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_platform.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/views/accessibility/tree/widget_view_ax_cache.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
@@ -41,6 +42,7 @@ WidgetAXManager::WidgetAXManager(Widget* widget)
 
 WidgetAXManager::~WidgetAXManager() {
   ui::AXPlatform::GetInstance().RemoveModeObserver(this);
+  ax_tree_manager_.reset();
 }
 
 void WidgetAXManager::Enable() {
@@ -50,6 +52,16 @@ void WidgetAXManager::Enable() {
       cache_.get());
   tree_serializer_ =
       std::make_unique<ViewAccessibilityAXTreeSerializer>(tree_source_.get());
+
+  ui::AXNodeData root_data;
+  widget_->GetRootView()->GetViewAccessibility().GetAccessibleNodeData(
+      &root_data);
+  ui::AXTreeUpdate update;
+  update.root_id = root_data.id;
+  update.nodes.push_back(root_data);
+
+  ax_tree_manager_.reset(
+      ui::BrowserAccessibilityManager::Create(update, *this, this));
 }
 
 void WidgetAXManager::OnEvent(ViewAccessibility& view_ax,
@@ -88,6 +100,18 @@ void WidgetAXManager::OnAXModeAdded(ui::AXMode mode) {
   if (mode.has_mode(ui::AXMode::kNativeAPIs)) {
     Enable();
   }
+}
+
+ui::AXPlatformNodeId WidgetAXManager::GetOrCreateAXNodeUniqueId(
+    ui::AXNodeID ax_node_id) {
+  // ViewAccessibility already generates a unique ID for each View. Return it.
+  ViewAccessibility* view_ax = cache_->Get(ax_node_id);
+  return view_ax ? view_ax->GetUniqueId() : ui::AXPlatformNodeId();
+}
+
+void WidgetAXManager::OnAXNodeDeleted(ui::AXNodeID ax_node_id) {
+  // Do nothing. Those unique IDs aren't cached in WidgetAXManager, so they
+  // don't need to be removed.
 }
 
 void WidgetAXManager::AccessibilityPerformAction(const ui::AXActionData& data) {
@@ -209,18 +233,17 @@ gfx::NativeWindow WidgetAXManager::GetTopLevelNativeWindow() {
 }
 
 bool WidgetAXManager::CanFireAccessibilityEvents() const {
-  // TODO(accessibility): Implement.
-  return false;
+  return widget_ ? widget_->IsActive() : false;
 }
 
 bool WidgetAXManager::AccessibilityIsRootFrame() const {
-  // TODO(accessibility): Implement.
+  // This always returns false for WidgetAXManager, since the "frame" concept is
+  // unique to web content.
   return false;
 }
 
 bool WidgetAXManager::ShouldSuppressAXLoadComplete() {
-  // TODO(accessibility): Implement.
-  return false;
+  return true;
 }
 
 content::WebContentsAccessibility*

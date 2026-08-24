@@ -26,7 +26,6 @@
 #include "base/types/pass_key.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_apply_waiter.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_discovery_task.h"
@@ -34,6 +33,7 @@
 #include "chrome/browser/web_applications/web_app_install_manager_observer.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "components/webapps/isolated_web_apps/update_channel.h"
 #include "net/base/backoff_entry.h"
 
@@ -47,7 +47,6 @@ class SignedWebBundleId;
 namespace web_app {
 
 class IsolatedWebAppUrlInfo;
-class IsolatedWebAppURLLoaderFactory;
 class WebAppProvider;
 
 namespace {
@@ -74,7 +73,9 @@ enum class IsolatedWebAppUpdateError {
   kUpdateDryRunFailed = 9,
   kUpdateApplyFailed = 10,
   kSystemShutdown = 11,
-  kMaxValue = kSystemShutdown
+  kPinnedVersionNotFoundInUpdateManifest = 12,
+  kDowngradeNotAllowed = 13,
+  kMaxValue = kDowngradeNotAllowed
 };
 
 struct IsolatedWebAppUpdateOptions {
@@ -137,12 +138,7 @@ class IsolatedWebAppUpdateManager
 
   // Returns `true` if an update for the provided `app_id` is currently being
   // applied or scheduled to be applied soon.
-  //
-  // Use of this method should be limited to the
-  // `IsolatedWebAppURLLoaderFactory`. If you have a different use case, please
-  // talk to iwa-dev@chromium.org first.
-  bool IsUpdateBeingApplied(base::PassKey<IsolatedWebAppURLLoaderFactory>,
-                            const webapps::AppId app_id) const;
+  bool IsUpdateBeingApplied(const webapps::AppId app_id) const;
 
   // Starts an already scheduled update apply task for the provided `app_id`, if
   // it is queued but not already running. This happens regardless of whether
@@ -151,12 +147,7 @@ class IsolatedWebAppUpdateManager
   //
   // `callback` will be run once the update apply task for the provided `app_id`
   // finishes.
-  //
-  // Use of this method should be limited to the
-  // `IsolatedWebAppURLLoaderFactory`. If you have a different use case, please
-  // talk to iwa-dev@chromium.org first.
   void PrioritizeUpdateAndWait(
-      base::PassKey<IsolatedWebAppURLLoaderFactory>,
       const webapps::AppId& app_id,
       base::OnceCallback<void(IsolatedWebAppUpdateApplyTask::CompletionStatus)>
           callback);

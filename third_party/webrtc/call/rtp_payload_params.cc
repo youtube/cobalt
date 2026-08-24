@@ -10,9 +10,8 @@
 
 #include "call/rtp_payload_params.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <optional>

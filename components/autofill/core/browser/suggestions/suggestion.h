@@ -21,6 +21,7 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
+#include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
@@ -192,6 +193,22 @@ struct Suggestion {
     std::map<FieldType, std::u16string> fields;
   };
 
+  struct OneTimePasswordPayload final {
+    OneTimePasswordPayload();
+    explicit OneTimePasswordPayload(
+        std::map<FieldGlobalId, std::u16string> filling_data);
+    OneTimePasswordPayload(const OneTimePasswordPayload&);
+    OneTimePasswordPayload(OneTimePasswordPayload&&);
+    OneTimePasswordPayload& operator=(const OneTimePasswordPayload&);
+    OneTimePasswordPayload& operator=(OneTimePasswordPayload&&);
+    ~OneTimePasswordPayload();
+
+    friend bool operator==(const OneTimePasswordPayload&,
+                           const OneTimePasswordPayload&) = default;
+
+    std::map<FieldGlobalId, std::u16string> filling_data;
+  };
+
   using IsLoading = base::StrongAlias<class IsLoadingTag, bool>;
   using InstrumentId = base::StrongAlias<class InstrumentIdTag, uint64_t>;
   using Payload = std::variant<Guid,
@@ -202,7 +219,9 @@ struct Suggestion {
                                PlusAddressPayload,
                                AutofillAiPayload,
                                PaymentsPayload,
-                               IdentityCredentialPayload>;
+                               IdentityCredentialPayload,
+                               AutocompleteEntry,
+                               OneTimePasswordPayload>;
 
   // This struct is used to provide password suggestions with custom icons,
   // using the favicon of the website associated with the credentials. While
@@ -346,6 +365,7 @@ struct Suggestion {
     kIban,
     kBnpl,
     kSaveAndFill,
+    kAndroidMessages,
   };
 
   // This enum is used to control filtration of suggestions (see it's used in
@@ -384,8 +404,6 @@ struct Suggestion {
   // constructors. Some expect UTF16 strings and others UTF8, while internally
   // we only use UTF16. The ones expecting UTF8 are only used by tests and could
   // be easily refactored.
-  Suggestion();
-  explicit Suggestion(std::u16string main_text);
   explicit Suggestion(SuggestionType type);
   Suggestion(std::u16string main_text, SuggestionType type);
   // Constructor for unit tests. It will convert the strings from UTF-8 to
@@ -453,6 +471,8 @@ struct Suggestion {
                std::holds_alternative<PaymentsPayload>(payload);
       case SuggestionType::kBnplEntry:
         return std::holds_alternative<PaymentsPayload>(payload);
+      case SuggestionType::kOneTimePasswordEntry:
+        return std::holds_alternative<OneTimePasswordPayload>(payload);
       case SuggestionType::kDevtoolsTestAddressEntry:
       default:
         return std::holds_alternative<Guid>(payload) ||
@@ -472,7 +492,7 @@ struct Suggestion {
   Payload payload;
 
   // Determines popup identifier for the suggestion.
-  SuggestionType type = SuggestionType::kAutocompleteEntry;
+  SuggestionType type;
 
   // The texts that will be displayed on the first line in a suggestion. The
   // order of showing the two texts on the first line depends on whether it is

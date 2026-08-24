@@ -28,6 +28,9 @@ constexpr char kLnaPath[] =
     "/set-header"
     "?Access-Control-Allow-Origin: *";
 
+constexpr char kWorkerHtmlPath[] =
+    "/private_network_access/fetch-from-worker-as-public-address.html";
+
 class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
  public:
   using WebFeature = blink::mojom::WebFeature;
@@ -88,8 +91,7 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
     EXPECT_TRUE(content::NavigateToURL(web_contents(), GURL("about:blank")));
   }
 
- private:
-  void SetUpCommandLine(base::CommandLine* command_line) final {
+  void SetUpCommandLine(base::CommandLine* command_line) override {
     // Ignore cert errors when connecting to https_server()
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
     // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
@@ -103,8 +105,7 @@ class LocalNetworkAccessBrowserTest : public policy::PolicyTest {
   base::HistogramTester histogram_;
 };
 
-IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
-                       CheckSecurityStateDefaultPolicyDenyPermission) {
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, FetchDenyPermission) {
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(),
       https_server().GetURL(
@@ -128,8 +129,7 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
               content::EvalJsResult::IsError());
 }
 
-IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
-                       CheckSecurityStateDefaultPolicyAcceptPermission) {
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, FetchAcceptPermission) {
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(),
       https_server().GetURL(
@@ -151,6 +151,112 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
                 web_contents(),
                 content::JsReplace("fetch($1).then(response => response.ok)",
                                    https_server().GetURL("b.com", kLnaPath))));
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, IframeDenyPermission) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-denial of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+
+  GURL iframe_url = https_server().GetURL("b.com", kLnaPath);
+  content::TestNavigationManager nav_manager(web_contents(), iframe_url);
+  std::string_view script_template = R"(
+    const child = document.createElement("iframe");
+    child.src = $1;
+    document.body.appendChild(child);
+  )";
+  EXPECT_THAT(content::EvalJs(web_contents(),
+                              content::JsReplace(script_template, iframe_url)),
+              content::EvalJsResult::IsOk());
+  ASSERT_TRUE(nav_manager.WaitForNavigationFinished());
+
+  // Check that the child iframe failed to fetch.
+  EXPECT_FALSE(nav_manager.was_successful());
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, IframeAcceptPermission) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      https_server().GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-accept of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
+
+  GURL iframe_url = https_server().GetURL("b.com", kLnaPath);
+  content::TestNavigationManager nav_manager(web_contents(), iframe_url);
+  std::string_view script_template = R"(
+    const child = document.createElement("iframe");
+    child.src = $1;
+    document.body.appendChild(child);
+  )";
+  EXPECT_THAT(content::EvalJs(web_contents(),
+                              content::JsReplace(script_template, iframe_url)),
+              content::EvalJsResult::IsOk());
+  ASSERT_TRUE(nav_manager.WaitForNavigationFinished());
+
+  // Check that the child iframe failed to fetch.
+  EXPECT_TRUE(nav_manager.was_successful());
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, WorkerDenyPermission) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(), https_server().GetURL("a.com", kWorkerHtmlPath)));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-deny of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::DENY_ALL);
+
+  GURL fetch_url = https_server().GetURL("b.com", kLnaPath);
+  std::string_view script_template = "fetch_from_worker($1);";
+  // Failure to fetch URL
+  EXPECT_EQ("TypeError: Failed to fetch",
+            content::EvalJs(web_contents(),
+                            content::JsReplace(script_template, fetch_url)));
+}
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest, WorkerAcceptPermission) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(), https_server().GetURL("a.com", kWorkerHtmlPath)));
+
+  permissions::PermissionRequestManager* manager =
+      permissions::PermissionRequestManager::FromWebContents(web_contents());
+  std::unique_ptr<permissions::MockPermissionPromptFactory> bubble_factory =
+      std::make_unique<permissions::MockPermissionPromptFactory>(manager);
+
+  // Enable auto-accept of LNA permission request.
+  bubble_factory->set_response_type(
+      permissions::PermissionRequestManager::AutoResponseType::ACCEPT_ALL);
+
+  GURL fetch_url = https_server().GetURL("b.com", kLnaPath);
+  std::string_view script_template = "fetch_from_worker($1);";
+  // URL fetched, body is just the header that's set.
+  EXPECT_EQ("Access-Control-Allow-Origin: *",
+            content::EvalJs(web_contents(),
+                            content::JsReplace(script_template, fetch_url)));
 }
 
 IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
@@ -284,4 +390,85 @@ IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserTest,
                   content::JsReplace("fetch($1).then(response => response.ok)",
                                      https_server().GetURL("b.com", kLnaPath))),
               content::EvalJsResult::IsError());
+}
+
+// Test that using the LNA allow policy override on an HTTP url works in
+// conjuction with setting the kUnsafelyTreatInsecureOriginAsSecure command line
+// switch.
+class LocalNetworkAccessBrowserHttpCommandLineOverrideTest
+    : public LocalNetworkAccessBrowserTest {
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) final {
+    LocalNetworkAccessBrowserTest::SetUpCommandLine(command_line);
+
+    ASSERT_TRUE(embedded_test_server()->Start());
+    command_line->AppendSwitchASCII(
+        network::switches::kUnsafelyTreatInsecureOriginAsSecure,
+        embedded_test_server()->GetURL("a.com", "/").spec());
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserHttpCommandLineOverrideTest,
+                       LocalNetworkAccessAllowedForHttpUrlsPolicy) {
+  policy::PolicyMap policies;
+  base::Value::List allowlist;
+  allowlist.Append(base::Value("*"));
+  SetPolicy(&policies, policy::key::kLocalNetworkAccessAllowedForUrls,
+            base::Value(std::move(allowlist)));
+  UpdateProviderPolicy(policies);
+
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      embedded_test_server()->GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  // LNA fetch should pass.
+  ASSERT_EQ(true,
+            content::EvalJs(
+                web_contents(),
+                content::JsReplace("fetch($1).then(response => response.ok)",
+                                   https_server().GetURL("b.com", kLnaPath))));
+}
+
+// Test that using the LNA allow policy override on an HTTP url works in
+// conjunction with setting the kOverrideSecurityRestrictionsOnInsecureOrigin
+// enterprise policy.
+class LocalNetworkAccessBrowserHttpPolicyOverrideTest
+    : public LocalNetworkAccessBrowserTest {
+ protected:
+  void SetUpInProcessBrowserTestFixture() override {
+    LocalNetworkAccessBrowserTest::SetUpInProcessBrowserTestFixture();
+
+    ASSERT_TRUE(embedded_test_server()->Start());
+
+    policy::PolicyMap policies;
+    base::Value::List secureList;
+    secureList.Append(
+        base::Value(embedded_test_server()->GetURL("a.com", "/").spec()));
+    SetPolicy(&policies,
+              policy::key::kOverrideSecurityRestrictionsOnInsecureOrigin,
+              base::Value(std::move(secureList)));
+    base::Value::List allowlist;
+    allowlist.Append(base::Value("*"));
+    SetPolicy(&policies, policy::key::kLocalNetworkAccessAllowedForUrls,
+              base::Value(std::move(allowlist)));
+    UpdateProviderPolicy(policies);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LocalNetworkAccessBrowserHttpPolicyOverrideTest,
+                       LocalNetworkAccessAllowedForHttpUrlsPolicy) {
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      embedded_test_server()->GetURL(
+          "a.com",
+          "/private_network_access/no-favicon-treat-as-public-address.html")));
+
+  // LNA fetch should pass.
+  ASSERT_EQ(true,
+            content::EvalJs(
+                web_contents(),
+                content::JsReplace("fetch($1).then(response => response.ok)",
+                                   https_server().GetURL("b.com", kLnaPath))));
 }

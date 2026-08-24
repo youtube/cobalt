@@ -171,11 +171,20 @@ class SupervisedUserSettingsService : public KeyedService,
       const base::Location& from_here,
       const syncer::SyncChangeList& change_list) override;
   base::WeakPtr<SyncableService> AsWeakPtr() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
 
   // PrefStore::Observer implementation:
   void OnInitializationCompleted(bool success) override;
 
   bool IsCustomPassphraseAllowed() const;
+
+  // Suspended service must be prior deactivated. A suspended service is never
+  // notifying any of its observers. Inactive but unsuspended service is still
+  // sending blank notifications to the supervised user pref store, constantly
+  // clearing it which is breaking other features. A service cannot be suspended
+  // but active.
+  void SetSuspended(bool suspended);
 
   const base::Value::Dict& LocalSettingsForTest() const;
 
@@ -204,6 +213,10 @@ class SupervisedUserSettingsService : public KeyedService,
   scoped_refptr<PersistentPrefStore> store_;
 
   bool active_;
+
+  // As opposed to (in)active, the inactive and suspended service won't
+  // send any notifications.
+  bool suspended_{false};
 
   bool initialization_failed_;
 

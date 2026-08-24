@@ -12,9 +12,7 @@
 
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
-#include <glib-object.h>
 #include <glib.h>
-#include <glibconfig.h>
 #include <unistd.h>
 
 #include <cstdint>

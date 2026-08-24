@@ -14,7 +14,6 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/test_image_backing.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "gpu/ipc/common/surface_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
@@ -138,38 +137,26 @@ class CompoundImageBackingTest : public testing::Test {
   std::unique_ptr<SharedImageBacking> CreateCompoundBacking(
       SharedImageUsageSet usage) {
     constexpr gfx::Size size(100, 100);
-    constexpr gfx::BufferFormat buffer_format = gfx::BufferFormat::RGBA_8888;
     constexpr gfx::BufferUsage buffer_usage =
         gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
 
-    gfx::GpuMemoryBufferHandle handle =
-        GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
-            size, buffer_format, buffer_usage);
-
     return CompoundImageBacking::CreateSharedMemory(
-        &test_factory_, Mailbox::Generate(), std::move(handle),
-        viz::SinglePlaneFormat::kRGBA_8888, size, gfx::ColorSpace(),
-        kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType, usage, "TestLabel");
+        &test_factory_, Mailbox::Generate(), viz::SinglePlaneFormat::kRGBA_8888,
+        size, gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+        usage, "TestLabel", buffer_usage);
   }
 
   std::unique_ptr<SharedImageBacking> CreateMultiplanarCompoundBacking() {
     constexpr gfx::Size size(100, 100);
-    constexpr gfx::BufferFormat buffer_format =
-        gfx::BufferFormat::YUV_420_BIPLANAR;
     constexpr gfx::BufferUsage buffer_usage =
         gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
 
-    gfx::GpuMemoryBufferHandle handle =
-        GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
-            size, buffer_format, buffer_usage);
-
     return CompoundImageBacking::CreateSharedMemory(
-        &test_factory_, Mailbox::Generate(), std::move(handle),
-        viz::MultiPlaneFormat::kNV12, size, gfx::ColorSpace(),
-        kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+        &test_factory_, Mailbox::Generate(), viz::MultiPlaneFormat::kNV12, size,
+        gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
         SharedImageUsageSet(
             {SHARED_IMAGE_USAGE_DISPLAY_READ, SHARED_IMAGE_USAGE_SCANOUT}),
-        "TestLabel");
+        "TestLabel", buffer_usage);
   }
 
  protected:

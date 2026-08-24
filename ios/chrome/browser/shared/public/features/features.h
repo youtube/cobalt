@@ -310,6 +310,9 @@ BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 // contains temporary UI exploration for AIM.
 BASE_DECLARE_FEATURE(kAIMPrototype);
 
+// Feature for the DRS prototype.
+BASE_DECLARE_FEATURE(kOmniboxDRSPrototype);
+
 // Feature flag to enable UITraitCollection workaround for fixing incorrect
 // trait propagation.
 BASE_DECLARE_FEATURE(kEnableTraitCollectionWorkAround);
@@ -635,6 +638,12 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // Whether or not the Keyboard Accessory Upgrade feature is enabled.
 bool IsKeyboardAccessoryUpgradeEnabled();
 
+// Whether the liquid glass effect is enabled. Returns true on iOS 26+ if the
+// Keyboard Accessory Upgrade feature is enabled (pre KA upgrade code is about
+// to be deprecated, so we're not adding liquid glass support to it). Returns
+// false otherwise.
+bool IsLiquidGlassEffectEnabled();
+
 // Feature for the Magic Stack.
 BASE_DECLARE_FEATURE(kMagicStack);
 
@@ -771,10 +780,6 @@ BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration);
 // DO NOT CHECK DIRECTLY, use AreSeparateProfilesForManagedAccountsEnabled()!
 BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsKillSwitch);
 
-// Feature flag to have widgets per account.
-// DO NOT CHECK DIRECTLY, use IsWidgetsForMultiprofileEnabled().
-BASE_DECLARE_FEATURE(kWidgetsForMultiprofile);
-
 // Feature to control resyncing the omaha ping timer on foregrounding.
 BASE_DECLARE_FEATURE(kOmahaResyncTimerOnForeground);
 
@@ -876,12 +881,6 @@ extern const std::string_view
 
 // Returns whether 'kFRESignInSecondaryActionLabelUpdate' is enabled.
 bool FRESignInSecondaryActionLabelUpdate();
-
-// Enables passkey syncing follow-up features.
-BASE_DECLARE_FEATURE(kIOSPasskeysM2);
-
-// Helper function returning the status of `kIOSPasskeysM2`.
-bool IOSPasskeysM2Enabled();
 
 // Enables Profile-specific push notification handling logic. When enabled, this
 // routes incoming notifications to the PushNotificationClientManager associated

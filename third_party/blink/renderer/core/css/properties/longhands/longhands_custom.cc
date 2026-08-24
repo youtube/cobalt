@@ -110,6 +110,16 @@ CSSCustomIdentValue* ConsumeCustomIdentExcludingNone(
   return css_parsing_utils::ConsumeCustomIdent(stream, context);
 }
 
+CSSValue* ConsumeSingleAnimationTrigger(CSSParserTokenStream& stream,
+                                        const CSSParserContext& context) {
+  if (CSSValue* value =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
+    return value;
+  }
+  return css_parsing_utils::ConsumeSpaceSeparatedList(
+      css_parsing_utils::ConsumeDashedIdent, stream, context);
+}
+
 }  // namespace
 
 namespace css_longhand {
@@ -633,139 +643,44 @@ const CSSValue* AnimationTimingFunction::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kEase);
 }
 
-const CSSValue* AnimationTriggerRangeStart::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeAnimationRange, stream, context,
-      /* default_offset_percent */ 0.0, /*allow_auto=*/false);
-}
-
-const CSSValue* AnimationTriggerRangeStart::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerRangeStartList(
-      style.Animations(), style);
-}
-
-const CSSValue* AnimationTriggerRangeStart::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kNormal);
-}
-
-const CSSValue* AnimationTriggerRangeEnd::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeAnimationRange, stream, context,
-      /* default_offset_percent */ 100.0, /*allow_auto=*/false);
-}
-
-const CSSValue* AnimationTriggerRangeEnd::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerRangeEndList(
-      style.Animations(), style);
-}
-
-const CSSValue* AnimationTriggerRangeEnd::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kNormal);
-}
-
-const CSSValue* AnimationTriggerExitRangeStart::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeAnimationRange, stream, context,
-      /* default_offset_percent */ 0.0, /*allow_auto=*/true);
-}
-
-const CSSValue*
-AnimationTriggerExitRangeStart::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerExitRangeStartList(
-      style.Animations(), style);
-}
-
-const CSSValue* AnimationTriggerExitRangeStart::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kAuto);
-}
-
-const CSSValue* AnimationTriggerExitRangeEnd::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeAnimationRange, stream, context,
-      /* default_offset_percent */ 100.0, /*allow_auto=*/true);
-}
-
-const CSSValue* AnimationTriggerExitRangeEnd::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerExitRangeEndList(
-      style.Animations(), style);
-}
-
-const CSSValue* AnimationTriggerExitRangeEnd::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kAuto);
-}
-
-const CSSValue* AnimationTriggerBehavior::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kOnce);
-}
-
-const CSSValue* AnimationTriggerBehavior::CSSValueFromComputedStyleInternal(
-    const ComputedStyle& style,
-    const LayoutObject*,
-    bool allow_visited_style,
-    CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerBehaviorList(
-      style.Animations());
-}
-
-const CSSValue* AnimationTriggerBehavior::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext&,
-    const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeCommaSeparatedList<CSSIdentifierValue*(
-      CSSParserTokenStream&)>(
-      css_parsing_utils::ConsumeIdent<CSSValueID::kOnce, CSSValueID::kRepeat,
-                                      CSSValueID::kAlternate,
-                                      CSSValueID::kState>,
-      stream);
-}
-
-const CSSValue* AnimationTriggerTimeline::ParseSingleValue(
+const CSSValue* AnimationTrigger::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context) const {
   return css_parsing_utils::ConsumeCommaSeparatedList(
-      css_parsing_utils::ConsumeAnimationTimeline, stream, context);
+      ConsumeSingleAnimationTrigger, stream, context);
 }
 
-const CSSValue* AnimationTriggerTimeline::CSSValueFromComputedStyleInternal(
+const CSSValue* AnimationTrigger::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForAnimationTriggerTimelineList(
-      style.Animations(), style);
+  if (const CSSAnimationData* data = style.Animations()) {
+    CSSValueList* names_list = CSSValueList::CreateCommaSeparated();
+
+    for (const std::optional<Vector<AtomicString>>& trigger_names_list :
+         data->TriggerNamesList()) {
+      CSSValueList* names = CSSValueList::CreateSpaceSeparated();
+      if (trigger_names_list.has_value()) {
+        for (const AtomicString& name : *trigger_names_list) {
+          names->Append(*MakeGarbageCollected<CSSCustomIdentValue>(name));
+        }
+      } else {
+        names->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+      }
+
+      names_list->Append(*names);
+    }
+
+    return names_list;
+  }
+
+  return InitialValue();
 }
 
-const CSSValue* AnimationTriggerTimeline::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kAuto);
+const CSSValue* AnimationTrigger::InitialValue() const {
+  return CSSIdentifierValue::Create(CSSValueID::kNone);
 }
 
 const CSSValue* TimelineTriggerBehavior::InitialValue() const {
@@ -777,8 +692,11 @@ const CSSValue* TimelineTriggerBehavior::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForTimelineTriggerBehaviorList(
-      style.Animations());
+  return ComputedStyleUtils::ValueForAnimationTriggerBehaviorList(
+      style.Animations()
+          ? style.Animations()->TimelineTriggerBehaviorList()
+          : Vector<EAnimationTriggerBehavior>{
+                CSSAnimationData::InitialTimelineTriggerBehavior()});
 }
 
 const CSSValue* TimelineTriggerBehavior::ParseSingleValue(
@@ -5320,8 +5238,9 @@ const CSSValue* GridTemplateColumns::CSSValueFromComputedStyleInternal(
                                                    style);
 }
 
-const CSSValue* GridTemplateColumns::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kNone);
+void GridTemplateColumns::ApplyInherit(StyleResolverState& state) const {
+  state.StyleBuilder().SetGridTemplateColumns(
+      state.ParentStyle()->SpecifiedGridTemplateColumns());
 }
 
 const CSSValue* GridTemplateRows::ParseSingleValue(
@@ -5345,8 +5264,9 @@ const CSSValue* GridTemplateRows::CSSValueFromComputedStyleInternal(
                                                    style);
 }
 
-const CSSValue* GridTemplateRows::InitialValue() const {
-  return CSSIdentifierValue::Create(CSSValueID::kNone);
+void GridTemplateRows::ApplyInherit(StyleResolverState& state) const {
+  state.StyleBuilder().SetGridTemplateRows(
+      state.ParentStyle()->SpecifiedGridTemplateRows());
 }
 
 const CSSValue* Height::ParseSingleValue(CSSParserTokenStream& stream,
@@ -6405,7 +6325,7 @@ const CSSValue* LetterSpacing::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseLetterSpacing(stream, context);
+  return css_parsing_utils::ParseSpacing(stream, context);
 }
 
 const CSSValue* LetterSpacing::CSSValueFromComputedStyleInternal(
@@ -6413,7 +6333,7 @@ const CSSValue* LetterSpacing::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (RuntimeEnabledFeatures::CSSLetterSpacingPercentageEnabled()) {
+  if (RuntimeEnabledFeatures::CSSLetterAndWordSpacingPercentageEnabled()) {
     const Length& spacing = style.SpecifiedLetterSpacing();
     if (spacing.IsFixed()) {
       if (spacing.IsZero()) {
@@ -6468,35 +6388,34 @@ const CSSValue* LineBreak::CSSValueFromComputedStyleInternal(
   return CSSIdentifierValue::Create(style.GetLineBreak());
 }
 
-void LineClamp::ApplyInitial(StyleResolverState& state) const {
-  // initial needs to be customized so it doesn't default to `auto`.
-  state.StyleBuilder().SetStandardLineClamp(0);
+const CSSValue* Continue::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.Continue());
 }
 
-const CSSValue* LineClamp::ParseSingleValue(
-    CSSParserTokenStream& stream,
-    const CSSParserContext& context,
-    const CSSParserLocalContext&) const {
-  if (stream.Peek().Id() == CSSValueID::kNone ||
-      stream.Peek().Id() == CSSValueID::kAuto) {
+const CSSValue* MaxLines::ParseSingleValue(CSSParserTokenStream& stream,
+                                           const CSSParserContext& context,
+                                           const CSSParserLocalContext&) const {
+  if (stream.Peek().Id() == CSSValueID::kNone) {
     return css_parsing_utils::ConsumeIdent(stream);
   } else {
     return css_parsing_utils::ConsumePositiveInteger(stream, context);
   }
 }
 
-const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
+const CSSValue* MaxLines::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (style.HasAutoStandardLineClamp()) {
-    return CSSIdentifierValue::Create(CSSValueID::kAuto);
-  }
-  if (style.StandardLineClamp() == 0) {
+  if (style.MaxLines() == 0) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
-  return CSSNumericLiteralValue::Create(style.StandardLineClamp(),
+  DCHECK_GE(style.MaxLines(), 1);
+  return CSSNumericLiteralValue::Create(style.MaxLines(),
                                         CSSPrimitiveValue::UnitType::kNumber);
 }
 
@@ -9898,15 +9817,19 @@ void TextOrientation::ApplyValue(StyleResolverState& state,
       To<CSSIdentifierValue>(value).ConvertTo<ETextOrientation>());
 }
 
+const CSSValue* TextOverflow::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext&,
+    const CSSParserLocalContext&) const {
+  return css_parsing_utils::ConsumeTextOverflow(stream);
+}
+
 const CSSValue* TextOverflow::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (style.TextOverflow() != ETextOverflow::kClip) {
-    return CSSIdentifierValue::Create(CSSValueID::kEllipsis);
-  }
-  return CSSIdentifierValue::Create(CSSValueID::kClip);
+  return ComputedStyleUtils::ValueForTextOverflow(style.TextOverflow(), style);
 }
 
 const CSSValue* TextRendering::CSSValueFromComputedStyleInternal(
@@ -12175,7 +12098,7 @@ const CSSValue* WordSpacing::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&) const {
-  return css_parsing_utils::ParseWordSpacing(stream, context);
+  return css_parsing_utils::ParseSpacing(stream, context);
 }
 
 const CSSValue* WordSpacing::CSSValueFromComputedStyleInternal(
@@ -12183,6 +12106,13 @@ const CSSValue* WordSpacing::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
+  if (RuntimeEnabledFeatures::CSSLetterAndWordSpacingPercentageEnabled()) {
+    const Length& spacing = style.ComputedWordSpacing();
+    if (spacing.IsFixed()) {
+      return ZoomAdjustedPixelValue(spacing.Pixels(), style);
+    }
+    return CSSPrimitiveValue::Create(spacing, style.Zoom());
+  }
   return ZoomAdjustedPixelValue(style.WordSpacing(), style);
 }
 

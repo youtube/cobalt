@@ -10,10 +10,10 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Rect;
-import android.view.Gravity;
+import android.support.annotation.Px;
 import android.view.TouchDelegate;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.FrameLayout;
 
 import androidx.annotation.ColorInt;
 import androidx.core.widget.TextViewCompat;
@@ -30,23 +30,21 @@ public class HubActionButtonHelper {
         ApplyButtonData.apply(buttonData, button);
         button.setText(null);
         button.setCompoundDrawablePadding(0);
-
         if (HubUtils.isGtsUpdateEnabled()) {
             Resources resources = button.getResources();
+            @Px
             int paddingLR =
                     resources.getDimensionPixelSize(R.dimen.hub_toolbar_action_button_padding_lr);
             button.setPadding(paddingLR, 0, paddingLR, 0);
 
+            @Px
             int buttonSize =
                     resources.getDimensionPixelSize(R.dimen.hub_toolbar_action_button_size);
-            int startMarginPx =
-                    resources.getDimensionPixelSize(R.dimen.hub_toolbar_action_button_start_margin);
 
-            FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) button.getLayoutParams();
-            params.setMarginStart(startMarginPx);
+            ViewGroup.LayoutParams params = (ViewGroup.LayoutParams) button.getLayoutParams();
             params.width = buttonSize;
             params.height = buttonSize;
-            params.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+
             button.setLayoutParams(params);
         }
     }
@@ -102,6 +100,7 @@ public class HubActionButtonHelper {
         Rect rect = new Rect();
         button.getHitRect(rect);
 
+        @Px
         int touchSize =
                 button.getContext()
                         .getResources()

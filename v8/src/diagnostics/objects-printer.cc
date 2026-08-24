@@ -2307,7 +2307,7 @@ void JSWeakSet::JSWeakSetPrint(std::ostream& os) {
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {
   JSAPIObjectWithEmbedderSlotsPrintHeader(os, *this, "JSArrayBuffer");
   os << "\n - backing_store: " << backing_store();
-  os << "\n - byte_length: " << byte_length();
+  os << "\n - byte_length: " << GetByteLength();
   os << "\n - max_byte_length: " << max_byte_length();
   os << "\n - detach key: " << detach_key();
   if (is_external()) os << "\n - external";
@@ -3094,11 +3094,12 @@ void WasmImportData::WasmImportDataPrint(std::ostream& os) {
 
 void WasmInternalFunction::WasmInternalFunctionPrint(std::ostream& os) {
   PrintHeader(os, "WasmInternalFunction");
-  os << "\n - call target: "
-     << wasm::GetProcessWideWasmCodePointerTable()
-            ->GetEntrypointWithoutSignatureCheck(call_target());
   os << "\n - implicit arg: " << Brief(implicit_arg());
   os << "\n - external: " << Brief(external());
+  os << "\n - function_index: " << function_index();
+  os << "\n - call target: [" << call_target().value() << "] -> "
+     << AsHex::Address(wasm::GetProcessWideWasmCodePointerTable()
+                           ->GetEntrypointWithoutSignatureCheck(call_target()));
   os << "\n";
 }
 

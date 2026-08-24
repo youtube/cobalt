@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_video_layers_allocation_extension.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <tuple>
 
 #include "absl/algorithm/container.h"

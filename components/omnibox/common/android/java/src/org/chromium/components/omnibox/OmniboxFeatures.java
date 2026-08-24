@@ -143,6 +143,12 @@ public class OmniboxFeatures {
                     OmniboxFeatureList.OMNIBOX_MOBILE_PARITY_UPDATE_V2,
                     FeatureState.ENABLED_IN_TEST);
 
+    public static final CachedFlag sMultilineEditField =
+            newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.DISABLED);
+
+    public static final CachedFlag sAndroidHubSearchTabGroups =
+            newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.DISABLED);
+
     public static final BooleanCachedFeatureParam sOmniboxParityRetrieveBuiltInEngineIcon =
             newBooleanParam(sOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", false);
 
@@ -446,6 +452,10 @@ public class OmniboxFeatures {
     /** Record the current time as the time the User exited Chrome. */
     public static void updateLastExitTimestamp() {
         sPrefs.edit().putLong(KEY_LAST_EXIT_TIMESTAMP, TimeUtils.currentTimeMillis()).apply();
+    }
+
+    public static boolean allowMultilineEditField() {
+        return (!DeviceFormFactor.isTablet() && sMultilineEditField.isEnabled());
     }
 
     public static boolean shouldJumpStartOmnibox() {

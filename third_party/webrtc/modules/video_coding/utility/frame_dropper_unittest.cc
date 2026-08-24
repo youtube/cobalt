@@ -24,8 +24,8 @@ constexpr size_t kFrameSizeBytes = 1250;
 
 constexpr size_t kLargeFrameSizeBytes = 25000;
 
-const bool kIncludeKeyFrame = true;
-const bool kDoNotIncludeKeyFrame = false;
+constexpr bool kIncludeKeyFrame = true;
+constexpr bool kDoNotIncludeKeyFrame = false;
 
 }  // namespace
 

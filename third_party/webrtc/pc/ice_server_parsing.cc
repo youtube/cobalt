@@ -10,9 +10,8 @@
 
 #include "pc/ice_server_parsing.h"
 
-#include <stddef.h>
-
-#include <cctype>  // For std::isdigit.
+#include <cctype>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <tuple>

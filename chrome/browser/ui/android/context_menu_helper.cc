@@ -40,8 +40,7 @@ ContextMenuHelper::ContextMenuHelper(content::WebContents* web_contents)
   JNIEnv* env = base::android::AttachCurrentThread();
   java_obj_.Reset(
       env, Java_ContextMenuHelper_create(env, reinterpret_cast<int64_t>(this),
-                                         web_contents->GetJavaWebContents())
-               .obj());
+                                         web_contents->GetJavaWebContents()));
   DCHECK(!java_obj_.is_null());
 }
 
@@ -87,9 +86,7 @@ void ContextMenuHelper::DismissContextMenu() {
   Java_ContextMenuHelper_dismissContextMenu(env, java_obj_);
 }
 
-void ContextMenuHelper::OnContextMenuClosed(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void ContextMenuHelper::OnContextMenuClosed(JNIEnv* env) {
   GetWebContents().NotifyContextMenuClosed(context_menu_params_.link_followed,
                                            context_menu_params_.impression);
 }

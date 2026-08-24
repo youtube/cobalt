@@ -232,6 +232,10 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     kIceConnectionMax,
   };
   static constexpr absl::string_view AsString(IceConnectionState state);
+  template <typename Sink>
+  void AbslStringify(Sink& sink, IceConnectionState state) {
+    sink.Append(AsString(state));
+  }
 
   // TLS certificate policy.
   enum TlsCertPolicy {
@@ -655,8 +659,7 @@ class RTC_EXPORT PeerConnectionInterface : public RefCountInterface {
     bool active_reset_srtp_params = false;
 
     // Defines advanced optional cryptographic settings related to SRTP and
-    // frame encryption for native WebRTC. Setting this will overwrite any
-    // settings set in PeerConnectionFactory (which is deprecated).
+    // frame encryption for native WebRTC.
     std::optional<CryptoOptions> crypto_options;
 
     // Configure if we should include the SDP attribute extmap-allow-mixed in
@@ -1526,9 +1529,6 @@ class RTC_EXPORT PeerConnectionFactoryInterface : public RefCountInterface {
     // supported by both ends will be used for the connection, i.e. if one
     // party supports DTLS 1.0 and the other DTLS 1.2, DTLS 1.0 will be used.
     SSLProtocolVersion ssl_max_version = SSL_PROTOCOL_DTLS_12;
-
-    // Sets crypto related options, e.g. enabled cipher suites.
-    CryptoOptions crypto_options = {};
   };
 
   // Set the options to be used for subsequently created PeerConnections.

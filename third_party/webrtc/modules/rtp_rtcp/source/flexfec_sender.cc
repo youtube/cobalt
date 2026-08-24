@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/include/flexfec_sender.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <list>
 #include <memory>
 #include <optional>
@@ -170,9 +169,7 @@ std::vector<std::unique_ptr<RtpPacketToSend>> FlexfecSender::GetFecPackets() {
     }
 
     // RTP payload.
-    uint8_t* payload =
-        fec_packet_to_send->AllocatePayload(fec_packet->data.size());
-    memcpy(payload, fec_packet->data.cdata(), fec_packet->data.size());
+    fec_packet_to_send->SetPayload(fec_packet->data);
 
     total_fec_data_bytes += fec_packet_to_send->size();
     fec_packets_to_send.push_back(std::move(fec_packet_to_send));

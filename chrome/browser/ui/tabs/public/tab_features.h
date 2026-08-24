@@ -39,7 +39,7 @@ class CommerceUiTabHelper;
 class PriceInsightsPageActionViewController;
 class DiscountsPageActionViewController;
 class ProductSpecificationsPageActionViewController;
-}
+}  // namespace commerce
 
 namespace content {
 class WebContents;
@@ -64,16 +64,16 @@ class ExtensionSidePanelManager;
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class GlicTabIndicatorHelper;
-}
-#endif
+}  // namespace glic
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 namespace memory_saver {
 class MemorySaverChipController;
-}
+}  // namespace memory_saver
 
 namespace zoom {
 class ZoomViewController;
-}
+}  // namespace zoom
 
 namespace permissions {
 class PermissionIndicatorsTabData;
@@ -111,6 +111,7 @@ class TabInterface;
 class TabDialogManager;
 
 class InactiveWindowMouseEventController;
+class TabCreationMetricsController;
 
 // This class owns the core controllers for features that are scoped to a given
 // tab. It can be subclassed by tests to perform dependency injection.
@@ -245,6 +246,7 @@ class TabFeatures {
 
   TabUIHelper* tab_ui_helper() { return tab_ui_helper_.get(); }
 
+  // actor_ui_tab_controller_ is only initialized for normal browser windows
   actor::ui::ActorUiTabController* actor_ui_tab_controller() {
     return actor_ui_tab_controller_.get();
   }
@@ -259,6 +261,10 @@ class TabFeatures {
 
   TabAlertController* tab_alert_controller() {
     return tab_alert_controller_.get();
+  }
+
+  TabCreationMetricsController* tab_creation_metrics_controller() {
+    return tab_creation_metrics_controller_.get();
   }
 
   // Called exactly once to initialize features.
@@ -378,7 +384,7 @@ class TabFeatures {
 
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
-#endif
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
   std::unique_ptr<memory_saver::MemorySaverChipController>
       memory_saver_chip_controller_;
@@ -400,6 +406,9 @@ class TabFeatures {
   std::unique_ptr<QwacWebContentsObserver> qwac_web_contents_observer_;
 
   std::unique_ptr<actor::ui::ActorUiTabController> actor_ui_tab_controller_;
+
+  std::unique_ptr<TabCreationMetricsController>
+      tab_creation_metrics_controller_;
 
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};

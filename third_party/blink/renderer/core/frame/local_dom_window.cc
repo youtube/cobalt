@@ -91,6 +91,7 @@
 #include "third_party/blink/renderer/core/execution_context/window_agent.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/bar_prop.h"
+#include "third_party/blink/renderer/core/frame/crash_report_storage.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/document_policy_violation_report_body.h"
 #include "third_party/blink/renderer/core/frame/dom_viewport.h"
@@ -201,6 +202,22 @@ int RequestAnimationFrame(Document* document,
   auto* frame_callback = MakeGarbageCollected<V8FrameCallback>(callback);
   frame_callback->SetUseLegacyTimeBase(legacy);
   return document->RequestAnimationFrame(frame_callback);
+}
+
+// TODO(https://crbug.com/41406914): Ad-hoc method until we hook up with scroll
+// animation end.
+ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
+    ScriptState* script_state) {
+  // Internal scroll calls sometimes pass a null `script_state`.
+  if (!script_state ||
+      !RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
+    return EmptyPromise();  // This is exposed to JS as `undefined`.
+  }
+
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
+  resolver->Resolve();
+  return resolver->Promise();
 }
 
 }  // namespace
@@ -1387,6 +1404,8 @@ void LocalDOMWindow::DispatchMessageEventWithOriginCheck(
     display_capture_request_token_.Activate();
   }
 
+  event->SetShouldMeasureDataAccessBeforeOrigin();
+
   if (GetFrame() &&
       GetFrame()->GetPage()->GetPageScheduler()->IsInBackForwardCache()) {
     // Enqueue the event when the page is in back/forward cache, so that it
@@ -1822,24 +1841,27 @@ double LocalDOMWindow::devicePixelRatio() const {
   return GetFrame()->DevicePixelRatio();
 }
 
-void LocalDOMWindow::scrollBy(double x, double y) const {
+ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(ScriptState* script_state,
+                                                     double x,
+                                                     double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
   options->setLeft(x);
   options->setTop(y);
-  scrollBy(options);
+  return scrollBy(script_state, options);
 }
 
-void LocalDOMWindow::scrollBy(const ScrollToOptions* scroll_to_options) const {
-  if (!IsCurrentlyDisplayedInFrame())
-    return;
+ScriptPromise<IDLUndefined> LocalDOMWindow::scrollBy(
+    ScriptState* script_state,
+    const ScrollToOptions* scroll_to_options) const {
+  if (!IsCurrentlyDisplayedInFrame()) {
+    return CreateScrollResolvedPromise(script_state);
+  }
 
   LocalFrameView* view = GetFrame()->View();
-  if (!view)
-    return;
-
   Page* page = GetFrame()->GetPage();
-  if (!page)
-    return;
+  if (!view || !page) {
+    return CreateScrollResolvedPromise(script_state);
+  }
 
   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
   // impact is understood.
@@ -1878,26 +1900,31 @@ void LocalDOMWindow::scrollBy(const ScrollToOptions* scroll_to_options) const {
   viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
       mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+
+  return CreateScrollResolvedPromise(script_state);
 }
 
-void LocalDOMWindow::scrollTo(double x, double y) const {
+ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(ScriptState* script_state,
+                                                     double x,
+                                                     double y) const {
   ScrollToOptions* options = ScrollToOptions::Create();
   options->setLeft(x);
   options->setTop(y);
-  scrollTo(options);
+  return scrollTo(script_state, options);
 }
 
-void LocalDOMWindow::scrollTo(const ScrollToOptions* scroll_to_options) const {
-  if (!IsCurrentlyDisplayedInFrame())
-    return;
+ScriptPromise<IDLUndefined> LocalDOMWindow::scrollTo(
+    ScriptState* script_state,
+    const ScrollToOptions* scroll_to_options) const {
+  if (!IsCurrentlyDisplayedInFrame()) {
+    return CreateScrollResolvedPromise(script_state);
+  }
 
   LocalFrameView* view = GetFrame()->View();
-  if (!view)
-    return;
-
   Page* page = GetFrame()->GetPage();
-  if (!page)
-    return;
+  if (!view || !page) {
+    return CreateScrollResolvedPromise(script_state);
+  }
 
   // TODO(crbug.com/1499981): This should be removed once synchronized scrolling
   // impact is understood.
@@ -1946,6 +1973,16 @@ void LocalDOMWindow::scrollTo(const ScrollToOptions* scroll_to_options) const {
   viewport->SetScrollOffset(
       viewport->ScrollPositionToOffset(new_scaled_position),
       mojom::blink::ScrollType::kProgrammatic, scroll_behavior);
+
+  return CreateScrollResolvedPromise(script_state);
+}
+
+void LocalDOMWindow::scrollByForTesting(double x, double y) const {
+  scrollBy(nullptr, x, y);
+}
+
+void LocalDOMWindow::scrollToForTesting(double x, double y) const {
+  scrollTo(nullptr, x, y);
 }
 
 void LocalDOMWindow::moveBy(int x, int y) const {
@@ -2539,6 +2576,7 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(isolated_world_csp_map_);
   visitor->Trace(network_state_observer_);
   visitor->Trace(fence_);
+  visitor->Trace(crash_report_storage_);
   visitor->Trace(closewatcher_stack_);
   visitor->Trace(soft_navigation_heuristics_);
   UniversalGlobalScope::Trace(visitor);
@@ -2658,6 +2696,19 @@ Fence* LocalDOMWindow::fence() {
   }
 
   return fence_.Get();
+}
+
+CrashReportStorage* LocalDOMWindow::crashReport() {
+  // TODO(domfarolino): Maybe document this.
+  if (!GetFrame()) {
+    return nullptr;
+  }
+
+  if (!crash_report_storage_) {
+    crash_report_storage_ = MakeGarbageCollected<CrashReportStorage>(*this);
+  }
+
+  return crash_report_storage_.Get();
 }
 
 bool LocalDOMWindow::IsPictureInPictureWindow() const {

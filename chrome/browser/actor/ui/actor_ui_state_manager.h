@@ -19,28 +19,26 @@ class TabInterface;
 }
 
 namespace actor::ui {
-
 class ActorUiStateManager : public ActorUiStateManagerInterface {
  public:
   explicit ActorUiStateManager(ActorKeyedService& actor_service);
   ~ActorUiStateManager() override;
 
   // ActorUiStateManagerInterface:
-  void OnActorTaskStateChange(TaskId task_id,
-                              ActorTask::State task_state) override;
-
-  // Handles a UiEvent that may be processed asynchronously.
   void OnUiEvent(AsyncUiEvent event, UiCompleteCallback callback) override;
-
-  // Handles a UiEvent that must be processed synchronously.
   void OnUiEvent(SyncUiEvent event) override;
+  ActorUiTabControllerInterface* GetUiTabController(
+      tabs::TabInterface* tab) override;
 
+// TODO(crbug.com/424495020): Post-task icon refactor, look into removing these
+// functions from AUSM.
 #if BUILDFLAG(ENABLE_GLIC)
-  void OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State floaty_state) override;
+  void OnGlicUpdateFloatyState(glic::GlicWindowController::State floaty_state,
+                               BrowserWindowInterface* bwi) override;
+
+  base::CallbackListSubscription RegisterFloatyTaskStateChange(
+      FloatyTaskStateChangeCallback callback) override;
 #endif
-  void RunOnUiTabController(tabs::TabInterface* tab,
-                            ActorUiTabControllerCallback callback) override;
 
   // Returns the tabs associated with a given task id.
   std::vector<tabs::TabInterface*> GetTabs(TaskId id);
@@ -48,8 +46,12 @@ class ActorUiStateManager : public ActorUiStateManagerInterface {
   // Returns the current profile scoped ui state.
   UiState GetUiState() const;
 
+ protected:
+  UiState state_ = UiState::kInactive;
+
  private:
   void MaybeUpdateProfileScopedUiState();
+  void OnActorTaskStateChange(TaskId task_id, ActorTask::State new_task_state);
 
   // Returns completed tasks within the kCompletedTaskExpiryDelay of the
   // `current_time`.
@@ -57,14 +59,20 @@ class ActorUiStateManager : public ActorUiStateManagerInterface {
 
   // Shows toast that notifies user the agent is working in the background.
   // Shows a maximum of kToastShownMax per profile.
-  // TODO(crbug.com/428014205): Define kToastShownMax.
-  void MaybeShowToast();
+  void MaybeShowToast(BrowserWindowInterface* bwi);
 
   base::OneShotTimer update_profile_scoped_ui_debounce_timer_;
   base::OneShotTimer completed_tasks_expiry_timer_;
 
   const raw_ref<ActorKeyedService> actor_service_;
-  UiState state_ = UiState::kInactive;
+
+#if BUILDFLAG(ENABLE_GLIC)
+  using FloatyTaskStateChangeCallbackList =
+      base::RepeatingCallbackList<void(ActorUiStateManagerInterface::UiState,
+                                       glic::GlicWindowController::State)>;
+  FloatyTaskStateChangeCallbackList floaty_task_state_change_callback_list_;
+#endif
+
   base::WeakPtrFactory<ActorUiStateManager> weak_factory_{this};
 };
 

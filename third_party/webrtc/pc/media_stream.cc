@@ -10,8 +10,7 @@
 
 #include "pc/media_stream.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <string>
 #include <utility>
 

@@ -1461,6 +1461,9 @@ inline int CRYPTO_fuzzer_mode_enabled(void) { return 0; }
 
 // CRYPTO_addc_* returns |x + y + carry|, and sets |*out_carry| to the carry
 // bit. |carry| must be zero or one.
+
+// NOTE: Unoptimized GCC builds may compile these builtins to non-constant-time
+// code. For correct constant-time behavior, ensure builds are optimized.
 #if OPENSSL_HAS_BUILTIN(__builtin_addc)
 
 inline unsigned int CRYPTO_addc_impl(unsigned int x, unsigned int y,

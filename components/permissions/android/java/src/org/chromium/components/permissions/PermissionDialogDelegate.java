@@ -14,13 +14,10 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Delegate class for modal permission dialogs. Contains all of the data displayed in a prompt,
@@ -62,9 +59,6 @@ public class PermissionDialogDelegate {
 
     /** Whether to show the persistent grant button first, followed by the ephemeral option. */
     private boolean mShowPositiveNonEphemeralAsFirstButton;
-
-    /** The text of radio buttons that can be shown above the permission buttons. */
-    private List<CharSequence> mRadioButtons;
 
     /** The {@link ContentSettingsType}s requested in this dialog. */
     private int[] mContentSettingsTypes;
@@ -122,10 +116,6 @@ public class PermissionDialogDelegate {
         return mEmbeddedPromptVariant;
     }
 
-    public List<CharSequence> getRadioButtons() {
-        return mRadioButtons;
-    }
-
     public void setEmbeddedPromptVariant(@EmbeddedPromptVariant int variant) {
         mEmbeddedPromptVariant = variant;
     }
@@ -164,8 +154,9 @@ public class PermissionDialogDelegate {
         PermissionDialogDelegateJni.get().systemPermissionResolved(mNativeDelegatePtr, accepted);
     }
 
-    public void onRadioButtonSelectionChanged(Integer selectedIndex) {
-        // TODO(crbug.com/417684493): Process radio button changes.
+    public void onCloseButtonClicked() {
+        assert mDialogController != null;
+        mDialogController.dismissByCloseButton(this);
     }
 
     public void destroy() {
@@ -244,7 +235,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         assert (boldedRanges.length % 2 == 0); // Contains a list of offset and length values
 
@@ -259,11 +249,9 @@ public class PermissionDialogDelegate {
                 negativeButtonText,
                 positiveEphemeralButtonText,
                 showPositiveNonEphemeralAsFirstButton,
-                radioButtons,
                 variant);
     }
 
-    @SuppressWarnings("NoStreams") // Not using lambdas.
     private PermissionDialogDelegate(
             long nativeDelegatePtr,
             WindowAndroid window,
@@ -275,7 +263,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         mNativeDelegatePtr = nativeDelegatePtr;
         mWindow = window;
@@ -289,13 +276,11 @@ public class PermissionDialogDelegate {
         mNegativeButtonText = negativeButtonText;
         mPositiveEphemeralButtonText = positiveEphemeralButtonText;
         mShowPositiveNonEphemeralAsFirstButton = showPositiveNonEphemeralAsFirstButton;
-        mRadioButtons = Arrays.stream(radioButtons).collect(Collectors.toList());
         mEmbeddedPromptVariant = variant;
     }
 
     /** Called by native code to update the current permission dialog with new screen. */
     @CalledByNative
-    @SuppressWarnings("NoStreams") // Not using lambdas.
     void updateDialog(
             int[] contentSettingsTypes,
             int iconId,
@@ -305,7 +290,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         mContentSettingsTypes = contentSettingsTypes;
         mMessageText = message;
@@ -318,7 +302,6 @@ public class PermissionDialogDelegate {
         mNegativeButtonText = negativeButtonText;
         mPositiveEphemeralButtonText = positiveEphemeralButtonText;
         mShowPositiveNonEphemeralAsFirstButton = showPositiveNonEphemeralAsFirstButton;
-        mRadioButtons = Arrays.stream(radioButtons).collect(Collectors.toList());
         mEmbeddedPromptVariant = variant;
 
         assert mDialogController != null;

@@ -7,6 +7,7 @@
 #include <string>
 
 #include "base/android/jni_string.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "components/translate/core/common/translate_constants.h"
 #include "components/translate/core/language_detection/language_detection_util.h"
 #include "content/public/browser/browser_thread.h"
@@ -14,9 +15,16 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/ContextualSearchContext_jni.h"
 
-NativeContextualSearchContext::NativeContextualSearchContext(JNIEnv* env,
-                                                             jobject obj) {
+NativeContextualSearchContext::NativeContextualSearchContext(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj) {
   java_object_.Reset(env, obj);
+
+  bool use_snippet_as_subtitle =
+      base::FeatureList::IsEnabled(chrome::android::kTouchToSearchCallout) &&
+      chrome::android::kTouchToSearchCalloutSnippetAsSubtitle.Get();
+
+  ContextualSearchContext::SetUseSnippetAsSubtitle(use_snippet_as_subtitle);
 }
 
 NativeContextualSearchContext::~NativeContextualSearchContext() = default;
@@ -44,7 +52,6 @@ NativeContextualSearchContext::FromJavaContextualSearchContext(
 
 void NativeContextualSearchContext::SetResolveProperties(
     JNIEnv* env,
-    jobject obj,
     std::string& home_country,
     jboolean j_may_send_base_page_url) {
   ContextualSearchContext::SetResolveProperties(home_country,
@@ -52,7 +59,6 @@ void NativeContextualSearchContext::SetResolveProperties(
 }
 
 void NativeContextualSearchContext::AdjustSelection(JNIEnv* env,
-                                                    jobject obj,
                                                     jint j_start_adjust,
                                                     jint j_end_adjust) {
   ContextualSearchContext::AdjustSelection(j_start_adjust, j_end_adjust);
@@ -60,23 +66,19 @@ void NativeContextualSearchContext::AdjustSelection(JNIEnv* env,
 
 void NativeContextualSearchContext::PrepareToResolve(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     jboolean j_is_exact_resolve,
     std::string& related_searches_stamp) {
   ContextualSearchContext::PrepareToResolve(j_is_exact_resolve,
                                             related_searches_stamp);
 }
 
-std::string NativeContextualSearchContext::DetectLanguage(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) const {
+std::string NativeContextualSearchContext::DetectLanguage(JNIEnv* env) const {
   std::string language = ContextualSearchContext::DetectLanguage();
   return language;
 }
 
 void NativeContextualSearchContext::SetTranslationLanguages(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     std::string& detected_language,
     std::string& target_language,
     std::string& fluent_languages) {
@@ -86,9 +88,7 @@ void NativeContextualSearchContext::SetTranslationLanguages(
 
 // Java wrapper boilerplate
 
-void NativeContextualSearchContext::Destroy(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void NativeContextualSearchContext::Destroy(JNIEnv* env) {
   delete this;
 }
 

@@ -113,6 +113,7 @@ Essayez d'attendre quelques minutes avant de changer de compte. Si vous changez 
 <translation id="3728124580182886854">Associez Chromium et d'autres services Google à des fins de personnalisation et à d'autres fins</translation>
 <translation id="377649297473651452">Affichage développé du remplissage automatique de Chromium</translation>
 <translation id="3780779443901618967">Vous avertit des sites dangereux, même ceux que Google ne connaissait pas auparavant, en analysant plus de données provenant des sites que la protection standard. Vous pouvez choisir d'ignorer les avertissements de Chromium.</translation>
+<translation id="3804124559081428680">Astuce Chromium : Confirmer votre identité</translation>
 <translation id="3805899903892079518">Chromium n'a pas accès à vos photos ou vidéos. Activez l'accès dans Réglages iOS &gt; Confidentialité &gt; Photos.</translation>
 <translation id="3816686541346279443">Chromium vous proposera d'enregistrer votre mot de passe.</translation>
 <translation id="3827545470516145620">Vous bénéficiez d'une protection de sécurité standard sur cet appareil</translation>
@@ -252,6 +253,7 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 
 Seule une personne connaissant votre phrase de passe peut lire vos données chiffrées. La phrase de passe n'est ni envoyée à Google ni stockée par cette dernière. Si vous oubliez votre phrase de passe ou si vous souhaitez modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chromium de votre compte<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Les notifications de Chromium sont désactivées dans les paramètres de votre appareil.</translation>
+<translation id="7195217321165708458">Gemini dans Chromium</translation>
 <translation id="7219205286115692265">Accédez à Chromium plus rapidement à partir du Dock de l'écran d'accueil de votre iPad.</translation>
 <translation id="7222001353246886083">Rechercher ${searchPhrase} dans Chromium</translation>
 <translation id="7228180817326917122">Astuce Chromium : Choisissez la position de votre barre d'adresse</translation>

@@ -10,11 +10,10 @@
 
 #include "rtc_base/memory_stream.h"
 
-#include <errno.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 #include "rtc_base/checks.h"

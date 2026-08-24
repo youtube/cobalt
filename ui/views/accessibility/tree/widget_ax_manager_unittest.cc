@@ -60,6 +60,14 @@ TEST_F(WidgetAXManagerTest, IsEnabledAfterAXModeAdded) {
   EXPECT_TRUE(manager()->is_enabled());
 }
 
+TEST_F(WidgetAXManagerTest, EnableInitializesBrowserAccessibilityManager) {
+  WidgetAXManagerTestApi test_api(manager());
+
+  EXPECT_EQ(test_api.ax_tree_manager(), nullptr);
+  manager()->Enable();
+  EXPECT_NE(test_api.ax_tree_manager(), nullptr);
+}
+
 TEST_F(WidgetAXManagerTest, InitParamsCreatesParentRelationship) {
   WidgetAXManagerTestApi parent_api(manager());
 
@@ -352,6 +360,35 @@ TEST_F(WidgetAXManagerTest, GetTopLevelNativeWindow) {
   EXPECT_EQ(child_mgr->GetTopLevelNativeWindow(), top_native);
 
   child_widget->CloseNow();
+}
+
+TEST_F(WidgetAXManagerTest, CanFireAccessibilityEvents) {
+  // Null widget should always return false.
+  WidgetAXManager null_mgr(nullptr);
+  EXPECT_FALSE(null_mgr.CanFireAccessibilityEvents());
+
+  // Newly created widget is inactive by default.
+  EXPECT_FALSE(widget()->IsActive());
+  EXPECT_FALSE(manager()->CanFireAccessibilityEvents());
+
+  // Once activated, it should return true.
+  widget()->Activate();
+  EXPECT_TRUE(widget()->IsActive());
+  EXPECT_TRUE(manager()->CanFireAccessibilityEvents());
+}
+
+TEST_F(WidgetAXManagerTest, GetOrCreateAXNodeUniqueId) {
+  auto v = ViewAccessibility::Create(nullptr);
+
+  WidgetAXManagerTestApi test_api(manager());
+  ASSERT_FALSE(test_api.cache()->HasCachedChildren(v.get()));
+  EXPECT_EQ(manager()->GetOrCreateAXNodeUniqueId(v->GetUniqueId()),
+            ui::AXUniqueId::CreateInvalid());
+
+  test_api.cache()->Insert(v.get());
+
+  EXPECT_EQ(manager()->GetOrCreateAXNodeUniqueId(v->GetUniqueId()),
+            v->GetUniqueId());
 }
 
 }  // namespace views::test

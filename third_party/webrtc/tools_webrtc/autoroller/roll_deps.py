@@ -90,7 +90,11 @@ NOTIFY_EMAIL = 'webrtc-trooper@grotations.appspotmail.com'
 
 GCS_OBJECTS_ERROR = (
     'The number of objects in %s is different between '
-    'Chromium\'s DEPS and WebRTC\'s DEPS. They must be the same.')
+    'Chromium\'s DEPS and WebRTC\'s DEPS. They must be the same.\n'
+    'Old: %s\nNew: %s\n'
+    'Manually update the DEPS file and add appropriate conditions for any new '
+    'objects. Note that the order of objects matter and must be the same as in '
+    'Chromium.')
 
 sys.path.append(os.path.join(CHECKOUT_ROOT_DIR, 'build'))
 import find_depot_tools
@@ -326,11 +330,12 @@ def BuildDepsentryDict(deps_dict):
 
 
 def _FindChangedGcsPackage(path, old_pkg, new_pkg):
-    assert len(old_pkg.objects) == len(new_pkg.objects), (GCS_OBJECTS_ERROR %
-                                                          path)
-    current_version_str = ','.join(x['object_name'] for x in old_pkg.objects)
-    new_version_str = ','.join(x['object_name'] for x in new_pkg.objects)
-    if current_version_str != new_version_str:
+    old_object_names = [x['object_name'] for x in old_pkg.objects]
+    new_object_names = [x['object_name'] for x in new_pkg.objects]
+    assert len(old_pkg.objects) == len(
+        new_pkg.objects), (GCS_OBJECTS_ERROR %
+                           (path, old_object_names, new_object_names))
+    if old_object_names != new_object_names:
         objects = [
             ','.join([
                 o['object_name'], o['sha256sum'],
@@ -339,8 +344,8 @@ def _FindChangedGcsPackage(path, old_pkg, new_pkg):
             ]) for o in new_pkg.objects
         ]
         setdep_arg = '%s@%s' % (path, '?'.join(objects))
-        yield ChangedGcsPackage(path, setdep_arg, current_version_str,
-                                new_version_str)
+        yield ChangedGcsPackage(path, setdep_arg, ','.join(old_object_names),
+                                ','.join(new_object_names))
 
 
 def _FindChangedCipdPackages(path, old_pkgs, new_pkgs):

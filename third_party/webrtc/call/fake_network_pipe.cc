@@ -10,10 +10,9 @@
 
 #include "call/fake_network_pipe.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <queue>

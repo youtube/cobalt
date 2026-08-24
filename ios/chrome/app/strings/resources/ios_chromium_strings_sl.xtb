@@ -113,6 +113,7 @@ Počakajte nekaj minut, preden preklopite račun. Če zdaj preklopite med račun
 <translation id="3728124580182886854">Povežite Chromium in druge Googlove storitve za osebno prilagajanje in druge namene</translation>
 <translation id="377649297473651452">Razširjen pogled samodejnega izpolnjevanja v Chromiumu</translation>
 <translation id="3780779443901618967">Opozori vas o nevarnih spletnih mestih, celo tistih, za katere Google prej ni vedel, in sicer tako, da analizira več podatkov s spletnih mest kot standardna zaščita. Izberete lahko, da preskočite opozorila za Chromium.</translation>
+<translation id="3804124559081428680">Nasvet za Chromium: Potrdite, da ste to vi</translation>
 <translation id="3805899903892079518">Chromium nima dostopa do fotografij ali videoposnetkov. Omogočite dostop v sistemu iOS: Settings &gt; Privacy &gt; Photos.</translation>
 <translation id="3816686541346279443">Chromium bo ponudil shranjevanje gesla.</translation>
 <translation id="3827545470516145620">V tej napravi uporabljate standardno varnostno zaščito</translation>
@@ -252,6 +253,7 @@ Kaj je treba upoštevati:
 
 Vaše šifrirane podatke lahko bere samo oseba, ki ima vaše geslo. Geslo ni poslano Googlu in ga Google ne hrani. Če pozabite geslo ali želite to nastavitev spremeniti, <ph name="BEGIN_LINK" />izbrišite podatke iz Chromiuma v računu<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Obvestila za Chromium so trenutno izklopljena v nastavitvah naprave.</translation>
+<translation id="7195217321165708458">Gemini v Chromiumu</translation>
 <translation id="7219205286115692265">Hitreje dostopajte do Chromiuma iz vrstice Dock na začetnem zaslonu iPada.</translation>
 <translation id="7222001353246886083">Iskanje poizvedbe ${searchphrase} v Chromiumu</translation>
 <translation id="7228180817326917122">Nasvet za Chromium: Izberite položaj naslovne vrstice</translation>

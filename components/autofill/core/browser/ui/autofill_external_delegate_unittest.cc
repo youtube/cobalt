@@ -49,7 +49,9 @@
 #include "components/autofill/core/browser/metrics/autofill_in_devtools_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
+#include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/mock_iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
@@ -129,6 +131,13 @@ auto PopupOpenArgsAre(
   using PopupOpenArgs = AutofillClient::PopupOpenArgs;
   return AllOf(Field(&PopupOpenArgs::suggestions, suggestions_matcher),
                Field(&PopupOpenArgs::trigger_source, trigger_source));
+}
+
+MATCHER_P(OtpPayloadPointeeEq, expected_otp_payload, "") {
+  if (const auto* payload_ptr = std::get_if<const OtpFillData*>(&arg)) {
+    return *payload_ptr && **payload_ptr == expected_otp_payload;
+  }
+  return false;
 }
 
 class MockAutofillDriver : public TestAutofillDriver {
@@ -671,8 +680,7 @@ TEST_F(AutofillExternalDelegateTest, UpdateDataListWhileShowingPopup) {
   EXPECT_CALL(client(), ShowAutofillSuggestions(
                             PopupOpenArgsAre(kExpectedSuggestions), _));
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
-  autofill_item[0].type = SuggestionType::kAddressEntry;
+  autofill_item.emplace_back(SuggestionType::kAddressEntry);
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 
   // This would normally get called from ShowAutofillSuggestions, but it is
@@ -709,11 +717,10 @@ TEST_F(AutofillExternalDelegateTest, DuplicateAutofillDatalistValues) {
 
   // Have an Autofill item that is identical to one of the datalist entries.
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
+  autofill_item.emplace_back(SuggestionType::kAddressEntry);
   autofill_item[0].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
   autofill_item[0].labels = {{Suggestion::Text(u"Deckard")}};
-  autofill_item[0].type = SuggestionType::kAddressEntry;
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 }
 
@@ -742,14 +749,12 @@ TEST_F(AutofillExternalDelegateTest, DuplicateAutocompleteDatalistValues) {
   // Have an Autocomplete item that is identical to one of the datalist entries
   // and one that is distinct.
   std::vector<Suggestion> autocomplete_items;
-  autocomplete_items.emplace_back();
+  autocomplete_items.emplace_back(SuggestionType::kAutocompleteEntry);
   autocomplete_items[0].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
-  autocomplete_items[0].type = SuggestionType::kAutocompleteEntry;
-  autocomplete_items.emplace_back();
+  autocomplete_items.emplace_back(SuggestionType::kAutocompleteEntry);
   autocomplete_items[1].main_text =
       Suggestion::Text(u"Cain", Suggestion::Text::IsPrimary(true));
-  autocomplete_items[1].type = SuggestionType::kAutocompleteEntry;
   OnSuggestionsReturned(queried_field().global_id(), autocomplete_items);
 }
 
@@ -787,7 +792,7 @@ TEST_F(AutofillExternalDelegateTest, BnplSuggestionsShownWithCreditCardEntry) {
 TEST_F(AutofillExternalDelegateTest, AcceptedBnplEntry_FormIsFilled) {
   IssueOnQuery();
   CreditCard card = test::GetVirtualCard();
-  card.set_issuer_id(payments::BnplManager::GetSupportedBnplIssuerIds()[0]);
+  card.set_issuer_id(kBnplAffirmIssuerId);
 
   const uint64_t expected_amount = 50'000'000;
 
@@ -823,9 +828,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillWarnings) {
 
   // This should call ShowAutofillSuggestions.
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
-  autofill_item[0].type =
-      SuggestionType::kInsecureContextPaymentDisabledMessage;
+  autofill_item.emplace_back(
+      SuggestionType::kInsecureContextPaymentDisabledMessage);
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 
   EXPECT_THAT(open_args.suggestions,
@@ -846,12 +850,11 @@ TEST_F(AutofillExternalDelegateTest, AutofillWarningsNotShown_WithSuggestions) {
                                           SuggestionType::kAutocompleteEntry)),
                                       _));
   std::vector<Suggestion> suggestions;
-  suggestions.emplace_back();
-  suggestions[0].type = SuggestionType::kInsecureContextPaymentDisabledMessage;
-  suggestions.emplace_back();
+  suggestions.emplace_back(
+      SuggestionType::kInsecureContextPaymentDisabledMessage);
+  suggestions.emplace_back(SuggestionType::kAutocompleteEntry);
   suggestions[1].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
-  suggestions[1].type = SuggestionType::kAutocompleteEntry;
   OnSuggestionsReturned(queried_field().global_id(), suggestions);
 }
 
@@ -1423,6 +1426,33 @@ TEST_F(AutofillExternalDelegateTest, AcceptManageAutofillAi) {
   EXPECT_CALL(client(),
               ShowAutofillSettings(SuggestionType::kManageAutofillAi));
   external_delegate().DidAcceptSuggestion(manage_suggestion, {});
+}
+
+TEST_F(AutofillExternalDelegateTest, AcceptedOtpSuggestion) {
+  IssueOnQuery();
+
+  std::u16string otp_value = u"123456";
+  Suggestion::OneTimePasswordPayload otp_payload(
+      {{queried_field().global_id(), otp_value}});
+
+  // Expect that suggestion trigger source translates to source `kPopup` or
+  // `kKeyboardAccessory`, depending on the platform.
+  auto expected_source =
+#if BUILDFLAG(IS_ANDROID)
+      AutofillTriggerSource::kKeyboardAccessory;
+#else
+      AutofillTriggerSource::kPopup;
+#endif
+  EXPECT_CALL(manager(),
+              FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                                HasQueriedFormId(), IsQueriedFieldId(),
+                                OtpPayloadPointeeEq(otp_payload.filling_data),
+                                expected_source));
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(SuggestionType::kOneTimePasswordEntry,
+                                     /*main_text_value=*/otp_value,
+                                     otp_payload),
+      {});
 }
 
 class AutofillExternalDelegatePlusAddressTest
@@ -2342,11 +2372,45 @@ TEST_F(AutofillExternalDelegateTest,
   IssueOnQuery();
 
   EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
-              OnDidAcceptCreditCardSaveAndFillSuggestion());
+              OnDidAcceptCreditCardSaveAndFillSuggestion(_));
   external_delegate().DidAcceptSuggestion(
       test::CreateAutofillSuggestion(
           SuggestionType::kSaveAndFillCreditCardEntry),
       SuggestionPosition{.row = 0});
+}
+
+TEST_F(AutofillExternalDelegateTest, AcceptedSaveAndFillEntry_FillForm) {
+  IssueOnQuery();
+  CreditCard card = test::GetCreditCard();
+
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion)
+      .WillOnce([&](MockSaveAndFillManager::FillCardCallback callback) {
+        std::move(callback).Run(card);
+      });
+  EXPECT_CALL(manager(),
+              FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                                HasQueriedFormId(), IsQueriedFieldId(), _,
+                                AutofillTriggerSource::kCreditCardSaveAndFill));
+
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
+      SuggestionPosition{.row = 0});
+}
+
+TEST_F(AutofillExternalDelegateTest, SaveAndFillMetrics_SuggestionAccepted) {
+  base::HistogramTester histogram;
+  IssueOnQuery();
+
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
+      SuggestionPosition{.row = 0});
+
+  histogram.ExpectBucketCount(
+      "Autofill.FormEvents.CreditCard.SaveAndFill",
+      autofill_metrics::SaveAndFillFormEvent::kSuggestionAccepted, 1);
 }
 
 TEST_F(AutofillExternalDelegateTest,
@@ -2496,8 +2560,7 @@ TEST_F(AutofillExternalDelegateTest, IgnoreAutocompleteOffForAutofill) {
                               kDefaultTriggerSource, /*update_datalist=*/false);
 
   std::vector<Suggestion> autofill_items;
-  autofill_items.emplace_back();
-  autofill_items[0].type = SuggestionType::kAutocompleteEntry;
+  autofill_items.emplace_back(SuggestionType::kAutocompleteEntry);
 
   // Ensure the popup tries to show itself, despite autocomplete="off".
   EXPECT_CALL(client(), ShowAutofillSuggestions);
@@ -2709,8 +2772,8 @@ TEST_F(AutofillExternalDelegateTest, RemoveSuggestion_Autocomplete) {
               OnRemoveCurrentSingleFieldSuggestion);
   client().set_single_field_fill_router(
       std::move(mock_single_field_fill_router));
-  EXPECT_TRUE(
-      external_delegate().RemoveSuggestion(Suggestion(u"autocomplete")));
+  EXPECT_TRUE(external_delegate().RemoveSuggestion(
+      Suggestion(u"autocomplete", SuggestionType::kAutocompleteEntry)));
 }
 
 TEST_F(AutofillExternalDelegateTest, RemoveSuggestion_Address) {
@@ -2785,8 +2848,10 @@ TEST_F(AutofillExternalDelegateTest, RecordSuggestionTypeOnSuggestionAccepted) {
 TEST_F(AutofillExternalDelegateTest, UpdateSuggestions) {
   IssueOnQuery();
 
-  std::vector<Suggestion> suggestions1 = {Suggestion(u"Some suggestion")};
-  std::vector<Suggestion> suggestions2 = {Suggestion(u"Other suggestion")};
+  std::vector<Suggestion> suggestions1 = {
+      Suggestion(u"Some suggestion", SuggestionType::kAutocompleteEntry)};
+  std::vector<Suggestion> suggestions2 = {
+      Suggestion(u"Other suggestion", SuggestionType::kAutocompleteEntry)};
 
   {
     InSequence s;

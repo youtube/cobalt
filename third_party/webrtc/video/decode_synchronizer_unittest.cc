@@ -10,8 +10,7 @@
 
 #include "video/decode_synchronizer.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>

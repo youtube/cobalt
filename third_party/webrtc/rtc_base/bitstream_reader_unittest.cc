@@ -10,10 +10,9 @@
 
 #include "rtc_base/bitstream_reader.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <utility>

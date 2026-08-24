@@ -4,10 +4,15 @@
 
 #include "components/optimization_guide/core/model_execution/test/fake_model_broker.h"
 
+#include <memory>
+
+#include "base/types/expected.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_access_controller.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
+#include "components/optimization_guide/core/model_execution/performance_class.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -26,33 +31,32 @@ FakeModelBroker::FakeModelBroker(const FakeAdaptationAsset& asset) {
         {{"on_device_model_validation_delay", "0"}}}},
       {});
   model_execution::prefs::RegisterLocalStatePrefs(local_state_.registry());
-  local_state_.SetInteger(
-      model_execution::prefs::localstate::kOnDevicePerformanceClass,
-      base::to_underlying(OnDeviceModelPerformanceClass::kHigh));
-  auto access_controller =
-      std::make_unique<OnDeviceModelAccessController>(local_state_);
-  test_controller_ = base::MakeRefCounted<OnDeviceModelServiceController>(
-      std::move(access_controller), component_manager_.get()->GetWeakPtr(),
-      fake_launcher_.LaunchFn());
-  test_controller_->Init();
-  component_manager_.SetReady(base_model_);
-  test_controller_->MaybeUpdateModelAdaptation(asset.feature(),
-                                               asset.metadata());
+  UpdatePerformanceClassPref(&local_state_,
+                             OnDeviceModelPerformanceClass::kHigh);
+  model_broker_state_.Init();
+  base_model_.SetReadyIn(model_broker_state_.component_state_manager());
+  controller().MaybeUpdateModelAdaptation(asset.feature(), asset.metadata());
 }
 FakeModelBroker::~FakeModelBroker() = default;
 
 mojo::PendingRemote<mojom::ModelBroker> FakeModelBroker::BindAndPassRemote() {
   mojo::PendingRemote<mojom::ModelBroker> remote;
-  test_controller_->BindBroker(remote.InitWithNewPipeAndPassReceiver());
+  controller().BindBroker(remote.InitWithNewPipeAndPassReceiver());
   return remote;
 }
 
 void FakeModelBroker::UpdateModelAdaptation(const FakeAdaptationAsset& asset) {
   // First clear the current adaptation, then add the new asset to force an
   // update.
-  test_controller_->MaybeUpdateModelAdaptation(asset.feature(), nullptr);
-  test_controller_->MaybeUpdateModelAdaptation(asset.feature(),
-                                               asset.metadata());
+  controller().MaybeUpdateModelAdaptation(
+      asset.feature(),
+      base::unexpected(AdaptationUnavailability::kUpdatePending));
+  controller().MaybeUpdateModelAdaptation(asset.feature(), asset.metadata());
+}
+
+std::unique_ptr<OnDeviceAssetManager> FakeModelBroker::CreateAssetManager(
+    OptimizationGuideModelProvider* provider) {
+  return model_broker_state_.CreateAssetManager(provider);
 }
 
 }  // namespace optimization_guide

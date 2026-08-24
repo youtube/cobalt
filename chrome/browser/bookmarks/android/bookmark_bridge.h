@@ -172,7 +172,7 @@ class BookmarkBridge : public ProfileObserver,
   void ReorderChildren(
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& j_bookmark_id_obj,
-      jlongArray arr);
+      const base::android::JavaRef<jlongArray>& arr);
 
   // Get the number of bookmarks in the sub tree of the specified bookmark node.
   // The specified node must be of folder type.
@@ -205,11 +205,6 @@ class BookmarkBridge : public ProfileObserver,
   bool DoesBookmarkExist(JNIEnv* env,
                          jlong id,
                          jint type);
-
-  void GetBookmarksForFolder(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_folder_id_obj,
-      const base::android::JavaParamRef<jobject>& j_result_obj);
 
   jboolean IsFolderVisible(JNIEnv* env,
                            jlong id,

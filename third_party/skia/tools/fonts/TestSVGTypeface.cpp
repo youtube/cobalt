@@ -180,8 +180,9 @@ public:
     SkTestSVGScalerContext(TestSVGTypeface& face,
                            const SkScalerContextEffects& effects,
                            const SkDescriptor* desc)
-            : SkScalerContext(face, effects, desc) {
-        fRec.getSingleMatrix(&fMatrix);
+        : SkScalerContext(face, effects, desc)
+        , fMatrix(fRec.getSingleMatrix())
+    {
         SkScalar upem = this->getTestSVGTypeface()->fUpem;
         fMatrix.preScale(1.f / upem, 1.f / upem);
     }
@@ -243,11 +244,10 @@ protected:
         glyphData.render(&canvas);
     }
 
-    bool generatePath(const SkGlyph& glyph, SkPath* path, bool* modified) override {
+    std::optional<SkScalerContext::GeneratedPath> generatePath(const SkGlyph& glyph) override {
         // Should never get here since generateMetrics always sets the path to not exist.
         SK_ABORT("Path requested, but it should have been indicated that there isn't one.");
-        path->reset();
-        return false;
+        return {};
     }
 
     struct SVGGlyphDrawable : public SkDrawable {

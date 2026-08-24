@@ -20,10 +20,12 @@
 #include "components/tab_groups/tab_group_color.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/pinned_tab_collection.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_group_tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/tabs/public/tab_strip_collection.h"
+#include "components/tabs/public/unpinned_tab_collection.h"
 #include "tab_collection_tab_model_impl.h"
 #include "ui/gfx/range/range.h"
 
@@ -58,6 +60,16 @@ TabAndroid* ToTabAndroid(TabInterface* tab_interface) {
       static_cast<TabInterfaceAndroid*>(tab_interface)->GetWeakPtr();
   CHECK(weak_tab_android);
   return static_cast<TabAndroid*>(weak_tab_android.get());
+}
+
+// When moving a tab from a lower index to a higher index a value of 1 less
+// should be used to account for the tab being removed from the list before it
+// is re-inserted.
+size_t ClampIfMovingToHigherIndex(const std::optional<size_t>& current_index,
+                                  size_t new_index) {
+  return (new_index != 0 && current_index && *current_index < new_index)
+             ? new_index - 1
+             : new_index;
 }
 
 }  // namespace
@@ -115,8 +127,8 @@ int TabCollectionTabModelImpl::MoveTabRecursive(
     bool new_is_pinned) {
   std::optional<TabGroupId> new_tab_group_id =
       tab_groups::TabGroupId::FromOptionalToken(token);
-  new_index = GetSafeIndex(/*is_move=*/true, new_index, new_tab_group_id,
-                           new_is_pinned);
+  new_index = GetSafeIndex(/*is_tab_group=*/false, current_index, new_index,
+                           new_tab_group_id, new_is_pinned);
 
   tab_strip_collection_->MoveTabRecursive(current_index, new_index,
                                           new_tab_group_id, new_is_pinned);
@@ -134,7 +146,8 @@ void TabCollectionTabModelImpl::AddTabRecursive(
   std::optional<TabGroupId> tab_group_id =
       tab_groups::TabGroupId::FromOptionalToken(token);
 
-  index = GetSafeIndex(/*is_move=*/false, index, tab_group_id, is_pinned);
+  index = GetSafeIndex(/*is_tab_group=*/false, /*current_index=*/std::nullopt,
+                       index, tab_group_id, is_pinned);
 
   auto tab_interface_android = ToTabInterface(tab_android);
   tab_strip_collection_->AddTabRecursive(std::move(tab_interface_android),
@@ -184,17 +197,26 @@ std::vector<TabAndroid*> TabCollectionTabModelImpl::GetTabsInGroup(
   return tabs;
 }
 
-void TabCollectionTabModelImpl::MoveTabGroupTo(JNIEnv* env,
-                                               const base::Token& tab_group_id,
-                                               int to_index) {
-  // Don't pass the `tab_group_id` since we don't want to constrain the index
-  // range to that of the group. Instead we are moving the entirety of the
-  // group to any valid position that an ungrouped tab could be moved to.
-  to_index = GetSafeIndex(/*is_move=*/true, to_index,
-                          /*tab_group_id=*/std::nullopt,
-                          /*is_pinned=*/false);
-  tab_strip_collection_->MoveTabGroupTo(
-      tab_groups::TabGroupId::FromRawToken(tab_group_id), to_index);
+int TabCollectionTabModelImpl::MoveTabGroupTo(JNIEnv* env,
+                                              const base::Token& token,
+                                              int to_index) {
+  TabGroupId tab_group_id = TabGroupId::FromRawToken(token);
+  TabGroup* group = GetTabGroupChecked(tab_group_id);
+  gfx::Range range = group->ListTabs();
+  to_index =
+      GetSafeIndex(/*is_tab_group=*/true, range.start(), to_index, tab_group_id,
+                   /*is_pinned=*/false);
+  // When moving to a higher index the implementation will first remove the tab
+  // group before adding the tab group. This means the destination index needs
+  // to account for the size of the group. To do this we subtract the number of
+  // tabs in the group from the `to_index`. Note that GetSafeIndex() already
+  // subtracts one when moving to a higher index so we subtract 1 less.
+  if (to_index >= base::checked_cast<int>(range.end())) {
+    to_index -= range.length() - 1;
+    CHECK_GE(to_index, 0);
+  }
+  tab_strip_collection_->MoveTabGroupTo(tab_group_id, to_index);
+  return base::checked_cast<int>(to_index);
 }
 
 void TabCollectionTabModelImpl::UpdateTabGroupVisualData(
@@ -203,12 +225,7 @@ void TabCollectionTabModelImpl::UpdateTabGroupVisualData(
     const std::optional<std::u16string>& tab_group_title,
     const std::optional<jint>& j_color_id,
     const std::optional<bool>& is_collapsed) {
-  TabGroupTabCollection* group_collection =
-      tab_strip_collection_->GetTabGroupCollection(
-          TabGroupId::FromRawToken(tab_group_id));
-  CHECK(group_collection);
-  TabGroup* group = group_collection->GetTabGroup();
-  CHECK(group);
+  TabGroup* group = GetTabGroupChecked(TabGroupId::FromRawToken(tab_group_id));
   const TabGroupVisualData* old_visual_data = group->visual_data();
   CHECK(old_visual_data);
 
@@ -220,57 +237,180 @@ void TabCollectionTabModelImpl::UpdateTabGroupVisualData(
   group->SetVisualData(new_visual_data);
 }
 
+std::u16string TabCollectionTabModelImpl::GetTabGroupTitle(
+    JNIEnv* env,
+    const base::Token& tab_group_id) {
+  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
+      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  return visual_data->title();
+}
+
+jint TabCollectionTabModelImpl::GetTabGroupColor(
+    JNIEnv* env,
+    const base::Token& tab_group_id) {
+  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
+      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  return static_cast<jint>(visual_data->color());
+}
+
+bool TabCollectionTabModelImpl::GetTabGroupCollapsed(
+    JNIEnv* env,
+    const base::Token& tab_group_id) {
+  const TabGroupVisualData* visual_data = GetTabGroupVisualDataChecked(
+      TabGroupId::FromRawToken(tab_group_id), /*allow_detached=*/true);
+  return visual_data->is_collapsed();
+}
+
 void TabCollectionTabModelImpl::CloseDetachedTabGroup(
     JNIEnv* env,
     const base::Token& tab_group_id) {
-  tab_strip_collection_->CloseDetachedTabGroup(
-      TabGroupId::FromRawToken(tab_group_id));
+  TabGroupId group_id = TabGroupId::FromRawToken(tab_group_id);
+  TabGroupTabCollection* detached_group =
+      tab_strip_collection_->GetDetachedTabGroup(group_id);
+  if (!detached_group) {
+    CHECK(!tab_strip_collection_->GetTabGroupCollection(group_id))
+        << "Tried to close an attached tab group.";
+    LOG(WARNING) << "Detached tab group already closed.";
+    return;
+  }
+  tab_strip_collection_->CloseDetachedTabGroup(group_id);
 }
 
+std::vector<TabAndroid*> TabCollectionTabModelImpl::GetAllTabs(JNIEnv* env) {
+  std::vector<TabAndroid*> tabs;
+  tabs.reserve(tab_strip_collection_->TabCountRecursive());
+
+  for (TabInterface* tab_in_collection : *tab_strip_collection_) {
+    tabs.push_back(ToTabAndroid(tab_in_collection));
+  }
+  return tabs;
+}
+
+std::vector<base::Token> TabCollectionTabModelImpl::GetAllTabGroupIds(
+    JNIEnv* env) {
+  std::vector<TabGroupId> group_ids =
+      tab_strip_collection_->GetAllTabGroupIds();
+
+  std::vector<base::Token> tokens;
+  tokens.reserve(group_ids.size());
+  for (const TabGroupId& group_id : group_ids) {
+    tokens.push_back(group_id.token());
+  }
+  return tokens;
+}
+
+std::vector<TabAndroid*> TabCollectionTabModelImpl::GetRepresentativeTabList(
+    JNIEnv* env) {
+  std::vector<TabAndroid*> tabs;
+  tabs.reserve(tab_strip_collection_->pinned_collection()->ChildCount() +
+               tab_strip_collection_->unpinned_collection()->ChildCount());
+
+  std::optional<TabGroupId> current_group_id = std::nullopt;
+  for (TabInterface* tab : *tab_strip_collection_) {
+    std::optional<TabGroupId> tab_group_id = tab->GetGroup();
+    if (!tab_group_id) {
+      current_group_id = std::nullopt;
+      tabs.push_back(ToTabAndroid(tab));
+    } else if (current_group_id != tab_group_id) {
+      current_group_id = tab_group_id;
+      TabGroupAndroid* group =
+          static_cast<TabGroupAndroid*>(GetTabGroupChecked(*tab_group_id));
+
+      std::optional<TabHandle> last_shown_tab = group->last_shown_tab();
+      // By the time a tab group is used in GetRepresentativeTabList it should
+      // have a valid `last_shown_tab`. The only time this should be empty is
+      // either while the tab group is detached or during the synchronous
+      // process of attaching the group. During neither of these times is this
+      // method expected to be called.
+      CHECK(last_shown_tab);
+      TabAndroid* tab_android = TabAndroid::FromTabHandle(*last_shown_tab);
+      CHECK(tab_android);
+      tabs.push_back(tab_android);
+    }
+  }
+  return tabs;
+}
+
+void TabCollectionTabModelImpl::SetLastShownTabForGroup(
+    JNIEnv* env,
+    const base::Token& group_id,
+    TabAndroid* tab_android) {
+  TabGroupAndroid* group = static_cast<TabGroupAndroid*>(GetTabGroupChecked(
+      TabGroupId::FromRawToken(group_id), /*allow_detached=*/true));
+  if (tab_android) {
+    group->set_last_shown_tab(tab_android->GetHandle());
+  } else {
+    group->set_last_shown_tab(std::nullopt);
+  }
+}
+
+TabAndroid* TabCollectionTabModelImpl::GetLastShownTabForGroup(
+    JNIEnv* env,
+    const base::Token& group_id) {
+  TabGroupAndroid* group = static_cast<TabGroupAndroid*>(
+      GetTabGroupChecked(TabGroupId::FromRawToken(group_id),
+                         /*allow_detached=*/true));
+  auto handle = group->last_shown_tab();
+  if (!handle) {
+    return nullptr;
+  }
+  return TabAndroid::FromTabHandle(*handle);
+}
+
+// Private methods:
+
 size_t TabCollectionTabModelImpl::GetSafeIndex(
-    bool is_move,
+    bool is_tab_group,
+    const std::optional<size_t>& current_index,
     size_t proposed_index,
     const std::optional<TabGroupId>& tab_group_id,
     bool is_pinned) const {
-  size_t first_non_pinned_index =
-      tab_strip_collection_->IndexOfFirstNonPinnedTab();
+  size_t first_non_pinned_index = ClampIfMovingToHigherIndex(
+      current_index, tab_strip_collection_->IndexOfFirstNonPinnedTab());
   if (is_pinned) {
     return std::min(proposed_index, first_non_pinned_index);
   }
 
-  size_t tab_count = tab_strip_collection_->TabCountRecursive();
-  if (is_move) {
-    --tab_count;
-  }
+  size_t total_tabs = ClampIfMovingToHigherIndex(
+      current_index, tab_strip_collection_->TabCountRecursive());
   size_t clamped_index =
-      std::clamp(proposed_index, first_non_pinned_index, tab_count);
-  if (tab_group_id) {
+      std::clamp(proposed_index, first_non_pinned_index, total_tabs);
+  if (!is_tab_group && tab_group_id) {
     TabGroupTabCollection* group_collection =
         tab_strip_collection_->GetTabGroupCollection(*tab_group_id);
     if (group_collection) {
       gfx::Range range = group_collection->GetTabGroup()->ListTabs();
       if (!range.is_empty()) {
-        return std::clamp(proposed_index, range.start(), range.end());
+        return std::clamp(
+            proposed_index,
+            ClampIfMovingToHigherIndex(current_index, range.start()),
+            ClampIfMovingToHigherIndex(current_index, range.end()));
       }
     }
   }
 
   // Always safe since these are the edges.
-  if (clamped_index == first_non_pinned_index || clamped_index == tab_count) {
+  if (clamped_index == first_non_pinned_index || clamped_index == total_tabs) {
     return clamped_index;
   }
 
   std::optional<TabGroupId> group_at_index = GetGroupIdAt(clamped_index);
-  if (group_at_index && group_at_index == GetGroupIdAt(clamped_index - 1)) {
+  if (group_at_index) {
     // Insertion will happen inside a tab group we need to push it out.
     TabGroupTabCollection* group_collection =
         tab_strip_collection_->GetTabGroupCollection(*group_at_index);
     gfx::Range range = group_collection->GetTabGroup()->ListTabs();
+
+    // When moving a tab group to be within its own range this should no-op.
+    if (is_tab_group && group_at_index == tab_group_id) {
+      return range.start();
+    }
+
     // Push to the nearest boundary.
     if (clamped_index - range.start() < range.end() - clamped_index) {
-      return range.start();
+      return ClampIfMovingToHigherIndex(current_index, range.start());
     } else {
-      return range.end();
+      return ClampIfMovingToHigherIndex(current_index, range.end());
     }
   }
 
@@ -286,14 +426,36 @@ std::optional<TabGroupId> TabCollectionTabModelImpl::GetGroupIdAt(
   }
 }
 
-std::vector<TabAndroid*> TabCollectionTabModelImpl::GetAllTabs(JNIEnv* env) {
-  std::vector<TabAndroid*> tabs;
-  tabs.reserve(tab_strip_collection_->TabCountRecursive());
-
-  for (TabInterface* tab_in_collection : *tab_strip_collection_) {
-    tabs.push_back(ToTabAndroid(tab_in_collection));
+TabGroupTabCollection* TabCollectionTabModelImpl::GetTabGroupCollectionChecked(
+    const TabGroupId& tab_group_id,
+    bool allow_detached) const {
+  TabGroupTabCollection* group_collection =
+      tab_strip_collection_->GetTabGroupCollection(tab_group_id);
+  if (!group_collection && allow_detached) {
+    group_collection = tab_strip_collection_->GetDetachedTabGroup(tab_group_id);
   }
-  return tabs;
+  CHECK(group_collection);
+  return group_collection;
+}
+
+TabGroup* TabCollectionTabModelImpl::GetTabGroupChecked(
+    const TabGroupId& tab_group_id,
+    bool allow_detached) const {
+  TabGroupTabCollection* group_collection =
+      GetTabGroupCollectionChecked(tab_group_id, allow_detached);
+  TabGroup* group = group_collection->GetTabGroup();
+  CHECK(group);
+  return group;
+}
+
+const TabGroupVisualData*
+TabCollectionTabModelImpl::GetTabGroupVisualDataChecked(
+    const TabGroupId& tab_group_id,
+    bool allow_detached) const {
+  TabGroup* group = GetTabGroupChecked(tab_group_id, allow_detached);
+  const TabGroupVisualData* visual_data = group->visual_data();
+  CHECK(visual_data);
+  return visual_data;
 }
 
 static jlong JNI_TabCollectionTabModelImpl_Init(

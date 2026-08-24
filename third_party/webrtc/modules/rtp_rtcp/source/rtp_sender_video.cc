@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/rtp_sender_video.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>

@@ -13,6 +13,7 @@
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
@@ -120,10 +121,6 @@
 #if BUILDFLAG(IS_MAC)
 #include "components/user_education/views/help_bubble_factory_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
@@ -1700,6 +1697,12 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
                                "Used to test \"New\" Badge logic.")));
 
   registry.RegisterFeature(user_education::NewBadgeSpecification(
+      features::kDevToolsAiAssistanceFileAgent,
+      user_education::Metadata(132, "wolfi@chromium.org, kimanh@chromium.org",
+                               "Shown in the Sources panel in the AI menu item "
+                               "when opening the context menu of a file.")));
+
+  registry.RegisterFeature(user_education::NewBadgeSpecification(
       compose::features::kEnableCompose,
       user_education::Metadata(124, "dewittj@chromium.org",
                                "Shown in Help Me Write context menu item.", {},
@@ -1818,7 +1821,6 @@ CreateUserEducationResources(BrowserView* browser_view) {
 
   if (user_education::features::IsUserEducationV25()) {
     auto result = std::make_unique<BrowserFeaturePromoController25>(
-        browser_view,
         feature_engagement::TrackerFactory::GetForBrowserContext(profile),
         &user_education_service->feature_promo_registry(),
         &user_education_service->help_bubble_factory_registry(),
@@ -1830,7 +1832,6 @@ CreateUserEducationResources(BrowserView* browser_view) {
     return result;
   } else {
     return std::make_unique<BrowserFeaturePromoController20>(
-        browser_view,
         feature_engagement::TrackerFactory::GetForBrowserContext(profile),
         &user_education_service->feature_promo_registry(),
         &user_education_service->help_bubble_factory_registry(),

@@ -9,12 +9,11 @@
 
 #include "modules/video_coding/codecs/vp8/default_temporal_layers.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <array>
 #include <bitset>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <set>

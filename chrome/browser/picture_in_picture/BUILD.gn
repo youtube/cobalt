@@ -33,6 +33,7 @@ source_set("picture_in_picture") {
       "auto_pip_setting_helper.h",
       "auto_pip_setting_overlay_view.h",
       "auto_pip_setting_view.h",
+      "picture_in_picture_input_protector.h",
       "picture_in_picture_occlusion_observer.h",
       "picture_in_picture_occlusion_tracker.h",
       "picture_in_picture_occlusion_tracker_observer.h",
@@ -99,6 +100,7 @@ source_set("impl") {
       "auto_pip_setting_helper.cc",
       "auto_pip_setting_overlay_view.cc",
       "auto_pip_setting_view.cc",
+      "picture_in_picture_input_protector.cc",
       "picture_in_picture_occlusion_observer.cc",
       "picture_in_picture_occlusion_tracker.cc",
       "picture_in_picture_occlusion_tracker_observer.cc",
@@ -110,6 +112,7 @@ source_set("impl") {
     ]
     deps += [
       "//chrome/app:generated_resources",
+      "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui/color:color_headers",
       "//components/strings:components_strings",
       "//components/url_formatter",
@@ -150,6 +153,7 @@ source_set("unit_tests") {
       "auto_pip_setting_helper_unittest.cc",
       "auto_pip_setting_overlay_view_unittest.cc",
       "auto_pip_setting_view_unittest.cc",
+      "picture_in_picture_input_protector_unittest.cc",
       "picture_in_picture_occlusion_tracker_unittest.cc",
       "picture_in_picture_widget_fade_animator_unittest.cc",
       "picture_in_picture_window_manager_uma_helper_unittest.cc",

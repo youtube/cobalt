@@ -39,11 +39,6 @@ ABSL_FLAG(std::string,
           "and the file will be stored under NSDocumentDirectory.");
 
 ABSL_FLAG(bool,
-          export_perf_results_new_api,
-          true,
-          "Tells to initialize new API for exporting performance metrics");
-
-ABSL_FLAG(bool,
           webrtc_quick_perf_test,
           false,
           "Runs webrtc perfomance tests in quick mode.");

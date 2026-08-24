@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_format_vp8.h"
 
-#include <stdint.h>
-#include <string.h>  // memcpy
-
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "api/array_view.h"

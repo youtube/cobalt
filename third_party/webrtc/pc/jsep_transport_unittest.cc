@@ -10,9 +10,8 @@
 
 #include "pc/jsep_transport.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <ostream>

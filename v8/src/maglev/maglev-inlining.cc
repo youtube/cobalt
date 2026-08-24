@@ -7,30 +7,104 @@
 #include <algorithm>
 #include <utility>
 
-#include "src/base/base-export.h"
+#include "src/base/logging.h"
 #include "src/execution/local-isolate.h"
 #include "src/maglev/maglev-graph-optimizer.h"
 #include "src/maglev/maglev-graph-processor.h"
+#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-reducer-inl.h"
 
 namespace v8::internal::maglev {
+
+#define TRACE(x)                                                               \
+  do {                                                                         \
+    if (V8_UNLIKELY(v8_flags.trace_maglev_inlining && is_tracing_enabled())) { \
+      StdoutStream() << x << std::endl;                                        \
+    }                                                                          \
+  } while (false)
 
 bool MaglevCallSiteInfoCompare::operator()(const MaglevCallSiteInfo* info1,
                                            const MaglevCallSiteInfo* info2) {
   return info1->score < info2->score;
 }
 
+bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
+    MaglevCallSiteInfo* call_site) const {
+  bool has_heapnumber_input_output = false;
+
+  if (call_site->generic_call_node->get_uses_repr_hints().contains_any(
+          UseRepresentationSet{UseRepresentation::kFloat64,
+                               UseRepresentation::kHoleyFloat64,
+                               UseRepresentation::kTruncatedInt32})) {
+    // TruncatedInt32 uses do not necessarily mean that the input is a
+    // HeapNumber, but when emitted operation that truncate their inputs to
+    // Int32, Maglev doesn't distinguish between Smis and HeapNumbers.
+    // TODO(dmercadier): distinguish between Smis and HeapNumbers in the graph
+    // builder for operations that truncate their inputs, and then in turn, make
+    // sure that we're not setting {has_heapnumber_input_output} to true for a
+    // function that has so far only returned Smis.
+    has_heapnumber_input_output = true;
+  }
+
+  if (!has_heapnumber_input_output) {
+    for (ValueNode* input : call_site->caller_details.arguments) {
+      input = input->UnwrapIdentities();
+      if (input->value_representation() == ValueRepresentation::kFloat64 ||
+          input->value_representation() == ValueRepresentation::kHoleyFloat64) {
+        has_heapnumber_input_output = true;
+        break;
+      }
+    }
+  }
+
+  if (!has_heapnumber_input_output) {
+    TRACE("> Does not have heapnum in/out. Uses: "
+          << call_site->generic_call_node->get_uses_repr_hints());
+    return false;
+  }
+
+  return call_site->bytecode_length <=
+         max_inlined_bytecode_size_small_with_heapnum_in_out();
+}
+
 void MaglevInliner::Run() {
   if (graph_->inlineable_calls().empty()) return;
 
   while (!graph_->inlineable_calls().empty()) {
+    MaglevCallSiteInfo* call_site = ChooseNextCallSite();
+
+    TRACE("Considering for inlining "
+          << graph_->graph_labeller()->NodeId(call_site->generic_call_node)
+          << " : " << call_site->generic_call_node->shared_function_info()
+          << " score:" << call_site->score);
+
+    bool is_small_with_heapnum_input_outputs =
+        IsSmallWithHeapNumberInputsOutputs(call_site);
+
     if (graph_->total_inlined_bytecode_size() >
         max_inlined_bytecode_size_cumulative()) {
-      // No more inlining.
-      break;
+      // We ran out of budget. Checking if this is a small-ish function that we
+      // can still inline.
+      if (graph_->total_inlined_bytecode_size_small() >
+          max_inlined_bytecode_size_small_total()) {
+        graph_->compilation_info()->set_could_not_inline_all_candidates();
+        TRACE("> Budget exhausted, stopping");
+        break;
+      }
+
+      if (!is_small_with_heapnum_input_outputs) {
+        graph_->compilation_info()->set_could_not_inline_all_candidates();
+        // Not that we don't break just rather just continue: next candidates
+        // might be inlineable.
+        TRACE("> !has_heapnumber_input_output or not enough budget, skipping");
+        continue;
+      }
     }
-    MaglevCallSiteInfo* call_site = ChooseNextCallSite();
-    MaybeReduceResult result = BuildInlineFunction(call_site);
+
+    TRACE("> Inlining!");
+    MaybeReduceResult result =
+        BuildInlineFunction(call_site, is_small_with_heapnum_input_outputs);
     if (result.IsFail()) continue;
     // If --trace-maglev-inlining-verbose, we print the graph after each
     // inlining step/call.
@@ -53,6 +127,19 @@ void MaglevInliner::Run() {
         PrintGraph(std::cout, graph_);
       }
     }
+
+    // Sweep identities.
+    // TODO(victorgomes): After inlining, the result of the previous inlined
+    // function is an identity. Although we guarantee that all arguments to the
+    // inlined function will not be an identity, their inputs could. However,
+    // the graph builder does not expect identities at any point. We need to
+    // either get rid of the identities before another inline function (either
+    // via the sweeper or the optimizer), or support identities in the graph
+    // builder.
+    {
+      GraphProcessor<SweepIdentityNodes> sweeper;
+      sweeper.ProcessGraph(graph_);
+    }
   }
 
   // Otherwise we print just once at the end.
@@ -69,6 +156,20 @@ int MaglevInliner::max_inlined_bytecode_size_cumulative() const {
     return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
   }
 }
+int MaglevInliner::max_inlined_bytecode_size_small_total() const {
+  if (graph_->compilation_info()->is_turbolev()) {
+    return v8_flags.max_inlined_bytecode_size_small_total;
+  } else {
+    return v8_flags.max_maglev_inlined_bytecode_size_small_total;
+  }
+}
+int MaglevInliner::max_inlined_bytecode_size_small_with_heapnum_in_out() const {
+  if (graph_->compilation_info()->is_turbolev()) {
+    return v8_flags.max_inlined_bytecode_size_small_with_heapnum_in_out;
+  } else {
+    return v8_flags.max_maglev_inlined_bytecode_size_small_with_heapnum_in_out;
+  }
+}
 
 MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
   auto call_site = graph_->inlineable_calls().top();
@@ -77,7 +178,7 @@ MaglevCallSiteInfo* MaglevInliner::ChooseNextCallSite() {
 }
 
 MaybeReduceResult MaglevInliner::BuildInlineFunction(
-    MaglevCallSiteInfo* call_site) {
+    MaglevCallSiteInfo* call_site, bool is_small) {
   CallKnownJSFunction* call_node = call_site->generic_call_node;
   BasicBlock* call_block = call_node->owner();
   MaglevCallerDetails* caller_details = &call_site->caller_details;
@@ -128,13 +229,29 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   MaglevCompilationUnit* inner_unit = MaglevCompilationUnit::NewInner(
       zone(), caller_unit, shared, call_site->feedback_cell);
 
-  compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
-  graph_->add_inlined_bytecode_size(bytecode.length());
+  if (is_small) {
+    graph_->add_inlined_bytecode_size_small(call_site->bytecode_length);
+  } else {
+    graph_->add_inlined_bytecode_size(call_site->bytecode_length);
+  }
+
+  // This can be invalidated by a previous inlining and it was not propagated to
+  // this node.
+  // TODO(victorgomes): Check if we should maintain this. We could also clear
+  // unstable maps here.
+  call_site->caller_details.known_node_aspects
+      ->any_map_for_any_node_is_unstable = true;
 
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();
   MaglevGraphBuilder inner_graph_builder(local_isolate, inner_unit, graph_,
                                          &call_site->caller_details);
+
+  // Make sure the arguments identities and conversions are unwrapped, so they
+  // don't leak to the graph builder, nor to the interpreter frame state.
+  for (ValueNode*& node : call_site->caller_details.arguments) {
+    node = node->Unwrap();
+  }
 
   // Update caller deopt frame with inlined arguments.
   caller_details->deopt_frame =
@@ -150,9 +267,15 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   // Set the inner graph builder to build in the truncated call block.
   inner_graph_builder.set_current_block(call_block);
 
+  // TODO(victorgomes): Fix use count. BuildInlineFunction uses the nodes from
+  // caller_details.arguments as input instead of the call_node inputs. But we
+  // remove the uses from the call node_inputs when overwriting the returned
+  // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
-      caller_deopt_frame->GetSourcePosition(), call_node->context().node(),
-      call_node->closure().node(), call_node->new_target().node());
+      caller_deopt_frame->GetSourcePosition(),
+      call_node->context().node()->Unwrap(),
+      call_node->closure().node()->Unwrap(),
+      call_node->new_target().node()->Unwrap());
 
   if (result.IsDoneWithAbort()) {
     // Since the rest of the block is dead, these nodes don't belong
@@ -232,6 +355,11 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
 ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
                                        ValueNode* node) {
   // TODO(victorgomes): Use KNA to create better conversion nodes?
+  if (node->Is<Identity>()) {
+    // TODO(victorgomes): Properly support identities with different
+    // value representations.
+    return EnsureTagged(builder, node->input(0).node());
+  }
   switch (node->value_representation()) {
     case ValueRepresentation::kInt32:
       return builder.reducer().AddNewNodeNoInputConversion<Int32ToNumber>(
@@ -251,6 +379,8 @@ ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
           {node});
     case ValueRepresentation::kTagged:
       return node;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 

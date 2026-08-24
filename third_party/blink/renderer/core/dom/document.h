@@ -1510,7 +1510,7 @@ class CORE_EXPORT Document : public ContainerNode,
   bool AllowInlineEventHandler(Node*,
                                EventListener*,
                                const String& context_url,
-                               const WTF::OrdinalNumber& context_line);
+                               const OrdinalNumber& context_line);
 
   void StatePopped(scoped_refptr<SerializedScriptValue>);
 
@@ -2321,6 +2321,8 @@ class CORE_EXPORT Document : public ContainerNode,
     void Trace(Visitor*) const;
 
    private:
+    void LogSyntheticSelectMetrics(Document& owner) const;
+
     HeapVector<Member<HTMLFormElement>> list_;
     bool dirty_ = false;
   };

@@ -74,14 +74,16 @@ chromium-metrics-reviews@google.com.
     <variant name="DetachPanel"/>
     <variant name="DropScrollToHighlight"/>
     <variant name="EnableDragResize"/>
+    <variant name="GetContextForActorFromTab"/>
     <variant name="GetContextFromFocusedTab"/>
     <variant name="GetContextFromTab"/>
+    <variant name="GetModelQualityClientId"/>
     <variant name="GetOsMicrophonePermissionStatus"/>
-    <variant name="GetPinCandidates"/>
     <variant name="GetUserProfileInfo"/>
     <variant name="GetZeroStateSuggestions"/>
     <variant name="GetZeroStateSuggestionsForFocusedTab"/>
     <variant name="JournalClear"/>
+    <variant name="JournalRecordFeedback"/>
     <variant name="JournalSnapshot"/>
     <variant name="JournalStart"/>
     <variant name="JournalStop"/>
@@ -95,6 +97,7 @@ chromium-metrics-reviews@google.com.
     <variant name="OnResponseStarted"/>
     <variant name="OnResponseStopped"/>
     <variant name="OnSessionTerminated"/>
+    <variant name="OnTurnCompleted"/>
     <variant name="OnUserInputSubmitted"/>
     <variant name="OpenGlicSettingsPage"/>
     <variant name="OpenOsPermissionSettingsMenu"/>
@@ -117,8 +120,10 @@ chromium-metrics-reviews@google.com.
     <variant name="SetWindowDraggableAreas"/>
     <variant name="ShowProfilePicker"/>
     <variant name="StopActorTask"/>
+    <variant name="SubscribeToPinCandidates"/>
     <variant name="UnpinAllTabs"/>
     <variant name="UnpinTabs"/>
+    <variant name="UnsubscribeFromPinCandidates"/>
     <variant name="WebClientCreated"/>
     <variant name="WebClientInitialized"/>
   </token>
@@ -138,7 +143,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Glic.ChromeClient.MultiProfileSyntheticTrialConflictDetected"
     enum="BooleanEnabled" expires_after="2026-01-15">
-  <owner>birnie@chromium.org</owner>
+  <owner>birnie@google.com</owner>
   <owner>carlosk@chromium.org</owner>
   <summary>
     Recorded when different Chrome profiles using glic attempt to register
@@ -198,6 +203,27 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.WebClientLoadTime" units="ms"
+    expires_after="2026-07-15">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@chromium.org</owner>
+  <summary>
+    Records the time from when the Glic FRE WebUI begins loading the remote
+    content until the WebUI reports itself as fully loaded and ready.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.WebUiFrameworkLoadTime" units="ms"
+    expires_after="2026-07-15">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@chromium.org</owner>
+  <summary>
+    Records the time from when the Glic FRE native widget is visible until the
+    local WebUI framework has loaded and is ready to load the remote web
+    content.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.WebUITerminationStatus" enum="TerminationStatus"
     expires_after="2026-07-01">
   <owner>birnie@google.com</owner>
@@ -227,6 +253,17 @@ chromium-metrics-reviews@google.com.
     to a few specific browser actions. This histogram records the reason why the
     FRE widget was closed by the browser in such scenarios. This is logged by
     GlicFreController::CloseWithReason().
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.WidgetCreationTime" units="ms"
+    expires_after="2026-07-15">
+  <owner>birnie@google.com</owner>
+  <owner>carlosk@chromium.org</owner>
+  <summary>
+    Records the time taken to create and show the native Glic FRE dialog widget.
+    This measures the performance of the native UI code before the web content
+    begins to load.
   </summary>
 </histogram>
 
@@ -281,6 +318,36 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Host.LoadingStageAtTimeOut" enum="LoadingStage"
+    expires_after="2026-07-17">
+  <owner>iwells@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <summary>
+    Histogram that records which loading stage the glic host was in when loading
+    timed out. Only recorded when loading fails due to timeout.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Host.LoadingStageDuration.{LoadingStage}" units="ms"
+    expires_after="2026-07-21">
+  <owner>iwells@chromium.org</owner>
+  <owner>harringtond@chromium.org</owner>
+  <summary>
+    Records the amount of time a particular loading step took to complete.
+    {LoadingStage}
+  </summary>
+<!-- LINT.IfChange(LoadingStage) -->
+
+  <token key="LoadingStage">
+    <variant name="AwaitingCookieSync"/>
+    <variant name="AwaitingNotifyPanelWillOpen"/>
+    <variant name="AwaitingProfileReady"/>
+    <variant name="LoadingWebClient"/>
+  </token>
+<!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_app_controller.ts:LoadingStage) -->
+
+</histogram>
+
 <histogram name="Glic.Host.WebClientState.{Event}"
     enum="GlicDetailedWebClientState" expires_after="2026-01-15">
   <owner>harringtond@chromium.org</owner>
@@ -292,6 +359,7 @@ chromium-metrics-reviews@google.com.
     <variant name="OnCommit" summary="Recorded before commit on the webview."/>
     <variant name="OnDestroy"
         summary="Recorded before the webview is destroyed."/>
+    <variant name="OnLoadTimeout" summary="Recorded when loading times out."/>
   </token>
 </histogram>
 
@@ -325,6 +393,15 @@ chromium-metrics-reviews@google.com.
     Debug histogram that tracks the internal steps that lead to the granting of
     AutoPlay permissions to the renderer frame hosting Glic's embedded webview.
     Samples are recorded when their respective events take place.
+  </summary>
+</histogram>
+
+<histogram name="Glic.MaybeReplaceNavigation.Result" enum="Boolean"
+    expires_after="2026-01-15">
+  <owner>liberato@chromium.org</owner>
+  <summary>
+    Records the boolean result of calling MaybeReplaceNavigation. This is used
+    to determine if a navigation was replaced with a media viewer.
   </summary>
 </histogram>
 
@@ -568,6 +645,20 @@ chromium-metrics-reviews@google.com.
   <summary>Record the current state when the the panel is closed.</summary>
 </histogram>
 
+<histogram name="Glic.PositionOnChrome.{Event}" enum="ChromeRelativePosition"
+    expires_after="2026-01-15">
+  <owner>andreaxg@google.com</owner>
+  <owner>iwells@google.com</owner>
+  <summary>
+    Record the position of the glic window's center point relative to the active
+    Chrome window. {Event}
+  </summary>
+  <token key="Event">
+    <variant name="OnClose" summary="Recorded when the glic window is closed."/>
+    <variant name="OnOpen" summary="Recorded when the glic window is opened."/>
+  </token>
+</histogram>
+
 <histogram name="Glic.PositionOnDisplay.OnClose" enum="DisplayPosition"
     expires_after="2026-01-15">
   <owner>andreaxg@google.com</owner>
@@ -585,6 +676,18 @@ chromium-metrics-reviews@google.com.
   <summary>
     Record the position of the glic window on open relative to the display glic
     opens in. The value Unknown is not expected to be recorded but is a backup.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Prewarming.ChecksResult"
+    enum="GlicPrewarmingChecksResult" expires_after="2026-01-15">
+  <owner>dullweber@chromium.org</owner>
+  <owner>vollick@chromium.org</owner>
+  <owner>jbroman@chromium.org</owner>
+  <summary>
+    Records the reason why Glic preloading was or was not attempted. Recorded
+    each time we try to preload if the user has Glic enabled and went through
+    the FRE.
   </summary>
 </histogram>
 
@@ -732,6 +835,20 @@ chromium-metrics-reviews@google.com.
     There is no guarantee of correlation with Response.StartTime. This exists
     for diagnostic purposes only.
   </summary>
+</histogram>
+
+<histogram name="Glic.Response.TurnDuration.{Mode}" units="ms"
+    expires_after="2026-01-15">
+  <owner>dtapuska@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <summary>
+    Recorded at the end of a turn response from the server indicating the time
+    the entire request/response sequence took.
+  </summary>
+  <token key="Mode">
+    <variant name="Actor" summary="Recorded when the actor model is used."/>
+    <variant name="Default" summary="Recorded when the default model is used."/>
+  </token>
 </histogram>
 
 <histogram name="Glic.ScrollTo.ErrorReason" enum="GlicScrollToErrorReason"
@@ -893,16 +1010,6 @@ chromium-metrics-reviews@google.com.
     <variant name="OnUserInputSubmitted"
         summary="the user submits their input"/>
   </token>
-</histogram>
-
-<histogram name="Glic.ShouldPreload" enum="Boolean" expires_after="2026-01-15">
-  <owner>dullweber@chromium.org</owner>
-  <owner>vollick@chromium.org</owner>
-  <summary>
-    Record whether the current profile is eligible to preload glic. Recorded
-    each time we try to preload if the user has glic enabled and went through
-    the FRE.
-  </summary>
 </histogram>
 
 <histogram name="Glic.TabContext.PdfContentsRequested" enum="PdfRequestStates"

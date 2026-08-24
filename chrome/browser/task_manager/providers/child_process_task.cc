@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
@@ -37,10 +38,6 @@
 #include "extensions/common/extension_set.h"        // nogncheck
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
-#endif
-
 namespace task_manager {
 
 namespace {
@@ -49,18 +46,6 @@ std::u16string GetLocalizedTitle(const std::u16string& title,
                                  int process_type,
                                  ChildProcessTask::ProcessSubtype subtype) {
   std::u16string result_title = title;
-  if (result_title.empty()) {
-    switch (process_type) {
-      case content::PROCESS_TYPE_PPAPI_PLUGIN:
-      case content::PROCESS_TYPE_PPAPI_BROKER:
-        result_title = l10n_util::GetStringUTF16(
-            IDS_TASK_MANAGER_UNKNOWN_PLUGIN_NAME);
-        break;
-      default:
-        // Nothing to do for non-plugin processes.
-        break;
-    }
-  }
 
   // Explicitly mark name as LTR if there is no strong RTL character,
   // to avoid the wrong concatenation result similar to "!Yahoo Mail: the
@@ -74,12 +59,9 @@ std::u16string GetLocalizedTitle(const std::u16string& title,
                                         result_title);
     case content::PROCESS_TYPE_GPU:
       return l10n_util::GetStringUTF16(IDS_TASK_MANAGER_GPU_PREFIX);
-    case content::PROCESS_TYPE_PPAPI_PLUGIN:
-      return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_PLUGIN_PREFIX,
-                                        result_title);
-    case content::PROCESS_TYPE_PPAPI_BROKER:
-      return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_PLUGIN_BROKER_PREFIX,
-                                        result_title);
+    case content::PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+    case content::PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      NOTREACHED();
     case content::PROCESS_TYPE_RENDERER: {
       switch (subtype) {
         case ChildProcessTask::ProcessSubtype::kSpareRenderProcess:
@@ -182,9 +164,9 @@ void ChildProcessTask::Refresh(const base::TimeDelta& update_interval,
 Task::Type ChildProcessTask::GetType() const {
   // Convert |content::ProcessType| to |task_manager::Task::Type|.
   switch (process_type_) {
-    case content::PROCESS_TYPE_PPAPI_PLUGIN:
-    case content::PROCESS_TYPE_PPAPI_BROKER:
-      return Task::PLUGIN;
+    case content::PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+    case content::PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      NOTREACHED();
     case content::PROCESS_TYPE_UTILITY:
       return Task::UTILITY;
     case content::PROCESS_TYPE_ZYGOTE:

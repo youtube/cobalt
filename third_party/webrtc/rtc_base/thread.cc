@@ -10,6 +10,8 @@
 
 #include "rtc_base/thread.h"
 
+#include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -32,7 +34,8 @@
 #include <comdef.h>
 #elif defined(WEBRTC_POSIX)
 #include <pthread.h>
-#include <time.h>
+
+#include <ctime>
 #else
 #error "Either WEBRTC_WIN or WEBRTC_POSIX needs to be defined."
 #endif
@@ -43,8 +46,7 @@
 #pragma warning(disable : 4722)
 #endif
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <utility>
 
 #include "absl/algorithm/container.h"

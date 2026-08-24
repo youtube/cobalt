@@ -37,11 +37,15 @@ class MockReaderModeTabHelperObserver : public ReaderModeTabHelper::Observer {
   ~MockReaderModeTabHelperObserver() override = default;
 
   MOCK_METHOD(void,
-              ReaderModeWebStateDidBecomeAvailable,
+              ReaderModeWebStateDidLoadContent,
               (ReaderModeTabHelper * tab_helper),
               (override));
   MOCK_METHOD(void,
               ReaderModeWebStateWillBecomeUnavailable,
+              (ReaderModeTabHelper * tab_helper),
+              (override));
+  MOCK_METHOD(void,
+              ReaderModeDistillationFailed,
               (ReaderModeTabHelper * tab_helper),
               (override));
   MOCK_METHOD(void,
@@ -263,9 +267,9 @@ TEST_F(ReaderModeTabHelperTest, NotifiesObserversOfAvailability) {
   WaitForReaderModeContentReady();
 
   // When SetActive(true) is called and distillation completes,
-  // ReaderModeWebStateDidBecomeAvailable should be called.
+  // ReaderModeWebStateDidLoadContent should be called.
   EXPECT_CALL(mock_observer,
-              ReaderModeWebStateDidBecomeAvailable(reader_mode_tab_helper()));
+              ReaderModeWebStateDidLoadContent(reader_mode_tab_helper()));
   reader_mode_tab_helper()->SetActive(true);
   WaitForReaderModeContentReady();
   testing::Mock::VerifyAndClearExpectations(&mock_observer);
@@ -295,6 +299,32 @@ TEST_F(ReaderModeTabHelperTest, NotifiesObserverOfDestruction) {
   ReaderModeTabHelper::RemoveFromWebState(web_state_.get());
 }
 
+// Tests that ReaderModeTabHelper observers are notified when distillation
+// fails.
+TEST_F(ReaderModeTabHelperTest, NotifiesObserversOfDistillationFailure) {
+  MockReaderModeTabHelperObserver mock_observer;
+  base::ScopedObservation<ReaderModeTabHelper, ReaderModeTabHelper::Observer>
+      observation(&mock_observer);
+  observation.Observe(reader_mode_tab_helper());
+
+  // Set an empty DOM Distiller result to simulate failure.
+  GURL test_url("https://test.url/");
+  LoadWebpage(web_state(), test_url);
+  SetReaderModeState(web_state(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "");
+
+  // Initially, no observer methods should be called.
+  WaitForReaderModeContentReady();
+
+  // When SetActive(true) is called and distillation fails,
+  // ReaderModeDistillationFailed should be called.
+  EXPECT_CALL(mock_observer,
+              ReaderModeDistillationFailed(reader_mode_tab_helper()));
+  reader_mode_tab_helper()->SetActive(true);
+  WaitForReaderModeContentReady();
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+}
+
 // Tests that the WebViewProxy is updated when reader mode is toggled.
 TEST_F(ReaderModeTabHelperTest, WebViewProxyUpdated) {
   WebViewProxyTabHelper::CreateForWebState(web_state());
@@ -317,7 +347,7 @@ TEST_F(ReaderModeTabHelperTest, WebViewProxyUpdated) {
   observation.Observe(reader_mode_tab_helper());
 
   EXPECT_CALL(mock_observer,
-              ReaderModeWebStateDidBecomeAvailable(reader_mode_tab_helper()));
+              ReaderModeWebStateDidLoadContent(reader_mode_tab_helper()));
   reader_mode_tab_helper()->SetActive(true);
   WaitForReaderModeContentReady();
   testing::Mock::VerifyAndClearExpectations(&mock_observer);
@@ -377,6 +407,80 @@ TEST_F(ReaderModeTabHelperTest, TestEligibleContentIsDisplayed) {
   FlushMetrics();
   EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
               BucketsAre(Bucket(ReaderModeState::kReaderShown, 1)));
+}
+
+// Tests that distillation that takes longer than the expected timeout will
+// abort and deactivate reader.
+TEST_F(ReaderModeTabHelperTest, TestDistillationTimeout) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  base::FieldTrialParams custom_time_params = {
+      {kReaderModeHeuristicPageLoadDelayDurationStringName, "1s"},
+      {kReaderModeDistillationTimeoutDurationStringName, "0"}};
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{kEnableReaderMode, custom_time_params}},
+      /*disabled_features=*/{});
+
+  // Set a non-empty DOM Distiller result.
+  GURL test_url("https://test.url/");
+  LoadWebpage(web_state(), test_url);
+  SetReaderModeState(web_state(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "Content");
+
+  // Move past the custom heuristic page load time.
+  WaitForReaderModeContentReady();
+
+  // When SetActive(true) is called and distillation completes,
+  // ReaderModeWebStateDidBecomeAvailable should be called. The cancelation
+  // should trigger immediately.
+  reader_mode_tab_helper()->SetActive(true);
+  task_environment()->RunUntilIdle();
+
+  // The time out is recorded.
+  EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
+              BucketsAre(Bucket(ReaderModeState::kDistillationTimedOut, 1)));
+  EXPECT_FALSE(reader_mode_tab_helper()->IsActive());
+}
+
+// Tests that distillation that completes prior to the timeout is recorded.
+TEST_F(ReaderModeTabHelperTest, TestDistillationCompletedAfterTimeout) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  base::FieldTrialParams custom_time_params = {
+      {kReaderModeHeuristicPageLoadDelayDurationStringName, "1s"},
+      {kReaderModeDistillationTimeoutDurationStringName, "2s"}};
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      /*enabled_features=*/
+      {{kEnableReaderMode, custom_time_params}},
+      /*disabled_features=*/{});
+
+  // Set a non-empty DOM Distiller result.
+  GURL test_url("https://test.url/");
+  LoadWebpage(web_state(), test_url);
+  SetReaderModeState(web_state(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "Content");
+
+  // Move past the custom heuristic page load time.
+  WaitForReaderModeContentReady();
+
+  // When SetActive(true) is called and distillation completes,
+  // ReaderModeWebStateDidBecomeAvailable should be called. The cancelation
+  // should trigger immediately.
+  reader_mode_tab_helper()->SetActive(true);
+  task_environment()->RunUntilIdle();
+
+  // The completion is recorded.
+  EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
+              BucketsAre(Bucket(ReaderModeState::kReaderShown, 1)));
+  EXPECT_TRUE(reader_mode_tab_helper()->IsActive());
+
+  // Move past the custom distillation time.
+  task_environment()->AdvanceClock(base::Seconds(2));
+  task_environment()->RunUntilIdle();
+
+  // The record should not change.
+  EXPECT_THAT(histogram_tester_.GetAllSamples(kReaderModeStateHistogram),
+              BucketsAre(Bucket(ReaderModeState::kReaderShown, 1)));
+  EXPECT_TRUE(reader_mode_tab_helper()->IsActive());
 }
 
 class ReaderModeTabHelperWithEligibilityTest

@@ -26,7 +26,7 @@ import java.util.Set;
 /**
  * The app menu shown when pressing ("...") in a Tab.
  *
- * <p>Use subclasses to access menu items not shared between all PageStation types:
+ * <p>Use subclasses to access menu items not shared between all {@link CtaPageStation} types:
  *
  * <ul>
  *   <li>{@link RegularNewTabPageAppMenuFacility}
@@ -35,9 +35,9 @@ import java.util.Set;
  *   <li>{@link IncognitoWebPageAppMenuFacility}
  * </ul>
  *
- * @param <HostPageStationT> the type of host {@link PageStation} where this app menu is opened.
+ * @param <HostPageStationT> the type of host {@link CtaPageStation} where this app menu is opened.
  */
-public class PageAppMenuFacility<HostPageStationT extends PageStation>
+public class PageAppMenuFacility<HostPageStationT extends CtaPageStation>
         extends CtaAppMenuFacility<HostPageStationT> {
 
     protected Item mNewTab;
@@ -45,6 +45,8 @@ public class PageAppMenuFacility<HostPageStationT extends PageStation>
     protected @Nullable Item mAddToGroup;
     protected Item mNewWindow;
     protected Item mSettings;
+    protected Item mPinTab;
+    protected Item mUnpinTab;
 
     @Override
     protected void declareItems(ItemsBuilder items) {
@@ -56,7 +58,13 @@ public class PageAppMenuFacility<HostPageStationT extends PageStation>
         if (ChromeFeatureList.sTabGroupParityBottomSheetAndroid.isEnabled()) {
             mAddToGroup = declareMenuItem(items, ADD_TO_GROUP_ID);
         }
+        if (ChromeFeatureList.sAndroidPinnedTabs.isEnabled()) {
+            // At most one of these exist.
+            mPinTab = declarePossibleMenuItem(items, PIN_TAB);
+            mUnpinTab = declarePossibleMenuItem(items, UNPIN_TAB);
+        }
         mSettings = declareMenuItem(items, SETTINGS_ID);
+
     }
 
     /** Select "New tab" from the app menu. */
@@ -91,6 +99,17 @@ public class PageAppMenuFacility<HostPageStationT extends PageStation>
                         new TabGroupListBottomSheetFacility<>(
                                 new ArrayList<>(tabGroupIds), /* isNewTabGroupRowVisible= */ true));
     }
+
+    /** Select "Pin tab" from the app menu. */
+    public void pinTab() {
+         mPinTab.scrollToAndSelectTo().complete();
+    }
+
+    /** Select "Unpin tab" from the app menu. */
+    public void unpinTab() {
+         mUnpinTab.scrollToAndSelectTo().complete();
+    }
+
 
     private TabbedAppMenuPropertiesDelegate getTabbedAppMenuPropertiesDelegate() {
         return (TabbedAppMenuPropertiesDelegate)

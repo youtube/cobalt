@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"

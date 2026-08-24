@@ -10,8 +10,7 @@
 
 #include "call/audio_send_stream.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <string>
 
 #include "absl/strings/str_cat.h"

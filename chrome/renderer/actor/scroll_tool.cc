@@ -49,10 +49,11 @@ ScrollTool::ScrollTool(content::RenderFrame& frame,
 
 ScrollTool::~ScrollTool() = default;
 
-mojom::ActionResultPtr ScrollTool::Execute() {
+void ScrollTool::Execute(ToolFinishedCallback callback) {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    return std::move(validated_result.error());
+    std::move(callback).Run(std::move(validated_result.error()));
+    return;
   }
 
   WebElement scrolling_element = validated_result->scroller;
@@ -68,9 +69,10 @@ mojom::ActionResultPtr ScrollTool::Execute() {
 
   targeting_smooth_scroller_ = scrolling_element.HasScrollBehaviorSmooth();
 
-  return did_scroll
-             ? MakeOkResult()
-             : MakeResult(mojom::ActionResultCode::kScrollOffsetDidNotChange);
+  std::move(callback).Run(
+      did_scroll
+          ? MakeOkResult()
+          : MakeResult(mojom::ActionResultCode::kScrollOffsetDidNotChange));
 }
 
 std::string ScrollTool::DebugString() const {
@@ -109,12 +111,11 @@ ScrollTool::ValidatedResult ScrollTool::Validate() const {
           MakeResult(mojom::ActionResultCode::kScrollNoScrollingElement));
     }
   } else {
-    scrolling_element =
-        GetNodeFromId(frame_.get(), dom_node_id).DynamicTo<WebElement>();
-    if (scrolling_element.IsNull()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
+    auto resolved_target = ValidateAndResolveTarget();
+    if (!resolved_target.has_value()) {
+      return base::unexpected(std::move(resolved_target.error()));
     }
+    scrolling_element = resolved_target->node.DynamicTo<WebElement>();
   }
 
   gfx::Vector2dF offset_physical;

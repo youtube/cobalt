@@ -42,8 +42,8 @@ namespace internal {
 PageMetadata* SemiSpace::InitializePage(MutablePageMetadata* mutable_page) {
   bool in_to_space = (id() != kFromSpace);
   MemoryChunk* chunk = mutable_page->Chunk();
-  chunk->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
-                                          : MemoryChunk::FROM_PAGE);
+  mutable_page->SetFlagNonExecutable(in_to_space ? MemoryChunk::TO_PAGE
+                                                 : MemoryChunk::FROM_PAGE);
   PageMetadata* page = PageMetadata::cast(mutable_page);
   page->list_node().Initialize();
   CHECK(page->IsLivenessClear());
@@ -150,18 +150,17 @@ void SemiSpace::FixPagesFlags() {
           heap()->incremental_marking()->marking_mode()) |
       MemoryChunk::TO_PAGE;
   for (PageMetadata* page : *this) {
-    MemoryChunk* chunk = page->Chunk();
     page->set_owner(this);
     if (id_ == kToSpace) {
-      chunk->SetFlagsNonExecutable(to_space_flags);
+      page->SetFlagsNonExecutable(to_space_flags);
     } else {
       DCHECK_EQ(id_, kFromSpace);
       // From space must preserve `NEW_SPACE_BELOW_AGE_MARK` which is used for
       // deciding on whether to copy or promote an object.
-      chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
-      chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
+      page->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
+      page->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
     }
-    DCHECK(chunk->InYoungGeneration());
+    DCHECK(page->Chunk()->InYoungGeneration());
   }
 }
 
@@ -313,7 +312,7 @@ void SemiSpace::VerifyPageMetadata() const {
     CHECK(!chunk->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
                                           : MemoryChunk::FROM_PAGE));
     CHECK(chunk->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
-    CHECK(!chunk->IsQuarantined());
+    CHECK(!page->is_quarantined());
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
       // on from-space pages, so it might be out of sync with the marking state.
@@ -373,26 +372,28 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
 }
 #endif
 
-void SemiSpace::MoveQuarantinedPage(MemoryChunk* chunk) {
+void SemiSpace::MoveQuarantinedPage(PageMetadata* metadata) {
+#ifdef DEBUG
+  MemoryChunk* chunk = metadata->Chunk();
   // Quarantining pages happens at the end of scavenge, after the semi spaces
   // have been swapped. Thus, the quarantined page originates from "from space"
-  // to is moved to "to space" to keep pinned objects as live.
+  // and is moved to "to space" to keep pinned objects as live.
   DCHECK_EQ(kToSpace, id_);
-  DCHECK(chunk->IsQuarantined());
-  DCHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
+  DCHECK(metadata->is_quarantined());
+  DCHECK(!metadata->will_be_promoted());
   DCHECK(chunk->IsFromPage());
-  PageMetadata* page = PageMetadata::cast(chunk->Metadata());
+#endif  // DEBUG
   SemiSpace& from_space = heap_->semi_space_new_space()->from_space();
-  DCHECK_EQ(&from_space, page->owner());
+  DCHECK_EQ(&from_space, metadata->owner());
   DCHECK_NE(&from_space, this);
-  from_space.RemovePage(page);
-  chunk->ClearFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
-  chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
-  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
-  page->set_owner(this);
+  from_space.RemovePage(metadata);
+  metadata->set_is_quarantined(false);
+  metadata->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
+  metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  metadata->set_owner(this);
   AccountCommitted(PageMetadata::kPageSize);
-  IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
-  memory_chunk_list_.PushFront(page);
+  IncrementCommittedPhysicalMemory(metadata->CommittedPhysicalMemory());
+  memory_chunk_list_.PushFront(metadata);
   quarantined_pages_count_++;
 }
 
@@ -403,8 +404,12 @@ NewSpace::NewSpace(Heap* heap)
     : SpaceWithLinearArea(heap, NEW_SPACE, nullptr) {}
 
 void NewSpace::PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode) {
-  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+  DCHECK(page->will_be_promoted());
   DCHECK(page->Chunk()->InYoungGeneration());
+  if (page->is_quarantined()) {
+    page->set_is_quarantined(false);
+  }
+  page->set_will_be_promoted(false);
   RemovePage(page);
   PageMetadata* new_page = PageMetadata::ConvertNewToOld(page, free_mode);
   DCHECK(!new_page->Chunk()->InYoungGeneration());
@@ -452,8 +457,7 @@ void SemiSpaceNewSpace::SetAgeMarkAndBelowAgeMarkPageFlags() {
 
   for (size_t i = 0; i < to_space_.quarantined_pages_count_; i++) {
     DCHECK_NOT_NULL(current_page);
-    current_page->Chunk()->SetFlagNonExecutable(
-        MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+    current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     current_page = current_page->next_page();
   }
 
@@ -465,13 +469,11 @@ void SemiSpaceNewSpace::SetAgeMarkAndBelowAgeMarkPageFlags() {
     // Mark all pages up to (and including) the one containing mark.
     for (; current_page != age_mark_page;
          current_page = current_page->next_page()) {
-      current_page->Chunk()->SetFlagNonExecutable(
-          MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+      current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
     }
 
     DCHECK_EQ(current_page, age_mark_page);
-    current_page->Chunk()->SetFlagNonExecutable(
-        MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
+    current_page->SetFlagNonExecutable(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
 
@@ -822,8 +824,8 @@ AllocatorPolicy* SemiSpaceNewSpace::CreateAllocatorPolicy(
   return new SemiSpaceNewSpaceAllocatorPolicy(this, allocator);
 }
 
-void SemiSpaceNewSpace::MoveQuarantinedPage(MemoryChunk* chunk) {
-  to_space_.MoveQuarantinedPage(chunk);
+void SemiSpaceNewSpace::MoveQuarantinedPage(PageMetadata* metadata) {
+  to_space_.MoveQuarantinedPage(metadata);
 }
 
 // -----------------------------------------------------------------------------
@@ -857,7 +859,7 @@ PageMetadata* PagedSpaceForNewSpace::InitializePage(
       page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
-  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
+  page->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   page->ClearLiveness();
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();

@@ -69,6 +69,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator;
@@ -363,7 +364,8 @@ public class ToolbarPhone extends ToolbarLayout
             ToolbarProgressBar progressBar,
             @Nullable ReloadButtonCoordinator reloadButtonCoordinator,
             @Nullable BackButtonCoordinator backButtonCoordinator,
-            @Nullable HomeButtonDisplay homeButtonDisplay) {
+            @Nullable HomeButtonDisplay homeButtonDisplay,
+            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator) {
         super.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -375,7 +377,8 @@ public class ToolbarPhone extends ToolbarLayout
                 progressBar,
                 reloadButtonCoordinator,
                 backButtonCoordinator,
-                homeButtonDisplay);
+                homeButtonDisplay,
+                extensionToolbarCoordinator);
         mUserEducationHelper = userEducationHelper;
         mTrackerSupplier = trackerSupplier;
         mHomeButtonDisplay = assumeNonNull(homeButtonDisplay);
@@ -1975,6 +1978,26 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     public void onUrlFocusChange(final boolean hasFocus) {
         super.onUrlFocusChange(hasFocus);
+
+        // Unblock toolbar height when in focused mode, allowing the Omnibox to expand.
+        // TODO(crbug.com/432311666): address following open questions
+        // - this may overdraw the toolbar hairline, which has a fixed margin equal to
+        //   toolbarHeight.
+        // - need to notify TopControlStacker of toolbar height changes, so that other top controls
+        //   are repositioned accordingly. Currently this would be bookmark bar (AL only) progress
+        //   bar, and hairline.
+        // - investigate what else needs to be done to make the WRAP_CONTENT work well as the
+        //   default / static setting (likely leading to elimination of `toolbar_height_no_shadow`
+        //   dimension).
+        if (OmniboxFeatures.allowMultilineEditField()) {
+            var params = getLayoutParams();
+            params.height =
+                    hasFocus
+                            ? LayoutParams.WRAP_CONTENT
+                            : getResources()
+                                    .getDimensionPixelSize(R.dimen.toolbar_height_no_shadow);
+            setLayoutParams(params);
+        }
 
         updateBackground(hasFocus);
         updateLocationBarForNtp(mVisualState, urlHasFocus());

@@ -31,7 +31,6 @@
 #include "components/autofill/core/browser/metrics/payments/cvc_storage_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/iban_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/mandatory_reauth_metrics.h"
-#include "components/autofill/core/browser/metrics/payments/offers_metrics.h"
 #include "components/autofill/core/browser/metrics/payments/wallet_usage_data_metrics.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
@@ -1960,7 +1959,6 @@ void PaymentsDataManager::LogStoredPaymentsDataMetrics() const {
       GetServerCardWithArtImageCount(), kDisusedDataModelTimeDelta);
   autofill_metrics::LogStoredIbanMetrics(local_ibans_, server_ibans_,
                                          kDisusedDataModelTimeDelta);
-  autofill_metrics::LogStoredOfferMetrics(autofill_offer_data_);
   autofill_metrics::LogStoredVirtualCardUsageCount(
       autofill_virtual_card_usage_data_.size());
   LogBnplIssuersSyncedCountAtStartup(GetBnplIssuers().size());
@@ -2237,8 +2235,8 @@ void PaymentsDataManager::CacheIfLinkedBnplPaymentInstrument(
       payment_instrument.bnpl_issuer_details();
 
   // If `payment_instrument` has an unsupported issuer ID, do not cache it.
-  if (!base::Contains(payments::BnplManager::GetSupportedBnplIssuerIds(),
-                      bnpl_issuer_details.issuer_id())) {
+  if (!payments::BnplManager::IsBnplIssuerSupported(
+          bnpl_issuer_details.issuer_id())) {
     return;
   }
 
@@ -2260,7 +2258,7 @@ void PaymentsDataManager::CacheIfLinkedBnplPaymentInstrument(
     return;
   }
 
-  // `GetSupportedBnplIssuerIds` is already called to filter out any unknown
+  // `IsBnplIssuerSupported` is already called to filter out any unknown
   // issuer IDs that might be returned by the payment server. This ensures that
   // only issuer IDs with a corresponding BnplIssuer::IssuerId enum value are
   // processed, thus guaranteeing that `ConvertToBnplIssuerIdEnum` will not
@@ -2318,8 +2316,7 @@ void PaymentsDataManager::CacheIfBnplPaymentInstrumentCreationOption(
 
   // If `payment_instrument_creation_option` has an unsupported issuer ID, do
   // not cache it.
-  if (!base::Contains(payments::BnplManager::GetSupportedBnplIssuerIds(),
-                      bnpl_issuer.issuer_id())) {
+  if (!payments::BnplManager::IsBnplIssuerSupported(bnpl_issuer.issuer_id())) {
     return;
   }
 
@@ -2340,7 +2337,7 @@ void PaymentsDataManager::CacheIfBnplPaymentInstrumentCreationOption(
     return;
   }
 
-  // `GetSupportedBnplIssuerIds` is already called to filter out any unknown
+  // `IsBnplIssuerSupported` is already called to filter out any unknown
   // issuer IDs that might be returned by the payment server. This ensures that
   // only issuer IDs with a corresponding BnplIssuer::IssuerId enum value are
   // processed, thus guaranteeing that `ConvertToBnplIssuerIdEnum` will not

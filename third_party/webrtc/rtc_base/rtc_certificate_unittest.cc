@@ -10,9 +10,8 @@
 
 #include "rtc_base/rtc_certificate.h"
 
-#include <time.h>
-
 #include <cstdint>
+#include <ctime>
 #include <memory>
 #include <utility>
 
@@ -27,7 +26,7 @@ namespace webrtc {
 
 namespace {
 
-const char* kTestCertCommonName = "RTCCertificateTest's certificate";
+constexpr char kTestCertCommonName[] = "RTCCertificateTest's certificate";
 
 }  // namespace
 

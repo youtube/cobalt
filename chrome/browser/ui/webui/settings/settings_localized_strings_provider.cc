@@ -170,10 +170,6 @@
 #include "device/vr/public/cpp/features.h"
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
-#endif
-
 namespace settings {
 namespace {
 
@@ -344,7 +340,8 @@ void AddAboutStrings(content::WebUIDataSource* html_source, Profile* profile) {
 
   std::u16string license = l10n_util::GetStringFUTF16(
       IDS_VERSION_UI_LICENSE, chrome::kChromiumProjectURL,
-      chrome::kChromeUICreditsURL16);
+      chrome::kChromeUICreditsURL16,
+      l10n_util::GetStringUTF16(IDS_SETTINGS_OPENS_IN_NEW_TAB));
   html_source->AddString("aboutProductLicense", license);
 
   html_source->AddBoolean("aboutObsoleteNowOrSoon",
@@ -559,6 +556,10 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"classicTheme", IDS_SETTINGS_CLASSIC_THEME},
       {"useClassicTheme", IDS_SETTINGS_USE_CLASSIC_THEME},
 #endif
+#if !BUILDFLAG(IS_LINUX)
+      {"resetToDefaultTheme", IDS_SETTINGS_RESET_TO_DEFAULT_THEME},
+#endif
+      {"resetToolbarToDefault", IDS_SETTINGS_RESET_TOOLBAR_TO_DEFAULT},
 #if BUILDFLAG(IS_LINUX)
       {"showWindowDecorations", IDS_SHOW_WINDOW_DECORATIONS},
 #endif
@@ -653,6 +654,9 @@ void AddClearBrowsingDataStrings(content::WebUIDataSource* html_source,
       {"searchHistory", IDS_SETTINGS_SEARCH_HISTORY},
       {"myActivity", IDS_SETTINGS_MY_ACTIVITY},
       {"manageInYourGoogleAccount", IDS_SETTINGS_MANAGE_IN_YOUR_GOOGLE_ACCOUNT},
+      {"geminiAppsActivity", IDS_SETTINGS_GEMINI_APPS_ACTIVITY},
+      {"manageInYourGeminiAppsActivity",
+       IDS_SETTINGS_MANAGE_IN_YOUR_GEMINI_APPS_ACTIVITY},
       {"deletionConfirmationToast",
        IDS_SETTINGS_DELETION_CONFIRMATION_TOAST_LABEL},
       {"deletionConfirmationAllTimeToast",
@@ -1434,8 +1438,20 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_ADD_OR_EDIT_DIALOG_VALIDATION_ERROR},
       {"autofillAiSubpageSublabelLoggingManagedDisabled",
        IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED},
-      {"autofillPayOverTimeSettingsLabel", IDS_AUTOFILL_BNPL_SETTINGS_LABEL},
-  };
+      {"autofillPayOverTimeSettingsLabel",
+       IDS_AUTOFILL_BNPL_PAY_LATER_OPTIONS_TEXT},
+      {"editAddressInAccount", IDS_SETTINGS_HOME_AND_WORK_ADDRESS_EDIT},
+      {"removeFromChrome", IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVE},
+      {"removeHomeAddressConfirmationTitle",
+       IDS_SETTINGS_HOME_ADDRESS_REMOVE_CONFIRMATION_DIALOG_TITLE},
+      {"removeWorkAddressConfirmationTitle",
+       IDS_SETTINGS_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_TITLE},
+      {"deleteHomeAddressNotice",
+       IDS_SETTINGS_HOME_ADDRESS_REMOVE_CONFIRMATION_DIALOG_NOTICE},
+      {"deleteWorkAddressNotice",
+       IDS_SETTINGS_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_NOTICE},
+      {"removeAddressFromChrome",
+       IDS_SETTINGS_HOME_AND_WORK_ADDRESS_REMOVE_CONFIRMATION_DIALOG_ACTION_OK}};
 
   html_source->AddString("manageAddressesUrl",
                          autofill::payments::GetManageAddressesUrl().spec());
@@ -1766,6 +1782,9 @@ void AddBrowserSyncPageStrings(content::WebUIDataSource* html_source) {
 
 void AddSyncControlsStrings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
+#if !BUILDFLAG(IS_CHROMEOS)
+      {"historyTabsCheckboxLabel", IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE},
+#endif
       {"autofillCheckboxLabel", IDS_SETTINGS_AUTOFILL_CHECKBOX_LABEL},
       {"historyCheckboxLabel", IDS_SETTINGS_HISTORY_CHECKBOX_LABEL},
       {"extensionsCheckboxLabel", IDS_SETTINGS_EXTENSIONS_CHECKBOX_LABEL},
@@ -1813,6 +1832,9 @@ void AddPeopleStrings(content::WebUIDataSource* html_source, Profile* profile) {
       {"editPerson", IDS_SETTINGS_CUSTOMIZE_PROFILE},
       {"profileNameAndPicture", IDS_SETTINGS_CUSTOMIZE_YOUR_CHROME_PROFILE},
       {"accountPageTitle", IDS_SETTINGS_ACCOUNT_PAGE_TITLE},
+      {"accountDataTypesHeading", IDS_SETTINGS_ACCOUNT_DATATYPES_HEADING},
+      {"accountDataTypesBody", IDS_SETTINGS_ACCOUNT_BODY},
+      {"syncDisabledUserInformation", IDS_SETTINGS_ACCOUNT_SYNC_DISABLED},
 #endif
 
   // Manage profile strings:
@@ -2137,6 +2159,8 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
                          chrome::kContentSettingsExceptionsLearnMoreURL);
   html_source->AddString("enhancedProtectionHelpCenterURL",
                          chrome::kSafeBrowsingInChromeHelpCenterURL);
+  html_source->AddString("myActivityGeminiAppsUrl",
+                         chrome::kMyActivityGeminiAppsUrl);
 
   // TODO(crbug.com/349860796): Add a learn-more link for HTTPS-First Mode for
   // the new Settings UI, which can be used by the settings-toggle-button.

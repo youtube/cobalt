@@ -69,6 +69,8 @@
   OmniboxDebuggerMediator* _omniboxDebuggerMediator;
   /// The omnibox image fetcher.
   OmniboxImageFetcher* _omniboxImageFetcher;
+  // Whether it's the lens overlay managing this popup.
+  BOOL _isLensOverlay;
 }
 
 #pragma mark - Public
@@ -78,7 +80,8 @@
                     autocompleteController:
                         (AutocompleteController*)autocompleteController
              omniboxAutocompleteController:
-                 (OmniboxAutocompleteController*)omniboxAutocompleteController {
+                 (OmniboxAutocompleteController*)omniboxAutocompleteController
+                             isLensOverlay:(BOOL)isLensOverlay {
   self = [super initWithBaseViewController:nil browser:browser];
   if (self) {
     DCHECK(autocompleteController);
@@ -86,6 +89,7 @@
     _popupViewController = [[OmniboxPopupViewController alloc] init];
     _KeyboardDelegate = _popupViewController;
     _omniboxAutocompleteController = omniboxAutocompleteController;
+    _isLensOverlay = isLensOverlay;
   }
   return self;
 }
@@ -113,6 +117,7 @@
       templateURLService && templateURLService->GetDefaultSearchProvider() &&
       templateURLService->GetDefaultSearchProvider()->GetEngineType(
           templateURLService->search_terms_data()) == SEARCH_ENGINE_GOOGLE;
+  self.mediator.templateURLService = templateURLService;
   self.mediator.protocolProvider = self;
   self.mediator.sharingDelegate = self;
   BrowserActionFactory* actionFactory = [[BrowserActionFactory alloc]
@@ -149,7 +154,8 @@
       initWithPopupPresenterDelegate:self.presenterDelegate
                  popupViewController:self.popupViewController
                    layoutGuideCenter:LayoutGuideCenterForBrowser(self.browser)
-                           incognito:isIncognito];
+                           incognito:isIncognito
+                       isLensOverlay:_isLensOverlay];
 
   if (experimental_flags::IsOmniboxDebuggingEnabled()) {
     [self setupDebug];

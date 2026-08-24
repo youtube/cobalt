@@ -146,7 +146,10 @@ CookieControlsController::~CookieControlsController() = default;
 void CookieControlsController::OnUiClosing() {
   auto* web_contents = GetWebContents();
   if (should_reload_ && web_contents && !web_contents->IsBeingDestroyed()) {
-    web_contents->GetController().Reload(content::ReloadType::NORMAL, true);
+    web_contents->GetController().Reload(
+        ShowActFeatures() ? content::ReloadType::BYPASSING_CACHE
+                          : content::ReloadType::NORMAL,
+        true);
   }
   should_reload_ = false;
 }
@@ -156,6 +159,7 @@ void CookieControlsController::Update(content::WebContents* web_contents) {
   if (!tab_observer_ || GetWebContents() != web_contents) {
     tab_observer_ = std::make_unique<TabObserver>(this, web_contents);
     SetStateChangedViaBypass(false);
+    show_icon_as_confirmation_ = false;
   }
   if (observers_.empty()) {
     return;
@@ -486,6 +490,9 @@ void CookieControlsController::UpdatePageReloadStatus(
     int recent_reloads_count) {
   if (StateChangedViaBypass() && recent_reloads_count > 0) {
     waiting_for_page_load_finish_ = true;
+    show_icon_as_confirmation_ = true;
+  } else {
+    show_icon_as_confirmation_ = false;
   }
   SetStateChangedViaBypass(false);
   recent_reloads_count_ = recent_reloads_count;
@@ -497,12 +504,21 @@ void CookieControlsController::UpdatePageReloadStatus(
   }
 }
 
+void CookieControlsController::OnBubbleCloseTriggered() {
+  for (auto& observer : observers_) {
+    observer.OnBubbleCloseTriggered();
+  }
+}
+
 void CookieControlsController::OnPageFinishedLoading() {
   if (!waiting_for_page_load_finish_) {
     return;
   }
   waiting_for_page_load_finish_ = false;
 
+  // Ensure the bubble is closed before subsequent calls are made to update the
+  // UI.
+  OnBubbleCloseTriggered();
   for (auto& observer : observers_) {
     observer.OnFinishedPageReloadWithChangedSettings();
   }
@@ -640,12 +656,13 @@ bool CookieControlsController::ShouldUserBypassIconBeVisible(
   if (controls_state == CookieControlsState::kHidden) {
     return false;
   }
-  // 3PCD prevents SameSite=None cookies from being sent when the top-level
-  // document is sandboxed without `allow-origin`. For instance when loaded
-  // with: `Content-Security-Policy: sandbox`. In that case, we render the UI to
-  // allow the user to opt into sending SameSite=None cookies again in those
-  // contexts.
-  return HasOriginSandboxedTopLevelDocument() ||
+  return show_icon_as_confirmation_ ||
+         // 3PC blocking prevents SameSite=None cookies from being sent when the
+         // top-level document is sandboxed without `allow-origin`. For instance
+         // when loaded with: `Content-Security-Policy: sandbox`. In that case,
+         // we render the UI to allow the user to opt into sending SameSite=None
+         // cookies again in those contexts.
+         HasOriginSandboxedTopLevelDocument() ||
          controls_state == CookieControlsState::kAllowed3pc ||
          controls_state == CookieControlsState::kPausedTp ||
          // If no 3P sites have attempted to access site data, nor were any
@@ -756,6 +773,10 @@ void CookieControlsController::TabObserver::PrimaryPageChanged(
 
 void CookieControlsController::TabObserver::DidStopLoading() {
   cookie_controls_->OnPageFinishedLoading();
+}
+
+void CookieControlsController::TabObserver::BeforeFormRepostWarningShow() {
+  cookie_controls_->OnBubbleCloseTriggered();
 }
 
 void CookieControlsController::TabObserver::ResetReloadCounter() {

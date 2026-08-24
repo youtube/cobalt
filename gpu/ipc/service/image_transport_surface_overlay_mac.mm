@@ -38,7 +38,7 @@
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
-#include "components/viz/common/gpu/metal_context_provider.h"
+#include "gpu/command_buffer/service/metal_context_provider.h"
 #endif
 
 // From ANGLE's EGL/eglext_angle.h. This should be included instead of being
@@ -137,6 +137,21 @@ ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
   transport->ForwardBELayerHierarchyToBrowser(surface_handle,
                                               ipc_representation);
 #endif
+}
+
+// For testing
+ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
+    std::unique_ptr<ui::CALayerTreeCoordinator> ca_layer_tree_coordinator
+#if BUILDFLAG(IS_MAC)
+    ,
+    std::unique_ptr<ui::VSyncCallbackMac> vsync_callback_mac
+#endif
+    )
+    : ca_layer_tree_coordinator_(std::move(ca_layer_tree_coordinator)),
+#if BUILDFLAG(IS_MAC)
+      vsync_callback_mac_(std::move(vsync_callback_mac)),
+#endif
+      weak_ptr_factory_(this) {
 }
 
 ImageTransportSurfaceOverlayMacEGL::~ImageTransportSurfaceOverlayMacEGL() {
@@ -393,6 +408,6 @@ void ImageTransportSurfaceOverlayMacEGL::OnVSyncPresentation(
     vsync_callback_mac_ = nullptr;
   }
 }
-#endif
 
+#endif
 }  // namespace gpu

@@ -10,10 +10,9 @@
 
 #include "logging/rtc_event_log/rtc_event_log_unittest_helper.h"
 
-#include <string.h>  // memcmp
-
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <numeric>

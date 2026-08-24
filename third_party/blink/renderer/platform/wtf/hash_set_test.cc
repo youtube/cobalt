@@ -35,10 +35,7 @@
 #include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_test_helper.h"
 
-namespace WTF {
-
-int* const CountCopy::kDeletedValue =
-    reinterpret_cast<int*>(static_cast<uintptr_t>(-1));
+namespace blink {
 
 namespace {
 
@@ -489,9 +486,9 @@ TEST(HashSetTest, ConstructFromOtherContainerIterators) {
   convert_and_verify(base::span(kArray), "span");
 }
 
-static_assert(!IsTraceable<HashSet<int>>::value,
+static_assert(!IsTraceableV<HashSet<int>>,
               "HashSet<int, int> must not be traceable.");
 
 }  // anonymous namespace
 
-}  // namespace WTF
+}  // namespace blink

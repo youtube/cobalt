@@ -12,6 +12,7 @@
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/headless/headless_mode_util.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/field_trial_settings.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/page_load_metrics/browser/navigation_handle_user_data.h"
+#include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/preloading.h"
@@ -214,8 +216,18 @@ PrerenderManager::StartPrerenderDirectUrlInput(
 }
 
 bool PrerenderManager::MaybeStartPrewarmSearchResult() {
+  // TODO(https://crbug.com/423465927): Revalidate the handle when the prewarm
+  // is reused for prerendering.
   if (search_prewarm_handle_ ||
-      !base::FeatureList::IsEnabled(features::kPrewarm)) {
+      !base::FeatureList::IsEnabled(features::kPrewarm) ||
+      headless::IsHeadlessMode() || headless::IsOldHeadlessMode() ||
+      (content::DevToolsAgentHost::IsDebuggerAttached(web_contents()) &&
+       !features::kForceEnableWithDevTools.Get())) {
+    // We just return in the following cases;
+    // - The prewarm was already triggered.
+    // - The prewarm feature is disabled.
+    // - Running in a headless mode.
+    // - A Debugger is attached (this condition can be masked by a parameter).
     return false;
   }
 

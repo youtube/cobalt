@@ -17,8 +17,8 @@
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
-#include "chrome/browser/glic/host/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/web_contents.h"
@@ -36,6 +36,7 @@ class IdentityManager;
 }  // namespace signin
 
 namespace glic {
+
 class AuthController;
 class GlicActorController;
 class GlicEnabling;
@@ -47,6 +48,8 @@ class GlicSharingManagerImpl;
 class GlicWindowController;
 class GlicWindowControllerImpl;
 class Host;
+
+enum class GlicPrewarmingChecksResult;
 
 // The GlicKeyedService is created for each eligible (i.e. non-incognito,
 // non-system, etc.) browser profile if Glic flags are enabled, regardless
@@ -209,14 +212,6 @@ class GlicKeyedService : public KeyedService {
   // chrome://glic.
   bool IsGlicWebUi(content::WebContents* web_contents);
 
-  // Log a fake network request to NetLog with a Glic traffic annotation. This
-  // doesn't *send* a request, it just logs it for chrome://net-export.
-  //
-  // Unfortunately there's no way to pass `traffic_annotation` to
-  // LoadURLWithParams() or to tag the WebContents with an annotation, so we
-  // use this hacky workaround to capture the annotation at runtime.
-  void LogDummyNetworkRequestForTrafficAnnotation(const GURL& url);
-
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
   // callbacks.
@@ -224,9 +219,9 @@ class GlicKeyedService : public KeyedService {
       glic::mojom::ZeroStateSuggestionsPtr suggestions,
       glic::mojom::WebClientHandler::
           GetZeroStateSuggestionsForFocusedTabCallback callback,
-      std::optional<std::vector<std::string>> returned_suggestions);
+      std::vector<std::string> returned_suggestions);
 
-  void FinishPreload(bool should_preload);
+  void FinishPreload(GlicPrewarmingChecksResult reason);
   void FinishPreloadFre(bool should_preload);
 
   // List of callbacks to be notified when the client requests a change to the

@@ -14,8 +14,7 @@
 #include "components/tabs/public/tab_interface.h"
 
 namespace actor::ui {
-// STATUS: Dispatched on first action from a task.  Will be refactored to
-// dispatch at a different point in the actuation flow and from async to sync.
+// STATUS: Dispatched when ActorTask state changes from Created to Acting.
 struct StartTask {
   actor::TaskId task_id;
 
@@ -34,8 +33,7 @@ struct TaskStateChanged {
   ~TaskStateChanged();
 };
 
-// STATUS: Dispatched on first action from a task.  Will be refactored to
-// dispatch at a different point in the actuation flow and from async to sync.
+// STATUS: Dispatched when a tab is added to ActorTask.
 struct StartingToActOnTab {
   tabs::TabInterface::Handle tab_handle;
   actor::TaskId task_id;
@@ -45,8 +43,7 @@ struct StartingToActOnTab {
   ~StartingToActOnTab();
 };
 
-// STATUS: Not yet dispatched anywhere.  Will be refactored to dispatch at a
-// different point in the actuation flow and from async to sync.
+// STATUS: Not yet dispatched anywhere.
 struct StoppedActingOnTab {
   tabs::TabInterface::Handle tab_handle;
 
@@ -80,17 +77,14 @@ struct MouseClick {
 // ActorUiStateManager must complete the async callback with a result.  Callers
 // may wait for the result callback to allow ActorUiStateManager to finish async
 // work before proceeding.
-using AsyncUiEvent = std::variant<StartTask,
-                                  StartingToActOnTab,
-                                  StoppedActingOnTab,
-                                  MouseClick,
-                                  MouseMove>;
+using AsyncUiEvent = std::variant<StartingToActOnTab, MouseClick, MouseMove>;
 
 // SyncUiEvents may be sent to ActorUiStateManager's synchronous handler.
 // There's no affordance for ActorUiStateManager to report errors processing
 // these events or for callers to wait for ActorUiStateManager to finish async
 // work before proceeding.
-using SyncUiEvent = std::variant<TaskStateChanged>;
+using SyncUiEvent =
+    std::variant<StartTask, TaskStateChanged, StoppedActingOnTab>;
 
 using UiEvent = std::variant<StartTask,
                              StartingToActOnTab,

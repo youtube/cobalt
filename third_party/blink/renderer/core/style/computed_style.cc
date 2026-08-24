@@ -764,7 +764,7 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   StyleDifference diff;
   uint64_t field_diff = FieldInvalidationDiff(*this, other);
 
-  if ((field_diff & kReshape) || ShouldWrapLine() != other.ShouldWrapLine()) {
+  if (DiffNeedsReshape(other, field_diff)) {
     diff.SetNeedsReshape();
     diff.SetNeedsFullLayout();
     diff.SetNeedsNormalPaintInvalidation();
@@ -916,6 +916,25 @@ StyleDifference ComputedStyle::VisualInvalidationDiff(
   // transition properly.
 
   return diff;
+}
+
+bool ComputedStyle::DiffNeedsReshape(const ComputedStyle& other,
+                                     uint64_t field_diff) const {
+  if (field_diff & kReshape) {
+    return true;
+  }
+
+  if (ShouldWrapLine() != other.ShouldWrapLine()) {
+    return true;
+  }
+
+  if (field_diff & kBorderWidth) {
+    if (Display() == EDisplay::kInline && HasBorder() != other.HasBorder()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 bool ComputedStyle::DiffNeedsFullLayoutAndPaintInvalidation(
@@ -2251,6 +2270,35 @@ const StyleInheritedVariables* ComputedStyle::InheritedVariables() const {
 
 const StyleNonInheritedVariables* ComputedStyle::NonInheritedVariables() const {
   return NonInheritedVariablesInternal().Get();
+}
+
+// static
+const ComputedGridTrackList& ComputedStyle::ComputedGridTemplate(
+    const Member<ComputedGridTrackList>& track_list,
+    const bool use_masonry_default) {
+  if (track_list) {
+    return *track_list;
+  }
+  // If `track_list` is null, that means it is the initial value. The default
+  // value for 'grid-template-*' in masonry layout is 'repeat(auto-fill,
+  // auto)'.
+  //
+  // TODO(almaher): Update this depending on the resolution to
+  // https://github.com/w3c/csswg-drafts/issues/10869.
+  if (use_masonry_default) {
+    DEFINE_STATIC_LOCAL(
+        Persistent<ComputedGridTrackList>, auto_fill_auto_list,
+        (MakeGarbageCollected<ComputedGridTrackList>(
+            ComputedGridTrackList(GridTrackList(GridTrackSize(Length::Auto()),
+                                                GridTrackRepeater::kAutoFill),
+                                  AutoRepeatType::kAutoFill))));
+    return *auto_fill_auto_list;
+  }
+
+  DEFINE_STATIC_LOCAL(
+      Persistent<ComputedGridTrackList>, default_track_list,
+      (MakeGarbageCollected<ComputedGridTrackList>(ComputedGridTrackList())));
+  return *default_track_list;
 }
 
 bool ComputedStyle::HasPropertyDependingOnCurrentColor() const {

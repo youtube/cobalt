@@ -49,6 +49,10 @@
 
 using base::UserMetricsAction;
 
+namespace {
+constexpr int kTabMenuIconSize = 16;
+}
+
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kAddANoteTabMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kSplitTabsMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(TabMenuModel, kArrangeSplitTabsMenuItem);
@@ -161,13 +165,57 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   }
 #endif
 
-  if (tab_strip->delegate()->SupportsReadLater()) {
+  // Reading list is moved lower when Split View is enabled.
+  if (tab_strip->delegate()->SupportsReadLater() &&
+      !base::FeatureList::IsEnabled(features::kSideBySide)) {
     AddItem(
         TabStripModel::CommandAddToReadLater,
         l10n_util::GetPluralStringFUTF16(IDS_TAB_CXMENU_READ_LATER, num_tabs));
     SetEnabledAt(GetItemCount() - 1,
                  tab_strip->IsReadLaterSupportedForAny(indices));
   }
+
+  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
+    if (!tab_strip->GetSplitForTab(index).has_value()) {
+      if (tab_strip->GetActiveTab()->IsSplit()) {
+        swap_with_split_submenu_ =
+            std::make_unique<SplitTabSwapMenuModel>(tab_strip, index);
+        AddSubMenuWithStringIdAndIcon(
+            TabStripModel::CommandSwapWithActiveSplit,
+            IDS_TAB_CXMENU_SWAP_WITH_ACTIVE_SPLIT,
+            swap_with_split_submenu_.get(),
+            ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
+                                           kTabMenuIconSize));
+        const int swap_with_split_index = GetItemCount() - 1;
+        SetEnabledAt(swap_with_split_index, num_tabs == 1);
+        SetElementIdentifierAt(swap_with_split_index, kSwapSplitTabsMenuItem);
+      } else {
+        AddItemWithStringIdAndIcon(
+            TabStripModel::CommandAddToSplit,
+            index == tab_strip->active_index()
+                ? IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT
+                : IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT,
+            ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
+                                           kTabMenuIconSize));
+        const int add_to_split_index = GetItemCount() - 1;
+        SetEnabledAt(add_to_split_index, num_tabs == 1 || num_tabs == 2);
+        SetElementIdentifierAt(add_to_split_index, kSplitTabsMenuItem);
+      }
+    } else {
+      arrange_split_view_submenu_ = std::make_unique<SplitTabMenuModel>(
+          tab_strip, SplitTabMenuModel::MenuSource::kTabContextMenu, index);
+      AddSubMenuWithStringIdAndIcon(
+          TabStripModel::CommandArrangeSplit, IDS_TAB_CXMENU_ARRANGE_SPLIT,
+          arrange_split_view_submenu_.get(),
+          ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
+                                         kTabMenuIconSize));
+      SetElementIdentifierAt(GetItemCount() - 1, kArrangeSplitTabsMenuItem);
+    }
+    SetIsNewFeatureAt(GetItemCount() - 1,
+                      UserEducationService::MaybeShowNewBadge(
+                          tab_strip->profile(), features::kSideBySide));
+  }
+
   if (ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
           tab_strip, index, tab_menu_model_delegate_)) {
     // Create submenu with existing groups
@@ -183,38 +231,6 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
             l10n_util::GetPluralStringFUTF16(
                 IDS_TAB_CXMENU_ADD_TAB_TO_NEW_GROUP, num_tabs));
     SetElementIdentifierAt(GetItemCount() - 1, kAddToNewGroupItemIdentifier);
-  }
-  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-    if (!tab_strip->GetSplitForTab(index).has_value()) {
-      if (tab_strip->GetActiveTab()->IsSplit()) {
-        swap_with_split_submenu_ =
-            std::make_unique<SplitTabSwapMenuModel>(tab_strip, index);
-        AddSubMenuWithStringId(TabStripModel::CommandSwapWithActiveSplit,
-                               IDS_TAB_CXMENU_SWAP_WITH_ACTIVE_SPLIT,
-                               swap_with_split_submenu_.get());
-        const int swap_with_split_index = GetItemCount() - 1;
-        SetEnabledAt(swap_with_split_index, num_tabs == 1);
-        SetElementIdentifierAt(swap_with_split_index, kSwapSplitTabsMenuItem);
-      } else {
-        AddItemWithStringId(TabStripModel::CommandAddToSplit,
-                            index == tab_strip->active_index()
-                                ? IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT
-                                : IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT);
-        const int add_to_split_index = GetItemCount() - 1;
-        SetEnabledAt(add_to_split_index, num_tabs == 1 || num_tabs == 2);
-        SetElementIdentifierAt(add_to_split_index, kSplitTabsMenuItem);
-      }
-    } else {
-      arrange_split_view_submenu_ = std::make_unique<SplitTabMenuModel>(
-          tab_strip, SplitTabMenuModel::MenuSource::kTabContextMenu, index);
-      AddSubMenuWithStringId(TabStripModel::CommandArrangeSplit,
-                             IDS_TAB_CXMENU_ARRANGE_SPLIT,
-                             arrange_split_view_submenu_.get());
-      SetElementIdentifierAt(GetItemCount() - 1, kArrangeSplitTabsMenuItem);
-    }
-    SetIsNewFeatureAt(GetItemCount() - 1,
-                      UserEducationService::MaybeShowNewBadge(
-                          tab_strip->profile(), features::kSideBySide));
   }
 
   for (const auto& selection : indices) {
@@ -294,9 +310,27 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
                           IDS_TAB_CXMENU_SOUND_MUTE_SITE, num_tabs)
                     : l10n_util::GetPluralStringFUTF16(
                           IDS_TAB_CXMENU_SOUND_UNMUTE_SITE, num_tabs));
-  if (send_tab_to_self::ShouldDisplayEntryPoint(
-          tab_strip->GetWebContentsAt(index))) {
+
+  const bool display_read_later =
+      tab_strip->delegate()->SupportsReadLater() &&
+      base::FeatureList::IsEnabled(features::kSideBySide);
+  const bool display_send_to_self = send_tab_to_self::ShouldDisplayEntryPoint(
+      tab_strip->GetWebContentsAt(index));
+  if (display_read_later || display_send_to_self) {
     AddSeparator(ui::NORMAL_SEPARATOR);
+  }
+
+  if (display_read_later) {
+    AddItemWithIcon(
+        TabStripModel::CommandAddToReadLater,
+        l10n_util::GetPluralStringFUTF16(IDS_TAB_CXMENU_READ_LATER, num_tabs),
+        ui::ImageModel::FromVectorIcon(kMenuBookChromeRefreshIcon,
+                                       ui::kColorMenuIcon, kTabMenuIconSize));
+    SetEnabledAt(GetItemCount() - 1,
+                 tab_strip->IsReadLaterSupportedForAny(indices));
+  }
+
+  if (display_send_to_self) {
 #if BUILDFLAG(IS_MAC)
     AddItem(TabStripModel::CommandSendTabToSelf,
             l10n_util::GetStringUTF16(IDS_MENU_SEND_TAB_TO_SELF));

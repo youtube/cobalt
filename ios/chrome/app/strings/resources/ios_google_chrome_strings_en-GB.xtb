@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Search with Google Lens</translation>
 <translation id="1143896152279775643">Your password will be saved to Google Password Manager for <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Open new tab in Chrome</translation>
+<translation id="1158134713295836892">Gemini in Chrome</translation>
 <translation id="1166460004393506534">Delete browsing data in Chrome</translation>
 <translation id="1179527450541388808">Access Chrome faster from your iPad's home screen dock.</translation>
 <translation id="1180362651362502943">Keep using the Chrome data in your Google Account.</translation>
@@ -117,6 +118,7 @@ Try waiting a few minutes before signing out. If you sign out now, this data wil
 <translation id="3863841106411295595">Adds the inputted URLs to your reading list in Chrome.</translation>
 <translation id="3901001113120561395">Get the most out of Chrome.</translation>
 <translation id="3913386780052199712">Signed in to Chrome</translation>
+<translation id="3932250749914183695">Chrome tip: Verify that it's you</translation>
 <translation id="3984746313391923992">Your organisation requires you to stay signed out of Chrome.</translation>
 <translation id="3988789688219830639">Google Chrome does not have access to your photos or videos. Enable access in iOS Settings &gt; Privacy &gt; Photos.</translation>
 <translation id="4064699917955374540">To use and save Chrome data in your Google Account, verify that it's you.</translation>
@@ -142,7 +144,7 @@ Try waiting a few minutes before signing out. If you sign out now, this data wil
 <translation id="484033449593719797">Not supported on Chrome beta</translation>
 <translation id="4840404732697892756">Google Password Manager can check your passwords when you sign in with your Google Account.</translation>
 <translation id="4903674399067644695">This card shows you suggestions on how to get the most out of Chrome.</translation>
-<translation id="49200511069271369">Your organisation, <ph name="DOMAIN" />, manages the account you're signing in to and how Chrome can be used. Your administrator can set up or restrict certain features.</translation>
+<translation id="49200511069271369">Your organisation, <ph name="DOMAIN" />, manages the account that you're signing in to and how Chrome can be used. Your administrator can set up or restrict certain features.</translation>
 <translation id="4925322001044117929">Use Chrome on iPad by default</translation>
 <translation id="498985224078955265">To send this tab to another device, sign in to Chrome on both devices.</translation>
 <translation id="5030102366287574140">Chrome can help keep you safe from data breaches, unsafe websites and more.</translation>

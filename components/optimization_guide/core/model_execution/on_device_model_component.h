@@ -8,11 +8,12 @@
 #include <memory>
 #include <string>
 
-#include "base/containers/flat_set.h"
+#include "base/containers/enum_set.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/sequence_checker.h"
@@ -76,12 +77,16 @@ std::ostream& operator<<(std::ostream& out, OnDeviceModelStatus status);
 // Wraps the specification needed to determine compatibility of the
 // on-device base model with any feature specific code.
 struct OnDeviceBaseModelSpec {
+  using PerformanceHints =
+      base::EnumSet<proto::OnDeviceModelPerformanceHint,
+                    proto::OnDeviceModelPerformanceHint_MIN,
+                    proto::OnDeviceModelPerformanceHint_MAX>;
+
   OnDeviceBaseModelSpec();
   OnDeviceBaseModelSpec(
       const std::string& model_name,
       const std::string& model_version,
-      const base::flat_set<proto::OnDeviceModelPerformanceHint>&
-          supported_performance_hints);
+      PerformanceHints supported_performance_hints);
   ~OnDeviceBaseModelSpec();
   OnDeviceBaseModelSpec(const OnDeviceBaseModelSpec&);
 
@@ -92,16 +97,13 @@ struct OnDeviceBaseModelSpec {
   // The version of the base model currently available on-device.
   std::string model_version;
   // The supported performance hints for this device and base model.
-  base::flat_set<proto::OnDeviceModelPerformanceHint>
-      supported_performance_hints;
+  PerformanceHints supported_performance_hints;
 };
 
 // Manages the state of the on-device component.
-// This object needs to have lifetime equal to the browser process. This is
-// achieved by holding a scoped_refptr on KeyedServices which need it, and on
-// the installer (which is owned by ComponentUpdaterService).
-class OnDeviceModelComponentStateManager
-    : public base::RefCounted<OnDeviceModelComponentStateManager> {
+// This object needs to have lifetime equal to the browser process, and outside
+// of tests is created by a static NoDestructor initializer.
+class OnDeviceModelComponentStateManager final {
  public:
   class Delegate {
    public:
@@ -120,14 +122,14 @@ class OnDeviceModelComponentStateManager
     // `OnDeviceModelComponentStateManager::SetReady` when the component is
     // ready to use.
     virtual void RegisterInstaller(
-        scoped_refptr<OnDeviceModelComponentStateManager> state_manager,
+        base::WeakPtr<OnDeviceModelComponentStateManager> state_manager,
         bool is_already_installing) = 0;
 
     // Uninstall the component. Calls
     // `OnDeviceModelComponentStateManager::UninstallComplete()` when uninstall
     // completes.
     virtual void Uninstall(
-        scoped_refptr<OnDeviceModelComponentStateManager> state_manager) = 0;
+        base::WeakPtr<OnDeviceModelComponentStateManager> state_manager) = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -181,11 +183,9 @@ class OnDeviceModelComponentStateManager
     }
   };
 
-  // Creates the instance if one does not already exist. Returns an existing
-  // instance otherwise.
-  static scoped_refptr<OnDeviceModelComponentStateManager> CreateOrGet(
-      PrefService* local_state,
-      std::unique_ptr<Delegate> delegate);
+  OnDeviceModelComponentStateManager(PrefService* local_state,
+                                     std::unique_ptr<Delegate> delegate);
+  ~OnDeviceModelComponentStateManager();
 
   // Returns whether the component installation is valid.
   static bool VerifyInstallation(const base::FilePath& install_dir,
@@ -264,12 +264,7 @@ class OnDeviceModelComponentStateManager
     return weak_ptr_factory_.GetWeakPtr();
   }
 
-  // Testing functionality:
-  static OnDeviceModelComponentStateManager* GetInstanceForTesting();
-
  private:
-  friend class base::RefCounted<OnDeviceModelComponentStateManager>;
-
   enum class OnDeviceRegistrationDecision {
     // The component should be installed.
     kInstall,
@@ -278,10 +273,6 @@ class OnDeviceModelComponentStateManager
     // The component should not be installed, and does not need removed.
     kDoNotInstall,
   };
-
-  OnDeviceModelComponentStateManager(PrefService* local_state,
-                                     std::unique_ptr<Delegate> delegate);
-  ~OnDeviceModelComponentStateManager();
 
   RegistrationCriteria ComputeRegistrationCriteria(
       int64_t disk_space_free_bytes);
@@ -302,6 +293,10 @@ class OnDeviceModelComponentStateManager
   // filters values to make it compatible with this device.
   const std::optional<OnDeviceBaseModelSpec> ProcessBaseModelSpecFromManifest(
       const base::Value::Dict& manifest);
+
+  // Returns a list of performance hints this device supports in priority order,
+  // with highest priority first.
+  std::vector<proto::OnDeviceModelPerformanceHint> GetPossibleHints() const;
 
   raw_ptr<PrefService> local_state_ GUARDED_BY_CONTEXT(sequence_checker_);
   std::unique_ptr<Delegate> delegate_ GUARDED_BY_CONTEXT(sequence_checker_);

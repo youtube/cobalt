@@ -12,9 +12,8 @@
 
 #if defined(WEBRTC_ALLOCATION_COUNTER_AVAILABLE)
 
-#include <stdlib.h>
-
 #include <cstddef>
+#include <cstdlib>
 #include <vector>
 
 #include "absl/base/attributes.h"

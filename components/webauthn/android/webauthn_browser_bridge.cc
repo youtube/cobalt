@@ -67,7 +67,7 @@ void ConvertJavaCredentialArrayToMetadataVector(
   DCHECK_GE(jlength, 0) << "Invalid array length: " << jlength;
   size_t length = static_cast<size_t>(std::max(0, jlength));
   for (size_t i = 0; i < length; ++i) {
-    ScopedJavaLocalRef<jobject> j_credential(
+    auto j_credential = ScopedJavaLocalRef<jobject>::Adopt(
         env, static_cast<jobject>(env->GetObjectArrayElement(array.obj(), i)));
     out->emplace_back(
         ConvertJavaCredentialDetailsToMetadata(env, j_credential));
@@ -129,7 +129,7 @@ void WebauthnBrowserBridge::OnCredentialsDetailsListReceived(
                                              &credentials_metadata);
 
   base::RepeatingCallback<void()> hybrid_callback;
-  if (jhybrid_callback != nullptr) {
+  if (!jhybrid_callback.is_null()) {
     hybrid_callback = base::BindRepeating(
         &OnHybridAssertionInvoked,
         ScopedJavaGlobalRef<jobject>(env, jhybrid_callback));

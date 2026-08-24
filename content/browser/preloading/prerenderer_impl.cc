@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/341324165): Fix and remove.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/browser/preloading/prerenderer_impl.h"
 
 #include <algorithm>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/strings/stringprintf.h"
 #include "content/browser/preloading/prefetch/no_vary_search_helper.h"
@@ -34,6 +30,34 @@
 #include "third_party/blink/public/common/features.h"
 
 namespace content {
+
+namespace {
+PreloadingType ConvertSpeculationActionToPreloadingType(
+    blink::mojom::SpeculationAction action) {
+  switch (action) {
+    case blink::mojom::SpeculationAction::kPrerender:
+      return PreloadingType::kPrerender;
+    case blink::mojom::SpeculationAction::kPrerenderUntilScript:
+      return PreloadingType::kPrerenderUntilScript;
+    case blink::mojom::SpeculationAction::kPrefetch:
+    case blink::mojom::SpeculationAction::kPrefetchWithSubresources:
+      NOTREACHED();
+  }
+}
+
+bool ShouldPauseJavaScriptExecution(blink::mojom::SpeculationAction action) {
+  switch (action) {
+    case blink::mojom::SpeculationAction::kPrerender:
+      return false;
+    case blink::mojom::SpeculationAction::kPrerenderUntilScript:
+      return true;
+    case blink::mojom::SpeculationAction::kPrefetch:
+    case blink::mojom::SpeculationAction::kPrefetchWithSubresources:
+      NOTREACHED();
+  }
+}
+
+}  // namespace
 
 struct PrerendererImpl::PrerenderInfo {
   blink::mojom::SpeculationInjectionType injection_type;
@@ -131,7 +155,9 @@ void PrerendererImpl::ProcessCandidatesForPrerender(
   std::vector<std::pair<size_t, blink::mojom::SpeculationCandidatePtr>>
       prerender_candidates;
   for (const auto& candidate : candidates) {
-    if (candidate->action == blink::mojom::SpeculationAction::kPrerender) {
+    if (candidate->action == blink::mojom::SpeculationAction::kPrerender ||
+        candidate->action ==
+            blink::mojom::SpeculationAction::kPrerenderUntilScript) {
       prerender_candidates.emplace_back(prerender_candidates.size(),
                                         candidate.Clone());
     }
@@ -176,14 +202,14 @@ void PrerendererImpl::ProcessCandidatesForPrerender(
     auto equal_prerender_end = std::ranges::find_if(
         started_it, started_prerenders_.end(),
         [&](const auto& started) { return started != prerender_info; });
-    base::span<PrerenderInfo> matching_prerenders(started_it,
-                                                  equal_prerender_end);
+    base::span<PrerenderInfo> UNSAFE_TODO(
+        matching_prerenders(started_it, equal_prerender_end));
     auto equal_candidate_end = std::ranges::find_if(
         candidate_it, prerender_candidates.end(), [&](const auto& candidate) {
           return PrerenderInfo(candidate.second) != prerender_info;
         });
     base::span<std::pair<size_t, blink::mojom::SpeculationCandidatePtr>>
-        matching_candidates(candidate_it, equal_candidate_end);
+        UNSAFE_TODO(matching_candidates(candidate_it, equal_candidate_end));
 
     // Decide what started prerenders to cancel.
     for (PrerenderInfo& prerender : matching_prerenders) {
@@ -282,7 +308,14 @@ bool PrerendererImpl::MaybePrerender(
     const blink::mojom::SpeculationCandidatePtr& candidate,
     const PreloadingPredictor& enacting_predictor,
     PreloadingConfidence confidence) {
-  CHECK_EQ(candidate->action, blink::mojom::SpeculationAction::kPrerender);
+  // Check actions. Only Prerender and PrerenderUntilScript are allowed.
+  switch (candidate->action) {
+    case blink::mojom::SpeculationAction::kPrerender:
+    case blink::mojom::SpeculationAction::kPrerenderUntilScript:
+      break;
+    default:
+      NOTREACHED();
+  }
 
   // Prerendering is not allowed in fenced frames.
   if (render_frame_host_->IsNestedWithinFencedFrame()) {
@@ -369,10 +402,12 @@ bool PrerendererImpl::MaybePrerender(
       web_contents->GetWeakPtr(), ui::PAGE_TRANSITION_LINK,
       should_warm_up_compositor,
       /*should_prepare_paint_tree=*/false,
+      ShouldPauseJavaScriptExecution(candidate->action),
       /*url_match_predicate=*/{},
       /*prerender_navigation_handle_callback=*/{},
       PreloadPipelineInfoImpl::Create(
-          /*planned_max_preloading_type=*/PreloadingType::kPrerender),
+          /*planned_max_preloading_type=*/
+          ConvertSpeculationActionToPreloadingType(candidate->action)),
       /*allow_reuse=*/false);
 
   PreloadingTriggerType trigger_type =
@@ -423,7 +458,8 @@ bool PrerendererImpl::MaybePrerender(
         auto* preloading_attempt = static_cast<PreloadingAttemptImpl*>(
             preloading_data->AddPreloadingAttempt(
                 creating_predictor, enacting_predictor,
-                PreloadingType::kPrerender, std::move(same_url_matcher),
+                ConvertSpeculationActionToPreloadingType(candidate->action),
+                std::move(same_url_matcher),
                 web_contents->GetPrimaryMainFrame()->GetPageUkmSourceId()));
         preloading_attempt->SetSpeculationEagerness(candidate->eagerness);
         return registry_->CreateAndStartHost(attributes, preloading_attempt);

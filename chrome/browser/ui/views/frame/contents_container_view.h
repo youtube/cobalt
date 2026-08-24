@@ -14,6 +14,10 @@ class ContentsWebView;
 class MultiContentsViewMiniToolbar;
 class ScrimView;
 
+namespace glic {
+class GlicBorderView;
+}  // namespace glic
+
 namespace new_tab_footer {
 class NewTabFooterWebView;
 }  // namespace new_tab_footer
@@ -31,6 +35,7 @@ class ContentsContainerView : public views::View, public views::LayoutDelegate {
   ContentsWebView* GetContentsView() { return contents_view_; }
   MultiContentsViewMiniToolbar* GetMiniToolbar() { return mini_toolbar_; }
   ScrimView* GetContentsScrimView() { return contents_scrim_view_; }
+  glic::GlicBorderView* GetGlicBorderView() { return glic_border_; }
   new_tab_footer::NewTabFooterWebView* GetNewTabFooterView() {
     return new_tab_footer_view_;
   }
@@ -41,14 +46,19 @@ class ContentsContainerView : public views::View, public views::LayoutDelegate {
                               bool show_scrim);
 
  private:
+  void UpdateBorderRoundedCorners();
+  void ClearBorderRoundedCorners();
+
+  // View:
+  void ChildVisibilityChanged(View* child) override;
+
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
 
+  bool is_in_split_ = false;
+
   raw_ptr<ContentsWebView> contents_view_;
-  // The scrim view that covers the content area when a tab-modal dialog is
-  // open.
-  raw_ptr<ScrimView> contents_scrim_view_;
 
   // The view that shows a footer at the bottom of the contents
   // container on new tab pages.
@@ -56,9 +66,17 @@ class ContentsContainerView : public views::View, public views::LayoutDelegate {
   // Separator between the web contents and the Footer.
   raw_ptr<views::View> new_tab_footer_view_separator_ = nullptr;
 
+  // The scrim view that covers the content area when a tab-modal dialog is
+  // open.
+  raw_ptr<ScrimView> contents_scrim_view_;
+
   // Scrim view shown on the inactive side of a split view when the omnibox is
   // focused or site permissions dialogs are showing.
   raw_ptr<ScrimView> inactive_split_scrim_view_ = nullptr;
+
+  // The glic browser view that renders around the web contents area.
+  raw_ptr<glic::GlicBorderView> glic_border_ = nullptr;
+
   raw_ptr<MultiContentsViewMiniToolbar> mini_toolbar_ = nullptr;
 };
 

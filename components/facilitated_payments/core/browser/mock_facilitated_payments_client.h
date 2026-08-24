@@ -37,6 +37,10 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
               LoadRiskData,
               (base::OnceCallback<void(const std::string&)>),
               (override));
+  MOCK_METHOD(const url::Origin&,
+              GetLastCommittedOrigin,
+              (),
+              (const, override));
   MOCK_METHOD(autofill::PaymentsDataManager*,
               GetPaymentsDataManager,
               (),
@@ -60,6 +64,7 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
               (),
               (override));
   MOCK_METHOD(DeviceDelegate*, GetDeviceDelegate, (), (override));
+  MOCK_METHOD(bool, IsWebContentsVisibleOrOccluded, (), (override));
   MOCK_METHOD(void,
               ShowPixPaymentPrompt,
               (base::span<const autofill::BankAccount> pix_account_suggestions,
@@ -75,12 +80,16 @@ class MockFacilitatedPaymentsClient : public FacilitatedPaymentsClient {
   MOCK_METHOD(void, ShowErrorScreen, (), (override));
   MOCK_METHOD(void, DismissPrompt, (), (override));
   MOCK_METHOD(autofill::StrikeDatabase*, GetStrikeDatabase, (), (override));
-  MOCK_METHOD(void, InitPixAccountLinkingFlow, (), (override));
+  MOCK_METHOD(void,
+              InitPixAccountLinkingFlow,
+              (const url::Origin& pix_payment_page_origin),
+              (override));
   MOCK_METHOD(void,
               ShowPixAccountLinkingPrompt,
               (base::OnceCallback<void()> on_accepted,
                base::OnceCallback<void()> on_declined),
               (override));
+  MOCK_METHOD(bool, HasScreenlockOrBiometricSetup, (), (override));
 };
 
 }  // namespace payments::facilitated

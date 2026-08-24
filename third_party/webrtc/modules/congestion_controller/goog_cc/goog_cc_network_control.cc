@@ -10,10 +10,9 @@
 
 #include "modules/congestion_controller/goog_cc/goog_cc_network_control.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -221,9 +220,8 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
         msg.pacer_queue->bytes());
   }
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
-  std::optional<int64_t> start_time_ms =
-      alr_detector_->GetApplicationLimitedRegionStartTime();
-  probe_controller_->SetAlrStartTimeMs(start_time_ms);
+  probe_controller_->SetAlrStartTime(
+      alr_detector_->GetApplicationLimitedRegionStartTime());
 
   auto probes = probe_controller_->Process(msg.at_time);
   update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
@@ -264,8 +262,7 @@ NetworkControlUpdate GoogCcNetworkController::OnRoundTripTimeUpdate(
 
 NetworkControlUpdate GoogCcNetworkController::OnSentPacket(
     SentPacket sent_packet) {
-  alr_detector_->OnBytesSent(sent_packet.size.bytes(),
-                             sent_packet.send_time.ms());
+  alr_detector_->OnBytesSent(sent_packet.size, sent_packet.send_time);
   acknowledged_bitrate_estimator_->SetAlr(
       alr_detector_->GetApplicationLimitedRegionStartTime().has_value());
 
@@ -446,12 +443,11 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
                                                 min_propagation_rtt);
   }
 
-  std::optional<int64_t> alr_start_time =
+  std::optional<Timestamp> alr_start_time =
       alr_detector_->GetApplicationLimitedRegionStartTime();
   if (previously_in_alr_ && !alr_start_time.has_value()) {
-    int64_t now_ms = report.feedback_time.ms();
     acknowledged_bitrate_estimator_->SetAlrEndedTime(report.feedback_time);
-    probe_controller_->SetAlrEndedTimeMs(now_ms);
+    probe_controller_->SetAlrEndedTime(report.feedback_time);
   }
   previously_in_alr_ = alr_start_time.has_value();
   acknowledged_bitrate_estimator_->IncomingPacketFeedbackVector(
@@ -521,7 +517,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   recovered_from_overuse = result.recovered_from_overuse;
 
   if (recovered_from_overuse) {
-    probe_controller_->SetAlrStartTimeMs(alr_start_time);
+    probe_controller_->SetAlrStartTime(alr_start_time);
     auto probes = probe_controller_->RequestProbe(report.feedback_time);
     update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
                                         probes.begin(), probes.end());
@@ -617,7 +613,7 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     last_estimated_round_trip_time_ = round_trip_time;
     last_loss_base_state_ = loss_based_state;
 
-    alr_detector_->SetEstimatedBitrate(loss_based_target_rate.bps());
+    alr_detector_->SetEstimatedBitrate(loss_based_target_rate);
 
     TimeDelta bwe_period = delay_based_bwe_->GetExpectedBwePeriod();
 

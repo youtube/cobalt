@@ -190,6 +190,10 @@
 // Starts the coordinator to present the Add Account module.
 - (void)triggerAddAccount {
   [self.mediator userAttemptedToSignin];
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signinCompletion. See crbug.com/395959814
+  [self.addAccountSigninCoordinator stop];
   self.addAccountSigninCoordinator = [SigninCoordinator
       addAccountCoordinatorWithBaseViewController:self.viewController
                                           browser:self.browser
@@ -242,7 +246,7 @@
 
 // Shows the UMA dialog so the user can manage metric reporting.
 - (void)showUMADialog {
-  DCHECK(!self.UMACoordinator);
+  CHECK(!self.UMACoordinator, base::NotFatalUntil::M144);
   self.UMACoordinator = [[UMACoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
@@ -252,7 +256,7 @@
 }
 
 - (void)showTOSPage {
-  DCHECK(!self.TOSCoordinator);
+  CHECK(!self.TOSCoordinator, base::NotFatalUntil::M144);
   self.mediator.TOSLinkWasTapped = YES;
   self.TOSCoordinator =
       [[TOSCoordinator alloc] initWithBaseViewController:self.viewController
@@ -293,20 +297,14 @@
 #pragma mark - PromoStyleViewControllerDelegate
 
 - (void)didTapPrimaryActionButton {
-  switch (self.authenticationService->GetServiceStatus()) {
-    case AuthenticationService::ServiceStatus::SigninForcedByPolicy:
-    case AuthenticationService::ServiceStatus::SigninAllowed:
-      if (self.mediator.selectedIdentity) {
-        [self startSignIn];
-      } else {
-        [self triggerAddAccount];
-      }
-      break;
-    case AuthenticationService::ServiceStatus::SigninDisabledByUser:
-    case AuthenticationService::ServiceStatus::SigninDisabledByPolicy:
-    case AuthenticationService::ServiceStatus::SigninDisabledByInternal:
-      [self finishPresentingWithSignIn:NO];
-      return;
+  if (self.authenticationService->SigninEnabled()) {
+    if (self.mediator.selectedIdentity) {
+      [self startSignIn];
+    } else {
+      [self triggerAddAccount];
+    }
+  } else {
+    [self finishPresentingWithSignIn:NO];
   }
 }
 
@@ -333,7 +331,10 @@
 #pragma mark - FullscreenSigninScreenViewControllerDelegate
 
 - (void)showAccountPickerFromPoint:(CGPoint)point {
-  DCHECK(!self.identityChooserCoordinator);
+  if (self.identityChooserCoordinator) {
+    // This may occur if the user double tap on the identity button.
+    return;
+  }
   self.identityChooserCoordinator = [[IdentityChooserCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];

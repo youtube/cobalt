@@ -62,6 +62,7 @@
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/mojom/message_port.mojom-shared.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "ipc/constants.mojom.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/gurl.h"
 
@@ -806,6 +807,7 @@ void MessageService::OpenChannelToTabImpl(
     source_url = source.GetRenderFrameHost()->GetLastCommittedURL();
   } else if (source.is_for_service_worker() && extension) {
     source_origin = extension->origin();
+    source_url = BackgroundInfo::GetBackgroundServiceWorkerScriptURL(extension);
   }
 
   BrowserContext* receiver_context = receiver_contents->GetBrowserContext();
@@ -946,7 +948,7 @@ void MessageService::OpenChannelImpl(BrowserContext* browser_context,
   AddChannel(std::move(channel_ptr), params->receiver_port_id);
 
   int guest_process_id = content::ChildProcessHost::kInvalidUniqueID;
-  int guest_render_frame_routing_id = MSG_ROUTING_NONE;
+  int guest_render_frame_routing_id = IPC::mojom::kRoutingIdNone;
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
   if (params->include_guest_process_info &&
       // TODO(lazyboy): Investigate <webview> SW messaging.
@@ -1049,7 +1051,7 @@ void MessageService::CloseChannel(const PortId& port_id,
                                   const std::string& error_message) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   ClosePortImpl(port_id, content::ChildProcessHost::kInvalidUniqueID,
-                MSG_ROUTING_NONE, kMainThreadId, true, error_message);
+                IPC::mojom::kRoutingIdNone, kMainThreadId, true, error_message);
 }
 
 void MessageService::ClosePort(const PortId& port_id,
@@ -1057,8 +1059,8 @@ void MessageService::ClosePort(const PortId& port_id,
                                const PortContext& port_context,
                                bool close_channel,
                                const std::string& error_message) {
-  int routing_id =
-      port_context.frame ? port_context.frame->routing_id : MSG_ROUTING_NONE;
+  int routing_id = port_context.frame ? port_context.frame->routing_id
+                                      : IPC::mojom::kRoutingIdNone;
   int worker_thread_id =
       port_context.worker ? port_context.worker->thread_id : kMainThreadId;
   ClosePortImpl(port_id, process_id, routing_id, worker_thread_id,

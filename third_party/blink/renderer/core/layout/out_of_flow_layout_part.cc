@@ -481,34 +481,37 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
     return;
   }
 
-  // Disable first tier cache for grid layouts, as grid allows for out-of-flow
-  // items to be placed in grid areas, which is complex to maintain a cache for.
+  const ConstraintSpace& space = GetConstraintSpace();
+  const WritingDirectionMode writing_direction = space.GetWritingDirection();
+  const bool is_scroll_container =
+      container_builder->Node().IsScrollContainer();
+  const bool is_hidden_for_paint = space.IsHiddenForPaint();
+
   const BoxStrut border_scrollbar =
       container_builder->Borders() + container_builder->Scrollbar();
-  default_containing_block_info_for_absolute_.writing_direction =
-      GetConstraintSpace().GetWritingDirection();
-  default_containing_block_info_for_fixed_.writing_direction =
-      GetConstraintSpace().GetWritingDirection();
-  default_containing_block_info_for_absolute_.is_scroll_container =
-      container_builder_->Node().IsScrollContainer();
-  default_containing_block_info_for_fixed_.is_scroll_container =
-      container_builder_->Node().IsScrollContainer();
-  default_containing_block_info_for_absolute_.is_hidden_for_paint =
-      container_builder_->GetConstraintSpace().IsHiddenForPaint();
-  default_containing_block_info_for_fixed_.is_hidden_for_paint =
-      container_builder_->GetConstraintSpace().IsHiddenForPaint();
+  const LogicalOffset container_offset = border_scrollbar.StartOffset();
+
+  LogicalSize absolute_size;
+  LogicalSize fixed_size;
   if (container_builder_->HasBlockSize()) {
-    default_containing_block_info_for_absolute_.rect.size =
+    absolute_size =
         ShrinkLogicalSize(container_builder_->Size(), border_scrollbar);
-    default_containing_block_info_for_fixed_.rect.size = ShrinkLogicalSize(
+    fixed_size = ShrinkLogicalSize(
         InitialContainingBlockFixedSize(container_builder->Node())
             .value_or(container_builder_->Size()),
         border_scrollbar);
   }
-  LogicalOffset container_offset = {border_scrollbar.inline_start,
-                                    border_scrollbar.block_start};
-  default_containing_block_info_for_absolute_.rect.offset = container_offset;
-  default_containing_block_info_for_fixed_.rect.offset = container_offset;
+
+  default_containing_block_info_for_absolute_ = {
+      .writing_direction = writing_direction,
+      .is_scroll_container = is_scroll_container,
+      .is_hidden_for_paint = is_hidden_for_paint,
+      .rect = {container_offset, absolute_size}};
+  default_containing_block_info_for_fixed_ = {
+      .writing_direction = writing_direction,
+      .is_scroll_container = is_scroll_container,
+      .is_hidden_for_paint = is_hidden_for_paint,
+      .rect = {container_offset, fixed_size}};
 }
 
 void OutOfFlowLayoutPart::Run() {
@@ -1509,7 +1512,7 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
   // add repeated elements to every fragmentainer that exists, but if there's a
   // nested OOF that triggers creation of additional fragmentainers, we'll need
   // to add the fixed-positioned elements to those as well.
-  wtf_size_t previous_repeaded_fixedpos_resume_idx = WTF::kNotFound;
+  wtf_size_t previous_repeaded_fixedpos_resume_idx = kNotFound;
 
   while (!descendants->empty()) {
     ComputeInlineContainingBlocksForFragmentainer(*descendants);
@@ -1687,7 +1690,7 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
         // fragmentainers in the next iteration (because of nested OOFs), we
         // need to resume those when a new fragmentainer is added.
         DCHECK(container_builder_->Node().IsPaginatedRoot());
-        DCHECK(previous_repeaded_fixedpos_resume_idx == WTF::kNotFound ||
+        DCHECK(previous_repeaded_fixedpos_resume_idx == kNotFound ||
                previous_repeaded_fixedpos_resume_idx <=
                    descendants_to_layout.size());
         previous_repeaded_fixedpos_resume_idx = descendants_to_layout.size();
@@ -1751,31 +1754,29 @@ AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
     }
   }
 
-  PhysicalSize container_physical_content_size = ToPhysicalSize(
-      container_info.rect.size, GetConstraintSpace().GetWritingMode());
   const WritingModeConverter container_converter(
       container_info.writing_direction,
       container_builder_->SizeForAnchorQueries());
-  PhysicalOffset offset_to_padding_box =
-      container_converter.ToPhysical(container_info.rect).offset;
+  const PhysicalRect container_rect =
+      container_converter.ToPhysical(container_info.rect);
+
   if (anchor_queries) {
     // When the containing block is block-fragmented, the |container_builder_|
     // is the fragmentainer, not the containing block, and the coordinate system
     // is stitched. Use the given |anchor_query|.
     const LayoutObject* css_containing_block = candidate_layout_box.Container();
     CHECK(css_containing_block);
-    return AnchorEvaluatorImpl(
-        candidate_layout_box, *anchor_queries, implicit_anchor,
-        *css_containing_block, container_info.writing_direction,
-        offset_to_padding_box, container_physical_content_size);
+    return AnchorEvaluatorImpl(candidate_layout_box, *anchor_queries,
+                               implicit_anchor, *css_containing_block,
+                               container_info.writing_direction,
+                               container_rect);
   }
   if (const PhysicalAnchorQuery* anchor_query =
           container_builder_->AnchorQuery()) {
     // Otherwise the |container_builder_| is the containing block.
     return AnchorEvaluatorImpl(
         candidate_layout_box, *anchor_query, implicit_anchor,
-        container_info.writing_direction, offset_to_padding_box,
-        container_physical_content_size);
+        container_info.writing_direction, container_rect);
   }
   return AnchorEvaluatorImpl();
 }

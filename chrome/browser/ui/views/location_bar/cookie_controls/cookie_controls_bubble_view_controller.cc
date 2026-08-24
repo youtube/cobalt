@@ -58,6 +58,24 @@ const gfx::VectorIcon& GetToggleIcon(bool enabled) {
   return enabled ? views::kEyeRefreshIcon : views::kEyeCrossedRefreshIcon;
 }
 
+std::u16string Get3pcSummaryStringForEnforcement(
+    CookieControlsEnforcement enforcement) {
+  switch (enforcement) {
+    case CookieControlsEnforcement::kEnforcedByCookieSetting:
+      return l10n_util::GetStringUTF16(
+          IDS_TRACKING_PROTECTIONS_BUBBLE_3PCS_USER_ALLOWED_DESCRIPTION);
+    case CookieControlsEnforcement::kEnforcedByPolicy:
+      return l10n_util::GetStringUTF16(
+          IDS_TRACKING_PROTECTIONS_BUBBLE_3PCS_ENTERPRISE_ALLOWED_DESCRIPTION);
+    case CookieControlsEnforcement::kEnforcedByExtension:
+      return l10n_util::GetStringUTF16(
+          IDS_TRACKING_PROTECTIONS_BUBBLE_3PCS_EXTENSION_ALLOWED_DESCRIPTION);
+    case CookieControlsEnforcement::kNoEnforcement:
+    case CookieControlsEnforcement::kEnforcedByTpcdGrant:
+      return u"";
+  }
+}
+
 }  // namespace
 
 CookieControlsBubbleViewController::CookieControlsBubbleViewController(
@@ -196,22 +214,25 @@ void CookieControlsBubbleViewController::FillViewForThirdPartyCookies(
   bubble_view_->GetContentView()->PreferredSizeChanged();
 }
 
-void CookieControlsBubbleViewController::FillViewForTrackingProtections() {
+void CookieControlsBubbleViewController::FillViewForTrackingProtections(
+    CookieControlsEnforcement enforcement) {
   bool tp_paused = controls_state_ == CookieControlsState::kPausedTp;
   int desc_title, desc, button_label;
   if (tp_paused) {
-    desc_title = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_TITLE;
-    desc = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_DESCRIPTION;
-    button_label = IDS_TRACKING_PROTECTIONS_BUBBLE_RESUME_PROTECTIONS_LABEL;
+    desc_title = IDS_TRACKING_PROTECTIONS_PAUSED_PROTECTIONS_TITLE;
+    desc = IDS_TRACKING_PROTECTIONS_PAUSED_PROTECTIONS_DESCRIPTION;
+    button_label = IDS_TRACKING_PROTECTIONS_BUTTON_RESUME_PROTECTIONS_LABEL;
   } else {
     desc_title = IDS_COOKIE_CONTROLS_BUBBLE_SITE_NOT_WORKING_TITLE;
-    desc = IDS_TRACKING_PROTECTIONS_BUBBLE_ACTIVE_PROTECTIONS_DESCRIPTION;
-    button_label = IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSE_PROTECTIONS_LABEL;
+    desc = IDS_TRACKING_PROTECTIONS_ACTIVE_PROTECTIONS_DESCRIPTION;
+    button_label = IDS_TRACKING_PROTECTIONS_BUTTON_PAUSE_PROTECTIONS_LABEL;
   }
+  bubble_view_->GetContentView()->SetIncognitoTrackingProtections3pcSummary(
+      tp_paused ? u"" : Get3pcSummaryStringForEnforcement(enforcement));
   bubble_view_->GetContentView()->SetTrackingProtectionsButtonVisible(true);
   bubble_view_->GetContentView()->SetCookiesRowVisible(false);
   bubble_view_->UpdateTitle(
-      l10n_util::GetStringUTF16(IDS_INCOGNITO_TRACKING_PROTECTIONS_HEADER));
+      l10n_util::GetStringUTF16(IDS_TRACKING_PROTECTIONS_BUBBLE_TITLE));
   bubble_view_->GetContentView()->UpdateContentLabels(
       l10n_util::GetStringUTF16(desc_title), l10n_util::GetStringUTF16(desc));
   bubble_view_->GetContentView()->SetTrackingProtectionsButtonLabel(
@@ -244,7 +265,7 @@ void CookieControlsBubbleViewController::OnStatusChanged(
       return;
     case CookieControlsState::kActiveTp:
     case CookieControlsState::kPausedTp:
-      FillViewForTrackingProtections();
+      FillViewForTrackingProtections(enforcement);
       break;
     case CookieControlsState::kBlocked3pc:
     case CookieControlsState::kAllowed3pc:
@@ -253,11 +274,7 @@ void CookieControlsBubbleViewController::OnStatusChanged(
   }
 }
 
-void CookieControlsBubbleViewController::
-    OnFinishedPageReloadWithChangedSettings() {
-  // TODO: Log a UserMetricsAction here to count completed page reloads once we
-  // have confidence that this callback is properly scoped.  See
-  // https://crrev.com/c/4925330 for context.
+void CookieControlsBubbleViewController::OnBubbleCloseTriggered() {
   CloseBubble();
 }
 
@@ -278,6 +295,10 @@ void CookieControlsBubbleViewController::CloseBubble() {
     bubble_view_->GetContentView()
         ->GetTrackingProtectionsButton()
         ->SetSpinnerVisible(false);
+    // Manually trigger a user bypass update as updates are frozen while
+    // `IsReloadingState` is true. This avoids potential delays between the
+    // bubble closing and the icon / label reflecting the user's new state.
+    controller_->UpdateUserBypass();
   }
   controller_observation_.Reset();
   bubble_view_->CloseWidget();
@@ -338,8 +359,8 @@ void CookieControlsBubbleViewController::OnTrackingProtectionsButtonPressed() {
   controller_->SetStateChangedViaBypass(true);
   SetIsReloadingState(true);
   controller_->OnTrackingProtectionsChangedForSite();
-  // TODO(crbug.com/388294499): Verify a11y readout for the button.
-  web_contents_->GetController().Reload(content::ReloadType::NORMAL, true);
+  web_contents_->GetController().Reload(content::ReloadType::BYPASSING_CACHE,
+                                        true);
   bubble_view_->GetContentView()->SetTrackingProtectionsButtonReloadingState();
   // Set a timeout for how long the reloading UI is shown for.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(

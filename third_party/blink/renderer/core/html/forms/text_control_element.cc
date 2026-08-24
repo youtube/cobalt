@@ -1015,7 +1015,7 @@ void TextControlElement::AppendTextOrBr(const String& value,
   wtf_size_t start = 0;
   while (start < value.length()) {
     wtf_size_t i = value.find('\n', start);
-    if (i == WTF::kNotFound) {
+    if (i == kNotFound) {
       AppendText(value, start, value.length(), container);
       break;
     }
@@ -1336,9 +1336,10 @@ void TextControlElement::CloneNonAttributePropertiesFrom(
   HTMLFormControlElement::CloneNonAttributePropertiesFrom(source, data);
 }
 
-ETextOverflow TextControlElement::ValueForTextOverflow() const {
-  if (GetDocument().FocusedElement() == this)
-    return ETextOverflow::kClip;
+TextOverflowData TextControlElement::ValueForTextOverflow() const {
+  if (GetDocument().FocusedElement() == this) {
+    return TextOverflowData(TextOverflowData::Type::kClip);
+  }
   return ComputedStyleRef().TextOverflow();
 }
 

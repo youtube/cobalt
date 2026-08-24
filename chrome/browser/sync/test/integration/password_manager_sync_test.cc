@@ -19,6 +19,7 @@
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/password_manager_test_base.h"
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
@@ -244,6 +245,12 @@ class PasswordManagerSyncTest : public SyncTest {
   // Implicit browser signin, disables passwords account storage by default.
   void SignIn(SyncTestAccount account = SyncTestAccount::kDefaultAccount,
               bool explicit_signin = true) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+    auto enable_disclaimer_on_primary_account_change_resetter =
+        enterprise_util::DisableAutomaticManagementDisclaimerUntilReset(
+            GetProfile(0));
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
     if (explicit_signin) {
       ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount(account));
     } else {
@@ -879,11 +886,11 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
 
   SignIn(SyncTestAccount::kConsumerAccount1, /*explicit_signin=*/false);
   EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
   SignOut();
   SignIn(SyncTestAccount::kConsumerAccount2, /*explicit_signin=*/false);
   EXPECT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
@@ -904,11 +911,11 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
 
   SignIn(SyncTestAccount::kConsumerAccount1);
   EXPECT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
   SignOut();
   SignIn(SyncTestAccount::kConsumerAccount2);
   EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 }
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -932,7 +939,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
   ASSERT_EQ(fake_server_->GetSyncEntitiesByDataType(syncer::PASSWORDS).size(),
             1u);
   EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 
   // Clear cookies and account passwords.
   content::BrowsingDataRemover* remover =
@@ -952,12 +959,12 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
 
   // Account storage is still enabled (because the user is still signed in).
   EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 
   // The preference is reset as the account is removed from Chrome.
   SignOut();
   EXPECT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
 }
 
 // TODO(b/327118794): Delete this test once implicit signin no longer exists.
@@ -1009,7 +1016,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest, ClearAccountStoreOnStartup) {
 
   // Since we mangled the prefs file, account storage should be disabled.
   ASSERT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      GetProfile(0)->GetPrefs(), GetSyncService(0)));
+      GetSyncService(0)));
   ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::PASSWORDS));
 
   // The account-scoped store should have been cleared during startup, and the

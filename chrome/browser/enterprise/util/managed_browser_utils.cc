@@ -71,7 +71,7 @@
 
 namespace enterprise_util {
 
-// Enterprise custom labels have a limmit of 16 characters, so they will be cut
+// Enterprise custom labels have a limit of 16 characters, so they will be cut
 // at the 17th characters.
 constexpr int kMaximumEnterpriseCustomLabelLengthCutOff = 17;
 
@@ -306,7 +306,7 @@ bool CanShowEnterpriseBadgingForMenu(Profile* profile) {
     return false;
   }
 
-  // The check for supervised users is here as a precacution since the
+  // The check for supervised users is here as a precaution since the
   // kEnterpriseLogoUrlForProfile should be set by policy.
   return !profile->GetPrefs()
               ->GetString(prefs::kEnterpriseLogoUrlForProfile)
@@ -349,36 +349,50 @@ bool CanShowEnterpriseProfileUI(Profile* profile) {
 
 bool CanShowEnterpriseBadgingForNTPFooter(Profile* profile) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  if (!policy::ManagementServiceFactory::GetForProfile(profile)
-           ->IsBrowserManaged()) {
-    return false;
+  BrowserManagementNoticeState management_notice_state =
+      GetManagementNoticeStateForNTPFooter(profile);
+  switch (management_notice_state) {
+    case BrowserManagementNoticeState::kNotApplicable:
+      return false;
+    case BrowserManagementNoticeState::kEnabled:
+    case BrowserManagementNoticeState::kDisabled:
+    case BrowserManagementNoticeState::kEnabledByPolicy:
+      return true;
   }
-  if (!g_browser_process->local_state()->GetBoolean(
-          prefs::kNTPFooterManagementNoticeEnabled)) {
-    return false;
-  }
-  if (IsCustomEnterpriseBadgingForNTPFooter(profile)) {
-    return true;
-  }
-  return base::FeatureList::IsEnabled(
-             features::kEnterpriseBadgingForNtpFooter) &&
-         profile->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible);
 #else
   return false;
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 }
 
-bool IsCustomEnterpriseBadgingForNTPFooter(Profile* profile) {
-  if (!base::FeatureList::IsEnabled(features::kNTPFooterBadgingPolicies)) {
-    return false;
+BrowserManagementNoticeState GetManagementNoticeStateForNTPFooter(
+    Profile* profile) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  if (!policy::ManagementServiceFactory::GetForProfile(profile)
+           ->IsBrowserManaged() ||
+      !g_browser_process->local_state()->GetBoolean(
+          prefs::kNTPFooterManagementNoticeEnabled)) {
+    return BrowserManagementNoticeState::kNotApplicable;
   }
 
-  return !g_browser_process->local_state()
-              ->GetString(prefs::kEnterpriseCustomLabelForBrowser)
-              .empty() ||
-         !g_browser_process->local_state()
-              ->GetString(prefs::kEnterpriseLogoUrlForBrowser)
-              .empty();
+  bool has_custom_badging =
+      !g_browser_process->local_state()
+           ->GetString(prefs::kEnterpriseCustomLabelForBrowser)
+           .empty() ||
+      !g_browser_process->local_state()
+           ->GetString(prefs::kEnterpriseLogoUrlForBrowser)
+           .empty();
+  if (has_custom_badging &&
+      base::FeatureList::IsEnabled(features::kNTPFooterBadgingPolicies)) {
+    return BrowserManagementNoticeState::kEnabledByPolicy;
+  }
+
+  if (base::FeatureList::IsEnabled(features::kEnterpriseBadgingForNtpFooter)) {
+    return profile->GetPrefs()->GetBoolean(prefs::kNtpFooterVisible)
+               ? BrowserManagementNoticeState::kEnabled
+               : BrowserManagementNoticeState::kDisabled;
+  }
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  return BrowserManagementNoticeState::kNotApplicable;
 }
 
 bool IsKnownConsumerDomain(const std::string& email_domain) {
@@ -530,16 +544,14 @@ std::u16string GetEnterpriseLabel(Profile* profile, bool truncated) {
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-base::ScopedClosureRunner
-DisableAutomaticManagementDisclaimerOnPrimaryAccountChangeUntilReset(
+base::ScopedClosureRunner DisableAutomaticManagementDisclaimerUntilReset(
     Profile* profile) {
   auto* disclaimer_service =
       ProfileManagementDisclaimerServiceFactory::GetForProfile(profile);
   if (!disclaimer_service) {
     return base::ScopedClosureRunner(base::DoNothing());
   }
-  return disclaimer_service
-      ->DisableManagementDisclaimerOnPrimaryAccountChangeUntilReset();
+  return disclaimer_service->DisableManagementDisclaimerUntilReset();
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 

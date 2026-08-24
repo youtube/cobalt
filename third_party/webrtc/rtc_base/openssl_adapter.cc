@@ -10,13 +10,13 @@
 
 #include "rtc_base/openssl_adapter.h"
 
-#include <errno.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/ssl3.h>
 #include <openssl/x509.h>
 
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <ctime>

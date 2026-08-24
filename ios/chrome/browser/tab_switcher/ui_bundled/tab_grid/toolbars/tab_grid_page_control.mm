@@ -280,13 +280,17 @@ TabGridPage ThirdTabGridPage() {
 
   _scrolledToEdge = scrolledToEdge;
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
   } else {
+#endif
     CGFloat backgroundAlpha =
         scrolledToEdge ? kScrolledToTopBackgroundAlpha : kBackgroundAlpha;
     self.background.backgroundColor = [UIColor colorWithWhite:1
                                                         alpha:backgroundAlpha];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   }
+#endif
 }
 
 #pragma mark - Public Properties
@@ -643,11 +647,15 @@ TabGridPage ThirdTabGridPage() {
     }
   }
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
     iconNotSelected.tintColor = UIColor.whiteColor;
   } else {
+#endif
     iconNotSelected.tintColor = [UIColor colorNamed:kStaticGrey300Color];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   }
+#endif
   iconSelected.tintColor = UIColor.blackColor;
 
   [self.contentView insertSubview:iconNotSelected belowSubview:self.sliderView];
@@ -661,8 +669,10 @@ TabGridPage ThirdTabGridPage() {
 
 #if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
-    UIGlassEffect* glassEffect = [[UIGlassEffect alloc] init];
+    UIGlassEffect* glassEffect =
+        [UIGlassEffect effectWithStyle:UIGlassEffectStyleRegular];
     glassEffect.interactive = YES;
+    glassEffect.tintColor = TabGridGlassButtonTintColor();
     UIVisualEffectView* backgroundView =
         [[UIVisualEffectView alloc] initWithEffect:glassEffect];
     backgroundView.frame = CGRectMake(0, 0, kOverallWidth, kSegmentHeight);
@@ -740,19 +750,21 @@ TabGridPage ThirdTabGridPage() {
   CGRect sliderFrame =
       CGRectMake(0, verticalMargin, kSliderWidth, kSliderHeight);
   UIView* slider = [[UIView alloc] initWithFrame:sliderFrame];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   if (@available(iOS 26, *)) {
     slider.layer.cornerRadius = kSliderHeight / 2.0;
   } else {
+#endif
     slider.layer.cornerRadius = kSliderCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   }
+#endif
   slider.layer.masksToBounds = YES;
   slider.backgroundColor = UIColor.whiteColor;
   if (ios::provider::IsRaccoonEnabled()) {
-    if (@available(iOS 17.0, *)) {
-      slider.hoverStyle = [UIHoverStyle
-          styleWithShape:
-              [UIShape rectShapeWithCornerRadius:kBackgroundCornerRadius]];
-    }
+    slider.hoverStyle = [UIHoverStyle
+        styleWithShape:[UIShape
+                           rectShapeWithCornerRadius:kBackgroundCornerRadius]];
   }
   [self.contentView addSubview:slider];
   self.sliderView = slider;
@@ -888,11 +900,9 @@ TabGridPage ThirdTabGridPage() {
   CGRect segmentRect = CGRectMake(0, 0, kSegmentWidth, kSegmentHeight);
   UIView* hoverView = [[UIView alloc] initWithFrame:segmentRect];
   if (ios::provider::IsRaccoonEnabled()) {
-    if (@available(iOS 17.0, *)) {
-      hoverView.hoverStyle = [UIHoverStyle
-          styleWithShape:
-              [UIShape rectShapeWithCornerRadius:kBackgroundCornerRadius]];
-    }
+    hoverView.hoverStyle = [UIHoverStyle
+        styleWithShape:[UIShape
+                           rectShapeWithCornerRadius:kBackgroundCornerRadius]];
   }
   [self.contentView insertSubview:hoverView belowSubview:self.sliderView];
   [hoverView

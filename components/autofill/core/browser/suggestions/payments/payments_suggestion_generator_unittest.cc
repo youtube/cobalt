@@ -54,8 +54,6 @@
 #include "components/sync/test/test_sync_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/resource/mock_resource_bundle_delegate.h"
-#include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_unittest_util.h"
 #include "ui/resources/grit/ui_resources.h"
@@ -226,10 +224,6 @@ class PaymentsSuggestionGeneratorTest : public testing::Test {
   }
 
   void TearDown() override {
-    if (did_set_up_image_resource_for_test_) {
-      CleanUpIbanImageResources();
-      did_set_up_image_resource_for_test_ = false;
-    }
     credit_card_form_event_logger_->OnDestroyed();
   }
 
@@ -258,11 +252,6 @@ class PaymentsSuggestionGeneratorTest : public testing::Test {
   }
 
   gfx::Image CustomIconForTest() { return gfx::test::CreateImage(32, 32); }
-
-  void CleanUpIbanImageResources() {
-    ui::ResourceBundle::CleanupSharedInstance();
-    resource_bundle_swapper_.reset();
-  }
 
   bool VerifyCardArtImageExpectation(Suggestion& suggestion,
                                      const GURL& expected_url,
@@ -298,12 +287,6 @@ class PaymentsSuggestionGeneratorTest : public testing::Test {
   TestBrowserAutofillManager autofill_manager_{&autofill_driver_};
 
  protected:
-  testing::NiceMock<ui::MockResourceBundleDelegate> mock_resource_delegate_;
-  std::unique_ptr<ui::ResourceBundle::SharedInstanceSwapperForTesting>
-      resource_bundle_swapper_;
-  // Tracks whether SetUpIbanImageResources() has been called, so that the
-  // created images can be cleaned up when the test has finished.
-  bool did_set_up_image_resource_for_test_ = false;
   std::unique_ptr<MockCreditCardFormEventLogger> credit_card_form_event_logger_;
 };
 
@@ -1161,7 +1144,6 @@ TEST_F(PaymentsSuggestionGeneratorTest,
   EXPECT_THAT(get_cards(u"2"), ElementsAre(credit_card));
 }
 
-#if !BUILDFLAG(IS_IOS)
 // Tests that all the credit card suggestions are shown when a credit card field
 // was autofilled and focused if `kAutofillPaymentsFieldSwapping` is enabled.
 TEST_F(PaymentsSuggestionGeneratorTest, PaymentsFieldSwapping) {
@@ -1213,7 +1195,6 @@ TEST_F(PaymentsSuggestionGeneratorTest, PaymentsFieldSwapping) {
   EXPECT_THAT(get_cards(u"Cardholder name", CREDIT_CARD_NAME_FULL, false),
               ElementsAre(credit_card2, credit_card1));
 }
-#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(PaymentsSuggestionGeneratorTest, GetServerCardForLocalCard) {
   CreditCard server_card = CreateServerCard();
@@ -1646,8 +1627,7 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest, MaybeUpdateSuggestionsWithBnpl) {
       updated_suggestions[current_suggestion_index++],
       EqualsSuggestion(
           SuggestionType::kBnplEntry,
-          l10n_util::GetStringUTF16(
-              IDS_AUTOFILL_BNPL_CREDIT_CARD_SUGGESTION_MAIN_TEXT),
+          l10n_util::GetStringUTF16(IDS_AUTOFILL_BNPL_PAY_LATER_OPTIONS_TEXT),
           Suggestion::Icon::kBnpl,
           {{Suggestion::Text(l10n_util::GetStringFUTF16(
               IDS_AUTOFILL_BNPL_CREDIT_CARD_SUGGESTION_LABEL, u"$34"))}}));
@@ -1818,18 +1798,48 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
 }
 
 TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       MaybeUpdateSuggestionsWithBnpl_IphBubbleNotShown_IssuerMissing) {
+  // Add a server card.
+  payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
+  // Add BNPL issuers.
+  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+  CreditCardSuggestionSummary summary;
+  std::vector<Suggestion> suggestions = GetCreditCardOrCvcFieldSuggestions(
+      *autofill_client(), FormFieldData(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*autofilled_last_four_digits_in_form_for_filtering=*/
+      {}, CREDIT_CARD_NUMBER,
+      /*should_show_scan_credit_card=*/false, summary);
+  BnplSuggestionUpdateResult update_suggestions_result =
+      MaybeUpdateSuggestionsWithBnpl(suggestions,
+                                     payments_data().GetBnplIssuers(),
+                                     /*extracted_amount_in_micros=*/50'000'000);
+
+  ASSERT_TRUE(update_suggestions_result.is_bnpl_suggestion_added);
+  Suggestion bnpl_suggestion = *std::ranges::find_if(
+      update_suggestions_result.suggestions,
+      [](const Suggestion& s) { return s.type == SuggestionType::kBnplEntry; });
+
+  EXPECT_EQ(bnpl_suggestion.iph_metadata.feature, nullptr);
+}
+
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
        MaybeUpdateSuggestionsWithBnpl_IphBubble_KlarnaDisabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
       /*enabled_features=*/{},
       /*disabled_features=*/
-      {features::kAutofillEnableBuyNowPayLaterForKlarna,
-       features::kAutofillEnableBuyNowPayLaterSyncingForKlarna});
+      {features::kAutofillEnableBuyNowPayLaterForKlarna});
 
   // Add a server card.
   payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
   // Add BNPL issuers.
-  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAffirm));
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip));
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna));
   CreditCardSuggestionSummary summary;
   std::vector<Suggestion> suggestions = GetCreditCardOrCvcFieldSuggestions(
       *autofill_client(), FormFieldData(),
@@ -1855,16 +1865,18 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
        MaybeUpdateSuggestionsWithBnpl_IphBubble_KlarnaEnabled) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterForKlarna,
-                            features::
-                                kAutofillEnableBuyNowPayLaterSyncingForKlarna},
-      /*disabled_features=*/
-      {});
+      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterForKlarna},
+      /*disabled_features=*/{});
 
   // Add a server card.
   payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
   // Add BNPL issuers.
-  payments_data().AddBnplIssuer(test::GetTestLinkedBnplIssuer());
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAffirm));
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip));
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplKlarna));
   CreditCardSuggestionSummary summary;
   std::vector<Suggestion> suggestions = GetCreditCardOrCvcFieldSuggestions(
       *autofill_client(), FormFieldData(),
@@ -1885,6 +1897,41 @@ TEST_F(PaymentsSuggestionGeneratorBnplTest,
   EXPECT_EQ(
       bnpl_suggestion.iph_metadata.feature,
       &feature_engagement::kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature);
+}
+
+TEST_F(PaymentsSuggestionGeneratorBnplTest,
+       MaybeUpdateSuggestionsWithBnpl_IphBubble_KlarnaEnabled_KlarnaMissing) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterForKlarna},
+      /*disabled_features=*/{});
+
+  // Add a server card.
+  payments_data().AddServerCreditCard(test::GetMaskedServerCardAmex());
+  // Add BNPL issuers.
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplAffirm));
+  payments_data().AddBnplIssuer(
+      test::GetTestLinkedBnplIssuer(BnplIssuer::IssuerId::kBnplZip));
+  CreditCardSuggestionSummary summary;
+  std::vector<Suggestion> suggestions = GetCreditCardOrCvcFieldSuggestions(
+      *autofill_client(), FormFieldData(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*autofilled_last_four_digits_in_form_for_filtering=*/
+      {}, CREDIT_CARD_NUMBER,
+      /*should_show_scan_credit_card=*/false, summary);
+  BnplSuggestionUpdateResult update_suggestions_result =
+      MaybeUpdateSuggestionsWithBnpl(suggestions,
+                                     payments_data().GetBnplIssuers(),
+                                     /*extracted_amount_in_micros=*/50'000'000);
+
+  ASSERT_TRUE(update_suggestions_result.is_bnpl_suggestion_added);
+  Suggestion bnpl_suggestion = *std::ranges::find_if(
+      update_suggestions_result.suggestions,
+      [](const Suggestion& s) { return s.type == SuggestionType::kBnplEntry; });
+
+  EXPECT_EQ(bnpl_suggestion.iph_metadata.feature,
+            &feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature);
 }
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
@@ -2240,22 +2287,6 @@ class AutofillIbanSuggestionContentTest
 
   ~AutofillIbanSuggestionContentTest() override = default;
 
-  void SetUpIbanImageResources() {
-    resource_bundle_swapper_ =
-        std::make_unique<ui::ResourceBundle::SharedInstanceSwapperForTesting>();
-    ui::ResourceBundle::InitSharedInstanceWithLocale(
-        "en-US", &mock_resource_delegate_,
-        ui::ResourceBundle::DO_NOT_LOAD_COMMON_RESOURCES);
-    if (IsNewFopDisplayEnabled()) {
-      ON_CALL(mock_resource_delegate_, GetImageNamed(IDR_AUTOFILL_IBAN))
-          .WillByDefault(testing::Return(CustomIconForTest()));
-    } else {
-      ON_CALL(mock_resource_delegate_, GetImageNamed(IDR_AUTOFILL_IBAN_OLD))
-          .WillByDefault(testing::Return(CustomIconForTest()));
-    }
-    did_set_up_image_resource_for_test_ = true;
-  }
-
   bool IsNewFopDisplayEnabled() const {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     return false;
@@ -2273,8 +2304,6 @@ INSTANTIATE_TEST_SUITE_P(PaymentsSuggestionGeneratorTest,
                          ::testing::Bool());
 
 TEST_P(AutofillIbanSuggestionContentTest, GetLocalIbanSuggestions) {
-  SetUpIbanImageResources();
-
   auto MakeLocalIban = [](const std::u16string& value,
                           const std::u16string& nickname) {
     Iban iban(Iban::Guid(base::Uuid::GenerateRandomV4().AsLowercaseString()));
@@ -2328,8 +2357,6 @@ TEST_P(AutofillIbanSuggestionContentTest, GetLocalIbanSuggestions) {
 }
 
 TEST_P(AutofillIbanSuggestionContentTest, GetServerIbanSuggestions) {
-  SetUpIbanImageResources();
-
   Iban server_iban1 = test::GetServerIban();
   Iban server_iban2 = test::GetServerIban2();
   Iban server_iban3 = test::GetServerIban3();
@@ -2368,8 +2395,6 @@ TEST_P(AutofillIbanSuggestionContentTest, GetServerIbanSuggestions) {
 }
 
 TEST_P(AutofillIbanSuggestionContentTest, GetLocalAndServerIbanSuggestions) {
-  SetUpIbanImageResources();
-
   Iban server_iban1 = test::GetServerIban();
   Iban server_iban2 = test::GetServerIban2();
   Iban local_iban1 = test::GetLocalIban();

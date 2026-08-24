@@ -40,6 +40,10 @@ export class ViewerDownloadControlsElement extends ViewerDownloadControlsBase {
     return this.$.save;
   }
 
+  override getSaveEventType(): string {
+    return 'save';
+  }
+
   override getMenu(): CrActionMenuElement {
     return this.$.menu;
   }

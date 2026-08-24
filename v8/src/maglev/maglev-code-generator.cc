@@ -641,6 +641,7 @@ class ExceptionHandlerTrampolineBuilder {
         case ValueRepresentation::kHoleyFloat64:
           materialising_moves->emplace_back(target, source);
           break;
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
     }
@@ -1420,6 +1421,8 @@ class MaglevFrameTranslationBuilder {
         translation_array_builder_->StoreHoleyDoubleRegister(
             operand.GetDoubleRegister());
         break;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 
@@ -1445,6 +1448,8 @@ class MaglevFrameTranslationBuilder {
       case ValueRepresentation::kHoleyFloat64:
         translation_array_builder_->StoreHoleyDoubleStackSlot(stack_slot);
         break;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 
@@ -1566,9 +1571,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location,
                                   const VirtualObjectList& virtual_objects) {
-    while (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     DCHECK(!value->Is<VirtualObject>());
     if (const InlinedAllocation* alloc = value->TryCast<InlinedAllocation>()) {
       VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
@@ -1849,7 +1852,9 @@ bool MaglevCodeGenerator::EmitDeopts() {
   deopt_exit_start_offset_ = __ pc_offset();
 
   int deopt_index = 0;
-
+#ifdef V8_TARGET_ARCH_PPC64
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
+#endif
   __ RecordComment("-- Non-lazy deopts");
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
     local_isolate_->heap()->Safepoint();
@@ -1866,6 +1871,7 @@ bool MaglevCodeGenerator::EmitDeopts() {
                            deopt_info->top_frame().GetSourcePosition(),
                            deopt_index);
     }
+
     __ bind(deopt_info->deopt_entry_label());
 
     __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
@@ -1964,7 +1970,9 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
           .set_parameter_count(parameter_count())
           .set_deoptimization_data(deopt_data)
           .set_empty_source_position_table()
-          .set_inlined_bytecode_size(graph_->total_inlined_bytecode_size())
+          .set_inlined_bytecode_size(
+              graph_->total_inlined_bytecode_size() +
+              graph_->total_inlined_bytecode_size_small())
           .set_osr_offset(
               code_gen_state_.compilation_info()->toplevel_osr_offset());
 

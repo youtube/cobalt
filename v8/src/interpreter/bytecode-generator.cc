@@ -3179,23 +3179,31 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
           // iterator result and append the argument.
           builder()->SetExpressionAsStatementPosition(stmt->each(),
                                                       /* is_breakable */ false);
-          BuildIteratorNext(iterator, next_result);
-          builder()->LoadNamedProperty(
-              next_result, ast_string_constants()->done_string(),
-              feedback_index(feedback_spec()->AddLoadICSlot()));
-          loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+          if (v8_flags.for_of_optimization) {
+            builder()->ForOfNext(iterator.object(), iterator.next(),
+                                 next_result);
+            // TODO(rezvan): Perform ToBoolean conversion inside ForOfNext.
+            loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
-          builder()
-              // value = value.value
-              ->LoadNamedProperty(
-                  next_result, ast_string_constants()->value_string(),
-                  feedback_index(feedback_spec()->AddLoadICSlot()));
-          // done = false, before the assignment to each happens, so that done
-          // is false if the assignment throws.
-          builder()
-              ->StoreAccumulatorInRegister(next_result)
-              .LoadFalse()
-              .StoreAccumulatorInRegister(done);
+          } else {
+            BuildIteratorNext(iterator, next_result);
+            builder()->LoadNamedProperty(
+                next_result, ast_string_constants()->done_string(),
+                feedback_index(feedback_spec()->AddLoadICSlot()));
+            loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
+
+            builder()
+                // value = value.value
+                ->LoadNamedProperty(
+                    next_result, ast_string_constants()->value_string(),
+                    feedback_index(feedback_spec()->AddLoadICSlot()));
+            // done = false, before the assignment to each happens, so that done
+            // is false if the assignment throws.
+            builder()
+                ->StoreAccumulatorInRegister(next_result)
+                .LoadFalse()
+                .StoreAccumulatorInRegister(done);
+          }
 
           // Assign to the 'each' target.
           builder()->SetExpressionAsStatementPosition(stmt->each());
@@ -3275,8 +3283,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
            expr->function_literal_id());
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
-      expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->flags().might_always_turbofan());
+      expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
@@ -3836,7 +3843,7 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
   // kDontAdaptArgumentsSentinel as their parameter count.
   int index = feedback_spec()->AddCreateClosureParameterCount(
       kDontAdaptArgumentsSentinel);
-  uint8_t flags = CreateClosureFlags::Encode(false, false, false);
+  uint8_t flags = CreateClosureFlags::Encode(false, false);
   builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }

@@ -163,8 +163,8 @@ OptimizationGuideService::OptimizationGuideService(
     prediction_manager_ =
         std::make_unique<optimization_guide::PredictionManager>(
             optimization_guide::IOSChromePredictionModelStore::GetInstance(),
-            url_loader_factory, pref_service, application_locale,
-            optimization_guide_logger_.get(),
+            url_loader_factory, GetApplicationContext()->GetLocalState(),
+            application_locale, optimization_guide_logger_.get(),
             base::BindRepeating(&unzip::LaunchInProcessUnzipper));
   }
 
@@ -241,8 +241,7 @@ void OptimizationGuideService::DoFinalInit(
       "SyntheticOptimizationGuideRemoteFetching",
       optimization_guide_fetching_enabled ? "Enabled" : "Disabled",
       variations::SyntheticTrialAnnotationMode::kCurrentLog);
-  if (optimization_guide::features::IsModelDownloadingEnabled() &&
-      background_download_service) {
+  if (background_download_service) {
     prediction_manager_->MaybeInitializeModelDownloads(
         GetApplicationContext()->GetLocalState(), background_download_service);
   }

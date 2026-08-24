@@ -9,8 +9,7 @@
 
 #include "modules/video_coding/timing/jitter_estimator.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>

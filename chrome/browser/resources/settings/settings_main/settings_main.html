@@ -49,10 +49,27 @@
   </template>
 </if>
 
+<template is="dom-if" if="[[showResetProfileBanner_]]" restamp>
+  <settings-reset-profile-banner on-close="onResetProfileBannerClose_">
+  </settings-reset-profile-banner>
+</template>
+
 <cr-view-manager id="switcher"
     show-all$="[[shouldShowAll_(inSearchMode_, lastRoute_)]]">
+  <template is="dom-if" if="[[showPage_(pageVisibility_.people)]]">
+    <div slot="view" id="people">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.PEOPLE, lastRoute_, inSearchMode_)]]">
+        <settings-people-page-index prefs="{{prefs}}"
+            in-search-mode="[[inSearchMode_]]">
+        </settings-people-page-index>
+      </template>
+    </div>
+  </template>
+
   <div slot="view" id="old">
-    <template is="dom-if" if="[[renderBasicPage_(lastRoute_)]]">
+    <template is="dom-if" if="[[renderPlugin_(
+        routes_.PRIVACY, lastRoute_, inSearchMode_)]]">
       <settings-basic-page class="cr-centered-card-container"
           prefs="{{prefs}}" in-search-mode="[[inSearchMode_]]">
       </settings-basic-page>
@@ -77,6 +94,17 @@
         <settings-performance-page-index prefs="{{prefs}}"
             in-search-mode="[[inSearchMode_]]">
         </settings-performance-page-index>
+      </template>
+    </div>
+  </template>
+
+  <template is="dom-if" if="[[showAiPage_(pageVisibility_.ai)]]">
+    <div slot="view" id="ai">
+      <template is="dom-if" if="[[renderPlugin_(
+          routes_.AI, lastRoute_, inSearchMode_)]]">
+        <settings-ai-page-index prefs="{{prefs}}"
+            in-search-mode="[[inSearchMode_]]">
+        </settings-ai-page-index>
       </template>
     </div>
   </template>

@@ -79,6 +79,7 @@ source_set("permissions") {
     "//chrome/browser/storage_access_api",
     "//chrome/browser/top_level_storage_access_api:permissions",
     "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/page_info:page_info",
     "//chrome/common",
     "//chrome/common:chrome_features",
     "//chrome/common:constants",
@@ -88,6 +89,7 @@ source_set("permissions") {
     "//components/content_settings/core/browser:cookie_settings",
     "//components/embedder_support:permissions",
     "//components/google/core/common",
+    "//components/infobars/content",
     "//components/keyed_service/content",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -249,6 +251,10 @@ source_set("unit_tests") {
       "//chrome/browser/ash/login/users:test_support",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android) {
@@ -288,6 +294,10 @@ if (!is_android) {
       sources += [ "prediction_service/prediction_service_browsertest.cc" ]
       deps += [ "//components/permissions/prediction_service" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 

@@ -10,10 +10,9 @@
 
 #include "pc/external_hmac.h"
 
-#include <stdlib.h>  // For malloc/free.
-#include <string.h>
-
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "rtc_base/logging.h"
 #include "rtc_base/zero_memory.h"

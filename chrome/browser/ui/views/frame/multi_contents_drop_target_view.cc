@@ -71,8 +71,6 @@ MultiContentsDropTargetView::MultiContentsDropTargetView(
       ->SetOrientation(views::LayoutOrientation::kVertical)
       .SetMainAxisAlignment(views::LayoutAlignment::kCenter)
       .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
-      .SetInteriorMargin(
-          gfx::Insets(features::kSideBySideDropTargetInnerPadding.Get()))
       .SetDefault(
           views::kFlexBehaviorKey,
           views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
@@ -99,11 +97,27 @@ bool MultiContentsDropTargetView::IsClosing() const {
   return animation_.IsClosing();
 }
 
-int MultiContentsDropTargetView::GetPreferredWidth() const {
+int MultiContentsDropTargetView::GetMaxWidth(int web_contents_width) const {
+  const int min_width = features::kSideBySideDropTargetMinWidth.Get();
+  const int max_width = features::kSideBySideDropTargetMaxWidth.Get();
+  const int percentage =
+      features::kSideBySideDropTargetTargetWidthPercentage.Get();
+
+  // Calculate the target width based on the web contents width and the target
+  // percentage.
+  const int target_width = web_contents_width * (percentage / 100.0);
+
+  // Clamp the width to the min and max widths.
+  return std::clamp(target_width, min_width, max_width);
+}
+
+int MultiContentsDropTargetView::GetPreferredWidth(
+    int web_contents_width) const {
   if (!GetVisible()) {
     return 0;
   }
-  return GetAnimationValue() * GetPreferredSize().width();
+
+  return GetAnimationValue() * GetMaxWidth(web_contents_width);
 }
 
 void MultiContentsDropTargetView::AnimationProgressed(
@@ -207,6 +221,15 @@ void MultiContentsDropTargetView::DoDrop(
   auto urls = event.data().GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
   CHECK(urls.has_value());
   drop_delegate_->HandleLinkDrop(side, urls.value());
+}
+
+void MultiContentsDropTargetView::HandleTabDrop(
+    TabDragDelegate::DragController& controller) {
+  CHECK(GetVisible());
+  CHECK(side_.has_value());
+  DropSide side = side_.value();
+  Hide();
+  drop_delegate_->HandleTabDrop(side, controller);
 }
 
 BEGIN_METADATA(MultiContentsDropTargetView)

@@ -368,7 +368,7 @@ void TurnPort::PrepareAddress() {
                       << ": Attempt to start allocation with disallowed port# "
                       << server_address_.address.port();
     OnAllocateError(STUN_ERROR_SERVER_ERROR,
-                    "Attempt to start allocation to a disallowed port");
+                    "Attempt to start allocation to a disallowed port.");
     return;
   }
 
@@ -1430,13 +1430,16 @@ void TurnAllocateRequest::OnErrorResponse(StunMessage* response) {
       port->thread()->PostTask(SafeTask(
           port->task_safety_.flag(), [port] { port->OnAllocateMismatch(); }));
     } break;
-    default:
-      RTC_LOG(LS_WARNING) << port_->ToString()
-                          << ": Received TURN allocate error response, id="
-                          << hex_encode(id()) << ", code=" << error_code
-                          << ", rtt=" << Elapsed();
+    default: {
       const StunErrorCodeAttribute* attr = response->GetErrorCode();
-      port_->OnAllocateError(error_code, attr ? attr->reason() : "");
+      RTC_LOG(LS_WARNING) << port_->ToString()
+                          << ": Received TURN allocate error response"
+                          << ", id=" << hex_encode(id())
+                          << ", code=" << error_code << ", rtt=" << Elapsed()
+                          << ", reason='" << (attr ? attr->reason() : "")
+                          << "'";
+      port_->OnAllocateError(error_code, "TURN allocate error.");
+    } break;
   }
 }
 
@@ -1449,11 +1452,12 @@ void TurnAllocateRequest::OnTimeout() {
 void TurnAllocateRequest::OnAuthChallenge(StunMessage* response, int code) {
   // If we failed to authenticate even after we sent our credentials, fail hard.
   if (code == STUN_ERROR_UNAUTHORIZED && !port_->hash().empty()) {
+    const StunErrorCodeAttribute* attr = response->GetErrorCode();
     RTC_LOG(LS_WARNING) << port_->ToString()
                         << ": Failed to authenticate with the server "
-                           "after challenge.";
-    const StunErrorCodeAttribute* attr = response->GetErrorCode();
-    port_->OnAllocateError(STUN_ERROR_UNAUTHORIZED, attr ? attr->reason() : "");
+                           "after challenge, reason='"
+                        << (attr ? attr->reason() : "") << "'";
+    port_->OnAllocateError(STUN_ERROR_UNAUTHORIZED, "Unauthorized.");
     return;
   }
 
@@ -1486,21 +1490,22 @@ void TurnAllocateRequest::OnTryAlternate(StunMessage* response, int code) {
   // According to RFC 5389 section 11, there are use cases where
   // authentication of response is not possible, we're not validating
   // message integrity.
-  const StunErrorCodeAttribute* error_code_attr = response->GetErrorCode();
   // Get the alternate server address attribute value.
   const StunAddressAttribute* alternate_server_attr =
       response->GetAddress(STUN_ATTR_ALTERNATE_SERVER);
   if (!alternate_server_attr) {
+    const StunErrorCodeAttribute* attr = response->GetErrorCode();
     RTC_LOG(LS_WARNING) << port_->ToString()
                         << ": Missing STUN_ATTR_ALTERNATE_SERVER "
-                           "attribute in try alternate error response";
+                           "attribute in try alternate error response, reason='"
+                        << (attr ? attr->reason() : "") << "'";
     port_->OnAllocateError(STUN_ERROR_TRY_ALTERNATE,
-                           error_code_attr ? error_code_attr->reason() : "");
+                           "Missing alternate server attribute.");
     return;
   }
   if (!port_->SetAlternateServer(alternate_server_attr->GetAddress())) {
     port_->OnAllocateError(STUN_ERROR_TRY_ALTERNATE,
-                           error_code_attr ? error_code_attr->reason() : "");
+                           "Failed to set alternate server.");
     return;
   }
 

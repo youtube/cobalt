@@ -39,6 +39,7 @@ using chrome_test_util::ContextBarLeadingButtonWithLabel;
 using chrome_test_util::KindOfTest;
 using chrome_test_util::OmniboxText;
 using chrome_test_util::ScrollToTop;
+using chrome_test_util::SearchBar;
 using chrome_test_util::TabGridEditButton;
 using chrome_test_util::TappableBookmarkNodeWithLabel;
 
@@ -1302,13 +1303,10 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
   [BookmarkEarlGreyUI createNewBookmarkFolderWithFolderTitle:newFolderTitle
                                                  pressReturn:NO];
 
-  // Interrupt the folder name editing by entering Folder 1
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
-                                          kBookmarksHomeTableViewIdentifier)]
-      performAction:ScrollToTop()];
-
+  // Interrupt the folder name editing by entering Folder 1.
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(@"Folder 1")]
       performAction:grey_tap()];
+
   // Come back to Mobile Bookmarks.
   [[EarlGrey selectElementWithMatcher:BookmarksNavigationBarBackButton()]
       performAction:grey_tap()];
@@ -1546,10 +1544,7 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Tap on the search bar and check that the scrim is visible.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kBookmarksFolderPickerSearchBarIdentifier)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:SearchBar()] performAction:grey_tap()];
 
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
@@ -1557,9 +1552,7 @@ BookmarkStorageType kindOfTestToStorageType(KindOfTest kind) {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Search for "Folder 2" and check the others disappeared.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kBookmarksFolderPickerSearchBarIdentifier)]
+  [[EarlGrey selectElementWithMatcher:SearchBar()]
       performAction:grey_replaceText(@"Folder 2")];
 
   [[EarlGrey

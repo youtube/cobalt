@@ -458,6 +458,15 @@ void InstructionSelector::VisitStore(OpIndex node) {
 
   InstructionCode code = GetStoreOpcode(store_view.ts_stored_rep());
 
+  if (code == kRiscvSw) {
+    const Operation& value_op = this->Get(value);
+    if (value_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+        CanCover(node, value_op.input(0))) {
+      // If the value is a TruncateWord64ToWord32, we can use the input directly
+      //  to store.
+      value = value_op.input(0);
+    }
+  }
   if (Is<LoadRootRegisterOp>(base)) {
     Emit(code | AddressingModeField::encode(kMode_Root), g.NoOutput(),
          g.UseRegisterOrImmediateZero(value), g.UseImmediate(index));
@@ -646,7 +655,26 @@ void InstructionSelector::VisitWord64Clz(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
-  VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd32, true, kRiscvAdd32);
+  const WordBinopOp& add = Cast<WordBinopOp>(node);
+  OpIndex left = add.left();
+  OpIndex right = add.right();
+  const Operation& left_op = this->Get(left);
+  const Operation& right_op = this->Get(right);
+  InstructionOperand inputs[2];
+  RiscvOperandGenerator g(this);
+  if (left_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+      CanCover(node, left_op.input(0))) {
+    inputs[0] = g.UseRegister(left_op.input(0));
+  } else {
+    inputs[0] = g.UseRegister(left);
+  }
+  if (right_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+      CanCover(node, right_op.input(0))) {
+    inputs[1] = g.UseRegister(right_op.input(0));
+  } else {
+    inputs[1] = g.UseOperand(right, kRiscvAdd32);
+  }
+  Emit(kRiscvAdd32, g.DefineAsRegister(node), inputs[0], inputs[1]);
 }
 
 void InstructionSelector::VisitInt64Add(OpIndex node) {
@@ -654,7 +682,26 @@ void InstructionSelector::VisitInt64Add(OpIndex node) {
 }
 
 void InstructionSelector::VisitInt32Sub(OpIndex node) {
-  VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub32);
+  const WordBinopOp& add = Cast<WordBinopOp>(node);
+  OpIndex left = add.left();
+  OpIndex right = add.right();
+  const Operation& left_op = this->Get(left);
+  const Operation& right_op = this->Get(right);
+  InstructionOperand inputs[2];
+  RiscvOperandGenerator g(this);
+  if (left_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+      CanCover(node, left_op.input(0))) {
+    inputs[0] = g.UseRegister(left_op.input(0));
+  } else {
+    inputs[0] = g.UseRegister(left);
+  }
+  if (right_op.Is<Opmask::kTruncateWord64ToWord32>() &&
+      CanCover(node, right_op.input(0))) {
+    inputs[1] = g.UseRegister(right_op.input(0));
+  } else {
+    inputs[1] = g.UseOperand(right, kRiscvSub32);
+  }
+  Emit(kRiscvSub32, g.DefineAsRegister(node), inputs[0], inputs[1]);
 }
 
 void InstructionSelector::VisitInt64Sub(OpIndex node) {
@@ -1008,6 +1055,17 @@ void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {
                  g.UseRegister(value));
 }
 
+bool IsSignExtendWord32ToWord64(const Operation& op) {
+  if (op.Is<Opmask::kWord32Add>() || op.Is<Opmask::kWord32Sub>() ||
+      op.Is<Opmask::kWord32ShiftLeft>() ||
+      op.Is<Opmask::kWord32ShiftRightArithmetic>() ||
+      op.Is<Opmask::kWord32ShiftRightArithmeticShiftOutZeros>() ||
+      op.Is<Opmask::kWord32ShiftRightLogical>()) {
+    return true;
+  }
+  return false;
+}
+
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
@@ -1038,6 +1096,12 @@ void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
         UNREACHABLE();
     }
     EmitLoad(this, change_op.input(), opcode, node);
+    return;
+  }
+  if (IsSignExtendWord32ToWord64(input_op) &&
+      CanCover(node, change_op.input())) {
+    RiscvOperandGenerator g(this);
+    Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(change_op.input()));
     return;
   }
   EmitSignExtendWord(this, node);
@@ -1740,15 +1804,16 @@ void InstructionSelector::VisitStackPointerGreaterThan(
                        temp_count, temps, cont);
 }
 
-bool IsWord32Binop(const Operation& op) {
-  if (op.Is<WordBinopOp>()) {
-    const WordBinopOp& binop = op.Cast<WordBinopOp>();
-    switch (binop.kind) {
-      case WordBinopOp::Kind::kBitwiseAnd:
-        if (binop.rep.value() == WordRepresentation::Enum::kWord32) {
-          return true;
-        }
-        break;
+bool IsLoadWord32OrSmaller(InstructionSelector* selector, const OpIndex node) {
+  const Operation& op = selector->Get(node);
+  if (op.Is<LoadOp>()) {
+    auto load_view = selector->load_view(node);
+    LoadRepresentation load_rep = load_view.loaded_rep();
+    switch (load_rep.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return true;
       default:
         return false;
     }
@@ -1855,7 +1920,11 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
 #ifdef V8_COMPRESS_POINTERS
   if ((comparison &&
        comparison->rep.value() == RegisterRepresentation::Word64()) ||
-      IsWord32Binop(value_op)) {
+      value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+      IsLoadWord32OrSmaller(this, value) ||
+      IsSignExtendWord32ToWord64(value_op)) {
+    // If the value_op is sign-extended or lw/lhu/lh/lbu/lb, we can use
+    // EmitWordCompareZero to emit a 32-bit compare zero.
     return EmitWordCompareZero(this, value, cont);
   } else {
     return EmitWord32CompareZero(this, value, cont);

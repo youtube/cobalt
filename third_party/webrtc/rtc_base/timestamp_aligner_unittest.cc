@@ -10,9 +10,8 @@
 
 #include "rtc_base/timestamp_aligner.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 

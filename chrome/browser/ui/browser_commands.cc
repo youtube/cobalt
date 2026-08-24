@@ -62,6 +62,7 @@
 #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/save_card_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/virtual_card_enroll_bubble_controller_impl.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
@@ -92,6 +93,7 @@
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tab_dialogs.h"
 #include "chrome/browser/ui/tabs/features.h"
+#include "chrome/browser/ui/tabs/new_tab_grouping_user_data.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_session.h"
@@ -480,40 +482,47 @@ void ReloadInternal(Browser* browser,
   const WebContents* const active_contents =
       browser->tab_strip_model()->GetActiveWebContents();
 
-  // Reloading a tab may change the selection (see crbug.com/339061099), so take
-  // a defensive copy into a more stable form before we begin. We take
-  // WebContents* so we can follow the tabs as they shift within the same
-  // tabstrip (e.g. if `disposition` is NEW_BACKGROUND_TAB).
-  std::vector<WebContents*> selected_tabs;
-  for (const int selected_index :
-       browser->tab_strip_model()->selection_model().selected_indices()) {
-    selected_tabs.push_back(
-        browser->tab_strip_model()->GetWebContentsAt(selected_index));
+  std::vector<WebContents*> tabs_to_reload;
+
+  if (base::FeatureList::IsEnabled(features::kReloadSelectionModel)) {
+    tabs_to_reload.push_back(
+        browser->tab_strip_model()->GetActiveWebContents());
+  } else {
+    // Reloading a tab may change the selection (see crbug.com/339061099), so
+    // take
+    // a defensive copy into a more stable form before we begin. We take
+    // WebContents* so we can follow the tabs as they shift within the same
+    // tabstrip (e.g. if `disposition` is NEW_BACKGROUND_TAB).
+    for (const int selected_index :
+         browser->tab_strip_model()->selection_model().selected_indices()) {
+      tabs_to_reload.push_back(
+          browser->tab_strip_model()->GetWebContentsAt(selected_index));
+    }
   }
 
-  base::UmaHistogramCounts100("TabStrip.Tab.ReloadCount", selected_tabs.size());
+  base::UmaHistogramCounts100("TabStrip.Tab.ReloadCount",
+                              tabs_to_reload.size());
 
-  for (WebContents* const selected_tab : selected_tabs) {
+  for (WebContents* const tab : tabs_to_reload) {
     // Skip this tab if it is no longer part of this tabstrip. N.B. we do this
     // instead of using WeakPtr<WebContents> because we do not want to reload
     // tabs that move to another browser.
-    if (browser->tab_strip_model()->GetIndexOfWebContents(selected_tab) ==
+    if (browser->tab_strip_model()->GetIndexOfWebContents(tab) ==
         TabStripModel::kNoTab) {
       continue;
     }
 
     WebContents* const new_tab =
-        GetTabAndRevertIfNecessaryHelper(browser, disposition, selected_tab);
+        GetTabAndRevertIfNecessaryHelper(browser, disposition, tab);
 
-    // If the selected_tab is the activated page, give the focus to it, as this
-    // is caused by a user action
-    if (selected_tab == active_contents &&
-        !new_tab->FocusLocationBarByDefault()) {
+    // If the `tab` is the activated page, give the focus to it, as this is
+    // caused by a user action
+    if (tab == active_contents && !new_tab->FocusLocationBarByDefault()) {
       new_tab->Focus();
     }
 
     // User reloads is a possible breakage indicator from blocking 3P cookies.
-    RecordReloadWithCookieBlocking(browser, selected_tab);
+    RecordReloadWithCookieBlocking(browser, tab);
 
     DevToolsWindow* const devtools =
         DevToolsWindow::GetInstanceForInspectedWebContents(new_tab);
@@ -995,6 +1004,10 @@ content::WebContents& NewTab(Browser* browser) {
   // user-initiated commands.
   UMA_HISTOGRAM_ENUMERATION("Tab.NewTab", NewTabTypes::NEW_TAB_COMMAND,
                             NewTabTypes::NEW_TAB_ENUM_COUNT);
+  browser->profile()->SetUserData(
+      NewTabGroupingUserData::kNewTabGroupingUserDataKey,
+      std::make_unique<NewTabGroupingUserData>(
+          browser->tab_strip_model()->GetActiveTabGroupId()));
   if (browser->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
     return *AddAndReturnTabAt(browser, GURL(), -1, true);
   }
@@ -1646,9 +1659,7 @@ void MoveTabsToReadLater(Browser* browser,
         feature_engagement::kIPHReadingListDiscoveryFeature);
     base::UmaHistogramEnumeration(
         "ReadingList.BookmarkBarState.OnEveryAddToReadingList",
-        browser->browser_window_features()
-            ->bookmark_bar_controller()
-            ->bookmark_bar_state());
+        BookmarkBarController::From(browser)->bookmark_bar_state());
     added_to_read_later += 1;
   }
 

@@ -108,6 +108,7 @@
 <translation id="1419753403124156396">‏להפעיל מחדש את Chrome?</translation>
 <translation id="1428770807407000502">לכבות את הסנכרון?</translation>
 <translation id="1430915738399379752">הדפסה</translation>
+<translation id="1433478348197382180">מצב קריאה</translation>
 <translation id="1435593198351412143">‏פתיחה אוטומטית של קובצי PDF</translation>
 <translation id="1437543266176261764">הפעילות מתבצעת ב-<ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">‏יש לך אפשרות לארגן את המוצרים שבמעקב ב-Bookmarks</translation>
@@ -239,6 +240,7 @@
 <translation id="2088833076121753253">‏כדי לסיים את ההגדרה של המילוי האוטומטי, צריך להפעיל מחדש את Chrome עכשיו. הכרטיסיות ייפתחו מחדש באופן אוטומטי.</translation>
 <translation id="2091863218454846791">מוצגת תצוגה קומפקטית</translation>
 <translation id="2093731487903423814">15 הדקות האחרונות</translation>
+<translation id="2096577711562668473">לשנות את שירות המילוי האוטומטי?</translation>
 <translation id="2100273922101894616">כניסה אוטומטית</translation>
 <translation id="2109384632594340939">תמונת פרופיל</translation>
 <translation id="2111511281910874386">מעבר לדף</translation>
@@ -324,6 +326,7 @@
 <translation id="2496180316473517155">היסטוריית גלישה</translation>
 <translation id="2497852260688568942">מנהל המערכת שלך השבית את הסנכרון</translation>
 <translation id="250020030759455918">‏ב-Chrome יוצגו סטטוס הכניסה שלך ל-<ph name="SITE_NAME" />, נתוני הגלישה ונתוני האתר</translation>
+<translation id="2502798195266898572">הגיליון התחתון של מצב הקריאה נפתח בגובה מלא</translation>
 <translation id="2510106555128151389">מתבצעת התקנה של <ph name="WEBAPK_NAME" />...</translation>
 <translation id="2512234228327349533">חיפוש אפשרויות קנייה</translation>
 <translation id="2513403576141822879">‏אפשר למצוא הגדרות נוספות בנושא פרטיות, אבטחה ואיסוף נתונים בדף <ph name="BEGIN_LINK" />סנכרון ושירותי Google<ph name="END_LINK" /></translation>
@@ -719,6 +722,7 @@
 <translation id="4306489587293957491">הזנת ביטוי סיסמה</translation>
 <translation id="4307992518367153382">היסודות</translation>
 <translation id="4311652497846705514">‏לפתוח את קובץ ה-PDF?</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{ספאם אפשרי}one{ספאם אפשרי (#)}two{ספאם אפשרי (#)}other{ספאם אפשרי (#)}}</translation>
 <translation id="4320177379694898372">אין חיבור לאינטרנט</translation>
 <translation id="4326079409704643112">‏כדי להשתמש בנתוני Chrome ולשמור אותם בחשבון Google, עליך לאמת את הזהות שלך</translation>
 <translation id="433213510553688132">יתבצע מעקב…</translation>
@@ -932,6 +936,7 @@
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{מתבצעת הורדה של קובץ…}one{מתבצעת הורדה של # קבצים…}two{מתבצעת הורדה של # קבצים…}other{מתבצעת הורדה של # קבצים…}}</translation>
 <translation id="5210286577605176222">חזרה לכרטיסייה הקודמת</translation>
 <translation id="5210365745912300556">סגירת הכרטיסייה</translation>
+<translation id="5212800876504289412">‏כדי לסיים את השינוי, צריך להפעיל מחדש את Chrome. הכרטיסיות נפתחות מחדש באופן אוטומטי כשמפעילים מחדש את המכשיר.</translation>
 <translation id="5215957675041756913">שליטה בנתונים ובחשבון</translation>
 <translation id="5218324087477576825">צריך להזין מספר כרטיס</translation>
 <translation id="5221437554987713282">‏‫<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ועוד <ph name="SEPARATOR" /> Chrome הסיר את ההרשאות האלה כי לא נכנסת לאחרונה</translation>
@@ -974,7 +979,6 @@
 <translation id="5414836363063783498">בתהליך אימות…</translation>
 <translation id="5415871492522952905">ההיסטוריה והכרטיסיות יופיעו בכל המכשירים שלך, כך שתהיה לך אפשרות להמשיך מהמקום שבו הפסקת.</translation>
 <translation id="542073632571549028">הגישה של <ph name="MEMBER_FULL_NAME" /> ‏(<ph name="EMAIL" />) לקבוצת הכרטיסיות בשם '<ph name="GROUP_NAME" />' תאבד באופן מיידי</translation>
-<translation id="5423934151118863508">הדפים שבהם ביקרת בתדירות הגבוהה ביותר יופיעו כאן</translation>
 <translation id="5424588387303617268">‏‎<ph name="GIGABYTES" /> GB זמינים</translation>
 <translation id="543338862236136125">עריכת סיסמה</translation>
 <translation id="5433691172869980887">שם המשתמש הועתק</translation>
@@ -1057,8 +1061,10 @@
 <translation id="580893287573699959">ניהול הנושאים והאתרים שמעניינים אותך</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{לפני שעה}one{לפני # שעות}two{לפני שעתיים}other{לפני # שעות}}</translation>
 <translation id="5810288467834065221">‏Copyright <ph name="YEAR" /> Google LLC.‎ כל הזכויות שמורות.</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{הצגת ההתראה}one{הצגת ההתראות}two{הצגת ההתראות}other{הצגת ההתראות}}</translation>
 <translation id="5814749351757353073">עוקבים אחר אתרים שאוהבים</translation>
 <translation id="5823093032261493462">רוצה להוריד את <ph name="FILE_NAME" /> מ-<ph name="DOWNLOAD_DOMAIN" /> בכל זאת?</translation>
+<translation id="5825135637446025843">‏אחרי ההפעלה מחדש של Chrome, הפרטים שנשמרו מהספק החדש ישמשו למילוי אוטומטי של סיסמאות, מפתחות גישה, כתובות, אמצעי תשלום ופרטים אחרים.</translation>
 <translation id="5828921839638612740">‏אפשר למחוק את הנתונים דרך ההגדרות של Chrome</translation>
 <translation id="5829586821381540080">בוצעה שמירה בתיקייה <ph name="FOLDER_NAME" /></translation>
 <translation id="583281660410589416">לא ידוע</translation>
@@ -1175,6 +1181,7 @@
 <translation id="6295158916970320988">כל האתרים</translation>
 <translation id="6296366034485697675">ייצוא ומחיקה</translation>
 <translation id="629730747756840877">חשבון</translation>
+<translation id="6300697579369314762">הגיליון התחתון של מצב הקריאה נפתח בחצי מגובה המסך</translation>
 <translation id="6301526076346731664">פתיחת "כלים למפתחים"</translation>
 <translation id="6303969859164067831">יציאה וכיבוי הסנכרון</translation>
 <translation id="6307241780749477694">כדי לקבל את כל הסיסמאות במכשיר הזה, צריך לאמת את הזהות שלך</translation>
@@ -1395,6 +1402,7 @@
 <translation id="71503698506017927">‏הצפנה של ביטוי סיסמה לא כוללת אמצעי תשלום וכתובות מ-Google Pay.
 
 כדי לשנות את ההגדרה הזו, עליך <ph name="BEGIN_LINK" />למחוק את נתוני Chrome בחשבון<ph name="END_LINK" />.</translation>
+<translation id="7151332203500147130">הגיליון התחתון של מצב הקריאה סגור</translation>
 <translation id="7165972437814027679">‏מידע נוסף על חסימה של קבצים מסוימים ב-Chrome</translation>
 <translation id="7168323970702333693">נכנסת לחשבון בתור <ph name="USER_NAME" />. ההגדרות ייפתחו.</translation>
 <translation id="7173114856073700355">פתיחת ההגדרות</translation>
@@ -1728,7 +1736,6 @@
 <translation id="8493948351860045254">פינוי נפח אחסון</translation>
 <translation id="8497242791509864205">פתיחה של אפשרויות המיון</translation>
 <translation id="8497480609928300907">הסבר על המדריך בנושא פרטיות</translation>
-<translation id="8497726226069778601">אין מה לראות כאן… בינתיים</translation>
 <translation id="8503813439785031346">שם משתמש</translation>
 <translation id="8505766168025405649">סטטוס ההורדה מוצג בהתראות</translation>
 <translation id="8506357771923193001">ההורדות יופיעו כאן</translation>

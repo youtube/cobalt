@@ -650,7 +650,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
     page->set_concurrent_sweeping_state(
         PageMetadata::ConcurrentSweepingState::kInProgress);
     PromotedPageRecordMigratedSlotVisitor record_visitor(page);
-    const bool is_large_page = page->Chunk()->IsLargePage();
+    const bool is_large_page = page->is_large();
     if (is_large_page) {
       DCHECK_EQ(LO_SPACE, page->owner_identity());
       record_visitor.Process(LargePageMetadata::cast(page)->GetObject());
@@ -798,7 +798,7 @@ void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());
-    if (!page->Chunk()->IsLargePage()) {
+    if (!page->is_large()) {
       ZapDeadObjectsOnPage(heap, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
@@ -1036,7 +1036,7 @@ void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
   DCHECK(page->ContainsLimit(unused_end));
 
   std::optional<RwxMemoryWriteScope> scope;
-  if (page->Chunk()->executable()) {
+  if (page->is_executable()) {
     scope.emplace("For zeroing unused memory.");
   }
   const std::optional<base::AddressRegion> discard_area =
@@ -1426,7 +1426,7 @@ void Sweeper::AddPromotedPage(MutablePageMetadata* chunk) {
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
   DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kDone,
             chunk->concurrent_sweeping_state());
-  if (!chunk->Chunk()->IsLargePage()) {
+  if (!chunk->is_large()) {
     PrepareToBeIteratedPromotedPage(static_cast<PageMetadata*>(chunk));
   } else {
     chunk->set_concurrent_sweeping_state(
@@ -1580,7 +1580,7 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
   page->ResetAllocationStatistics();
   page->ResetAgeInNewSpace();
   page->ReleaseSlotSet(SURVIVOR_TO_EXTERNAL_POINTER);
-  page->Chunk()->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
+  page->ClearFlagNonExecutable(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   paged_space->FreeDuringSweep(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);
   paged_space->RelinkFreeListCategories(page);

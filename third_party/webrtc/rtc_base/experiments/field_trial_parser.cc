@@ -9,8 +9,7 @@
  */
 #include "rtc_base/experiments/field_trial_parser.h"
 
-#include <inttypes.h>
-
+#include <cinttypes>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>

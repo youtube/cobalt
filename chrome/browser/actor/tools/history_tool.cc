@@ -48,6 +48,7 @@ void HistoryTool::Validate(ValidateCallback callback) {
   NavigationController& controller = web_contents()->GetController();
   mojom::ActionResultPtr result;
 
+  // TODO(crbug.com/411462297): Move these checks to TimeOfUseValidation.
   if (direction_ == HistoryToolRequest::Direction::kBack &&
       !controller.CanGoBack()) {
     result = MakeResult(mojom::ActionResultCode::kHistoryNoBackEntries);
@@ -114,8 +115,9 @@ std::unique_ptr<ObservationDelayController> HistoryTool::GetObservationDelayer()
       *web_contents()->GetPrimaryMainFrame());
 }
 
-void HistoryTool::UpdateTaskBeforeInvoke(ActorTask& task) const {
-  task.AddToTabSet(tab_handle_);
+void HistoryTool::UpdateTaskBeforeInvoke(ActorTask& task,
+                                         InvokeCallback callback) const {
+  task.AddTab(tab_handle_, std::move(callback));
 }
 
 void HistoryTool::DidStartNavigation(NavigationHandle* navigation_handle) {

@@ -34,6 +34,11 @@ bool SessionError::IsFatal() const {
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
     case kMismatchedSessionId:
+    case kInvalidRefreshInitiators:
+    case kInvalidScopeRule:
+    case kMissingScope:
+    case kNoCredentials:
+    case kInvalidScopeIncludeSite:
       return true;
 
     case kNetError:
@@ -65,6 +70,11 @@ bool SessionError::IsServerError() const {
     case kInvalidScopeOrigin:
     case kTransientHttpError:
     case kMismatchedSessionId:
+    case kInvalidRefreshInitiators:
+    case kInvalidScopeRule:
+    case kMissingScope:
+    case kNoCredentials:
+    case kInvalidScopeIncludeSite:
       return true;
   }
 }

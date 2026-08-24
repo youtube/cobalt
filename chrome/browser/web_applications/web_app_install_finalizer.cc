@@ -30,7 +30,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/commands/web_app_uninstall_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_source_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_url_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_web_app_job.h"
@@ -66,6 +65,7 @@
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/browser/uninstall_result_code.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/browser_thread.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/origin.h"
@@ -565,10 +565,11 @@ void WebAppInstallFinalizer::SetWebAppManifestFieldsAndWriteData(
     ShortcutsMenuIconBitmaps shortcuts_menu_icon_bitmaps =
         web_app_info.shortcuts_menu_icon_bitmaps;
     IconsMap other_icon_bitmaps = web_app_info.other_icon_bitmaps;
+    IconBitmaps trusted_icon_bitmaps = web_app_info.trusted_icon_bitmaps;
 
     provider_->icon_manager().WriteData(
-        app_id, std::move(icon_bitmaps), std::move(shortcuts_menu_icon_bitmaps),
-        std::move(other_icon_bitmaps),
+        app_id, std::move(icon_bitmaps), std::move(trusted_icon_bitmaps),
+        std::move(shortcuts_menu_icon_bitmaps), std::move(other_icon_bitmaps),
         std::move(on_icon_write_complete_callback));
   }
 }

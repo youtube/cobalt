@@ -63,6 +63,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="1704230497453185209">Usiruhusu tovuti zicheze sauti</translation>
 <translation id="1717218214683051432">Vitambuzi vya mwendo</translation>
 <translation id="1717996979683942279">Ukiwasha, tovuti zinaweza kuomba zidhibiti madirisha kwenye skrini zako zote. Ukizima, tovuti haziwezi kudhibiti madirisha kwenye skrini zako zote.</translation>
+<translation id="1738912554587725807">Laha ya chini ya mikusanyiko ya mandhari ya mwonekano wa ukurasa wa kichupo kipya</translation>
 <translation id="1743802530341753419">Iulize kabla ya kuruhusu tovuti ziunganishe kwenye kifaa (inapendekezwa)</translation>
 <translation id="1777815584158991902">Safu ya chini ya kipengele cha gundua mipasho</translation>
 <translation id="1779089405699405702">Kisimbuaji cha picha</translation>
@@ -120,6 +121,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="2402980924095424747">MB <ph name="MEGABYTES" /></translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Umeruhusu <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> na nyingine<ph name="NUM_MORE" />}other{Umeruhusu <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> na nyingine<ph name="NUM_MORE" />}}</translation>
 <translation id="2410940059315936967">Tovuti unayoitembelea inaweza kupachika maudhui kutoka kwenye tovuti zingine, kwa mfano, picha, matangazo na maandishi. Vidakuzi vinavyowekwa na tovuti hizi zingine vinaitwa vidakuzi vya washirika wengine.</translation>
+<translation id="2411116727035790889">Washa njia za mkato</translation>
 <translation id="2433507940547922241">Sura</translation>
 <translation id="2434158240863470628">Upakuaji umekamilika <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Uliruhusu kwa muda tovuti hii itumie vidakuzi vya washirika wengine. Hatua hii inamaanisha kuwa ulinzi wa kuvinjari utapungua lakini vipengele vya tovuti vina uwezekano mkubwa wa kufanya kazi inavyotarajiwa. <ph name="BEGIN_LINK" />Tuma maoni<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="3114012059975132928">Kicheza video</translation>
 <translation id="3115898365077584848">Onyesha Maelezo</translation>
 <translation id="3123473560110926937">Yamezuiwa kwenye baadhi ya tovuti</translation>
+<translation id="3132996321662585180">Onyesha upya kila siku</translation>
 <translation id="3143754809889689516">Cheza kuanzia mwanzo</translation>
 <translation id="3162899666601560689">Tovuti zinaweza kutumia vidakuzi ili kuboresha hali yako ya kuvinjari, kwa mfano, ili kufanya ubaki ukiwa umeingia katika akaunti au kukumbuka bidhaa zilizo kwenye kikapu chako cha ununuzi</translation>
 <translation id="3165022941318558018">Ruhusu tovuti itumie vidakuzi vya washirika wengine</translation>
@@ -356,6 +359,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="5100237604440890931">Imekunjwa - bofya ili upanue.</translation>
 <translation id="5116239826668864748">Unaweza kutumia Chrome wakati wowote unapogusa viungo kwenye ujumbe, hati na programu zingine</translation>
 <translation id="5123685120097942451">Kichupo fiche</translation>
+<translation id="512938610812707830">Laha ya chini ya mikusanyiko ya mandhari ya mwonekano wa kichupo kipya imefunguliwa katika urefu kamili</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Pata punguzo la bei kwenye vichupo vyako vilivyofunguliwa}other{Pata mapunguzo ya bei kwenye vichupo vyako vilivyofunguliwa}}</translation>
 <translation id="5186036860380548585">Chaguo linapatikana karibu na sehemu ya juu ya skrini</translation>
 <translation id="5197729504361054390">Anwani unazochagua zitashirikiwa na <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -410,6 +414,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="5750869797196646528">Ufuatiliaji wa mijongeo ya mikono</translation>
 <translation id="5753570386948603678">Futa kwenye historia</translation>
 <translation id="5771720122942595109">Umezuia <ph name="PERMISSION_1" /></translation>
+<translation id="5801457289562671820">Imependekezwa na shirika lako</translation>
 <translation id="5804241973901381774">Idhini</translation>
 <translation id="5822675474983796325">Badilisha upendavyo safu ya chini ya ukurasa wako mpya wa kichupo iliyofunguliwa katika hali ya skrini nzima</translation>
 <translation id="5833899990800318936">Usiruhusu tovuti zitumie JavaScript</translation>
@@ -608,7 +613,6 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="8186479265534291036">Je, tovuti haifanyi kazi? Vidakuzi vya washirika wengine vimezuiwa</translation>
 <translation id="8197286292360124385">Umeruhusu <ph name="PERMISSION_1" /></translation>
 <translation id="8200772114523450471">Endelea</translation>
-<translation id="8206354486702514201">Mpangilio huu umetekelezwa na msimamizi wako.</translation>
 <translation id="8211406090763984747">Muunganisho ni salama</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Sogeza juu</translation>
@@ -619,6 +623,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="8324158725704657629">Usiniulize tena</translation>
 <translation id="8362795839483915693">Unaweza kuvuta karibu au kusogeza mbali kwenye tovuti unazotembelea</translation>
 <translation id="8372893542064058268">Ruhusu Usawazishaji wa Chini Chini wa tovuti mahususi.</translation>
+<translation id="8378714024927312812">Inasimamiwa na shirika lako</translation>
 <translation id="83792324527827022">Tovuti inatumia kamera na maikrofoni yako</translation>
 <translation id="8380167699614421159">Tovuti hii inaonyesha matangazo yanayopotosha au yanayokatiza huduma</translation>
 <translation id="8394832520002899662">Gusa ili urudi kwenye tovuti</translation>

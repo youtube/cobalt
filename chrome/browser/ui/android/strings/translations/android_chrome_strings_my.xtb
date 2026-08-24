@@ -108,6 +108,7 @@
 <translation id="1419753403124156396">Chrome ကို ပြန်စမလား။</translation>
 <translation id="1428770807407000502">စင့်ခ်လုပ်ခြင်းကို ပိတ်မလား။</translation>
 <translation id="1430915738399379752">ပရင့်</translation>
+<translation id="1433478348197382180">ဖတ်ရှုမုဒ်</translation>
 <translation id="1435593198351412143">PDF များကို အလိုအလျောက်ဖွင့်ခြင်း</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> တွင် ဖွင့်ထားသည်</translation>
 <translation id="1448440926884431741">သင်စောင့်ကြည့်ထားသော ထုတ်ကုန်များကို ‘လိပ်စာများ’ တွင် စုစည်းနိုင်သည်</translation>
@@ -239,6 +240,7 @@
 <translation id="2088833076121753253">အော်တိုဖြည့်ခြင်း စနစ်ထည့်သွင်းမှု အပြီးသတ်ရန် Chrome ကို ယခုပြန်စပါ။ သင့်တဘ်များ အလိုအလျောက် ပြန်ပွင့်မည်။</translation>
 <translation id="2091863218454846791">ကျစ်လစ်သည့်ပြကွက်ကို ပြနေသည်</translation>
 <translation id="2093731487903423814">ပြီးခဲ့သော ၁၅ မိနစ်</translation>
+<translation id="2096577711562668473">အော်တိုဖြည့် ဝန်ဆောင်မှုကို ပြောင်းမလား။</translation>
 <translation id="2100273922101894616">အလိုအလျောက် ဝင်ရောက်ရန်</translation>
 <translation id="2109384632594340939">ပရိုဖိုင်ပုံ</translation>
 <translation id="2111511281910874386">စာမျက်နှာ သို့သွားရန်</translation>
@@ -324,6 +326,7 @@
 <translation id="2496180316473517155">အသုံးပြုခြင်း မှတ်တမ်း</translation>
 <translation id="2497852260688568942">စင့်ခ်ပြုလုပ်ခြင်းကို သင့်စီမံခန့်ခွဲသူက ပိတ်ဆို့ထားပါသည်</translation>
 <translation id="250020030759455918">သင်၏ <ph name="SITE_NAME" /> လက်မှတ်ထိုးဝင်မှု အခြေအနေ၊ ဖွင့်ကြည့်ထားသည့်မှတ်တမ်းဒေတာနှင့် ဝဘ်ဆိုက်ဒေတာများကို Chrome တွင် မြင်ရပါမည်</translation>
+<translation id="2502798195266898572">စာဖတ်မုဒ် အောက်ခြေအပိုဆောင်း စာမျက်နှာကို မြင်ကွင်းအပြည့် ဖွင့်ထားသည်</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> ထည့်သွင်းနေသည်...</translation>
 <translation id="2512234228327349533">ဝယ်ယူခြင်း ရွေးစရာများကို ရှာရန်</translation>
 <translation id="2513403576141822879">ကိုယ်ရေးအချက်အလက်လုံခြုံမှု၊ လုံခြုံရေးနှင့် ဒေတာစုဆောင်းမှုတို့နှင့် ဆက်စပ်နေသည့် နောက်ထပ် ဆက်တင်များအတွက် <ph name="BEGIN_LINK" />စင့်ခ်လုပ်ခြင်းနှင့် Google ဝန်ဆောင်မှုများ<ph name="END_LINK" /> ကို ကြည့်ပါ</translation>
@@ -719,6 +722,7 @@
 <translation id="4306489587293957491">ရိုက်ထည့်ပါ</translation>
 <translation id="4307992518367153382">အခြေခံများ</translation>
 <translation id="4311652497846705514">PDF ကို ဖွင့်မလား။</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{စပမ်း ဖြစ်နိုင်သည်}other{စပမ်း ဖြစ်နိုင်သည် (# ခု)}}</translation>
 <translation id="4320177379694898372">အင်တာနက် ချိတ်ဆက်မှု မရှိ</translation>
 <translation id="4326079409704643112">သင်၏ Google Account ရှိ Chrome ဒေတာ သုံးရန်၊ သိမ်းရန် သင်ဖြစ်ကြောင်း အတည်ပြုပါ</translation>
 <translation id="433213510553688132">လိုက်ကြည့်နေသည်...</translation>
@@ -932,6 +936,7 @@
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{ဖိုင်ကို ဒေါင်းလုဒ်လုပ်နေသည်}other{ဖိုင် # ဖိုင်ကို ဒေါင်းလုဒ်လုပ်နေသည်}}</translation>
 <translation id="5210286577605176222">ယခင်တဘ်သို့ ပြန်သွားရန်</translation>
 <translation id="5210365745912300556">တဘ် ပိတ်ရန်</translation>
+<translation id="5212800876504289412">ပြောင်းလဲမှုကို အပြီးသတ်ရန် Chrome ကို ပြန်စပါ။ သင်က ပြန်စသောအခါ တဘ်များကို အလိုအလျောက် ပြန်ဖွင့်သည်။</translation>
 <translation id="5215957675041756913">သင့်ဒေတာနှင့် အကောင့်ကို ထိန်းချုပ်ခြင်း</translation>
 <translation id="5218324087477576825">ကတ်နံပါတ်၊ လိုအပ်သည်</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />၊ <ph name="PERMISSION_2" /> စသည် <ph name="SEPARATOR" /> လတ်တလော သင်ဝင်ကြည့်ခြင်းမရှိသဖြင့် Chrome က ဤခွင့်ပြုချက်များကို ဖယ်ရှားလိုက်သည်</translation>
@@ -974,7 +979,6 @@
 <translation id="5414836363063783498">စိစစ်နေ…</translation>
 <translation id="5415871492522952905">သင့်စက်အားလုံးတွင် မှတ်တမ်းနှင့် တဘ်များ ရရှိမည်ဖြစ်သဖြင့် သင်လုပ်ဆောင်နေသည်များကို ရှေ့ဆက်နိုင်သည်</translation>
 <translation id="542073632571549028"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) သည် “<ph name="GROUP_NAME" />” တဘ်အုပ်စုသုံးခွင့် ချက်ချင်းဆုံးရှုံးပါမည်</translation>
-<translation id="5423934151118863508">သင် အများဆုံး ဝင်ကြည့်ခဲ့သည့် စာမျက်နှာများ ဒီမှာ ပေါ်လာမည်</translation>
 <translation id="5424588387303617268"><ph name="GIGABYTES" /> GB အသုံးပြုနိုင်ပါသည်</translation>
 <translation id="543338862236136125">စကားဝှက်ကို တည်းဖြတ်ခြင်း</translation>
 <translation id="5433691172869980887">အသုံးပြုသူအမည်ကို ကူးပြီးပါပြီ</translation>
@@ -1057,8 +1061,10 @@
 <translation id="580893287573699959">သင်စိတ်ဝင်စားသော အကြောင်းအရာများ၊ ဝဘ်ဆိုက်များကို စီမံနိုင်သည်</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{လွန်ခဲ့သည့် # နာရီက}other{လွန်ခဲ့သည့် # နာရီက}}</translation>
 <translation id="5810288467834065221">မူပိုင် <ph name="YEAR" /> Google LLC. မူပိုင်ခွင့်အားလုံး ယူထားသည်။</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{အကြောင်းကြားချက် ပြပါ}other{အကြောင်းကြားချက်များ ပြပါ}}</translation>
 <translation id="5814749351757353073">သင်၏အကြိုက်ဆုံးဝဘ်ဆိုက်များကို မျက်ခြည်မပြတ်ကြည့်ပါ</translation>
 <translation id="5823093032261493462">မည်သို့ပင်ဖြစ်စေ “<ph name="FILE_NAME" />” ကို <ph name="DOWNLOAD_DOMAIN" /> မှ ဒေါင်းလုဒ်လုပ်လိုသလား။</translation>
+<translation id="5825135637446025843">Chrome ကို ပြန်စပြီးနောက် စကားဝှက်၊ လျှို့ဝှက်ကီး၊ လိပ်စာ၊ ငွေပေးချေနည်းလမ်းနှင့် အခြားအချက်အလက်များ အော်တိုဖြည့်ရန်အတွက် သင်၏ ပံ့ပိုးသူအသစ်ထံမှ သိမ်းထားသော သင့်အချက်အလက်ကို သုံးပါမည်။</translation>
 <translation id="5828921839638612740">ဒေတာကို Chrome ဆက်တင်များတွင် ဖျက်နိုင်သည်</translation>
 <translation id="5829586821381540080"><ph name="FOLDER_NAME" /> တွင် သိမ်းထားသည်</translation>
 <translation id="583281660410589416">မသိရ</translation>
@@ -1166,6 +1172,7 @@
 <translation id="6255809143828972562">Chrome မှ တူးလ်များဖြင့် လုံခြုံစွာဘရောက်စ်လုပ်ပြီး ထိန်းချုပ်နိုင်သည်</translation>
 <translation id="6264376385120300461">မည်သို့ပင်ဖြစ်စေ ဒေါင်းလုဒ်လုပ်ရန်</translation>
 <translation id="6264485186158353794">လုံခြုံရာ နောက်သို့</translation>
+<translation id="6267063201726531683">စာဖတ်မုဒ် အောက်ခြေအပိုဆောင်း စာမျက်နှာ</translation>
 <translation id="6277522088822131679">စာမျက်နှာ ပရင်ထုတ်ရာတွင် ပြဿနာရှိသည်။ ကျေးဇူးပြု၍ နောက်မှ ကြိုးစားပါ။</translation>
 <translation id="6278428485366576908">အပြင်အဆင်</translation>
 <translation id="6284472661216707937">သင့်စက်အားလုံးရှိ စကားဝှက်များ ပိတ်ထားသည်</translation>
@@ -1173,6 +1180,7 @@
 <translation id="6295158916970320988">ဆိုဒ်များအားလုံး</translation>
 <translation id="6296366034485697675">ထုတ်ယူပြီး ဖျက်ရန်</translation>
 <translation id="629730747756840877">အကောင့်</translation>
+<translation id="6300697579369314762">စာဖတ်မုဒ် အောက်ခြေအပိုဆောင်း စာမျက်နှာကို မြင်ကွင်းတစ်ဝက် ဖွင့်ထားသည်</translation>
 <translation id="6301526076346731664">‘ဆော့ဖ်ဝဲရေးသူတူးလ်များ’ ဖွင့်ရန်</translation>
 <translation id="6303969859164067831">ထွက်ပြီးနောက် စင့်ခ်လုပ်ခြင်းကို ပိတ်ပါ</translation>
 <translation id="6307241780749477694">ဤစက်ရှိ စကားဝှက်အားလုံး ရယူရန်အတွက် သင်ဖြစ်ကြောင်း အတည်ပြုပါ</translation>
@@ -1393,6 +1401,7 @@
 <translation id="71503698506017927">စကားဝှက်စာ အသွင်ဝှက်ခြင်းတွင် Google Pay ရှိ ငွေပေးချေနည်းလမ်းနှင့် လိပ်စာများ မပါဝင်ပါ။
 
 ဤဆက်တင်ကို ပြောင်းရန် <ph name="BEGIN_LINK" />သင့်အကောင့်ရှိ Chrome ဒေတာကို ဖျက်ပါ<ph name="END_LINK" />။</translation>
+<translation id="7151332203500147130">စာဖတ်မုဒ် အောက်ခြေအပိုဆောင်း စာမျက်နှာ ပိတ်ထားသည်</translation>
 <translation id="7165972437814027679">ဖိုင်အချို့ကို Chrome က ဘာကြောင့်ပိတ်ထားကြောင်း ပိုမိုလေ့လာရန်</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> အဖြစ် လက်မှတ်ထိုးဝင်ထားသည်။ ဆက်တင်များ ဖွင့်ပေးသည်။</translation>
 <translation id="7173114856073700355">ဆက်တင်များ ဖွင့်ရန်</translation>
@@ -1726,7 +1735,6 @@
 <translation id="8493948351860045254">နေရာလွတ်အောင် ပြုလုပ်ပါ</translation>
 <translation id="8497242791509864205">စီသည့်နည်းလမ်းများ ဖွင့်ရန်</translation>
 <translation id="8497480609928300907">ကိုယ်ရေးအချက်အလက်လုံခြုံမှုလမ်းညွှန် ရှင်းလင်းချက်</translation>
-<translation id="8497726226069778601">ဒီမှာ ကြည့်စရာ ဘာမှ... မရှိသေးပါ</translation>
 <translation id="8503813439785031346">အသုံးပြုသူအမည်</translation>
 <translation id="8505766168025405649">ဒေါင်းလုဒ်အခြေအနေအတွက် အကြောင်းကြားချက်ကို ကြည့်နိုင်သည်</translation>
 <translation id="8506357771923193001">သင့်ဒေါင်းလုဒ်များကို ဤနေရာတွင် တွေ့ရမည်</translation>

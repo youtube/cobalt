@@ -14,8 +14,11 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/enterprise/browser/controller/browser_dm_token_storage.h"
+#include "components/enterprise/browser/reporting/chrome_profile_request_generator.h"
 #include "components/enterprise/browser/reporting/common_pref_names.h"
+#include "components/enterprise/browser/reporting/real_time_report_controller.h"
 #include "components/enterprise/browser/reporting/report_generation_config.h"
+#include "components/enterprise/browser/reporting/report_generator.h"
 #include "components/enterprise/browser/reporting/reporting_delegate_factory.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
@@ -48,6 +51,28 @@ bool IsBrowserVersionUploaded(ReportTrigger trigger) {
 
 ReportScheduler::Delegate::Delegate() = default;
 ReportScheduler::Delegate::~Delegate() = default;
+
+void ReportScheduler::Delegate::OnInitializationCompleted() {
+  if (user_security_signals_service_) {
+    user_security_signals_service_->Start();
+  }
+}
+
+bool ReportScheduler::Delegate::AreSecurityReportsEnabled() {
+  return user_security_signals_service_ &&
+         user_security_signals_service_->IsSecuritySignalsReportingEnabled();
+}
+
+bool ReportScheduler::Delegate::UseCookiesInUploads() {
+  return user_security_signals_service_ &&
+         user_security_signals_service_->ShouldUseCookies();
+}
+
+void ReportScheduler::Delegate::OnSecuritySignalsUploaded() {
+  if (user_security_signals_service_) {
+    user_security_signals_service_->OnReportUploaded();
+  }
+}
 
 ReportScheduler::CreateParams::CreateParams() = default;
 ReportScheduler::CreateParams::CreateParams(

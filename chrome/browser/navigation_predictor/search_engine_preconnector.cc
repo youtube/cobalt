@@ -167,8 +167,7 @@ void SearchEnginePreconnector::PreconnectDSE() {
     return;
   }
 
-  if (!predictors::IsPreconnectAllowed(
-          Profile::FromBrowserContext(browser_context_))) {
+  if (!IsPreconnectEnabled()) {
     return;
   }
 
@@ -289,7 +288,7 @@ void SearchEnginePreconnector::StartPreconnectWithDelay(
 predictors::PreconnectManager&
 SearchEnginePreconnector::GetPreconnectManager() {
   if (!preconnect_manager_) {
-    preconnect_manager_ = std::make_unique<predictors::PreconnectManager>(
+    preconnect_manager_ = predictors::PreconnectManager::Create(
         GetWeakPtr(), Profile::FromBrowserContext(browser_context_));
   }
 
@@ -319,6 +318,11 @@ void SearchEnginePreconnector::OnWebContentsVisibilityChanged(
   // Attempt reconnect again in case the visibility has changed after the last
   // preconnect attempt so that we will preconnect sooner.
   PreconnectDSE();
+}
+
+bool SearchEnginePreconnector::IsPreconnectEnabled() {
+  return predictors::IsPreconnectAllowed(
+      Profile::FromBrowserContext(browser_context_));
 }
 
 void SearchEnginePreconnector::OnSessionClosed() {

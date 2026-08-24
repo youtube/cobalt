@@ -67,7 +67,7 @@ const Connection* kConnectionThree =
 const std::vector<const Connection*> kEmptyConnsList =
     std::vector<const Connection*>();
 
-const TimeDelta kTick = TimeDelta::Millis(1);
+constexpr TimeDelta kTick = TimeDelta::Millis(1);
 
 TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
   AutoThread main;

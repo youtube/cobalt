@@ -52,6 +52,7 @@ if (optimize_webui) {
   mojo_js_files = [
     "calendar_data.mojom-webui.js",
     "composebox.mojom-webui.js",
+    "composebox_query.mojom-webui.js",
     "ntp_promo.mojom-webui.js",
     "customize_buttons.mojom-webui.js",
     "drive_suggestion.mojom-webui.js",
@@ -63,6 +64,7 @@ if (optimize_webui) {
     "new_tab_page.mojom-webui.js",
     "ntp_microsoft_auth_shared_ui.mojom-webui.js",
     "outlook_calendar.mojom-webui.js",
+    "tab_groups.mojom-webui.js",
     "url_visit_types.mojom-webui.js",
   ]
 

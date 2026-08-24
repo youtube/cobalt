@@ -47,16 +47,6 @@ const int kStableSampledInRatePerMille = 20;
 // exercise the out-of-sample code path.
 const int kBetaDevCanarySampledInRatePerMille = 990;
 
-// The fraction of UMA clients for whom package name data is uploaded. This
-// threshold and the corresponding privacy requirements are described in more
-// detail at http://shortn/_CzfDUxTxm2 (internal document). We also have public
-// documentation for metrics collection in WebView more generally (see
-// https://developer.android.com/guide/webapps/webview-privacy).
-//
-// Do not change this constant without seeking privacy approval with the teams
-// outlined in the internal document above.
-const int kPackageNameLimitRatePerMille = 100;  // (10% of UMA clients)
-
 AwMetricsServiceClient* g_aw_metrics_service_client = nullptr;
 
 int GetBaseSampleRatePerMille() {
@@ -99,10 +89,6 @@ AwMetricsServiceClient::AwMetricsServiceClient(
 
 AwMetricsServiceClient::~AwMetricsServiceClient() = default;
 
-int32_t AwMetricsServiceClient::GetProduct() {
-  return metrics::ChromeUserMetricsExtension::ANDROID_WEBVIEW;
-}
-
 int AwMetricsServiceClient::GetSampleRatePerMille() const {
   return 1000;
 }
@@ -110,22 +96,6 @@ int AwMetricsServiceClient::GetSampleRatePerMille() const {
 bool AwMetricsServiceClient::ShouldApplyMetricsFiltering() const {
   bool used_to_sample_in = GetSampleBucketValue() < GetBaseSampleRatePerMille();
   return !used_to_sample_in;
-}
-
-std::string AwMetricsServiceClient::GetAppPackageNameIfLoggable() {
-  AndroidMetricsServiceClient::InstallerPackageType installer_type =
-      GetInstallerPackageType();
-  // Always record the app package name of system apps and apps
-  // from the play store
-  if (installer_type == InstallerPackageType::SYSTEM_APP ||
-      installer_type == InstallerPackageType::GOOGLE_PLAY_STORE) {
-    return GetAppPackageName();
-  }
-  return std::string();
-}
-
-bool AwMetricsServiceClient::ShouldRecordPackageName() {
-  return true;
 }
 
 // Used below in AwMetricsServiceClient::OnMetricsStart.
@@ -158,12 +128,6 @@ void AwMetricsServiceClient::OnMetricsStart() {
         base::BindOnce(&RecordAppDataDirectorySize),
         kRecordAppDataDirectorySizeDelay);
   }
-}
-
-void AwMetricsServiceClient::OnMetricsNotStarted() {}
-
-int AwMetricsServiceClient::GetPackageNameLimitRatePerMille() {
-  return kPackageNameLimitRatePerMille;
 }
 
 void AwMetricsServiceClient::OnAppStateChanged(

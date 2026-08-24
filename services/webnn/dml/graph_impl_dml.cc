@@ -82,30 +82,29 @@ static constexpr auto kDmlFloatDataTypes =
     base::MakeFixedFlatSet<DML_TENSOR_DATA_TYPE>(
         {DML_TENSOR_DATA_TYPE_FLOAT32, DML_TENSOR_DATA_TYPE_FLOAT16});
 
-// TODO(crbug.com/335909582): Take an MLNumber rather than a float, and replace
-// all these saturated_casts with conversions handled by MLNumber.
-DML_SCALAR_UNION ToScalarUnion(float value, DML_TENSOR_DATA_TYPE type) {
+DML_SCALAR_UNION ToScalarUnion(const MLNumber& value,
+                               DML_TENSOR_DATA_TYPE type) {
   switch (type) {
     case DML_TENSOR_DATA_TYPE_FLOAT32:
-      return DML_SCALAR_UNION{.Float32 = value};
+      return DML_SCALAR_UNION{.Float32 = value.AsFloat32()};
     case DML_TENSOR_DATA_TYPE_FLOAT16:
       // Use UInt16 since DML_SCALAR_UNION does not have a float16 variant. The
       // bits in this value will correctly be interpreted as float16 by
       // functions which allow passing a DML_SCALAR_UNION paired with a
       // corresponding DML_TENSOR_DATA_TYPE of DML_TENSOR_DATA_TYPE_FLOAT16.
-      return DML_SCALAR_UNION{.UInt16 = fp16_ieee_from_fp32_value(value)};
+      return DML_SCALAR_UNION{.UInt16 = value.AsFloat16()};
     case DML_TENSOR_DATA_TYPE_INT8:
-      return DML_SCALAR_UNION{.Int8 = base::saturated_cast<int8_t>(value)};
+      return DML_SCALAR_UNION{.Int8 = value.AsInt8()};
     case DML_TENSOR_DATA_TYPE_UINT8:
-      return DML_SCALAR_UNION{.UInt8 = base::saturated_cast<uint8_t>(value)};
+      return DML_SCALAR_UNION{.UInt8 = value.AsUint8()};
     case DML_TENSOR_DATA_TYPE_INT64:
-      return DML_SCALAR_UNION{.Int64 = base::saturated_cast<int64_t>(value)};
+      return DML_SCALAR_UNION{.Int64 = value.AsInt64()};
     case DML_TENSOR_DATA_TYPE_UINT64:
-      return DML_SCALAR_UNION{.UInt64 = base::saturated_cast<uint64_t>(value)};
+      return DML_SCALAR_UNION{.UInt64 = value.AsUint64()};
     case DML_TENSOR_DATA_TYPE_INT32:
-      return DML_SCALAR_UNION{.Int32 = base::saturated_cast<int32_t>(value)};
+      return DML_SCALAR_UNION{.Int32 = value.AsInt32()};
     case DML_TENSOR_DATA_TYPE_UINT32:
-      return DML_SCALAR_UNION{.UInt32 = base::saturated_cast<uint32_t>(value)};
+      return DML_SCALAR_UNION{.UInt32 = value.AsUint32()};
     default:
       NOTREACHED() << "[WebNN] This data type is not supported.";
   }
@@ -1663,13 +1662,38 @@ void CreateOperatorNodeForClamp(Adapter* adapter,
         DML_OPERATOR_ELEMENT_WISE_CLIP1, &clamp_operator_desc, inputs,
         clamp->label);
   } else {
-    DML_ELEMENT_WISE_CLIP_OPERATOR_DESC clamp_operator_desc{
-        .InputTensor = &input_tensor_desc.GetDMLTensorDesc(),
-        .OutputTensor = &output_tensor_desc.GetDMLTensorDesc(),
-        // No scale or bias applies to the input.
-        .ScaleBias = nullptr,
-        .Min = clamp->min_value,
-        .Max = clamp->max_value};
+    DML_ELEMENT_WISE_CLIP_OPERATOR_DESC clamp_operator_desc = {};
+    clamp_operator_desc.InputTensor = &input_tensor_desc.GetDMLTensorDesc();
+    clamp_operator_desc.OutputTensor = &output_tensor_desc.GetDMLTensorDesc();
+    clamp_operator_desc.ScaleBias = nullptr;
+    switch (output_tensor_desc.GetDataType()) {
+      case DML_TENSOR_DATA_TYPE_FLOAT32:
+        clamp_operator_desc.Min = clamp->min_value.AsFloat32();
+        clamp_operator_desc.Max = clamp->max_value.AsFloat32();
+        break;
+      case DML_TENSOR_DATA_TYPE_FLOAT16:
+        clamp_operator_desc.Min = clamp->min_value.AsFloat16();
+        clamp_operator_desc.Max = clamp->max_value.AsFloat16();
+        break;
+      case DML_TENSOR_DATA_TYPE_INT8:
+        clamp_operator_desc.Min = clamp->min_value.AsInt8();
+        clamp_operator_desc.Max = clamp->max_value.AsInt8();
+        break;
+      case DML_TENSOR_DATA_TYPE_UINT8:
+        clamp_operator_desc.Min = clamp->min_value.AsUint8();
+        clamp_operator_desc.Max = clamp->max_value.AsUint8();
+        break;
+      case DML_TENSOR_DATA_TYPE_INT32:
+        clamp_operator_desc.Min = clamp->min_value.AsInt32();
+        clamp_operator_desc.Max = clamp->max_value.AsInt32();
+        break;
+      case DML_TENSOR_DATA_TYPE_UINT32:
+        clamp_operator_desc.Min = clamp->min_value.AsUint32();
+        clamp_operator_desc.Max = clamp->max_value.AsUint32();
+        break;
+      default:
+        NOTREACHED() << "[WebNN] This data type is not supported.";
+    }
     clamp_node = graph_builder.CreateOperatorNode(
         DML_OPERATOR_ELEMENT_WISE_CLIP, &clamp_operator_desc, inputs,
         clamp->label);
@@ -2097,14 +2121,8 @@ CreateOperatorNodeForDequantizeOrQuantizeLinear(
                 std::is_same_v<DML_OPERATOR_DESC,
                                DML_DEQUANTIZE_OPERATOR_DESC>) {
     const auto input_rank = input_tensor_desc.GetDimensions().size();
-    // DML_QUANTIZE_OPERATOR_DESC and DML_DEQUANTIZE_OPERATOR_DESC constraint
-    // scale and zeroPoint must have the same dimension rank with input.
-    if (scale_tensor_desc.GetDimensions().size() < input_rank) {
-      scale_tensor_desc.EnsureMinimumRank(input_rank,
-                                          TensorDesc::Alignment::kTrailing);
-      zero_point_tensor_desc.EnsureMinimumRank(
-          input_rank, TensorDesc::Alignment::kTrailing);
-    }
+    const auto scale_rank = scale_tensor_desc.GetDimensions().size();
+    CHECK_EQ(scale_rank, input_rank);
 
     // A invalid parameter error will be reported from DirectML when a
     // dequantize is followed by a matmul and the input rank of the dequantize
@@ -2124,20 +2142,17 @@ CreateOperatorNodeForDequantizeOrQuantizeLinear(
   } else {
     const auto input_dimensions = input_tensor_desc.GetDimensions();
     auto scale_dimensions = scale_tensor_desc.GetDimensions();
+    CHECK_EQ(input_dimensions.size(), scale_dimensions.size());
     // When FL < 6.3, DML_ELEMENT_WISE_DEQUANTIZE_LINEAR and
     // DML_ELEMENT_WISE_QUANTIZE_LINEAR can't support block-wise.
     // For each dimension where we need to do expansion of block_size which is
     // calculated by input_dimensions[i] / scale_dimensions[i], we use reshape
     // and broadcast to emulate.
     for (size_t index = 0; index < scale_dimensions.size(); index++) {
-      if (input_dimensions[input_dimensions.size() - index - 1] !=
-              scale_dimensions[scale_dimensions.size() - index - 1] &&
-          input_dimensions[input_dimensions.size() - index - 1] != 1 &&
-          scale_dimensions[scale_dimensions.size() - index - 1] != 1) {
-        uint32_t block_size =
-            input_dimensions[input_dimensions.size() - index - 1] /
-            scale_dimensions[scale_dimensions.size() - index - 1];
-        uint32_t axis = scale_dimensions.size() - index - 1;
+      if (input_dimensions[index] != scale_dimensions[index] &&
+          input_dimensions[index] != 1 && scale_dimensions[index] != 1) {
+        uint32_t block_size = input_dimensions[index] / scale_dimensions[index];
+        uint32_t axis = index;
 
         ASSIGN_OR_RETURN(scale,
                          BlockwiseExpandAlongAxis(scale, graph_builder, axis,

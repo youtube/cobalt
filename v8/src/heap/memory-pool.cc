@@ -205,7 +205,8 @@ bool MemoryPool::LargePagePoolImpl::Add(std::vector<LargePageMetadata*>& pages,
   return added_to_pool;
 }
 
-LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(size_t chunk_size) {
+LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(Isolate* isolate,
+                                                         size_t chunk_size) {
   base::MutexGuard guard(&mutex_);
   auto selected = pages_.end();
   DCHECK_EQ(total_size_, ComputeTotalSize());
@@ -227,7 +228,7 @@ LargePageMetadata* MemoryPool::LargePagePoolImpl::Remove(size_t chunk_size) {
 
   LargePageMetadata* result = selected->second.release();
 #ifdef V8_ENABLE_SANDBOX
-  MemoryChunk::ResetMetadataPointer(result);
+  MemoryChunk::ResetMetadataPointer(isolate, result);
 #endif  // V8_ENABLE_SANDBOX
   total_size_ -= result->size();
   pages_.erase(selected);
@@ -380,10 +381,10 @@ void MemoryPool::Add(Isolate* isolate, MutablePageMetadata* chunk) {
   // atomic pause so a lock is not needed.
   DCHECK_NOT_NULL(chunk);
   DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
-  DCHECK(!chunk->Chunk()->IsLargePage());
+  DCHECK(!chunk->is_large());
   DCHECK(!chunk->Chunk()->IsTrusted());
   DCHECK(!chunk->Chunk()->InReadOnlySpace());
-  DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
+  DCHECK(!chunk->is_executable());
   // Ensure that ReleaseAllAllocatedMemory() was called on the page.
   DCHECK(!chunk->ContainsAnySlots());
 #ifdef V8_ENABLE_SANDBOX
@@ -401,7 +402,7 @@ MutablePageMetadata* MemoryPool::Remove(Isolate* isolate) {
   if (result) {
     MutablePageMetadata* chunk = result.value().release();
 #ifdef V8_ENABLE_SANDBOX
-    MemoryChunk::ResetMetadataPointer(chunk);
+    MemoryChunk::ResetMetadataPointer(isolate, chunk);
 #endif  // V8_ENABLE_SANDBOX
     return chunk;
   }
@@ -454,7 +455,7 @@ void MemoryPool::AddLarge(Isolate* isolate,
 
 LargePageMetadata* MemoryPool::RemoveLarge(Isolate* isolate,
                                            size_t chunk_size) {
-  return large_pool_.Remove(chunk_size);
+  return large_pool_.Remove(isolate, chunk_size);
 }
 
 void MemoryPool::AddZoneReservation(Isolate* isolate,

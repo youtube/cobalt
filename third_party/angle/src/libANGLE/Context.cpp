@@ -365,6 +365,13 @@ bool GetProtectedContent(const egl::AttributeMap &attribs)
     return static_cast<bool>(attribs.getAsInt(EGL_PROTECTED_CONTENT_EXT, EGL_FALSE));
 }
 
+bool GetPassthroughShaders(egl::Display *display, const egl::AttributeMap &attribs)
+{
+    const angle::FrontendFeatures &frontendFeatures = display->getFrontendFeatures();
+    return frontendFeatures.forcePassthroughShaders.enabled ||
+           static_cast<bool>(attribs.getAsInt(EGL_CONTEXT_PASSTHROUGH_SHADERS_ANGLE, EGL_FALSE));
+}
+
 std::string GetObjectLabelFromPointer(GLsizei length, const GLchar *label)
 {
     std::string labelName;
@@ -676,7 +683,8 @@ Context::Context(egl::Display *display,
              GetContextPriority(attribs),
              GetRobustAccess(attribs),
              GetProtectedContent(attribs),
-             GetIsExternal(attribs)),
+             GetIsExternal(attribs),
+             GetPassthroughShaders(display, attribs)),
       mShared(shareContext != nullptr || shareTextures != nullptr || shareSemaphores != nullptr),
       mDisplayTextureShareGroup(shareTextures != nullptr),
       mDisplaySemaphoreShareGroup(shareSemaphores != nullptr),
@@ -4094,6 +4102,22 @@ Extensions Context::generateSupportedExtensions() const
     // Blob cache extension is provided by the ANGLE frontend
     supportedExtensions.blobCacheANGLE = true;
 
+    // Disable extensions that are implemented through shader compiler transformations
+    if (mState.usesPassthroughShaders())
+    {
+        supportedExtensions.multiDrawANGLE                       = false;
+        supportedExtensions.shaderPixelLocalStorageANGLE         = false;
+        supportedExtensions.shaderPixelLocalStorageCoherentANGLE = false;
+        if (frontendFeatures.clipCullDistanceBrokenWithPassthroughShaders.enabled)
+        {
+            supportedExtensions.clipCullDistanceEXT = false;
+        }
+        if (frontendFeatures.noperspectiveInterpolationBrokenWithPassthroughShaders.enabled)
+        {
+            supportedExtensions.shaderNoperspectiveInterpolationNV = false;
+        }
+    }
+
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     supportedExtensions.EGLImageExternalOES = true;
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
@@ -4428,8 +4452,8 @@ void Context::initCaps()
                   "supported on some native drivers";
         extensions->textureMirrorClampToEdgeEXT = false;
 
-        // NVIDIA's Vulkan driver only supports 4 draw buffers
-        constexpr GLint maxDrawBuffers = 4;
+        // Modern content is starting to require 6
+        constexpr GLint maxDrawBuffers = 6;
         INFO() << "Limiting draw buffer count to " << maxDrawBuffers;
         ANGLE_LIMIT_CAP(caps->maxDrawBuffers, maxDrawBuffers);
 
@@ -4479,11 +4503,6 @@ void Context::initCaps()
         constexpr GLint maxSamples = 4;
         INFO() << "Limiting GL_MAX_SAMPLES to " << maxSamples;
         ANGLE_LIMIT_CAP(caps->maxSamples, maxSamples);
-
-        // Pixel 4/5 only supports GL_MAX_VERTEX_UNIFORM_VECTORS of 256
-        constexpr GLint maxVertexUniformVectors = 256;
-        INFO() << "Limiting GL_MAX_VERTEX_UNIFORM_VECTORS to " << maxVertexUniformVectors;
-        ANGLE_LIMIT_CAP(caps->maxVertexUniformVectors, maxVertexUniformVectors);
 
         // Test if we require shadow memory for coherent buffer tracking
         getShareGroup()->getFrameCaptureShared()->determineMemoryProtectionSupport(this);
@@ -10391,9 +10410,16 @@ void StateCache::updateValidDrawModes(Context *context)
         return;
     }
 
+    bool pointsOK  = true;
+    bool linesOK   = true;
+    bool trisOK    = true;
+    bool lineAdjOK = true;
+    bool triAdjOK  = true;
+
     if (mCachedTransformFeedbackActiveUnpaused)
     {
         TransformFeedback *curTransformFeedback = state.getCurrentTransformFeedback();
+        mCachedValidDrawModes.fill(false);
 
         // ES Spec 3.0 validation text:
         // When transform feedback is active and not paused, all geometric primitives generated must
@@ -10407,9 +10433,64 @@ void StateCache::updateValidDrawModes(Context *context)
             !context->getExtensions().tessellationShaderAny() &&
             context->getClientVersion() < ES_3_2)
         {
-            mCachedValidDrawModes.fill(false);
             mCachedValidDrawModes[curTransformFeedback->getPrimitiveMode()] = true;
             return;
+        }
+
+        // From: EXT_geometry_shader
+        //
+        // Transform Feedback  Allowed render primitive
+        // <primitiveMode>     <modes>
+        // -------------------+----------------------------------------
+        // POINTS             | POINTS
+        // LINES              | LINES, LINE_LOOP, LINE_STRIP
+        // TRIANGLES          | TRIANGLES, TRIANGLE_STRIP, TRIANGLE_FAN
+        // ------------------------------------------------------------
+        // Table 12.1gs: Legal combinations of the transform feedback
+        // primitive mode, as passed to BeginTransformFeedback, and the
+        // current primitive mode.
+        const PrimitiveMode xfbMode = curTransformFeedback->getPrimitiveMode();
+
+        // If a geometry shader is bound, the primitive that interacts with transform feedback is
+        // the geometry shader's output primitive type, which is independent from its input. In that
+        // case, either all inputs are ok (if the output matches) or none are (if the output
+        // doesn't match).
+        if (programExecutable && programExecutable->hasLinkedShaderStage(ShaderType::Geometry))
+        {
+            const PrimitiveMode gsOutMode =
+                programExecutable->getGeometryShaderOutputPrimitiveType();
+
+            // Note: the geometry shader output is either points, line_strip or triangle_strip.
+            bool matchingModes = false;
+            switch (gsOutMode)
+            {
+                case PrimitiveMode::Points:
+                    matchingModes = xfbMode == PrimitiveMode::Points;
+                    break;
+                case PrimitiveMode::LineStrip:
+                    matchingModes = xfbMode == PrimitiveMode::Lines;
+                    break;
+                case PrimitiveMode::TriangleStrip:
+                    matchingModes = xfbMode == PrimitiveMode::Triangles;
+                    break;
+                default:
+                    // Invalid geometry shader output mode
+                    ASSERT(false);
+            }
+
+            if (!matchingModes)
+            {
+                // All draw modes are set to false, so every draw will fail.
+                return;
+            }
+        }
+        else
+        {
+            // When geometry shader is not involved, the draw call's primitive mode is expected to
+            // match the transform feedback's.
+            pointsOK = xfbMode == PrimitiveMode::Points;
+            linesOK  = xfbMode == PrimitiveMode::Lines;
+            trisOK   = xfbMode == PrimitiveMode::Triangles;
         }
     }
 
@@ -10421,16 +10502,18 @@ void StateCache::updateValidDrawModes(Context *context)
         // All draw modes are valid, since drawing without a program does not generate an error and
         // operations requiring a GS will trigger other validation errors.
         // `patchOK = false` due to checking above already enabling it if a TS is present.
-        setValidDrawModes(true, true, true, adjacencyOK, adjacencyOK, false);
-        return;
+        lineAdjOK = lineAdjOK && adjacencyOK;
+        triAdjOK  = triAdjOK && adjacencyOK;
     }
-
-    PrimitiveMode gsMode = programExecutable->getGeometryShaderInputPrimitiveType();
-    bool pointsOK        = gsMode == PrimitiveMode::Points;
-    bool linesOK         = gsMode == PrimitiveMode::Lines;
-    bool trisOK          = gsMode == PrimitiveMode::Triangles;
-    bool lineAdjOK       = gsMode == PrimitiveMode::LinesAdjacency;
-    bool triAdjOK        = gsMode == PrimitiveMode::TrianglesAdjacency;
+    else
+    {
+        const PrimitiveMode gsMode = programExecutable->getGeometryShaderInputPrimitiveType();
+        pointsOK                   = pointsOK && gsMode == PrimitiveMode::Points;
+        linesOK                    = linesOK && gsMode == PrimitiveMode::Lines;
+        trisOK                     = trisOK && gsMode == PrimitiveMode::Triangles;
+        lineAdjOK                  = lineAdjOK && gsMode == PrimitiveMode::LinesAdjacency;
+        triAdjOK                   = triAdjOK && gsMode == PrimitiveMode::TrianglesAdjacency;
+    }
 
     setValidDrawModes(pointsOK, linesOK, trisOK, lineAdjOK, triAdjOK, false);
 }

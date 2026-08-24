@@ -202,10 +202,6 @@ void ManagedProfileCreationController::OnProfileSeparationPoliciesReceived(
   allows_converting_profile_to_managed_ = signin_util::
       ProfileSeparationAllowsKeepingUnmanagedBrowsingDataInManagedProfile(
           source_profile_, policies);
-  converts_profile_to_managed_by_default_ =
-      source_profile_->GetPrefs()->GetInteger(
-          prefs::kProfileSeparationDataMigrationSettings) ==
-      policy::ProfileSeparationDataMigrationSettings::USER_OPT_OUT;
 
   // The fetcher must be deleted after `policies` have been used to avoid a use
   // after free.
@@ -217,6 +213,8 @@ void ManagedProfileCreationController::ShowManagementDisclaimer() {
   CHECK(policies_received_);
   CHECK(source_profile_);
   Browser* browser = chrome::FindLastActiveWithProfile(source_profile_);
+  bool has_browser_with_tab =
+      browser && browser->SupportsWindowFeature(Browser::FEATURE_TABSTRIP);
 
   if (user_choice_for_testing_.has_value()) {
     CHECK_IS_TEST();
@@ -228,7 +226,7 @@ void ManagedProfileCreationController::ShowManagementDisclaimer() {
     return;
   }
 
-  if (!browser) {
+  if (!has_browser_with_tab) {
     // Posting the task here so that all code paths are asynchronous.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
@@ -245,15 +243,19 @@ void ManagedProfileCreationController::ShowManagementDisclaimer() {
   bool managed_profile_already_exists =
       switch_to_entry && switch_to_entry->UserAcceptedAccountManagement();
 
+  bool user_already_signed_in =
+      GetIdentityManager()->GetPrimaryAccountId(
+          signin::ConsentLevel::kSignin) == account_info_.account_id;
+
   auto dialog_params =
       std::make_unique<signin::EnterpriseProfileCreationDialogParams>(
           account_info_,
           /*is_OIDC_account=*/false,
-          /*user_already_signed_in=*/false,
+          /*user_already_signed_in=*/user_already_signed_in,
           /*profile_creation_required_by_policy*/
           profile_creation_required_by_policy_,
           /*show_link_data_option=*/!managed_profile_already_exists &&
-              converts_profile_to_managed_by_default_,
+              allows_converting_profile_to_managed_,
           /*process_user_choice_callback=*/
           base::BindOnce(
               &ManagedProfileCreationController::OnManagementDisclaimerResult,

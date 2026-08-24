@@ -51,7 +51,7 @@ namespace blink {
 // Note: empty/deleted values as defined in HashTraits are not allowed.
 template <typename ValueArg,
           typename TraitsArg = HashTraits<ValueArg>,
-          typename Allocator = WTF::PartitionAllocator>
+          typename Allocator = PartitionAllocator>
 class LinkedHashSet {
   USE_ALLOCATOR(LinkedHashSet, Allocator);
 
@@ -276,9 +276,9 @@ class LinkedHashSet {
 
   struct TypeConstraints {
     constexpr TypeConstraints() {
-      static_assert(!WTF::IsStackAllocatedTypeV<Value>);
+      static_assert(!IsStackAllocatedTypeV<Value>);
       static_assert(Allocator::kIsGarbageCollected ||
-                        !WTF::IsPointerToGarbageCollectedType<Value>,
+                        !IsPointerToGarbageCollectedType<Value>,
                     "Cannot put raw pointers to garbage-collected classes into "
                     "an off-heap LinkedHashSet. Use "
                     "HeapLinkedHashSet<Member<T>> instead.");

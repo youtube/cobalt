@@ -49,7 +49,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.BrowserFullscreen.DurationUpTo24H" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>avi@chromium.org</owner>
   <owner>chrome-mac-dev@google.com</owner>
   <summary>
@@ -440,6 +440,24 @@ chromium-metrics-reviews@google.com.
     This histogram is of special interest to the chrome-analysis-team@ and
     chrome-signin-team@. Do not change its semantics or retire it without
     talking to them first.
+  </summary>
+</histogram>
+
+<histogram name="Session.TotalDuration.TimeInTabletMode" units="times"
+    expires_after="2026-07-08">
+  <owner>robliao@chromium.org</owner>
+  <owner>arakeri@microsoft.com</owner>
+  <owner>gerchiko@microsoft.com</owner>
+  <owner>wangsongjin@microsoft.com</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    Time spent in tablet mode in each session (as defined by
+    DesktopSessionDurationTracker). Samples correspond one-to-one with
+    Session.TotalDuration samples.
+
+    This histogram should be analyzed with Session.TotalDuration. For example,
+    the sum of this histogram divided by the sum of Session.TotalDuration is the
+    total proportion of active browsing time spent in tablet mode.
   </summary>
 </histogram>
 
@@ -885,7 +903,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{HistorySyncState}" units="ms"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -929,7 +947,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.TotalDurationMax1Day.{MsbbState}" units="ms"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>mastiz@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>treib@chromium.org</owner>
@@ -1054,7 +1072,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Session.WebStates.SavingTimeOnMainThread" units="ms"
-    expires_after="2025-09-28">
+    expires_after="2026-01-11">
   <owner>fedegermi@google.com</owner>
   <owner>sdefresne@chromium.org</owner>
   <summary>

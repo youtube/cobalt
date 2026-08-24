@@ -10,8 +10,7 @@
 
 #include "pc/rtp_transport.h"
 
-#include <errno.h>
-
+#include <cerrno>
 #include <cstdint>
 #include <optional>
 #include <string>

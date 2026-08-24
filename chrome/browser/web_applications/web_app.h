@@ -21,7 +21,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-forward.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
@@ -39,6 +38,7 @@
 #include "components/sync/model/string_ordinal.h"
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/mojom/manifest/capture_links.mojom-shared.h"
@@ -394,6 +394,11 @@ class WebApp {
     return pending_update_info_;
   }
 
+  // Contains the metadata for trusted icons for the web app.
+  const std::vector<apps::IconInfo>& trusted_icons() const {
+    return trusted_icons_;
+  }
+
   // A Web App can be installed from multiple sources simultaneously. Installs
   // add a source to the app. Uninstalls remove a source from the app.
   void AddSource(WebAppManagement::Type source);
@@ -497,6 +502,7 @@ class WebApp {
       std::vector<blink::Manifest::RelatedApplication> related_applications);
   void SetPendingUpdateInfo(
       std::optional<proto::PendingUpdateInfo> pending_update_info);
+  void SetTrustedIcons(std::vector<apps::IconInfo> trusted_icons);
 
   void AddPlaceholderInfoToManagementExternalConfigMap(
       WebAppManagement::Type source_type,
@@ -645,6 +651,8 @@ class WebApp {
   std::vector<blink::Manifest::RelatedApplication> related_applications_;
 
   std::optional<proto::PendingUpdateInfo> pending_update_info_;
+
+  std::vector<apps::IconInfo> trusted_icons_;
 
   // New fields must be added to:
   //  - |operator==|

@@ -1074,6 +1074,8 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
       return FromFloat64ToTagged(builder, node_type, value, predecessor);
     case ValueRepresentation::kHoleyFloat64:
       return FromHoleyFloat64ToTagged(builder, node_type, value, predecessor);
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 ValueNode* EnsureTagged(const MaglevGraphBuilder* builder,
@@ -1390,13 +1392,16 @@ void MergePointInterpreterFrameState::MergeLoopValue(
 
   if (Phi* unmerged_phi = unmerged->TryCast<Phi>()) {
     // Propagating the `uses_repr` from {result} to {unmerged_phi}.
-    builder->RecordUseReprHint(unmerged_phi, result->get_uses_repr_hints());
+    unmerged_phi->RecordUseReprHint(result->get_uses_repr_hints());
 
     // Soundness of the loop phi Smi type relies on the back-edge static types
     // sminess.
     if (result->uses_require_31_bit_value()) {
       unmerged_phi->SetUseRequires31BitValue();
     }
+  } else if (CallKnownJSFunction* call =
+                 unmerged->TryCast<CallKnownJSFunction>()) {
+    call->RecordUseReprHint(result->get_uses_repr_hints());
   }
 }
 
@@ -1467,9 +1472,13 @@ void MergePointInterpreterFrameState::RemovePredecessorAt(int predecessor_id) {
   // Remove Phi input of index predecessor_id.
   for (Phi* phi : *phis()) {
     DCHECK_EQ(phi->input_count(), predecessor_count_);
+    if (phi->input(predecessor_id).node()) {
+      phi->input(predecessor_id).clear();
+    }
     // Shift phi inputs by 1.
     for (int i = predecessor_id; i < phi->input_count() - 1; i++) {
-      phi->change_input(i, phi->input(i + 1).node());
+      // Do not call change_input, since we don't want to update the use count.
+      phi->input(i) = std::move(phi->input(i + 1));
     }
     phi->reduce_input_count(1);
   }

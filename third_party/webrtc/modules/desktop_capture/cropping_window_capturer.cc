@@ -10,8 +10,7 @@
 
 #include "modules/desktop_capture/cropping_window_capturer.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <utility>
 

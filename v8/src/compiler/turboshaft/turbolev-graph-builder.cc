@@ -83,6 +83,8 @@ MachineType MachineTypeFor(maglev::ValueRepresentation repr) {
       return MachineType::Float64();
     case maglev::ValueRepresentation::kHoleyFloat64:
       return MachineType::HoleyFloat64();
+    case maglev::ValueRepresentation::kNone:
+      UNREACHABLE();
   }
 }
 
@@ -792,6 +794,9 @@ class GraphBuildingNodeProcessor {
         case maglev::ValueRepresentation::kIntPtr:
           __ SetVariable(var,
                          __ ConvertIntPtrToNumber(V<WordPtr>::Cast(ts_idx)));
+          break;
+        case maglev::ValueRepresentation::kNone:
+          UNREACHABLE();
       }
     });
   }
@@ -920,6 +925,7 @@ class GraphBuildingNodeProcessor {
               additional_input = dummy_float64_input_;
               break;
             case maglev::ValueRepresentation::kIntPtr:
+            case maglev::ValueRepresentation::kNone:
               // Maglev doesn't have IntPtr Phis.
               UNREACHABLE();
           }
@@ -2210,6 +2216,14 @@ class GraphBuildingNodeProcessor {
     SetMap(node,
            __ NewArray(__ ChangeInt32ToIntPtr(length),
                        NewArrayOp::Kind::kObject, node->allocation_type()));
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::NewConsString* node,
+                                const maglev::ProcessingState& state) {
+    SetMap(node,
+           __ NewConsString(Map(node->length_input()), Map(node->first_input()),
+                            Map(node->second_input())));
     return maglev::ProcessResult::kContinue;
   }
 
@@ -5337,9 +5351,7 @@ class GraphBuildingNodeProcessor {
   void AddDeoptInput(FrameStateData::Builder& builder,
                      const maglev::VirtualObjectList& virtual_objects,
                      const maglev::ValueNode* node) {
-    while (node->Is<maglev::Identity>()) {
-      node = node->input(0).node();
-    }
+    node = node->UnwrapIdentities();
     if (const maglev::InlinedAllocation* alloc =
             node->TryCast<maglev::InlinedAllocation>()) {
       DCHECK(alloc->HasBeenAnalysed());
@@ -5913,6 +5925,8 @@ class GraphBuildingNodeProcessor {
         return RegisterRepresentation::Float64();
       case maglev::ValueRepresentation::kIntPtr:
         return RegisterRepresentation::WordPtr();
+      case maglev::ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
 
@@ -6032,9 +6046,7 @@ class GraphBuildingNodeProcessor {
                 compact_frame->GetValueOf(owner, maglev_unit);
             DCHECK_NOT_NULL(maglev_value);
 
-            while (maglev_value->Is<maglev::Identity>()) {
-              maglev_value = maglev_value->input(0).node();
-            }
+            maglev_value = maglev_value->UnwrapIdentities();
 
             if (const maglev::VirtualObject* vobj =
                     maglev_value->TryCast<maglev::VirtualObject>()) {
@@ -6413,10 +6425,15 @@ void RunMaglevOptimizations(PipelineData* data,
   }
 
   // Truncation pass.
-  if (v8_flags.maglev_truncation) {
-    maglev::GraphProcessor<maglev::MaglevTruncationProcessor> processor(
-        maglev_graph);
-    processor.ProcessGraph(maglev_graph);
+  if (v8_flags.maglev_truncation && maglev_graph->may_have_truncation()) {
+    maglev::GraphBackwardProcessor<maglev::PropagateTruncationProcessor>
+        propagate;
+    propagate.ProcessGraph(maglev_graph);
+    // TODO(victorgomes): Support identities to flow to next passes?
+    maglev::GraphMultiProcessor<maglev::TruncationProcessor,
+                                maglev::SweepIdentityNodes>
+        truncate(maglev::TruncationProcessor{maglev_graph});
+    truncate.ProcessGraph(maglev_graph);
   }
 
   if (V8_UNLIKELY(data->info()->trace_turbo_graph())) {

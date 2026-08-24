@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/ulpfec_receiver.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <list>
 #include <memory>

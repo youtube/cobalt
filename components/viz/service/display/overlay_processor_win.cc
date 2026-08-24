@@ -130,10 +130,29 @@ OverlayCandidateFactory::OverlayContext WindowsDelegatedOverlayContext() {
   return context;
 }
 
+// Center and scale `rect` inside `target_size` to the largest size such that it
+// maintains its aspect ratio and is fully contained by `target_size`.
+gfx::RectF ContainedAndCenteredRect(const gfx::RectF& rect,
+                                    const gfx::SizeF& target_size) {
+  // Scale factor that makes `rect` fit inside `target_size`, touching at least
+  // two opposite sides.
+  const double rect_to_target_size_scale = std::min(
+      target_size.width() / rect.width(), target_size.height() / rect.height());
+
+  gfx::RectF scaled_and_centered_rect = gfx::RectF(rect.size());
+  scaled_and_centered_rect.Scale(rect_to_target_size_scale);
+  scaled_and_centered_rect.Offset(
+      (target_size.width() - scaled_and_centered_rect.width()) / 2.0,
+      (target_size.height() - scaled_and_centered_rect.height()) / 2.0);
+
+  return scaled_and_centered_rect;
+}
+
 }  // anonymous namespace
 
 OverlayProcessorWin::OverlayProcessorWin(
     OutputSurface::DCSupportLevel dc_support_level,
+    bool disable_direct_composition_letterbox_video_optimization,
     const DebugRendererSettings* debug_settings,
     std::unique_ptr<DCLayerOverlayProcessor> dc_layer_overlay_processor)
     : delegated_compositing_supported_(
@@ -142,7 +161,9 @@ OverlayProcessorWin::OverlayProcessorWin(
                     features::kDelegatedCompositingModeParam.Get())
               : std::nullopt),
       debug_settings_(debug_settings),
-      dc_layer_overlay_processor_(std::move(dc_layer_overlay_processor)) {
+      dc_layer_overlay_processor_(std::move(dc_layer_overlay_processor)),
+      disable_direct_composition_letterbox_video_optimization_(
+          disable_direct_composition_letterbox_video_optimization) {
   DCHECK_GT(dc_support_level, OutputSurface::DCSupportLevel::kNone);
 }
 
@@ -163,8 +184,9 @@ gfx::Rect OverlayProcessorWin::GetAndResetOverlayDamage() {
 
 void OverlayProcessorWin::AdjustOutputSurfaceOverlay(
     std::optional<OutputSurfaceOverlayPlane>* output_surface_plane) {
-  if (delegation_succeeded_last_frame_) {
+  if (pending_remove_primary_plane_) {
     output_surface_plane->reset();
+    pending_remove_primary_plane_ = false;
   }
 }
 
@@ -199,11 +221,16 @@ void OverlayProcessorWin::ProcessForOverlays(
         candidates, root_damage_rect);
   }
 
+  if (is_page_fullscreen_mode_ &&
+      base::FeatureList::IsEnabled(
+          features::kEarlyFullScreenVideoOptimization)) {
+    TryPromoteFullScreenVideo(*render_passes->back(), *candidates,
+                              *root_damage_rect);
+  }
+
   DebugLogAfterDelegation(status, *candidates, *root_damage_rect);
 
   frame_has_forced_dcomp_surface_ = false;
-  delegation_succeeded_last_frame_ =
-      status == DelegationStatus::kFullDelegation;
 }
 
 DelegationStatus OverlayProcessorWin::ProcessOverlaysForDelegation(
@@ -306,19 +333,9 @@ DelegationStatus OverlayProcessorWin::ProcessOverlaysForDelegation(
               /*surface_content_render_passes=*/{}, delegated_candidates);
     }
 
-    // Set this to the full output rect unconditionally on success. This is
-    // unioned with the next frame's damage (via |GetAndResetOverlayDamage|)
-    // to fully damage the root surface if the next frame fails delegation.
-    // Since delegated compositing succeeded here, the previous frame's
-    // |overlay_damage_rect_| influence on |root_damage_rect| is cleared
-    // below.
-    // In the case of resize, we will be correctly damaged from another
-    // source.
-    overlay_damage_rect_ = render_passes->back()->output_rect;
+    RemovePrimaryPlane(*render_passes->back(), *root_damage_rect);
 
-    delegation_succeeded_last_frame_ = true;
     *candidates = std::move(delegated_candidates);
-    *root_damage_rect = gfx::Rect();
 
     return DelegationStatus::kFullDelegation;
   } else {
@@ -612,6 +629,119 @@ OverlayProcessorWin::TryDelegatedCompositing(
   }
 
   return base::ok(std::move(result));
+}
+
+void OverlayProcessorWin::RemovePrimaryPlane(
+    const AggregatedRenderPass& root_render_pass,
+    gfx::Rect& root_damage_rect) {
+  // Set this to the full output rect unconditionally on success. This is
+  // unioned with the next frame's damage (via |GetAndResetOverlayDamage|) to
+  // fully damage the root surface if the next frame fails delegation. Since
+  // delegated compositing succeeded here, the previous frame's
+  // |overlay_damage_rect_| influence on |root_damage_rect| is cleared below.
+  //
+  // In the case of resize, we will be correctly damaged from another source.
+  overlay_damage_rect_ = root_render_pass.output_rect;
+
+  // `SkiaRenderer` expects no root damage when the primary plane is not
+  // present.
+  root_damage_rect = gfx::Rect();
+
+  pending_remove_primary_plane_ = true;
+}
+
+void OverlayProcessorWin::TryPromoteFullScreenVideo(
+    const AggregatedRenderPass& root_render_pass,
+    OverlayCandidateList& candidates,
+    gfx::Rect& root_damage_rect) {
+  if (candidates.empty()) {
+    // No candidates means no possible full screen video candidate.
+    return;
+  }
+
+  // Sort back-to-front to make the subsequent operations easier.
+  std::ranges::sort(candidates, {}, &OverlayCandidate::plane_z_order);
+
+  // Find the front-most full screen video candidate by searching from the back.
+  auto frontmost_candidate_it = std::ranges::find_if(
+      candidates.rbegin(), candidates.rend(), [](const auto& candidate) {
+        return candidate.possible_video_fullscreen_letterboxing &&
+               (candidate.priority_hint ==
+                    gfx::OverlayPriorityHint::kHardwareProtection ||
+                candidate.priority_hint == gfx::OverlayPriorityHint::kVideo);
+      });
+  if (frontmost_candidate_it == candidates.rend()) {
+    return;
+  }
+
+  const gfx::RectF target_rect =
+      OverlayCandidate::DisplayRectInTargetSpace(*frontmost_candidate_it);
+  const gfx::Rect& root_pass_output_rect = root_render_pass.output_rect;
+
+  // The ideal rect is `target_rect` scaled to fit and centered inside the full
+  // screen render pass output rect.
+  const gfx::RectF ideal_full_screen_rect = ContainedAndCenteredRect(
+      target_rect, gfx::SizeF(root_pass_output_rect.size()));
+
+  // Allow up to a pixel of wiggle room for checking the clip rect and
+  // centeredness of the video. This is in case the video renderer doesn't
+  // supply a perfectly placed video quad and assumes that up to a pixel
+  // of adjustment is forgivable.
+  constexpr float kTightTolerance = 1.0f;
+
+  const bool candidate_is_not_clipped =
+      !frontmost_candidate_it->clip_rect ||
+      gfx::RectF(frontmost_candidate_it->clip_rect.value())
+          .ApproximatelyEqual(ideal_full_screen_rect, kTightTolerance,
+                              kTightTolerance);
+  if (!candidate_is_not_clipped) {
+    // If the video is clipped (and the clip rect is not equal to the target
+    // rect), then we cannot apply the full screen optimization since we do
+    // not currently support using the clipped region as the source rect for
+    // video frames.
+    //
+    // We conservatively don't allow clip rects that are larger than the video,
+    // but this may not be a requirement.
+    return;
+  }
+
+  // `DirectCompositionLetterboxVideoOptimization` can adjust videos that
+  // are almost letterboxed by a small amount to allow more videos to
+  // utilize the full screen optimizations. The larger this tolerance, the
+  // more the video may jump around when we enable/disable the optimization.
+  const bool fix_almost_full_screen =
+      !disable_direct_composition_letterbox_video_optimization_ &&
+      base::FeatureList::IsEnabled(
+          features::kDirectCompositionLetterboxVideoOptimization);
+  const float tolerance = fix_almost_full_screen ? 10.f : kTightTolerance;
+
+  if (!target_rect.ApproximatelyEqual(ideal_full_screen_rect, tolerance,
+                                      tolerance)) {
+    // We can possibly allow the full screen optimization for videos on frames
+    // that contain a video with only a black background behind it, but we would
+    // need better detection of the background mat to do so (i.e.
+    // `possible_video_fullscreen_letterboxing`).
+    return;
+  }
+
+  frontmost_candidate_it->display_rect = ideal_full_screen_rect;
+  frontmost_candidate_it->transform = gfx::Transform();
+  frontmost_candidate_it->clip_rect = root_pass_output_rect;
+  frontmost_candidate_it->overlay_type = gfx::OverlayType::kFullScreen;
+
+  // Try to remove the primary plane if the video full occludes it. If the
+  // video is underneath e.g. controls or captions, we cannot remove the
+  // primary plane.
+  const bool video_is_above_primary_plane =
+      frontmost_candidate_it->plane_z_order > 0;
+  if (video_is_above_primary_plane) {
+    RemovePrimaryPlane(root_render_pass, root_damage_rect);
+  }
+
+  // Erase any overlay candidates occluded by the video. This just reduces the
+  // number of overlays we send to `DCompPresenter`.
+  candidates.erase(candidates.begin(),
+                   std::prev(frontmost_candidate_it.base()));
 }
 
 // static

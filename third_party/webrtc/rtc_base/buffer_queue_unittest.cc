@@ -10,7 +10,7 @@
 
 #include "rtc_base/buffer_queue.h"
 
-#include <string.h>
+#include <cstring>
 
 #include "test/gtest.h"
 

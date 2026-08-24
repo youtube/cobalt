@@ -45,7 +45,7 @@ Aquí tienes algunas cosas que puedes probar para empezar.</translation>
 <translation id="1153356358378277386">Dispositivos vinculados</translation>
 <translation id="1153918444040990015">No se ha podido conectar con los sonidos de Concentración</translation>
 <translation id="1155734730463845512">Nivel de batería actual: <ph name="BATTERY_PERCENTAGE" /> %</translation>
-<translation id="1157514002898505378">La IA generativa es experimental y el contenido puede ser inexacto, engañoso u ofensivo. Ponte en contacto con tu administrador para informar de un problema. <ph name="LINK_TO_SERVICE_TERMS" /></translation>
+<translation id="1157514002898505378">La IA generativa es experimental y el contenido puede ser incorrecto, engañoso u ofensivo. Ponte en contacto con tu administrador para informar de un problema. <ph name="LINK_TO_SERVICE_TERMS" /></translation>
 <translation id="1160215328209699296">activado y en uso</translation>
 <translation id="1163437384438183174">Quitar Mi teléfono de la estantería</translation>
 <translation id="1170753161936175256"><ph name="EVENT_SUMMARY" />, <ph name="TIME_RANGE" /></translation>
@@ -603,7 +603,6 @@ De lo contrario, el panel táctil integrado se volverá a habilitar en <ph name=
 <translation id="3026897869154397692">Añadido al calendario</translation>
 <translation id="3033545621352269033">Activada</translation>
 <translation id="3033912566804961911">Combinar con <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Abrir archivos</translation>
 <translation id="3039939407102840004">La batería del lápiz óptico está al <ph name="PERCENTAGE" /> por ciento.</translation>
 <translation id="304097922505898963">Abrir la aplicación Combinaciones de teclas</translation>
 <translation id="304417730895741346">Las aplicaciones fijadas y abiertas están en la estantería. Para fijar una aplicación en la estantería, haz clic con el botón derecho en una aplicación o toca el panel táctil con dos dedos.</translation>
@@ -1604,7 +1603,6 @@ No hay dispositivos conectados.</translation>
 <translation id="6166852626429024716">Busca en el dispositivo, en las aplicaciones, en los ajustes, en la Web…</translation>
 <translation id="6168318496333165060">Abrir aplicación Diagnósticos</translation>
 <translation id="6168622430237609329">Tus aplicaciones instaladas</translation>
-<translation id="6179832488876878285">Puedes fijar tus archivos importantes aquí. Abre la aplicación Archivos para empezar.</translation>
 <translation id="6180193585172850042">Botón para volver</translation>
 <translation id="6180651297859206670">Botón para avanzar</translation>
 <translation id="6182592640011875895">Abrir escritorio</translation>
@@ -1916,6 +1914,7 @@ Nueva instalación</translation>
 <translation id="7240636904654154599">Hoja de cálculo de Google creada</translation>
 <translation id="7244725679040769470">Queda un <ph name="PERCENTAGE" /> % de batería. Conecta tu dispositivo a la corriente.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. El Chromebook debe reiniciarse para aplicar una actualización. Este proceso puede tardar hasta 1 minuto.</translation>
+<translation id="7248100343060254997">Buscar en mi pantalla</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Micrófono trasero</translation>
 <translation id="7258828758145722155">Editado ayer</translation>

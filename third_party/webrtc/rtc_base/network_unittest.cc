@@ -10,9 +10,8 @@
 
 #include "rtc_base/network.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>

@@ -12,6 +12,7 @@ import static org.chromium.chrome.browser.TabbedMismatchedIndicesHandler.HISTOGR
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build.VERSION_CODES;
+import android.os.Bundle;
 import android.os.SystemClock;
 import android.provider.Browser;
 
@@ -61,6 +62,7 @@ import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tabmodel.ChromeTabCreator;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
+import org.chromium.chrome.browser.tabmodel.RedirectTabCreator;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -487,6 +489,114 @@ public class ChromeTabbedActivityTest {
 
     @Test
     @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testNewRegularTab_SameWindow() {
+        mActivityTestRule.getTestServer(); // Triggers the lazy initialization of the test server.
+        ChromeTabCreator tabCreatorRegular = mActivity.getTabCreator(false);
+        Assert.assertFalse(tabCreatorRegular instanceof RedirectTabCreator);
+
+        LoadUrlParams param =
+                new LoadUrlParams(mActivityTestRule.getTestServer().getURL(FILE_PATH));
+        Tab tab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return tabCreatorRegular.createNewTab(
+                                    param, TabLaunchType.FROM_CHROME_UI, null);
+                        });
+        Assert.assertNotNull(tab);
+        Assert.assertEquals(
+                2,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(false)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+        Assert.assertEquals(
+                0,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(true)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+    }
+
+    @Test
+    @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testNewIncognitoTab_NewWindow() {
+        mActivityTestRule.getTestServer(); // Triggers the lazy initialization of the test server.
+        ChromeTabCreator tabCreatorIncognito = mActivity.getTabCreator(true);
+        Assert.assertTrue(tabCreatorIncognito instanceof RedirectTabCreator);
+
+        LoadUrlParams param =
+                new LoadUrlParams(mActivityTestRule.getTestServer().getURL(FILE_PATH));
+        Tab tab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return tabCreatorIncognito.createNewTab(
+                                    param, TabLaunchType.FROM_CHROME_UI, null);
+                        });
+        Assert.assertNull(tab);
+        Assert.assertEquals(
+                1,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(false)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+        Assert.assertEquals(
+                0,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(true)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+    }
+
+    @Test
+    @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testNewIncognitoTab_SameWindow() {
+        mActivityTestRule.getTestServer(); // Triggers the lazy initialization of the test server.
+        ChromeTabCreator tabCreatorIncognito = mActivity.getTabCreator(true);
+        Assert.assertFalse(tabCreatorIncognito instanceof RedirectTabCreator);
+
+        LoadUrlParams param =
+                new LoadUrlParams(mActivityTestRule.getTestServer().getURL(FILE_PATH));
+        Tab tab =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return tabCreatorIncognito.createNewTab(
+                                    param, TabLaunchType.FROM_CHROME_UI, null);
+                        });
+        Assert.assertNotNull(tab);
+        Assert.assertEquals(
+                1,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(false)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+        Assert.assertEquals(
+                1,
+                mActivity
+                        .getTabModelSelector()
+                        .getModel(true)
+                        .getTabCountSupplier()
+                        .get()
+                        .intValue());
+    }
+
+    @Test
+    @MediumTest
     // Intentionally not batched due to recreating activity.
     @RequiresRestart
     @DisabledTest(message = "crbug.com/1187320 This doesn't work with FeedV2 and crbug.com/1096295")
@@ -649,6 +759,108 @@ public class ChromeTabbedActivityTest {
 
                     // Verify histograms.
                     histogramExpectation.assertExpected();
+                });
+    }
+
+    @Test
+    @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    public void testMultiUrlReparentingIntent() {
+        int initialTabCount = mActivity.getCurrentTabModel().getCount();
+
+        Intent reparentingIntent = new Intent(Intent.ACTION_VIEW);
+        reparentingIntent.setClass(mActivity, ChromeTabbedActivity.class);
+        reparentingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        Bundle multiTabBundle = new Bundle();
+        ArrayList<Integer> tabIds = new ArrayList<>(List.of(101, 102));
+        ArrayList<String> urls =
+                new ArrayList<>(
+                        List.of(JUnitTestGURLs.URL_1.getSpec(), JUnitTestGURLs.URL_2.getSpec()));
+        multiTabBundle.putIntegerArrayList(IntentHandler.MULTI_TAB_KEY_TAB_IDS, tabIds);
+        multiTabBundle.putStringArrayList(IntentHandler.MULTI_TAB_KEY_TAB_URLS, urls);
+
+        reparentingIntent.putExtra(
+                IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA, multiTabBundle);
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mActivity.onNewIntent(reparentingIntent));
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    TabModel tabModel = mActivity.getCurrentTabModel();
+                    Criteria.checkThat(tabModel.getCount(), Matchers.is(initialTabCount + 2));
+                    // Tabs are added at the end of the tab model.
+                    Criteria.checkThat(
+                            tabModel.getTabAt(initialTabCount).getUrl(),
+                            Matchers.is(JUnitTestGURLs.URL_1));
+                    Criteria.checkThat(
+                            tabModel.getTabAt(initialTabCount + 1).getUrl(),
+                            Matchers.is(JUnitTestGURLs.URL_2));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    public void testMultiUrlReparentingIntent_EmptyList() {
+        int initialTabCount = mActivity.getCurrentTabModel().getCount();
+
+        Intent reparentingIntent = new Intent(Intent.ACTION_VIEW);
+        reparentingIntent.setClass(mActivity, ChromeTabbedActivity.class);
+        reparentingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        Bundle multiTabBundle = new Bundle();
+        multiTabBundle.putIntegerArrayList(IntentHandler.MULTI_TAB_KEY_TAB_IDS, new ArrayList<>());
+        multiTabBundle.putStringArrayList(IntentHandler.MULTI_TAB_KEY_TAB_URLS, new ArrayList<>());
+
+        reparentingIntent.putExtra(
+                IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA, multiTabBundle);
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mActivity.onNewIntent(reparentingIntent));
+
+        // Wait to ensure no new tabs are created.
+        SystemClock.sleep(1000);
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    TabModel tabModel = mActivity.getCurrentTabModel();
+                    Criteria.checkThat(tabModel.getCount(), Matchers.is(initialTabCount));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @MinAndroidSdkLevel(VERSION_CODES.S)
+    public void testMultiUrlReparentingIntent_mismatchedLists() {
+        int initialTabCount = mActivity.getCurrentTabModel().getCount();
+
+        Intent reparentingIntent = new Intent(Intent.ACTION_VIEW);
+        reparentingIntent.setClass(mActivity, ChromeTabbedActivity.class);
+        reparentingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        Bundle multiTabBundle = new Bundle();
+        // Mismatch: 2 IDs, 1 URL. This should be handled gracefully without crashing.
+        ArrayList<Integer> tabIds = new ArrayList<>(List.of(101, 102));
+        ArrayList<String> urls = new ArrayList<>(List.of(JUnitTestGURLs.URL_1.getSpec()));
+        multiTabBundle.putIntegerArrayList(IntentHandler.MULTI_TAB_KEY_TAB_IDS, tabIds);
+        multiTabBundle.putStringArrayList(IntentHandler.MULTI_TAB_KEY_TAB_URLS, urls);
+
+        reparentingIntent.putExtra(
+                IntentHandler.EXTRA_MULTI_TAB_REPARENTING_METADATA, multiTabBundle);
+
+        ThreadUtils.runOnUiThreadBlocking(() -> mActivity.onNewIntent(reparentingIntent));
+
+        // Wait to ensure no new tabs are created.
+        SystemClock.sleep(500);
+
+        // Verify that no new tabs were created due to the malformed intent.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    TabModel tabModel = mActivity.getCurrentTabModel();
+                    Criteria.checkThat(
+                            "Tab count should not change for mismatched lists",
+                            tabModel.getCount(),
+                            Matchers.is(initialTabCount));
                 });
     }
 

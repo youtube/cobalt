@@ -19,14 +19,11 @@
 #include "extensions/renderer/bindings/js_runner.h"
 #include "gin/converter.h"
 #include "gin/dictionary.h"
-#include "gin/handle.h"
 #include "gin/object_template_builder.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 
 namespace extensions {
-
-gin::DeprecatedWrapperInfo APIBindingJSUtil::kWrapperInfo = {
-    gin::kEmbedderNativeGin};
-
 APIBindingJSUtil::APIBindingJSUtil(APITypeReferenceMap* type_refs,
                                    APIRequestHandler* request_handler,
                                    APIEventHandler* event_handler,
@@ -40,8 +37,7 @@ APIBindingJSUtil::~APIBindingJSUtil() = default;
 
 gin::ObjectTemplateBuilder APIBindingJSUtil::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return DeprecatedWrappable<APIBindingJSUtil>::GetObjectTemplateBuilder(
-             isolate)
+  return Wrappable<APIBindingJSUtil>::GetObjectTemplateBuilder(isolate)
       .SetMethod("sendRequest", &APIBindingJSUtil::SendRequest)
       .SetMethod("registerEventArgumentMassager",
                  &APIBindingJSUtil::RegisterEventArgumentMassager)
@@ -61,6 +57,10 @@ gin::ObjectTemplateBuilder APIBindingJSUtil::GetObjectTemplateBuilder(
       .SetMethod("validateCustomSignature",
                  &APIBindingJSUtil::ValidateCustomSignature)
       .SetMethod("addCustomSignature", &APIBindingJSUtil::AddCustomSignature);
+}
+
+const gin::WrapperInfo* APIBindingJSUtil::wrapper_info() const {
+  return &kWrapperInfo;
 }
 
 void APIBindingJSUtil::SendRequest(
@@ -168,12 +168,10 @@ void APIBindingJSUtil::CreateCustomDeclarativeEvent(
   v8::Isolate* isolate = arguments->isolate();
   v8::HandleScope handle_scope(isolate);
 
-  gin::Handle<DeclarativeEvent> event = gin::CreateHandle(
-      isolate,
-      new DeclarativeEvent(event_name, type_refs_, request_handler_,
-                           actions_list, conditions_list, webview_instance_id));
-
-  arguments->Return(event.ToV8());
+  auto* event = cppgc::MakeGarbageCollected<DeclarativeEvent>(
+      isolate->GetCppHeap()->GetAllocationHandle(), event_name, type_refs_,
+      request_handler_, actions_list, conditions_list, webview_instance_id);
+  arguments->Return(event->GetWrapper(isolate).ToLocalChecked());
 }
 
 void APIBindingJSUtil::InvalidateEvent(gin::Arguments* arguments,

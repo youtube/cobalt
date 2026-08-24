@@ -14,6 +14,7 @@
 #include "include/core/SkImage.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPathTypes.h"
 #include "include/core/SkPixmap.h"
 #include "include/core/SkRRect.h"
@@ -120,9 +121,10 @@ void SkDevice::drawRegion(const SkRegion& region, const SkPaint& paint) {
     bool antiAlias = paint.isAntiAlias() && (!is_int(localToDevice.getTranslateX()) ||
                                              !is_int(localToDevice.getTranslateY()));
     if (isNonTranslate || complexPaint || antiAlias) {
-        SkPath path = region.getBoundaryPath();
-        path.setIsVolatile(true);
-        return this->drawPath(path, paint, true);
+        SkPathBuilder builder;
+        region.addBoundaryPath(&builder);
+        builder.setIsVolatile(true);
+        return this->drawPath(builder.detach(), paint, true);
     }
 
     SkRegion::Iterator it(region);
@@ -141,13 +143,13 @@ void SkDevice::drawArc(const SkArc& arc, const SkPaint& paint) {
 
 void SkDevice::drawDRRect(const SkRRect& outer,
                           const SkRRect& inner, const SkPaint& paint) {
-    SkPath path;
-    path.addRRect(outer);
-    path.addRRect(inner);
-    path.setFillType(SkPathFillType::kEvenOdd);
-    path.setIsVolatile(true);
+    SkPathBuilder builder;
+    builder.addRRect(outer);
+    builder.addRRect(inner);
+    builder.setFillType(SkPathFillType::kEvenOdd);
+    builder.setIsVolatile(true);
 
-    this->drawPath(path, paint, true);
+    this->drawPath(builder.detach(), paint, true);
 }
 
 void SkDevice::drawPatch(const SkPoint cubics[12], const SkColor colors[4],
@@ -189,7 +191,9 @@ void SkDevice::drawImageLattice(const SkImage* image, const SkCanvas::Lattice& l
     }
 }
 
-static SkPoint* quad_to_tris(SkPoint tris[6], const SkPoint quad[4]) {
+static SkPoint* quad_to_tris(SkPoint tris[6], SkSpan<const SkPoint> quad) {
+    SkASSERT(quad.size() == 4);
+
     tris[0] = quad[0];
     tris[1] = quad[1];
     tris[2] = quad[2];
@@ -223,8 +227,7 @@ void SkDevice::drawAtlas(SkSpan<const SkRSXform> xform,
         xform[i].toQuad(tex[i].width(), tex[i].height(), tmp);
         vPos = quad_to_tris(vPos, tmp);
 
-        tex[i].toQuad(tmp);
-        vTex = quad_to_tris(vTex, tmp);
+        vTex = quad_to_tris(vTex, tex[i].toQuad());
 
         if (!colors.empty()) {
             SkOpts::memset32(vCol, colors[i], 6);
@@ -395,8 +398,8 @@ bool SkDevice::peekPixels(SkPixmap* pmap) {
 //////////////////////////////////////////////////////////////////////////////////////////
 
 static sk_sp<SkShader> make_post_inverse_lm(const SkShader* shader, const SkMatrix& lm) {
-     SkMatrix inverse_lm;
-    if (!shader || !lm.invert(&inverse_lm)) {
+    auto inverse_lm = lm.invert();
+    if (!shader || !inverse_lm) {
         return nullptr;
     }
 
@@ -413,10 +416,10 @@ static sk_sp<SkShader> make_post_inverse_lm(const SkShader* shader, const SkMatr
         shader = nested_shader.get();
     }
 
-    return shader->makeWithLocalMatrix(inverse_lm * prev_local_matrix);
+    return shader->makeWithLocalMatrix(*inverse_lm * prev_local_matrix);
 #endif
 
-    return shader->makeWithLocalMatrix(inverse_lm);
+    return shader->makeWithLocalMatrix(*inverse_lm);
 }
 
 void SkDevice::drawGlyphRunList(SkCanvas* canvas,

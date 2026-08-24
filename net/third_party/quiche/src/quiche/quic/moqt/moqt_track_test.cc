@@ -4,21 +4,17 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
-#include <vector>
 
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "quiche/quic/core/quic_alarm.h"
-#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt {
@@ -73,9 +69,8 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
 
 TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
   EXPECT_TRUE(
-      track_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
-  EXPECT_TRUE(
-      track_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
+      track_.CheckDataStreamType(MoqtDataStreamType::Subgroup(1, 1, true)));
+  EXPECT_FALSE(track_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
 }
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
@@ -118,9 +113,8 @@ TEST_F(UpstreamFetchTest, Queries) {
   EXPECT_EQ(fetch_.request_id(), 1);
   EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
   EXPECT_FALSE(
-      fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));
-  EXPECT_TRUE(
-      fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch));
+      fetch_.CheckDataStreamType(MoqtDataStreamType::Subgroup(1, 2, true)));
+  EXPECT_TRUE(fetch_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
   EXPECT_TRUE(fetch_.is_fetch());
   EXPECT_FALSE(fetch_.InWindow(Location{1, 0}));
   EXPECT_TRUE(fetch_.InWindow(Location{1, 1}));
@@ -136,7 +130,8 @@ TEST_F(UpstreamFetchTest, AllowError) {
 
 TEST_F(UpstreamFetchTest, FetchResponse) {
   EXPECT_EQ(fetch_task_, nullptr);
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
   EXPECT_NE(fetch_task_, nullptr);
   EXPECT_NE(fetch_.task(), nullptr);
   EXPECT_TRUE(fetch_task_->GetStatus().ok());
@@ -144,8 +139,8 @@ TEST_F(UpstreamFetchTest, FetchResponse) {
 
 TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
   bool terminated = false;
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(),
-                       [&]() { terminated = true; });
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), [&]() { terminated = true; });
   bool got_eof = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
     PublishedObject object;
@@ -160,14 +155,15 @@ TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
 
 TEST_F(UpstreamFetchTest, FetchClosedByApplication) {
   bool terminated = false;
-  fetch_.OnFetchResult(Location(3, 50), absl::Status(),
-                       [&]() { terminated = true; });
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::Status(), [&]() { terminated = true; });
   fetch_task_.reset();
   EXPECT_TRUE(terminated);
 }
 
 TEST_F(UpstreamFetchTest, ObjectRetrieval) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
@@ -201,6 +197,86 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
   EXPECT_EQ(got_read_callback, 2);  // Call from GetNextObjectResult().
   EXPECT_TRUE(got_object);
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidOkFirstObjectIdDeclining) {
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
+  EXPECT_FALSE(
+      fetch_.LocationIsValid(Location(1, 0), MoqtObjectStatus::kNormal, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidPartialObject) {
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, false));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, false));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidOkGroupDescendingIncorrectly) {
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(3, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_FALSE(
+      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidOkGroupAscendingIncorrectly) {
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kDescending,
+                       absl::OkStatus(), nullptr);
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_FALSE(
+      fetch_.LocationIsValid(Location(3, 1), MoqtObjectStatus::kNormal, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidLearnOrderThenOkSuccess) {
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kAscending,
+                       absl::OkStatus(), nullptr);
+  //  Groups arrived in ascending order, but the FETCH_OK reported descending.
+  EXPECT_TRUE(fetch_task_->GetStatus().ok());
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidLearnOrderThenOkFailure) {
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 1), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
+  bool termination_callback_called = false;
+  fetch_.OnFetchResult(Location(3, 50), MoqtDeliveryOrder::kDescending,
+                       absl::OkStatus(),
+                       [&]() { termination_callback_called = true; });
+  //  Groups arrived in ascending order, but the FETCH_OK reported descending.
+  EXPECT_TRUE(termination_callback_called);
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfGroup) {
+  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
+                                     MoqtObjectStatus::kEndOfGroup, true));
+  EXPECT_FALSE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfTrack) {
+  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
+                                     MoqtObjectStatus::kEndOfTrack, true));
+  EXPECT_FALSE(
+      fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
 }
 
 }  // namespace test

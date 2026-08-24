@@ -53,6 +53,9 @@ class CookieControlsController final
   // Called when the web_contents has changed.
   void Update(content::WebContents* web_contents);
 
+  // Updates user bypass visibility and/or highlighting.
+  void UpdateUserBypass();
+
   // Called when the fingerprinting protection filter has blocked a subresource.
   void OnSubresourceBlocked();
 
@@ -62,6 +65,9 @@ class CookieControlsController final
 
   // Called when the UI is closing.
   void OnUiClosing();
+
+  // Called when the bubble should be closed.
+  void OnBubbleCloseTriggered();
 
   // Called when the user clicks on the toggle to enable/disable cookie
   // blocking.
@@ -133,6 +139,7 @@ class CookieControlsController final
     // content::WebContentsObserver:
     void PrimaryPageChanged(content::Page& page) override;
     void DidStopLoading() override;
+    void BeforeFormRepostWarningShow() override;
 
     // fingerprinting_protection_filter::FingerprintingProtectionObserver:
     void OnSubresourceBlocked() override;
@@ -184,9 +191,6 @@ class CookieControlsController final
   bool ShowFingerprintingProtection() const;
 
   bool HasOriginSandboxedTopLevelDocument() const;
-
-  // Updates user bypass visibility and/or highlighting.
-  void UpdateUserBypass();
 
   void UpdateLastVisitedSitesMap();
 
@@ -250,6 +254,10 @@ class CookieControlsController final
   bool has_exception_expired_since_last_visit_ = false;
 
   bool waiting_for_page_load_finish_ = false;
+
+  // If we should show the UB icon as confirmation of a change in the user's
+  // protection state on the current site.
+  bool show_icon_as_confirmation_ = false;
 
   base::ObserverList<CookieControlsObserver> observers_;
 

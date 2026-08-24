@@ -63,6 +63,7 @@
 <translation id="1704230497453185209">به سایت‌ها اجازه داده نشود صدا پخش کنند</translation>
 <translation id="1717218214683051432">حسگرهای حرکتی</translation>
 <translation id="1717996979683942279">وقتی روشن باشد، سایت‌ها می‌توانند درخواست مدیریت پنجره‌های همه نمایشگرهایتان را داشته باشند. وقتی خاموش باشد، سایت‌ها نمی‌توانند پنجره‌های همه نمایشگرهایتان را مدیریت کنند.</translation>
+<translation id="1738912554587725807">برگ زیرین مجموعه زمینه‌های نمایش صفحه زبانه جدید</translation>
 <translation id="1743802530341753419">قبل از اجازه دادن به سایت‌ها برای اتصال به دستگاه سؤال شود (توصیه می‌شود)</translation>
 <translation id="1777815584158991902">برگ زیرین فید یافته‌ها</translation>
 <translation id="1779089405699405702">رمزگشای تصویر</translation>
@@ -120,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> مگابایت</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" />، و <ph name="NUM_MORE" /> اجازه دیگر مجاز هستند}one{<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" />، و <ph name="NUM_MORE" /> اجازه دیگر مجاز هستند}other{<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" />، و <ph name="NUM_MORE" /> اجازه دیگر مجاز هستند}}</translation>
 <translation id="2410940059315936967">سایتی که بازدید می‌کنید می‌تواند از سایت‌های دیگر محتوایی مثل تصویر، آگهی، و نوشتار جاسازی کند. کوکی‌های تنظیم‌شده توسط سایت‌های دیگر کوکی‌های طرف سوم نامیده می‌شوند.</translation>
+<translation id="2411116727035790889">روشن کردن میان‌برها</translation>
 <translation id="2433507940547922241">شکل ظاهری</translation>
 <translation id="2434158240863470628">بارگیری کامل شد <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">موقتاً به این سایت اجازه دادید از کوکی‌های طرف سوم استفاده کند. این کار به‌معنی محافظت کمتر هنگام مرور است اما ویژگی‌های سایت به احتمال زیاد طبق انتظار کار خواهند کرد. <ph name="BEGIN_LINK" />ارسال بازخورد<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@
 <translation id="3114012059975132928">پخش‌کننده ویدیو</translation>
 <translation id="3115898365077584848">نمایش دادن اطلاعات</translation>
 <translation id="3123473560110926937">در برخی سایت‌ها مسدود می‌شود</translation>
+<translation id="3132996321662585180">بازآوری روزانه</translation>
 <translation id="3143754809889689516">پخش از ابتدا</translation>
 <translation id="3162899666601560689">سایت‌ها می‌توانند از کوکی‌ها برای بهبود تجربه مرورتان استفاده کنند، مثلاً برای اینکه شما را درحالت واردشده به سیستم نگه دارند یا موارد موجود در سبد خریدتان را به‌خاطر بسپارند</translation>
 <translation id="3165022941318558018">اجازه دادن به سایتی به‌خصوص برای استفاده از کوکی‌های طرف سوم</translation>
@@ -356,6 +359,7 @@
 <translation id="5100237604440890931">کوچک شده - برای بزرگ کردن کلیک کنید.</translation>
 <translation id="5116239826668864748">‏در هرزمانی با تک‌ضرب زدن روی پیوندهای موجود در پیام‌ها، اسناد، و دیگر برنامه‌ها می‌توانید از Chrome استفاده کنید</translation>
 <translation id="5123685120097942451">برگه ناشناس</translation>
+<translation id="512938610812707830">برگ زیرین مجموعه زمینه‌های نمایش صفحه زبانه جدید که به‌صورت کامل باز شده است</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{کاهش قیمت در برگه‌های باز}one{کاهش قیمت در برگه‌های باز}other{کاهش قیمت‌ها در برگه‌های باز}}</translation>
 <translation id="5186036860380548585">گزینه مربوطه در نزدیکی بالای صفحه دردسترس است</translation>
 <translation id="5197729504361054390">مخاطبین انتخابی شما با <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" /> هم‌رسانی می‌شود.</translation>
@@ -608,7 +612,6 @@
 <translation id="8186479265534291036">سایت کار نمی‌کند؟ کوکی‌های طرف سوم مسدود شده است</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> مجاز است</translation>
 <translation id="8200772114523450471">ازسرگیری</translation>
-<translation id="8206354486702514201">این تنظیم توسط سرپرست شما اعمال شده است.</translation>
 <translation id="8211406090763984747">اتصال ایمن است</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />،‏ <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">انتقال به بالا</translation>
@@ -619,6 +622,7 @@
 <translation id="8324158725704657629">دوباره سؤال نشود</translation>
 <translation id="8362795839483915693">می‌توانید در سایت‌هایی که بازدید می‌کنید زوم‌پیش یا زوم‌پس کنید</translation>
 <translation id="8372893542064058268">«همگام‌سازی پس‌زمینه» را برای یک سایت خاص مجاز کنید.</translation>
+<translation id="8378714024927312812">توسط سازمانتان مدیریت می‌شود</translation>
 <translation id="83792324527827022">سایتی درحال استفاده از دوربین و میکروفونتان است</translation>
 <translation id="8380167699614421159">این سایتْ آگهی‌های مزاحم یا گمراه‌کننده نشان می‌دهد</translation>
 <translation id="8394832520002899662">برای برگشتن به سایت تک‌ضرب بزنید</translation>

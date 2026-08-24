@@ -58,6 +58,7 @@ using chrome_test_util::DeleteButton;
 using chrome_test_util::PrimarySignInButton;
 using chrome_test_util::ReadingListMarkAsReadButton;
 using chrome_test_util::ReadingListMarkAsUnreadButton;
+using chrome_test_util::SwipeActionDeleteButton;
 using reading_list_test_utils::AddedToLocalReadingListSnackbar;
 using reading_list_test_utils::OpenReadingList;
 using reading_list_test_utils::VisibleReadingListItem;
@@ -817,9 +818,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
       onElementWithMatcher:grey_accessibilityID(kReadingListViewID)]
       performAction:grey_swipeFastInDirection(kGREYDirectionLeft)];
 
-  id<GREYMatcher> deleteButtonMatcher =
-      grey_allOf(grey_accessibilityLabel(@"Delete"),
-                 grey_kindOfClassName(@"UISwipeActionStandardButton"), nil);
+  id<GREYMatcher> deleteButtonMatcher = SwipeActionDeleteButton();
   // Depending on the device, the swipe may have deleted the element or just
   // displayed the "Delete" button. Check if the delete button is still on
   // screen and tap it if it is the case.
@@ -1171,6 +1170,12 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
 // Tests display and selection of 'Open in New Incognito Tab' in a context menu
 // on a history entry.
 - (void)testContextMenuOpenInIncognito {
+#if TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/433982582): Flaky on an iPhone simulator.
+  if ([ChromeEarlGrey isIPhoneIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
+  }
+#endif
   GURL distillablePageURL(self.testServer->GetURL(kDistillableURL));
   [self addURLToReadingList:distillablePageURL];
   LongPressEntry(kDistillableTitle);
@@ -1231,6 +1236,12 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
 
 // Tests the Share context menu action for a reading list entry.
 - (void)testContextMenuShare {
+#if TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/433982582): Flaky on an iPhone simulator.
+  if ([ChromeEarlGrey isIPhoneIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
+  }
+#endif
   GURL distillablePageURL(self.testServer->GetURL(kDistillableURL));
   [self addURLToReadingList:distillablePageURL];
   LongPressEntry(kDistillableTitle);
@@ -1241,6 +1252,12 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
 
 // Tests the Delete context menu action for a reading list entry.
 - (void)testContextMenuDelete {
+#if TARGET_IPHONE_SIMULATOR
+  // TODO(crbug.com/433982582): Flaky on an iPhone simulator.
+  if ([ChromeEarlGrey isIPhoneIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
+  }
+#endif
   GURL distillablePageURL(self.testServer->GetURL(kDistillableURL));
   [self addURLToReadingList:distillablePageURL];
   LongPressEntry(kDistillableTitle);

@@ -45,6 +45,8 @@ std::string FillingProductToString(FillingProduct filling_product) {
       return "IdentityCredential";
     case FillingProduct::kDataList:
       return "DataList";
+    case FillingProduct::kOneTimePassword:
+      return "OneTimePassword";
   }
   NOTREACHED();
 }
@@ -119,6 +121,8 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
       return FillingProduct::kLoyaltyCard;
     case SuggestionType::kIdentityCredential:
       return FillingProduct::kIdentityCredential;
+    case SuggestionType::kOneTimePasswordEntry:
+      return FillingProduct::kOneTimePassword;
   }
   NOTREACHED();
 }
@@ -159,6 +163,8 @@ FillingProduct GetFillingProductFromFieldTypeGroup(
       return FillingProduct::kAutofillAi;
     case kLoyaltyCard:
       return FillingProduct::kLoyaltyCard;
+    case kOneTimePassword:
+      return FillingProduct::kOneTimePassword;
   }
   NOTREACHED();
 }

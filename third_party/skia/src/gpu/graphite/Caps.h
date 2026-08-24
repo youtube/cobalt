@@ -48,6 +48,9 @@ struct ContextOptions;
 struct RenderPassDesc;
 
 struct ResourceBindingRequirements {
+    /* The API of the backend currently in use. */
+    BackendApi fBackendApi = BackendApi::kUnsupported;
+
     /* The required data layout rules for the contents of a uniform buffer. */
     Layout fUniformBufferLayout = Layout::kInvalid;
 
@@ -63,9 +66,9 @@ struct ResourceBindingRequirements {
 
     /**
      * Whether intrinsic constant information is stored as push constants (rather than normal UBO).
-     * Currently only relevant or possibly true for Vulkan.
+     * Currently only relevant or possibly true for Dawn or Vulkan.
      */
-    bool fUseVulkanPushConstantsForIntrinsicConstants = false;
+    bool fUsePushConstantsForIntrinsicConstants  = false;
 
     /**
      * Whether compute shader textures use separate index ranges from other resources (i.e. buffers)
@@ -352,6 +355,11 @@ public:
     }
 
     /**
+     * On some devices, clear load ops perform worse than discarding and drawing.
+     */
+    bool avoidClearLoadOps() const { return fAvoidClearLoadOps; }
+
+    /**
      * Returns the skgpu::Swizzle to use when sampling or reading back from a texture with the
      * passed in SkColorType and TextureInfo.
      */
@@ -521,6 +529,7 @@ protected:
     bool fBufferMapsAreAsync = false;
     bool fMSAARenderToSingleSampledSupport = false;
     bool fDifferentResolveAttachmentSizeSupport = false;
+    bool fAvoidClearLoadOps = false; // On some platforms, discard + draw is faster than a clear
 
     bool fComputeSupport = false;
     bool fSupportsAHardwareBufferImages = false;

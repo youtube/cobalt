@@ -151,7 +151,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodec(
 
   SB_LOG(INFO) << __func__ << ": audio_stream_info=" << audio_stream_info;
 
-  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
+  native_media_codec_bridge->Initialize(j_media_codec_bridge);
   return native_media_codec_bridge;
 }
 
@@ -236,7 +236,7 @@ MediaCodecBridge::CreateVideoMediaCodec(
                << ", has_color_metadata=" << ToString(!!color_metadata)
                << ", platform_options=" << platform_options;
 
-  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
+  native_media_codec_bridge->Initialize(j_media_codec_bridge);
   return native_media_codec_bridge;
 }
 
@@ -253,7 +253,8 @@ MediaCodecBridge::~MediaCodecBridge() {
   Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
-void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
+void MediaCodecBridge::Initialize(
+    const jni_zero::JavaRef<jobject>& j_media_codec_bridge) {
   SB_DCHECK(j_media_codec_bridge);
 
   JNIEnv* env = AttachCurrentThread();
@@ -268,7 +269,7 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
   return {span.data(), span.size()};
 }
 
@@ -338,7 +339,7 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
   return {span.data(), span.size()};
 }
 

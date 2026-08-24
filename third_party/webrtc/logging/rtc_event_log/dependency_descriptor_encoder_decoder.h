@@ -18,7 +18,7 @@
 
 #include "api/array_view.h"
 #include "logging/rtc_event_log/events/rtc_event_log_parse_status.h"
-#include "logging/rtc_event_log/rtc_event_log2_proto_include.h"
+#include "logging/rtc_event_log/rtc_event_log2_proto_include.h"  // IWYU pragma: keep
 
 namespace webrtc {
 

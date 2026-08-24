@@ -650,7 +650,9 @@ void ProfileMenuViewBase::AddBottomMargin() {
   }
 }
 
-void ProfileMenuViewBase::RecordClick(ActionableItem item) {
+void ProfileMenuViewBase::OnActionableItemClicked(ActionableItem item) {
+  actionable_item_clicked_ = true;
+
   // TODO(tangltom): Separate metrics for incognito and guest menu.
   base::UmaHistogramEnumeration(kProfileMenuClickedActionableItemHistogram,
                                 item);
@@ -749,11 +751,11 @@ void ProfileMenuViewBase::Init() {
 }
 
 void ProfileMenuViewBase::OnWindowClosing() {
-  if (!anchor_button()) {
+  if (!anchor_button_) {
     return;
   }
 
-  views::InkDrop::Get(anchor_button())
+  views::InkDrop::Get(anchor_button_.view())
       ->AnimateToState(views::InkDropState::DEACTIVATED, nullptr);
 }
 

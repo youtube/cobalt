@@ -38,6 +38,9 @@ public interface TabGroupModelFilterObserver {
          * or closing of individual tabs.
          */
         int CLOSE = 2;
+
+        /** The last tab in the group became pinned. */
+        int PIN = 3;
     }
 
     /**
@@ -53,10 +56,10 @@ public interface TabGroupModelFilterObserver {
     /**
      * This method is called before a group is moved.
      *
-     * @param tabModelOldIndex The old index of the {@code movedTab} in the {@link TabModel}.
-     * @param tabModelNewIndex The new index of the {@code movedTab} in the {@link TabModel}.
+     * @param tabGroupId The tab group id of the group being moved.
+     * @param currentIndex The current index of the group in the {@link TabModel}.
      */
-    default void willMoveTabGroup(int tabModelOldIndex, int tabModelNewIndex) {}
+    default void willMoveTabGroup(Token tabGroupId, int currentIndex) {}
 
     /**
      * This method is called before a tab within a group is moved out of the group.
@@ -114,7 +117,7 @@ public interface TabGroupModelFilterObserver {
      * @param destinationGroupColorId The original destination group color id.
      * @param destinationGroupTitleCollapsed Whether the destination group was originally collapsed.
      */
-    default void didCreateGroup(
+    default void showUndoGroupSnackbar(
             List<Tab> tabs,
             List<Integer> tabOriginalIndex,
             List<Integer> tabOriginalRootId,

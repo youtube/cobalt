@@ -18,12 +18,13 @@
 #include "chrome/browser/extensions/menu_manager.h"
 #include "chrome/browser/extensions/user_script_listener.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_loader_factory.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/common/url_constants.h"
+#include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/site_instance.h"
 #include "extensions/browser/extensions_browser_interface_binders.h"
+#include "ipc/constants.mojom.h"
 
 namespace extensions {
 
@@ -81,9 +82,10 @@ void ChromeExtensionsBrowserClient::CleanUpWebView(
   DCHECK(menu_manager);
   // The |webview_embedder_frame_id| parameter of ExtensionKey is not used to
   // identify the context menu items that belong to a WebView so it is OK for it
-  // to be |MSG_ROUTING_NONE| here.
+  // to be |IPC::mojom::kRoutingIdNone| here.
   menu_manager->RemoveAllContextItems(MenuItem::ExtensionKey(
-      "", embedder_process_id, /*webview_embedder_frame_id=*/MSG_ROUTING_NONE,
+      "", embedder_process_id,
+      /*webview_embedder_frame_id=*/IPC::mojom::kRoutingIdNone,
       view_instance_id));
 }
 

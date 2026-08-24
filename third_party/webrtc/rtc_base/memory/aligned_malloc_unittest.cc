@@ -16,7 +16,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <stdint.h>
+#include <cstdint>
 #endif
 
 #include "test/gtest.h"

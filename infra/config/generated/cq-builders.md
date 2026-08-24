@@ -180,6 +180,7 @@ builder.
   * [`//components/cast_receiver/.+`](https://cs.chromium.org/chromium/src/components/cast_receiver/)
   * [`//components/cast_streaming/.+`](https://cs.chromium.org/chromium/src/components/cast_streaming/)
   * [`//third_party/cast_core/.+`](https://cs.chromium.org/chromium/src/third_party/cast_core/)
+  * [`//third_party/jni_zero/.+`](https://cs.chromium.org/chromium/src/third_party/jni_zero/)
   * [`//third_party/openscreen/.+`](https://cs.chromium.org/chromium/src/third_party/openscreen/)
 
 * [android-cast-arm64-rel](https://ci.chromium.org/p/chromium/builders/try/android-cast-arm64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-cast-arm64-rel""))
@@ -193,6 +194,7 @@ builder.
   * [`//components/cast_receiver/.+`](https://cs.chromium.org/chromium/src/components/cast_receiver/)
   * [`//components/cast_streaming/.+`](https://cs.chromium.org/chromium/src/components/cast_streaming/)
   * [`//third_party/cast_core/.+`](https://cs.chromium.org/chromium/src/third_party/cast_core/)
+  * [`//third_party/jni_zero/.+`](https://cs.chromium.org/chromium/src/third_party/jni_zero/)
   * [`//third_party/openscreen/.+`](https://cs.chromium.org/chromium/src/third_party/openscreen/)
 
 * [android-cronet-arm-dbg](https://ci.chromium.org/p/chromium/builders/try/android-cronet-arm-dbg) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-cronet-arm-dbg""))
@@ -202,6 +204,7 @@ builder.
   * [`//components/grpc_support/.+`](https://cs.chromium.org/chromium/src/components/grpc_support/)
   * [`//build/android/.+`](https://cs.chromium.org/chromium/src/build/android/)
   * [`//build/config/android/.+`](https://cs.chromium.org/chromium/src/build/config/android/)
+  * [`//third_party/jni_zero/.+`](https://cs.chromium.org/chromium/src/third_party/jni_zero/)
 
 * [android-cronet-x64-dbg-16-tests](https://ci.chromium.org/p/chromium/builders/try/android-cronet-x64-dbg-16-tests) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-cronet-x64-dbg-16-tests""))
 
@@ -218,6 +221,7 @@ builder.
   * [`//components/grpc_support/.+`](https://cs.chromium.org/chromium/src/components/grpc_support/)
   * [`//build/android/.+`](https://cs.chromium.org/chromium/src/build/android/)
   * [`//build/config/android/.+`](https://cs.chromium.org/chromium/src/build/config/android/)
+  * [`//third_party/jni_zero/.+`](https://cs.chromium.org/chromium/src/third_party/jni_zero/)
 
 * [android-cronet-x86-dbg-marshmallow-tests](https://ci.chromium.org/p/chromium/builders/try/android-cronet-x86-dbg-marshmallow-tests) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-cronet-x86-dbg-marshmallow-tests""))
 
@@ -442,35 +446,6 @@ builder.
 
   Location filters:
   * [`//infra/config/generated/builders/[^/]+/[^/]+/gn-args\.json`](https://cs.chromium.org/search?q=+file:infra/config/generated/builders/[^/]+/[^/]+/gn-args\.json)
-
-* [gpu-fyi-cq-android-arm64](https://ci.chromium.org/p/chromium/builders/try/gpu-fyi-cq-android-arm64) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""gpu-fyi-cq-android-arm64""))
-
-  Location filters:
-  * [`//cc/.+`](https://cs.chromium.org/chromium/src/cc/)
-  * [`//chrome/browser/vr/.+`](https://cs.chromium.org/chromium/src/chrome/browser/vr/)
-  * [`//content/browser/xr/.+`](https://cs.chromium.org/chromium/src/content/browser/xr/)
-  * [`//components/viz/.+`](https://cs.chromium.org/chromium/src/components/viz/)
-  * [`//content/test/data/gpu/.+`](https://cs.chromium.org/chromium/src/content/test/data/gpu/)
-  * [`//content/test/gpu/.+`](https://cs.chromium.org/chromium/src/content/test/gpu/)
-  * [`//gpu/.+`](https://cs.chromium.org/chromium/src/gpu/)
-  * [`//media/audio/.+`](https://cs.chromium.org/chromium/src/media/audio/)
-  * [`//media/base/.+`](https://cs.chromium.org/chromium/src/media/base/)
-  * [`//media/capture/.+`](https://cs.chromium.org/chromium/src/media/capture/)
-  * [`//media/filters/.+`](https://cs.chromium.org/chromium/src/media/filters/)
-  * [`//media/gpu/.+`](https://cs.chromium.org/chromium/src/media/gpu/)
-  * [`//media/mojo/.+`](https://cs.chromium.org/chromium/src/media/mojo/)
-  * [`//media/renderers/.+`](https://cs.chromium.org/chromium/src/media/renderers/)
-  * [`//media/video/.+`](https://cs.chromium.org/chromium/src/media/video/)
-  * [`//services/viz/.+`](https://cs.chromium.org/chromium/src/services/viz/)
-  * [`//testing/trigger_scripts/.+`](https://cs.chromium.org/chromium/src/testing/trigger_scripts/)
-  * [`//third_party/blink/renderer/modules/mediastream/.+`](https://cs.chromium.org/chromium/src/third_party/blink/renderer/modules/mediastream/)
-  * [`//third_party/blink/renderer/modules/webcodecs/.+`](https://cs.chromium.org/chromium/src/third_party/blink/renderer/modules/webcodecs/)
-  * [`//third_party/blink/renderer/modules/webgl/.+`](https://cs.chromium.org/chromium/src/third_party/blink/renderer/modules/webgl/)
-  * [`//third_party/blink/renderer/modules/webgpu/.+`](https://cs.chromium.org/chromium/src/third_party/blink/renderer/modules/webgpu/)
-  * [`//third_party/blink/renderer/platform/graphics/gpu/.+`](https://cs.chromium.org/chromium/src/third_party/blink/renderer/platform/graphics/gpu/)
-  * [`//tools/clang/scripts/update.py`](https://cs.chromium.org/search?q=+file:tools/clang/scripts/update.py)
-  * [`//ui/gl/.+`](https://cs.chromium.org/chromium/src/ui/gl/)
-  * exclude: [`//.*\.md`](https://cs.chromium.org/search?q=+file:.*\.md)
 
 * [ios-simulator-full-configs](https://ci.chromium.org/p/chromium/builders/try/ios-simulator-full-configs) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""ios-simulator-full-configs""))
 
@@ -827,7 +802,7 @@ as required builders.
 
 ### chrome
 * [linux-perf-trigger](https://ci.chromium.org/p/chrome/builders/try/linux-perf-trigger) ([definition](https://source.corp.google.com/search?q=+file:/try/.*\.star$+""linux-perf-trigger""))
-  * Experiment percentage: 50.0
+  * Experiment percentage: 100.0
 
 ### chromium
 * [chromeos-js-coverage-rel](https://ci.chromium.org/p/chromium/builders/try/chromeos-js-coverage-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""chromeos-js-coverage-rel""))

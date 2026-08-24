@@ -108,6 +108,15 @@ class MultiContentsView : public views::View,
   // If in a split view, swaps the order of the two contents views.
   void OnSwap();
 
+  // If the split view is being resized.
+  bool IsSplitResizing() const {
+    return initial_start_width_on_resize_.has_value();
+  }
+
+  // Returns the minimum width for a single view within the `MultiContentsView`.
+  // Returns 0 if not in a split view.
+  int GetMinViewWidth() const;
+
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
 
@@ -162,6 +171,7 @@ class MultiContentsView : public views::View,
   int GetInactiveIndex();
 
   void OnWebContentsFocused(views::WebView*);
+  void OnNtpFooterFocused(views::WebView*);
 
   ViewWidths GetViewWidths(gfx::Rect available_space) const;
 
@@ -183,6 +193,10 @@ class MultiContentsView : public views::View,
   // is focused.
   std::vector<base::CallbackListSubscription>
       web_contents_focused_subscriptions_;
+
+  // Holds subscriptions for when the attached web contents to NtpFooterView
+  // is focused.
+  std::vector<base::CallbackListSubscription> ntp_footer_focused_subscriptions_;
 
   // The handle responsible for resizing the two contents views as relative to
   // each other.

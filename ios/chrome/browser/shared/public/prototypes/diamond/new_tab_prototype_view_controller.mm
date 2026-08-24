@@ -118,6 +118,10 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     _omniboxCoordinator.presenterDelegate = self;
 
     [_omniboxCoordinator start];
+
+    if (!isNewTabPage) {
+      [_omniboxCoordinator updateOmniboxState];
+    }
   }
   return self;
 }
@@ -130,7 +134,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   [super viewDidLoad];
   self.view.backgroundColor = UIColor.clearColor;
   UIBlurEffect* blurEffect =
-      [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterial];
+      [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterial];
   UIVisualEffectView* blurBackground =
       [[UIVisualEffectView alloc] initWithEffect:blurEffect];
   blurBackground.translatesAutoresizingMaskIntoConstraints = NO;

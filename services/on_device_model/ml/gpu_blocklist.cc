@@ -10,13 +10,10 @@
 #include "base/strings/string_number_conversions.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "gpu/config/webgpu_blocklist_impl.h"
-#include "third_party/dawn/include/dawn/webgpu_cpp.h"
-
-#if !BUILDFLAG(IS_IOS)
 #include "gpu/config/gpu_info_collector.h"
 #include "gpu/config/gpu_util.h"
-#endif
+#include "gpu/config/webgpu_blocklist_impl.h"
+#include "third_party/dawn/include/dawn/webgpu_cpp.h"
 
 namespace ml {
 
@@ -27,8 +24,9 @@ const base::FeatureParam<std::string> kGpuBlockList{
     "on_device_model_gpu_block_list",
     // These devices are nearly always crashing or have very low performance.
     "8086:412|8086:a16|8086:41e|8086:416|8086:402|8086:166|8086:1616|8086:22b1|"
-    "8086:22b0|8086:1916|8086:5a84|8086:5a85|1414:8c|8086:*:*31.0.101.4824*|"
-    "8086:*:*31.0.101.4676*"};
+    "8086:22b0|8086:1916|8086:5a84|8086:5a85|8086:416|1414:8c|"
+    "8086:*:*31.0.101.4824*|8086:*:*31.0.101.4676*|8086:*:*20.19.15.4835*|"
+    "8086:*:*26.20.100.7926*|8086:*:*26.20.100.7870*|8086:*:*26.20.100.7925*"};
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -46,6 +44,10 @@ void LogGpuBlocked(GpuBlockedReason reason) {
 
 DISABLE_CFI_DLSYM
 GpuBlockedReason IsGpuBlockedInternal(const ChromeMLAPI& api) {
+  if (base::FeatureList::IsEnabled(kOnDeviceModelAllowGpuForTesting)) {
+    return GpuBlockedReason::kNotBlocked;
+  }
+
   struct QueryData {
     bool blocklisted;
     bool is_blocklisted_cpu_adapter;
@@ -60,7 +62,6 @@ GpuBlockedReason IsGpuBlockedInternal(const ChromeMLAPI& api) {
       WebGPUBlocklistReason::Consteval22ndBit |
       WebGPUBlocklistReason::WindowsARM;
 
-#if !BUILDFLAG(IS_IOS)
   // Take a first pass at checking the blocklist. Creating a wgpu::Adapter can
   // crash in some situations, so use gpu::GPUInfo to avoid this. Using
   // wgpu::Adapter should be more accurate, so also check that later.
@@ -70,6 +71,9 @@ GpuBlockedReason IsGpuBlockedInternal(const ChromeMLAPI& api) {
       gpu_info.GetGpuByPreference(gl::GpuPreference::kHighPerformance);
   if (!device) {
     device = &gpu_info.active_gpu();
+  }
+  if (device->IsSoftwareRenderer()) {
+    return GpuBlockedReason::kBlocklisted;
   }
   if (device) {
     WGPUAdapterInfo adapter_info = {
@@ -88,7 +92,6 @@ GpuBlockedReason IsGpuBlockedInternal(const ChromeMLAPI& api) {
       return GpuBlockedReason::kBlocklisted;
     }
   }
-#endif
 
   QueryData query_data;
   if (!api.QueryGPUAdapter(
@@ -133,10 +136,16 @@ GpuBlockedReason IsGpuBlockedInternal(const ChromeMLAPI& api) {
 
 }  // namespace
 
+BASE_FEATURE(kOnDeviceModelAllowGpuForTesting,
+             "OnDeviceModelAllowGpuForTesting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 COMPONENT_EXPORT(ON_DEVICE_MODEL_ML)
-bool IsGpuBlocked(const ChromeMLAPI& api) {
+bool IsGpuBlocked(const ChromeMLAPI& api, bool log_histogram) {
   auto reason = IsGpuBlockedInternal(api);
-  LogGpuBlocked(reason);
+  if (log_histogram) {
+    LogGpuBlocked(reason);
+  }
   return reason != GpuBlockedReason::kNotBlocked;
 }
 

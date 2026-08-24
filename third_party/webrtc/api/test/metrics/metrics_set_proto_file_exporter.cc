@@ -9,8 +9,7 @@
  */
 #include "api/test/metrics/metrics_set_proto_file_exporter.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <map>
 #include <string>
 #include <utility>

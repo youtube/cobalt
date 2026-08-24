@@ -10,9 +10,8 @@
 
 #include "media/base/rtp_utils.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 // PacketTimeUpdateParams is defined in asyncpacketsocket.h.
@@ -184,13 +183,6 @@ RtpPacketType InferRtpPacketType(ArrayView<const uint8_t> packet) {
   return RtpPacketType::kUnknown;
 }
 
-bool ValidateRtpHeader(const uint8_t* rtp,
-                       size_t length,
-                       size_t* header_length) {
-  return ValidateRtpHeader(ArrayView<const uint8_t>(rtp, length),
-                           header_length);
-}
-
 bool ValidateRtpHeader(ArrayView<const uint8_t> rtp, size_t* header_length) {
   size_t length = rtp.size();
   if (header_length) {
@@ -356,16 +348,6 @@ bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> packet,
     }
   }
   return found;
-}
-
-bool ApplyPacketOptions(uint8_t* data,
-                        size_t length,
-                        const PacketTimeUpdateParams& packet_time_params,
-                        uint64_t time_us) {
-  RTC_DCHECK(data);
-  RTC_DCHECK(length);
-  return ApplyPacketOptions(ArrayView<uint8_t>(data, length),
-                            packet_time_params, time_us);
 }
 
 bool ApplyPacketOptions(ArrayView<uint8_t> data,

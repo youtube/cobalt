@@ -17,6 +17,7 @@
 namespace blink {
 
 void InspectorEmulationAgent::ApplyAcceptLanguageOverride(String*) {}
+void InspectorEmulationAgent::ApplyDataSaverOverride(bool&) {}
 void InspectorEmulationAgent::ApplyHardwareConcurrencyOverride(unsigned int&) {}
 void InspectorEmulationAgent::ApplyUserAgentOverride(String*) {}
 void InspectorEmulationAgent::ApplyUserAgentMetadataOverride(

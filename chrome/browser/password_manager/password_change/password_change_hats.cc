@@ -5,34 +5,24 @@
 #include "chrome/browser/password_manager/password_change/password_change_hats.h"
 
 #include "base/strings/to_string.h"
-#include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/hats/hats_service.h"
-#include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
 
-PasswordChangeHats::PasswordChangeHats(Profile* profile)
-    : hats_service_(
-          HatsServiceFactory::GetForProfile(profile,
-                                            /*create_if_necessary=*/true)) {
+PasswordChangeHats::PasswordChangeHats(
+    HatsService* hats_service,
+    password_manager::PasswordStoreInterface* profile_store,
+    password_manager::PasswordStoreInterface* account_store)
+    : hats_service_(hats_service) {
   if (!hats_service_) {
     // No point in fetching the data if `hats_service_` is nullptr.
     return;
   }
 
-  password_manager::PasswordStoreInterface* profile_store =
-      ProfilePasswordStoreFactory::GetForProfile(
-          profile, ServiceAccessType::EXPLICIT_ACCESS)
-          .get();
-  password_manager::PasswordStoreInterface* account_store =
-      AccountPasswordStoreFactory::GetForProfile(
-          profile, ServiceAccessType::EXPLICIT_ACCESS)
-          .get();
   if (profile_store) {
     fetch_initiated_count_++;
     profile_store->GetAllLogins(weak_ptr_factory_.GetWeakPtr());
@@ -47,7 +37,7 @@ PasswordChangeHats::~PasswordChangeHats() = default;
 
 void PasswordChangeHats::MaybeLaunchSurvey(
     const std::string& trigger,
-    base::TimeDelta password_change_duration,
+    std::optional<base::TimeDelta> password_change_duration,
     content::WebContents* web_contents) {
   if (!hats_service_) {
     return;
@@ -58,8 +48,6 @@ void PasswordChangeHats::MaybeLaunchSurvey(
       ukm::GetExponentialBucketMinForCounts1000(passwords_count_);
   int64_t bucketed_leaked_passwords_count =
       ukm::GetExponentialBucketMinForCounts1000(leaked_passwords_count_);
-  int64_t bucketed_runtime = ukm::GetSemanticBucketMinForDurationTiming(
-      password_change_duration.InMilliseconds());
 
   // Hats service requires defined product-specific data to be non-empty.
   // Pass -1 if the data is not fetched yet, so it can be filtered out.
@@ -68,19 +56,26 @@ void PasswordChangeHats::MaybeLaunchSurvey(
     bucketed_leaked_passwords_count = -1;
   }
 
+  SurveyStringData survey_string_data = {
+      {password_manager::features_util::kPasswordChangeBreachedPasswordsCount,
+       base::ToString(bucketed_leaked_passwords_count)},
+      {password_manager::features_util::kPasswordChangeSavedPasswordsCount,
+       base::ToString(bucketed_passwords_count)}};
+  if (password_change_duration.has_value()) {
+    int64_t bucketed_runtime = ukm::GetSemanticBucketMinForDurationTiming(
+        password_change_duration->InMilliseconds());
+    survey_string_data
+        [password_manager::features_util::kPasswordChangeRuntime] =
+            base::ToString(bucketed_runtime);
+  }
+
   hats_service_->LaunchDelayedSurveyForWebContents(
       trigger, web_contents,
       /*timeout_ms=*/0, /*product_specific_bits_data=*/
       {{password_manager::features_util::
             kPasswordChangeSuggestedPasswordsAdoption,
         adopted_generated_passwords_}},
-      /*product_specific_string_data=*/
-      {{password_manager::features_util::kPasswordChangeBreachedPasswordsCount,
-        base::ToString(bucketed_leaked_passwords_count)},
-       {password_manager::features_util::kPasswordChangeSavedPasswordsCount,
-        base::ToString(bucketed_passwords_count)},
-       {password_manager::features_util::kPasswordChangeRuntime,
-        base::ToString(bucketed_runtime)}});
+      survey_string_data);
 }
 
 void PasswordChangeHats::OnGetPasswordStoreResultsOrErrorFrom(

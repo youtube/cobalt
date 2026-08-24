@@ -23,7 +23,7 @@ namespace moqt {
 
 struct PublishedObjectMetadata {
   Location location;
-  std::optional<uint64_t> subgroup;  // nullopt for datagrams
+  uint64_t subgroup;  // Equal to object_id for datagrams.
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();
@@ -147,7 +147,7 @@ class MoqtTrackPublisher {
   //
   // This method returns nullopt if the object is not currently available, but
   // might become available in the future.  If the object is gone forever,
-  // kGroupDoesNotExist/kObjectDoesNotExist has to be returned instead;
+  // kEndOfGroup/kObjectDoesNotExist has to be returned instead;
   // otherwise, the corresponding QUIC streams will be stuck waiting for objects
   // that will never arrive.
   virtual std::optional<PublishedObject> GetCachedObject(

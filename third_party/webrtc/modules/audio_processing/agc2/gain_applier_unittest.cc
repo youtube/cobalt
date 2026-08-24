@@ -10,9 +10,8 @@
 
 #include "modules/audio_processing/agc2/gain_applier.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>

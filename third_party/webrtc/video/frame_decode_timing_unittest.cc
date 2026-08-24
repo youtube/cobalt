@@ -10,8 +10,7 @@
 
 #include "video/frame_decode_timing.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 
 #include "api/field_trials.h"

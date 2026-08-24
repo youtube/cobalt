@@ -10,8 +10,7 @@
 
 #include "rtc_base/string_to_number.h"
 
-#include <ctype.h>
-
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <optional>

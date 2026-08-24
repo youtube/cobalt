@@ -603,7 +603,6 @@
 <translation id="3026897869154397692">கேலெண்டரில் சேர்க்கப்பட்டது</translation>
 <translation id="3033545621352269033">இயக்கப்பட்டுள்ளது</translation>
 <translation id="3033912566804961911"><ph name="DESK_NAME" /> உடன் ஒன்றிணைக்கும்</translation>
-<translation id="3036649622769666520">ஃபைல்களைத் திற</translation>
 <translation id="3039939407102840004">ஸ்டைலஸ் பேட்டரி: <ph name="PERCENTAGE" /> சதவீதம்.</translation>
 <translation id="304097922505898963">Key Shortcuts ஆப்ஸைத் திற</translation>
 <translation id="304417730895741346">பின் செய்யப்பட்டுள்ள ஆப்ஸும் திறந்துள்ள ஆப்ஸும் ஷெல்ஃபில் உள்ளன. ஓர் ஆப்ஸை ஷெல்ஃபில் பின் செய்ய, ஆப்ஸின் மீது வலது கிளிக் செய்யவும் அல்லது டச்பேடை இரண்டு விரல்களால் தட்டவும்.</translation>
@@ -1603,7 +1602,6 @@
 <translation id="6166852626429024716">உங்கள் சாதனம், ஆப்ஸ், அமைப்புகள், இணையம் ஆகியவற்றில் தேடுக...</translation>
 <translation id="6168318496333165060">Diagnostics ஆப்ஸைத் திற</translation>
 <translation id="6168622430237609329">உங்களது நிறுவப்பட்டுள்ள ஆப்ஸ்</translation>
-<translation id="6179832488876878285">முக்கியமான கோப்புகளை இங்கே பின் (pin) செய்யலாம். பின் செய்ய Files ஆப்ஸைத் திறக்கவும்.</translation>
 <translation id="6180193585172850042">பின்செல்லும் பட்டன்</translation>
 <translation id="6180651297859206670">முன்செல்லும் பட்டன்</translation>
 <translation id="6182592640011875895">டெஸ்க்கைத் திற</translation>
@@ -1915,6 +1913,7 @@
 <translation id="7240636904654154599">Google விரிதாள் உருவாக்கப்பட்டது</translation>
 <translation id="7244725679040769470"><ph name="PERCENTAGE" />% பேட்டரி மீதமுள்ளது. சாதனத்தைச் சார்ஜ் செய்யவும்.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. புதுப்பிப்பைப் பயன்படுத்த இந்த Chromebookகை மீண்டும் தொடங்க வேண்டும். இதற்கு 1 நிமிடம் வரை ஆகலாம்.</translation>
+<translation id="7248100343060254997">திரையில் தேடு</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">பின்பக்க மைக்ரோஃபோன்</translation>
 <translation id="7258828758145722155">நேற்று திருத்தப்பட்டது</translation>

@@ -10,10 +10,9 @@
 
 #include "video/config/simulcast.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>

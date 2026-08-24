@@ -1979,12 +1979,13 @@ void P2PTransportChannel::UpdateTransportState() {
         RTC_DCHECK_NOTREACHED();
         break;
     }
-    state_ = state;
-    SignalStateChanged(this);
   }
 
-  if (standardized_state_ != current_standardized_state) {
+  if (standardized_state_ != current_standardized_state || state_ != state) {
     standardized_state_ = current_standardized_state;
+    state_ = state;
+    // Unconditionally signal change, no matter what changed.
+    // TODO: issues.webrtc.org/42234495 - rmeove nonstandard state_
     SignalIceTransportStateChanged(this);
   }
 }
@@ -2219,14 +2220,8 @@ void P2PTransportChannel::OnCandidatesRemoved(
   if (!config_.gather_continually() || session != allocator_session()) {
     return;
   }
-
-  std::vector<Candidate> candidates_to_remove;
-  for (Candidate candidate : candidates) {
-    candidate.set_transport_name(transport_name());
-    candidates_to_remove.push_back(candidate);
-  }
   if (candidates_removed_callback_) {
-    candidates_removed_callback_(this, candidates_to_remove);
+    candidates_removed_callback_(this, candidates);
   }
 }
 

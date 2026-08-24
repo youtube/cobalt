@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/fonts/text_run_paint_info.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
@@ -452,7 +453,9 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     size_t row_bytes,
     int x,
     int y) {
-  DCHECK(IsCanvas2DBufferValid());
+  if (!resource_provider_ || !resource_provider_->IsValid()) {
+    return false;
+  }
 
   resource_provider_->FlushCanvas(FlushReason::kWritePixels);
 
@@ -488,12 +491,6 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
     GetState().SetFont(desc, host->GetFontSelector());
   }
   return true;
-}
-
-bool OffscreenCanvasRenderingContext2D::IsCanvas2DBufferValid() {
-  if (IsPaintable())
-    return resource_provider_->IsValid();
-  return false;
 }
 
 std::optional<cc::PaintRecord> OffscreenCanvasRenderingContext2D::FlushCanvas(

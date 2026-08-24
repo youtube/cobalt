@@ -10,11 +10,10 @@
 
 #include "modules/audio_processing/utility/delay_estimator.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "rtc_base/checks.h"
 

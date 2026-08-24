@@ -16,6 +16,7 @@
 #include <string>
 #include <utility>
 
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/jsep.h"

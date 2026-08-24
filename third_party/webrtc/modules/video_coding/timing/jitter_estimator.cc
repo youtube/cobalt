@@ -10,10 +10,9 @@
 
 #include "modules/video_coding/timing/jitter_estimator.h"
 
-#include <math.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 #include <optional>
 
 #include "absl/strings/string_view.h"

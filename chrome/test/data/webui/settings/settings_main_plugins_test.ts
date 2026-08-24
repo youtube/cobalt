@@ -6,10 +6,11 @@ import 'chrome://settings/settings.js';
 
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {Route, SettingsMainElement, SettingsPrefsElement} from 'chrome://settings/settings.js';
-import {CrSettingsPrefs, loadTimeData, pageVisibility, resetPageVisibilityForTesting, Router, routes, setSearchManagerForTesting} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, loadTimeData, pageVisibility, resetPageVisibilityForTesting, resetRouterForTesting, Router, routes, setSearchManagerForTesting, SignedInState, StatusAction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 
+import {simulateSyncStatus} from './sync_test_util.js';
 import {TestSearchManager} from './test_search_manager.js';
 
 suite('SettingsMain', function() {
@@ -35,8 +36,18 @@ suite('SettingsMain', function() {
   }
 
   setup(function() {
-    loadTimeData.overrideValues({isGuest: false});
+    loadTimeData.overrideValues({
+      isGuest: false,
+      showAiPage: false,
+      showResetProfileBanner: false,
+      replaceSyncPromosWithSignInPromos: true,
+    });
     createSettingsMain();
+    simulateSyncStatus({
+      signedInState: SignedInState.SIGNED_IN,
+      statusAction: StatusAction.NO_ACTION,
+    });
+    flush();
   });
 
   test('UpdatesActiveViewWhenRouteChanges', async function() {
@@ -49,23 +60,10 @@ suite('SettingsMain', function() {
           `.active[slot=view] > :not(${pluginTag}, dom-if)`));
     }
 
-    // Check routes that are still residing within the old settings-basic-page
-    // "plugin".
-    const nonMigratedRoutes = [
-      routes.BASIC,
-      routes.PRIVACY,
-    ];
-
-    for (const route of nonMigratedRoutes) {
-      Router.getInstance().navigateTo(route);
-      assertActive('settings-basic-page', route.path);
-    }
-
-    // Check routes that have been promoted to individual "plugins".
-    const migratedRoutes: Array<{route: Route, pluginTag: string}> = [
-      // TODO(crbug.com/424223101): Update this list as more routes are
-      // migrated.
-
+    const routesToVisit: Array<{route: Route, pluginTag: string}> = [
+      {route: routes.PEOPLE, pluginTag: 'settings-people-page-index'},
+      {route: routes.BASIC, pluginTag: 'settings-people-page-index'},
+      {route: routes.PRIVACY, pluginTag: 'settings-basic-page'},
       {route: routes.AUTOFILL, pluginTag: 'settings-autofill-page-index'},
       {route: routes.PERFORMANCE, pluginTag: 'settings-performance-page-index'},
       {route: routes.APPEARANCE, pluginTag: 'settings-appearance-page-index'},
@@ -87,7 +85,7 @@ suite('SettingsMain', function() {
       {route: routes.ABOUT, pluginTag: 'settings-about-page'},
     ];
 
-    for (const {route, pluginTag} of migratedRoutes) {
+    for (const {route, pluginTag} of routesToVisit) {
       Router.getInstance().navigateTo(route);
       await flushTasks();
       assertActive(pluginTag, route.path);
@@ -119,16 +117,16 @@ suite('SettingsMain', function() {
     assertFalse(settingsMain.$.switcher.hasAttribute('show-all'));
   });
 
-  test('RespectsVisibility', function() {
-    function queryView(id: string): HTMLElement|null {
-      return settingsMain.$.switcher.querySelector<HTMLElement>(
-          `#${id}[slot=view]`);
-    }
+  function queryView(id: string): HTMLElement|null {
+    return settingsMain.$.switcher.querySelector<HTMLElement>(
+        `#${id}[slot=view]`);
+  }
 
+  test('RespectsVisibility', function() {
     function assertVisibilityRespected() {
       const viewIds: string[] = [
         'a11y', 'about', 'appearance', 'downloads', 'languages', 'onStartup',
-        'performance', 'reset', 'search',
+        'people', 'performance', 'reset', 'search',
 
         // <if expr='not is_chromeos'>
         'defaultBrowser', 'system',
@@ -160,14 +158,26 @@ suite('SettingsMain', function() {
     assertVisibilityRespected();
   });
 
+  test('RespectsShowAiPage', function() {
+    assertFalse(loadTimeData.getBoolean('showAiPage'));
+    assertFalse(!!queryView('ai'));
+
+    loadTimeData.overrideValues({showAiPage: true});
+    resetPageVisibilityForTesting();
+    resetRouterForTesting();
+    createSettingsMain();
+    assertTrue(!!queryView('ai'));
+  });
+
   // Test which section is displayed when chrome://settings/ is visited.
-  test('TopLevelRoute', function() {
+  test('TopLevelRoute', async function() {
+    await flushTasks();
     // Case1: Default (non-guest mode)
     assertFalse(loadTimeData.getBoolean('isGuest'));
     let active = settingsMain.$.switcher.querySelector<HTMLElement>(
         '.active[slot=view]');
     assertTrue(!!active);
-    assertEquals('old', active.id);
+    assertEquals('people', active.id);
 
     // Case2: Guest mode.
     loadTimeData.overrideValues({isGuest: true});
@@ -183,5 +193,14 @@ suite('SettingsMain', function() {
     // <if expr="is_chromeos">
     assertEquals('old', active.id);
     // </if>
+  });
+
+  test('ResetProfileBannerShown', function() {
+    assertFalse(!!settingsMain.shadowRoot!.querySelector(
+        'settings-reset-profile-banner'));
+    loadTimeData.overrideValues({showResetProfileBanner: true});
+    createSettingsMain();
+    assertTrue(!!settingsMain.shadowRoot!.querySelector(
+        'settings-reset-profile-banner'));
   });
 });

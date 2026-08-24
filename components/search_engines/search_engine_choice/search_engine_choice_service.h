@@ -28,6 +28,10 @@ namespace TemplateURLPrepopulateData {
 class Resolver;
 }
 
+namespace user_prefs {
+class PrefRegistrySyncable;
+}
+
 class PrefRegistrySimple;
 class PrefService;
 class TemplateURLService;
@@ -113,6 +117,9 @@ class SearchEngineChoiceService : public KeyedService {
   // Records the specified choice screen condition for relevant navigations.
   void RecordDynamicEligibility(SearchEngineChoiceScreenConditions condition);
 
+  // Records the specified choice screen event.
+  void RecordChoiceScreenEvent(SearchEngineChoiceScreenEvents event);
+
   // Returns key information needed to show a search engine choice screen, like
   // the template URLs for the engines to show. See
   // `search_engines::ChoiceScreenData` for more details.
@@ -172,6 +179,9 @@ class SearchEngineChoiceService : public KeyedService {
 
   // Register Local state preferences in `registry`.
   static void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
+
+  // Register profile preferences in `registry`.
+  static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
  private:
   // Checks if the search engine choice should be invalidated, based on pref

@@ -17,8 +17,6 @@
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
@@ -40,6 +38,8 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -325,8 +325,10 @@ TEST_F(IsolatedWebAppUpdatePrepareAndStoreCommandTest,
   const base::flat_set<base::FilePath> existing_dirs = GetIwaDirContent();
 
   auto result = PrepareAndStoreUpdateInfo(url_info, *update_bundle);
-  EXPECT_THAT(result, IsErrorWithMessage(
-                          HasSubstr("Installed app is already on version")));
+  EXPECT_THAT(result, IsErrorWithMessage(HasSubstr(
+                          "Version downgrades are not allowed. Installed app "
+                          "version 3.0.0 is newer than the candidate "
+                          "version 2.0.0.")));
 
   const WebApp* web_app =
       provider()->registrar_unsafe().GetAppById(url_info.app_id());
@@ -352,8 +354,10 @@ TEST_F(IsolatedWebAppUpdatePrepareAndStoreCommandTest,
   const base::flat_set<base::FilePath> existing_dirs = GetIwaDirContent();
 
   auto result = PrepareAndStoreUpdateInfo(url_info, *update_bundle);
-  EXPECT_THAT(result, IsErrorWithMessage(
-                          HasSubstr("Installed app is already on version")));
+  EXPECT_THAT(result, IsErrorWithMessage(HasSubstr(
+                          "Version downgrades are not allowed. Installed app "
+                          "version 3.0.0 is newer than the candidate "
+                          "version 2.0.0.")));
 
   const WebApp* web_app =
       provider()->registrar_unsafe().GetAppById(url_info.app_id());

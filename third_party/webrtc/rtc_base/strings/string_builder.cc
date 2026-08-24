@@ -10,8 +10,7 @@
 
 #include "rtc_base/strings/string_builder.h"
 
-#include <stdarg.h>
-
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 

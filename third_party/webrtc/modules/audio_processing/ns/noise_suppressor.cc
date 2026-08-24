@@ -10,12 +10,11 @@
 
 #include "modules/audio_processing/ns/noise_suppressor.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 
 #include "api/array_view.h"

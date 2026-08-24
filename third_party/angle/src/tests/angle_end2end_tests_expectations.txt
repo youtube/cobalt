@@ -95,7 +95,6 @@
 // ANGLE is broken if a context is made current before a surface is created in the presence of multiple queue families
 42266900 VULKAN : EGLContextSharingTestNoFixture.*/*ForceDelayedDeviceCreationForTesting* = SKIP
 42266900 VULKAN : EGLSurfacelessContextTest.*/*ForceDelayedDeviceCreationForTesting* = SKIP
-424050949 VULKAN : GLSLTest_ES31.SeparableProgramWithMismatchingShaderInterface/* = SKIP
 
 // Windows
 42262429 WIN NVIDIA D3D11 : BufferDataOverflowTest.VertexBufferIntegerOverflow/* = SKIP
@@ -317,6 +316,7 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 40644895 WIN INTEL VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsRestoredWithProgramBinaryTwice/* = SKIP
 40644895 WIN INTEL VULKAN : VulkanPerformanceCounterTest.PipelineCacheIsWarmedUpAtLinkTime/* = SKIP
 342557702 WIN INTEL VULKAN : StateChangeTestES3.RasterizerDiscard/ES3_Vulkan_NoSupportsExtendedDynamicState2 = SKIP
+433836330 WIN INTEL VULKAN : TransformFeedbackTestES31.ModeMismatchClassMismatch/* = SKIP
 // vk_icdNegotiateLoaderICDInterfaceVersion crashes (possibly Mesa bug?)
 40096893 LINUX INTEL VULKAN : RGBTextureBufferTestES31.* = SKIP
 40096893 LINUX INTEL VULKAN : TextureBufferTestES31.TexBufferFormatMismatch/* = SKIP
@@ -512,6 +512,10 @@ b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWi
 42266836 WIN D3D9 : GLSLTest.VectorScalarArithmeticWithSideEffectInLoop/* = SKIP
 42267092 WIN D3D11 : BlitFramebufferTest.FlippedBlits/* = SKIP
 343249129 WIN D3D11 : GLSLTest_ES31.TernaryOnStructsInDifferentBlockStorages/* = SKIP
+433462527 WIN D3D11 : MultisampledRenderToTextureES3Test.MixedMultisampleSingleSampledDraw/* = SKIP
+432303915 WIN D3D11 : GLSLTest.VerifyMaxFragmentUniformVectorsWithSamplers/ES3_1_D3D11 = SKIP
+432303915 WIN D3D11 : GLSLTest.VerifyMaxVertexUniformVectors/ES3_1_D3D11 = SKIP
+432303915 WIN D3D11 : GLSLTest.VerifyMaxVertexUniformVectorsWithSamplers/ES3_1_D3D11 = SKIP
 
 // Android
 42264624 ANDROID GLES : GLSLTest_ES3.InitGlobalComplexConstant/* = SKIP
@@ -824,7 +828,6 @@ b/346650202 PIXEL4ORXL : GeometryShaderTest.CreateAndAttachGeometryShaderOES/* =
 42267029 PIXEL6 VULKAN : VulkanPerformanceCounterTest.RenderToTextureDepthStencilRenderbufferShouldNotLoad/* = SKIP
 42267029 PIXEL6 VULKAN : VulkanPerformanceCounterTest.RenderToTextureDepthStencilTextureShouldNotLoad/* = SKIP
 42267029 PIXEL6 VULKAN : VulkanPerformanceCounterTest.RenderToTextureUninitializedAndUnusedDepthStencil/* = SKIP
-395520107 PIXEL6 VULKAN : ImageTestES3.SourceYUVAHBTargetExternalCopySrc/* = SKIP
 // New failures after AP1A.240405.002 upgrade
 b/336847261 PIXEL6 VULKAN : StateChangeTestES3.LineWidth/* = SKIP
 

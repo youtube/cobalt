@@ -14,7 +14,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -83,7 +82,6 @@ import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsV
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams.ButtonType;
 import org.chromium.chrome.browser.customtabs.CustomButtonParamsImpl;
-import org.chromium.chrome.browser.customtabs.CustomTabFeatureOverridesManager;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizeDelegate;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.MinimizedFeatureUtils;
@@ -156,7 +154,6 @@ public class CustomTabToolbarUnitTest {
     @Mock WindowAndroid mWindowAndroid;
     @Mock AppMenuHandler mAppMenuHandler;
     private @Mock PageInfoIphController mPageInfoIphController;
-    @Mock private CustomTabFeatureOverridesManager mFeatureOverridesManager;
     @Mock private BrowserServicesIntentDataProvider mIntentDataProvider;
     @Mock private CustomTabMinimizeDelegate mMinimizeDelegate;
     @Captor ArgumentCaptor<AppMenuObserver> mAppMenuObserverCaptor;
@@ -196,7 +193,6 @@ public class CustomTabToolbarUnitTest {
         when(mIntentDataProvider.getActivityType()).thenReturn(CUSTOM_TAB);
         when(mIntentDataProvider.isOptionalButtonSupported())
                 .thenReturn(ChromeFeatureList.sCctAdaptiveButton.isEnabled());
-        when(mFeatureOverridesManager.isFeatureEnabled(anyString())).thenReturn(null);
 
         mActivity = Robolectric.buildActivity(TestActivity.class).get();
         var shareButtonParams = CustomButtonParamsImpl.createShareButton(mActivity, Color.WHITE);
@@ -223,10 +219,10 @@ public class CustomTabToolbarUnitTest {
                 mToolbarProgressBar,
                 null,
                 null,
-                /* homeButtonDisplay= */ null);
+                /* homeButtonDisplay= */ null,
+                null);
         if (!ChromeFeatureList.sCctToolbarRefactor.isEnabled()) {
             mToolbar.initVisibilityRule(mActivity, () -> mAppMenuHandler, mIntentDataProvider);
-            mToolbar.setFeatureOverridesManager(mFeatureOverridesManager);
         }
         mLocationBar =
                 (CustomTabLocationBar)
@@ -443,7 +439,6 @@ public class CustomTabToolbarUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.CCT_MINIMIZED})
     public void testMinimizeButtonEnabled() {
         MinimizedFeatureUtils.setDeviceEligibleForMinimizedCustomTabForTesting(true);
         setup();
@@ -480,27 +475,6 @@ public class CustomTabToolbarUnitTest {
     }
 
     @Test
-    @DisableFeatures({ChromeFeatureList.CCT_MINIMIZED})
-    public void testMinimizeButtonDisabled() {
-        ImageButton minimizeButton = mToolbar.findViewById(R.id.custom_tabs_minimize_button);
-        ImageButton closeButton = mToolbar.findViewById(R.id.close_button);
-
-        // Button on left side
-        assertNull("Minimize button should never be initialized", minimizeButton);
-        assertEquals("Close button should still be present", mToolbar.getChildAt(0), closeButton);
-
-        // Button on right side
-        mToolbar.setCloseButtonPosition(CustomTabsIntent.CLOSE_BUTTON_POSITION_END);
-        mToolbar.onMeasure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
-        assertNull("Minimize button should never be initialized", minimizeButton);
-        assertEquals(
-                "Close button should still be present",
-                mToolbar.getChildAt(mToolbar.getChildCount() - 1),
-                closeButton);
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.CCT_MINIMIZED})
     public void testMinimizeButtonEnabled_MultiWindowMode() {
         MinimizedFeatureUtils.setDeviceEligibleForMinimizedCustomTabForTesting(true);
         setup();

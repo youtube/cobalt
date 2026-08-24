@@ -59,12 +59,14 @@
 #include "components/password_manager/core/browser/password_manager_constants.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/password_manager_test_utils.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/browser/possible_username_data.h"
 #include "components/password_manager/core/browser/stub_credentials_filter.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
+#include "components/password_manager/core/browser/undo_password_change_controller.h"
 #include "components/password_manager/core/browser/votes_uploader.h"
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -198,10 +200,19 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
         .WillByDefault(Return(true));
   }
 
+  UndoPasswordChangeController* GetUndoPasswordChangeController() override {
+    return undo_password_change_controller_.get();
+  }
+
+  void ResetUndoPasswordChangeController() {
+    undo_password_change_controller_.reset();
+  }
+
   MOCK_METHOD(bool,
               IsSavingAndFillingEnabled,
               (const GURL&),
               (const, override));
+  MOCK_METHOD(bool, IsFillingEnabled, (const GURL&), (const, override));
   MOCK_METHOD(net::CertStatus, GetMainFrameCertStatus, (), (const, override));
   MOCK_METHOD(void,
               AutofillHttpAuth,
@@ -302,6 +313,11 @@ class MockPasswordManagerClient : public StubPasswordManagerClient {
   mutable FakeNetworkContext network_context_;
   testing::NiceMock<MockStoreResultFilter> filter_;
   MockWebAuthnCredentialsDelegate webauthn_credentials_delegate_;
+  // UndoPasswordChangeController is always available but we need to be able to
+  // destroy it before `PasswordManager`, hence the unique_ptr.
+  std::unique_ptr<UndoPasswordChangeController>
+      undo_password_change_controller_ =
+          std::make_unique<UndoPasswordChangeController>();
 };
 
 class MockPasswordManagerDriver : public StubPasswordManagerDriver {
@@ -386,25 +402,6 @@ class FailingPasswordStoreBackend : public FakePasswordStoreBackend {
   bool IsAbleToSavePasswords() override { return false; }
 };
 
-// Creates a set map of `ServerPrediction`s for `form` according to the
-// specified `types`. `types` is a map of the fields index in `form.fields()` to
-// the `FieldType`.
-base::flat_map<FieldGlobalId, ServerPrediction> CreateServerPredictions(
-    const FormData& form,
-    const base::flat_map<size_t, FieldType>& types,
-    bool is_override = false) {
-  base::flat_map<FieldGlobalId, ServerPrediction> result;
-  for (size_t i = 0; i < form.fields().size(); ++i) {
-    ServerPrediction prediction;
-    if (auto it = types.find(i); it != types.end()) {
-      prediction.server_predictions = {
-          CreateFieldPrediction(it->second, is_override)};
-    }
-    result.insert({form.fields()[i].global_id(), std::move(prediction)});
-  }
-  return result;
-}
-
 }  // namespace
 
 // The main test class which defines common mocks. This is split out because
@@ -455,6 +452,7 @@ class PasswordManagerTestBase : public testing::Test {
     ON_CALL(client_, GetLastCommittedOrigin)
         .WillByDefault(Return(url::Origin::Create(test_form_url_)));
     ON_CALL(client_, IsCommittedMainFrameSecure()).WillByDefault(Return(true));
+    ON_CALL(client_, IsFillingEnabled).WillByDefault(Return(true));
     ON_CALL(client_, GetMetricsRecorder()).WillByDefault(Return(nullptr));
 #if BUILDFLAG(IS_ANDROID)
     ON_CALL(*client_.GetPasswordFeatureManager(), ShouldUpdateGmsCore)
@@ -527,10 +525,10 @@ class PasswordManagerTestBase : public testing::Test {
   }
 
   void ResetManager() {
-    // A member of `PasswordAutofillManager` (`UndoPasswordChangeController`)
-    // may keep a pointer to `PasswordFormCache` to unsubscribe from observing
-    // parsed forms. This call should happen before the cache is destroyed.
-    password_autofill_manager_.reset();
+    // MockPasswordManagerClient owns `UndoPasswordChangeController` which keeps
+    // a pointer to `PasswordManager`'s `PasswordFormCache. The controller must
+    // be destroyed before `PasswordManager`.
+    client_.ResetUndoPasswordChangeController();
     manager_.reset();
   }
 
@@ -1765,7 +1763,6 @@ TEST_P(PasswordManagerTest,
   PasswordForm form(MakeSimpleForm());
   form.type = PasswordForm::Type::kChangeSubmission;
   store_->AddLogin(form);
-
   FormData observed_form = form.form_data;
   manager()->OnPasswordFormsParsed(&driver_, {observed_form});
   manager()->OnPasswordFormsRendered(&driver_, {observed_form});
@@ -1785,18 +1782,17 @@ TEST_P(PasswordManagerTest,
           ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
       ukm::builders::PasswordManager_ChangeSubmission::
           kLogInWithPasswordChangeSubmissionName,
-      0);
+      static_cast<int>(
+          LogInWithChangedPasswordOutcome::kPrimaryPasswordFailed));
 }
 
 TEST_P(PasswordManagerTest,
        MetricsReportedLogInWithPrimaryPasswordChangeSubmission) {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
   form.type = PasswordForm::Type::kChangeSubmission;
   store_->AddLogin(form);
-
   std::vector<FormData> observed = {form.form_data};
   manager()->OnPasswordFormsParsed(&driver_, observed);
   manager()->OnPasswordFormsRendered(&driver_, observed);
@@ -1818,7 +1814,8 @@ TEST_P(PasswordManagerTest,
           ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
       ukm::builders::PasswordManager_ChangeSubmission::
           kLogInWithPasswordChangeSubmissionName,
-      1);
+      static_cast<int>(
+          LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded));
 }
 
 TEST_P(PasswordManagerTest,
@@ -1852,7 +1849,7 @@ TEST_P(PasswordManagerTest,
           ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
       ukm::builders::PasswordManager_ChangeSubmission::
           kLogInWithPasswordChangeSubmissionName,
-      0);
+      static_cast<int>(LogInWithChangedPasswordOutcome::kBackupPasswordFailed));
 }
 
 TEST_P(PasswordManagerTest,
@@ -1888,7 +1885,8 @@ TEST_P(PasswordManagerTest,
           ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
       ukm::builders::PasswordManager_ChangeSubmission::
           kLogInWithPasswordChangeSubmissionName,
-      1);
+      static_cast<int>(
+          LogInWithChangedPasswordOutcome::kBackupPasswordSucceeded));
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -6711,6 +6709,49 @@ TEST_P(PasswordManagerTest, LoginFormClearingIsConsideredFailedLoginAttempt) {
 
   histogram_tester.ExpectUniqueSample("PasswordManager.FailedLoginDetected",
                                       true, 1);
+}
+
+TEST_P(PasswordManagerTest,
+       DisabledFillingFormManagerNotCreatedWhenFillingIsDisabled) {
+  FormData form(MakeSimpleFormData());
+  EXPECT_CALL(client_, IsFillingEnabled(form.url()))
+      .WillRepeatedly(Return(false));
+
+  manager()->OnPasswordFormsParsed(&driver_, {form});
+  manager()->OnPasswordFormsRendered(&driver_, {form});
+  // Check that a form manager was not created.
+  ASSERT_TRUE(manager()->form_managers().empty());
+
+  OnPasswordFormSubmitted(form);
+  // Check that a form manager was not created.
+  ASSERT_TRUE(manager()->form_managers().empty());
+}
+
+TEST_P(PasswordManagerTest,
+       DisabledFillingFormManagerNotCreatedOnServerPredictionsArrival) {
+  FormData form(MakeSingleUsernameFormData());
+  EXPECT_CALL(client_, IsFillingEnabled(form.url()))
+      .WillRepeatedly(Return(false));
+
+  manager()->ProcessAutofillPredictions(
+      &driver_, form,
+      CreateServerPredictions(form, {{0, FieldType::SINGLE_USERNAME}}));
+
+  // Check that a form manager was not created.
+  ASSERT_TRUE(manager()->form_managers().empty());
+}
+
+TEST_P(PasswordManagerTest,
+       DisabledFillingFormManagerNotCreatedOnModelPredictionsArrival) {
+  FormData form(MakeFormDataWithOnlyNewPasswordField());
+  EXPECT_CALL(client_, IsFillingEnabled(form.url()))
+      .WillRepeatedly(Return(false));
+
+  manager()->ProcessClassificationModelPredictions(
+      &driver_, form, {{form.fields()[0].global_id(), FieldType::PASSWORD}});
+
+  // Check that a form manager was not created.
+  ASSERT_TRUE(manager()->form_managers().empty());
 }
 
 INSTANTIATE_TEST_SUITE_P(, PasswordManagerTest, ::testing::Bool());

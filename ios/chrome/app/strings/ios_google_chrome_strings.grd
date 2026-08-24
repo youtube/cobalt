@@ -246,6 +246,9 @@
       <message name="IDS_IOS_BEST_FEATURES_SHARE_PASSWORDS_SUBTITLE" desc="Subtitle for the Share Passwords Chrome iOS Best Features Promo">
         Easily and securely share a copy of a password with your family group in Google Password Manager
       </message>
+      <message name="IDS_IOS_BWG_LOCATION_FOOTER_TEXT" desc="The footer text of the BWG location settings page.">
+        Gemini may use your precise location, depending on the permission you’ve already given Chrome
+      </message>
       <message name="IDS_IOS_BWG_SETTINGS_TITLE" desc="Title for BWG settings dialog [Length: 29em] [iOS only]">
         Gemini in Chrome
       </message>
@@ -771,6 +774,9 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_SIGNIN_TITLE" desc="Text for the title of a Tips notification that encourages the user to sign in to their account">
         Chrome Tip: Sign in to Chrome
+      </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_TITLE" desc="TODO">
+        Chrome Tip: Verify it's you
       </message>
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_WHATS_NEW_BODY" desc="Text for the body of a Tips notification that takes the user to the Whats New page">
         Explore new features that help you get the most out of Chrome.

@@ -10,8 +10,7 @@
 
 #include "rtc_base/random.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <numbers>

@@ -10,8 +10,7 @@
 
 #include "rtc_base/socket_address.h"
 
-#include <string.h>
-
+#include <cstring>
 #include <string>
 
 #include "rtc_base/ip_address.h"

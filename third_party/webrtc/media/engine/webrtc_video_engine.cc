@@ -10,10 +10,9 @@
 
 #include "media/engine/webrtc_video_engine.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <functional>
 #include <initializer_list>
 #include <map>

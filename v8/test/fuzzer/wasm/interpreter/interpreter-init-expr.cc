@@ -231,13 +231,12 @@ void FuzzIt(base::Vector<const uint8_t> data) {
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   size_t expression_count = 0;
   base::Vector<const uint8_t> bytes =
       GenerateWasmModuleForInitExpressions(&zone, data, &expression_count);
 
-  testing::SetupIsolateForWasmModule(i_isolate);
   ModuleWireBytes wire_bytes(bytes.begin(), bytes.end());
   auto enabled_features = WasmEnabledFeatures::FromIsolate(i_isolate);
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
@@ -374,6 +373,11 @@ void FuzzIt(base::Vector<const uint8_t> data) {
 }
 
 }  // anonymous namespace
+
+V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
+  return 0;
+}
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzIt({data, size});

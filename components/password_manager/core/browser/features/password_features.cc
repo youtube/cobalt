@@ -147,6 +147,10 @@ BASE_FEATURE(kShowRecoveryPassword,
              "ShowRecoveryPassword",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
+             "ShowTabWithPasswordChangeOnSuccess",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSkipUndecryptablePasswords,
              "SkipUndecryptablePasswords",
 #if BUILDFLAG(IS_WIN)
@@ -173,10 +177,6 @@ BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
 BASE_FEATURE(kBiometricAuthIdentityCheck,
              "BiometricAuthIdentityCheck",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kLoginDbDeprecationAndroid,
-             "LoginDbDeprecationAndroid",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kUseNewEncryptionMethod,
@@ -191,6 +191,12 @@ BASE_FEATURE(kMarkAllCredentialsAsLeaked,
              "MarkAllCredentialsAsLeaked",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_FEATURE(kEnablePasswordManagerMojoApi,
+             "EnablePasswordManagerMojoApi",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
 BASE_FEATURE(kImprovedPasswordChangeService,
              "ImprovedPasswordChangeService",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -199,6 +205,10 @@ BASE_FEATURE(kImprovedPasswordChangeService,
 BASE_FEATURE(kReloadPasswordsOnTrustedVaultEncryptionChange,
              "ReloadPasswordsOnTrustedVaultEncryptionChange",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kRetrieveTrustedVaultKeyKeyboardAccessoryAction,
+             "RetrieveTrustedVaultKeyKeyboardAccessoryAction",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace password_manager::features

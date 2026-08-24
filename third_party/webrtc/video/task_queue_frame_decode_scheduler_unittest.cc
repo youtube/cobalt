@@ -10,8 +10,7 @@
 
 #include "video/task_queue_frame_decode_scheduler.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 

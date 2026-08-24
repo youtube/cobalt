@@ -9,8 +9,7 @@
  */
 #include "video/video_loopback.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>

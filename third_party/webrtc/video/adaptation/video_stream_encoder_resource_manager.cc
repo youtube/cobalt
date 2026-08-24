@@ -10,10 +10,9 @@
 
 #include "video/adaptation/video_stream_encoder_resource_manager.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <optional>

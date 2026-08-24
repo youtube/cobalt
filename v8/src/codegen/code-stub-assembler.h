@@ -1714,9 +1714,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
                                             Label* if_bailout);
 
-  // Load the "code" property of a JSFunction.
-  TNode<Code> LoadJSFunctionCode(TNode<JSFunction> function);
-
   TNode<Object> LoadSharedFunctionInfoTrustedData(
       TNode<SharedFunctionInfo> sfi);
   TNode<Object> LoadSharedFunctionInfoUntrustedData(
@@ -2283,6 +2280,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                            TNode<Object> value,
                                            TNode<Boolean> done);
 
+  TNode<JSArray> AllocateJSIteratorResultValueForEntry(TNode<Context> context,
+                                                       TNode<Object> key,
+                                                       TNode<Object> value);
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
                                                    TNode<Object> key,

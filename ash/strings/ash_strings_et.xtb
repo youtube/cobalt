@@ -603,7 +603,6 @@ Muidu lubatakse sisseehitatud puuteplaat uuesti pärast ajavahemikku <ph name="T
 <translation id="3026897869154397692">Lisati kalendrisse</translation>
 <translation id="3033545621352269033">Sees</translation>
 <translation id="3033912566804961911">Ühita töölauaga <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Failide avamine</translation>
 <translation id="3039939407102840004">Elektronpliiatsi aku laetuse tase on <ph name="PERCENTAGE" />%.</translation>
 <translation id="304097922505898963">Avage rakendus Klaviatuuri otseteed</translation>
 <translation id="304417730895741346">Teie kinnitatud ja avatud rakendused on riiulil. Rakenduse riiulile kinnitamiseks paremklõpsake sellel või puudutage kahe sõrmega puuteplaati.</translation>
@@ -1604,7 +1603,6 @@ Teatud funktsioone on aku tööea pikendamiseks piiratud.</translation>
 <translation id="6166852626429024716">Otsige oma seadmest, rakendustest, seadetest, veebist …</translation>
 <translation id="6168318496333165060">Ava rakendus Diagnostika</translation>
 <translation id="6168622430237609329">Teie installitud rakendused</translation>
-<translation id="6179832488876878285">Saate oma olulised failid siia kinnitada. Alustamiseks avage rakendus Failid.</translation>
 <translation id="6180193585172850042">Tagasinupp</translation>
 <translation id="6180651297859206670">Edasinupp</translation>
 <translation id="6182592640011875895">Ava töölaud</translation>
@@ -1916,6 +1914,7 @@ Uus installimine</translation>
 <translation id="7240636904654154599">Loodi Google’i arvutustabel</translation>
 <translation id="7244725679040769470">Akut on jäänud <ph name="PERCENTAGE" />%. Ühendage seade toiteallikaga.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. See Chromebook tuleb värskenduse rakendamiseks taaskäivitada. Selleks võib kuluda kuni 1 minut.</translation>
+<translation id="7248100343060254997">Otsi minu ekraanilt</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Tagumine mikrofon</translation>
 <translation id="7258828758145722155">Eile muudetud</translation>

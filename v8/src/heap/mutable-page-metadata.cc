@@ -25,9 +25,10 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
                                          VirtualMemory reservation,
-                                         PageSize page_size)
+                                         PageSize page_size,
+                                         Executability executability)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)) {
+                          std::move(reservation), executability) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (page_size == PageSize::kRegular) {
@@ -35,10 +36,6 @@ MutablePageMetadata::MutablePageMetadata(Heap* heap, BaseSpace* space,
     active_system_pages_->Init(
         sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(), size());
   }
-
-  // We do not track active system pages for large pages and use this fact for
-  // `IsLargePage()`.
-  DCHECK_EQ(page_size == PageSize::kLarge, IsLargePage());
 
   // TODO(sroettger): The following fields are accessed most often (AFAICT) and
   // are moved to the end to occupy the same cache line as the slot set array.
@@ -101,16 +98,31 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::YoungGenerationPageFlags(
   return flags;
 }
 
-MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
+MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
     Executability executable) const {
+  const AllocationSpace space = owner()->identity();
   MemoryChunk::MainThreadFlags flags = MemoryChunk::NO_FLAGS;
 
-  if (owner()->identity() == NEW_SPACE || owner()->identity() == NEW_LO_SPACE) {
+  if (IsAnyNewSpace(space)) {
     flags |=
         YoungGenerationPageFlags(heap()->incremental_marking()->marking_mode());
   } else {
     flags |= OldGenerationPageFlags(
-        heap()->incremental_marking()->marking_mode(), owner()->identity());
+        heap()->incremental_marking()->marking_mode(), space);
+    if (!IsAnyLargeSpace(space) &&
+        heap()->incremental_marking()->black_allocation() &&
+        v8_flags.black_allocated_pages) {
+      // Disable the write barrier for objects pointing to this page. We don't
+      // need to trigger the barrier for pointers to old black-allocated pages,
+      // since those are never considered for evacuation. However, we have to
+      // keep the old->shared remembered set across multiple GCs, so those
+      // pointers still need to be recorded.
+      if (!IsAnySharedSpace(space)) {
+        flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
+      }
+      // And mark the page as black allocated.
+      flags |= MemoryChunk::BLACK_ALLOCATED;
+    }
   }
 
   if (executable == EXECUTABLE) {
@@ -121,8 +133,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
     // 1. We have the invariant that IsTrustedObject(obj) implies
     //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
     //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are
-    //    trusted, their host chunks must also be marked as such.
+    //   objects are trusted, their host chunks must also be marked as such.
     // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
     //    remembered set. However, that will only be used if both the host
     //    and the value chunk are marked as IS_TRUSTED.
@@ -130,12 +141,12 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::InitialFlags(
   }
 
   // All pages of a shared heap need to be marked with this flag.
-  if (InSharedSpace()) {
+  if (IsAnySharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
 
   // All pages belonging to a trusted space need to be marked with this flag.
-  if (InTrustedSpace()) {
+  if (IsAnyTrustedSpace(space)) {
     flags |= MemoryChunk::IS_TRUSTED;
   }
 
@@ -166,8 +177,8 @@ void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
     }
   }
 
-  Chunk()->SetFlagsUnlocked(flags_to_set, flags_to_set);
-  Chunk()->ClearFlagsUnlocked(flags_to_clear);
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
 }
 
 void MutablePageMetadata::SetYoungGenerationPageFlags(
@@ -180,12 +191,12 @@ void MutablePageMetadata::SetYoungGenerationPageFlags(
     flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
   }
 
-  Chunk()->SetFlagsNonExecutable(flags_to_set, flags_to_set);
-  Chunk()->ClearFlagsNonExecutable(flags_to_clear);
+  SetFlagsNonExecutable(flags_to_set, flags_to_set);
+  ClearFlagsNonExecutable(flags_to_clear);
 }
 
 size_t MutablePageMetadata::CommittedPhysicalMemory() const {
-  if (!base::OS::HasLazyCommits() || Chunk()->IsLargePage()) return size();
+  if (!base::OS::HasLazyCommits() || is_large()) return size();
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
@@ -207,7 +218,7 @@ void MutablePageMetadata::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);
 
-  if (!Chunk()->IsLargePage()) {
+  if (!is_large()) {
     PageMetadata* page = static_cast<PageMetadata*>(this);
     page->ReleaseFreeListCategories();
   }
@@ -281,6 +292,28 @@ int MutablePageMetadata::ComputeFreeListsLength() {
 bool MutablePageMetadata::IsLivenessClear() const {
   CHECK_IMPLIES(marking_bitmap()->IsClean(), live_bytes() == 0);
   return marking_bitmap()->IsClean();
+}
+
+void MutablePageMetadata::SetFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  if (is_executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    SetFlagUnlocked(flag);
+  } else {
+    SetFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::ClearFlagMaybeExecutable(MemoryChunk::Flag flag) {
+  if (is_executable()) {
+    RwxMemoryWriteScope scope("Set a MemoryChunk flag in executable memory.");
+    ClearFlagUnlocked(flag);
+  } else {
+    ClearFlagUnlocked(flag);
+  }
+}
+
+void MutablePageMetadata::MarkNeverEvacuate() {
+  SetFlagMaybeExecutable(MemoryChunk::NEVER_EVACUATE);
 }
 
 }  // namespace v8::internal

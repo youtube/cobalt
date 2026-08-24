@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="km">
-<translation id="1036348656032585052">បិទ</translation>
 <translation id="1049697408958544531">{NUM_WEEKS,plural, =1{បានបង្កើត <ph name="NUM_WEEKS_ONE" /> សប្ដាហ៍មុន}other{បានបង្កើត <ph name="NUM_WEEKS_MANY" /> សប្ដាហ៍មុន}}</translation>
 <translation id="1063300264396686489">បើកក្រុមផ្ទាំងដោយស្វ័យប្រវត្តិពីឧបករណ៍ផ្សេងទៀត</translation>
 <translation id="1075622780330595106">ផ្ទាំង <ph name="NUMBER_OF_TABS" /> របស់អ្នក​មិនត្រូវបាន​ប្រើទេ​នាពេល​ថ្មីៗនេះ។ បិទផ្ទាំង​ទាំងនោះឬ?</translation>
@@ -12,6 +11,7 @@
 <translation id="1245862538775272968">{TAB_COUNT,plural, =1{បើក <ph name="TITLE_OF_GROUP" /> ដែលមាន <ph name="TAB_COUNT2" /> ផ្ទាំង}other{បើក <ph name="TITLE_OF_GROUP" /> ដែលមាន <ph name="TAB_COUNT2" /> ផ្ទាំង}}</translation>
 <translation id="1273910660700874265">ជម្រើសក្រុមផ្ទាំង <ph name="TITLE_OF_GROUP" /></translation>
 <translation id="1300188005269437765">ជ្រើសរើស​ថាតើ​ពេលណា​ផ្លាស់ទី​ផ្ទាំង និង​ក្រុមផ្ទាំង​ទៅផ្នែក​អសកម្ម​ដោយ​ស្វ័យប្រវត្តិ។</translation>
+<translation id="1321004960118052490">ធាតុ​អសកម្ម​របស់អ្នក​នឹងមិន​កើនឡើង​ទេ</translation>
 <translation id="1329584516321524826">ទើបតែ​បាន​ធ្វើ​បច្ចុប្បន្នភាព</translation>
 <translation id="1340839264183302272">ចាកចេញ​ពី​ក្រុម</translation>
 <translation id="1403729629346559879">{NUMBER_OF_TABS,plural, =1{ពង្រីក​ក្រុមផ្ទាំង <ph name="TITLE_OF_GROUP" /> ដែលបាន​ចែករំលែក​ដែលមាន <ph name="TABS_COUNT_ONE" /> ផ្ទាំង ពណ៌<ph name="COLOR_NAME" /> ជាមួយ​ស្លាក <ph name="CARD_LABEL" />។}other{ពង្រីក​ក្រុមផ្ទាំង <ph name="TITLE_OF_GROUP" /> ដែលបាន​ចែករំលែក​ដែលមាន <ph name="TABS_COUNT_MANY" /> ផ្ទាំង ពណ៌<ph name="COLOR_NAME" /> ជាមួយស្លាក <ph name="CARD_LABEL" />។}}</translation>
@@ -34,7 +34,6 @@
 <translation id="1982637982196732906">ផ្លាស់ទី​ទៅកាន់​ផ្នែក​អសកម្ម</translation>
 <translation id="2050597508048557928">{TABS_COUNT,plural, =1{ចំណាំ​ផ្ទាំង​ដែល​បាន​ជ្រើសរើស <ph name="TABS_COUNT_ONE" />}other{ចំណាំ​ផ្ទាំង​ដែល​បាន​ជ្រើសរើស <ph name="TABS_COUNT_MANY" />}}</translation>
 <translation id="2055057176188061528">ជ្រើសរើស​ក្រុមផ្ទាំង ឬ​បង្កើត​ក្រុមផ្ទាំង​ថ្មី</translation>
-<translation id="2069658190745773012">{AUTO_DELETE_DELAY,plural, =1{Chrome បិទ​ធាតុ​នៅក្នុង​ផ្នែក​អសកម្ម​ដែលអ្នក​មិនបានប្រើ​រយៈពេល <ph name="AUTO_DELETE_DELAY_ONE" /> ខែ​ដោយ​ស្វ័ួយប្រវត្តិ។ អ្នកអាច​បិទវា​ឥឡូវនេះ ឬ​នៅពេល​ណាក៏បាន​នៅក្នុង "ការកំណត់"។}other{Chrome បិទធាតុ​នៅក្នុង​ផ្នែក​អសកម្ម​ដែលអ្នក​មិនបានប្រើ​រយៈពេល <ph name="AUTO_DELETE_DELAY_MANY" /> ខែដោយ​ស្វ័ួយប្រវត្តិ។ អ្នកអាច​បិទវា​ឥឡូវនេះ ឬ​នៅពេល​ណាក៏បាន​នៅក្នុង "ការកំណត់"។}}</translation>
 <translation id="2118649612461486615">ព័ត៌មានអំពីហាង</translation>
 <translation id="2123073051266141035">{INCOGNITO_TABS_COUNT,plural, =1{ផ្ទាំង និងក្រុមដែលអ្នកបានបិទអាចត្រូវបានបើកឡើងវិញពីផ្នែកផ្ទាំងថ្មីៗ និងផ្នែកក្រុមផ្ទាំង។ នឹងមិនមានផ្ទាំងឯកជន​របស់អ្នកទេ។}other{ផ្ទាំង និងក្រុមដែលអ្នកបានបិទអាចត្រូវបានបើកឡើងវិញពីផ្នែកផ្ទាំងថ្មីៗ និងផ្នែកក្រុមផ្ទាំង។ នឹងមិនមានផ្ទាំង​ឯកជន​ចំនួន # របស់អ្នក​ទេ។}}</translation>
 <translation id="2162620598375156287">ឥឡូវនេះ <ph name="CURRENT_PRICE" /> នៅលើ <ph name="SOURCE_WEBSITE" /></translation>
@@ -45,6 +44,7 @@
 <translation id="2359808026110333948">បន្ត</translation>
 <translation id="2371084566192454134">ផ្ទាំង និង​ក្រុមផ្ទាំង</translation>
 <translation id="2375257132547014176">{TABS_COUNT,plural, =1{បង្រួម​ក្រុមផ្ទាំង <ph name="TITLE_OF_GROUP" /> ដែលមាន <ph name="TABS_COUNT_ONE" /> ផ្ទាំង។}other{បង្រួម​ក្រុមផ្ទាំង <ph name="TITLE_OF_GROUP" /> ដែលមាន <ph name="TABS_COUNT_MANY" /> ផ្ទាំង។}}</translation>
+<translation id="2479148705183875116">ចូលទៅកាន់ការកំណត់</translation>
 <translation id="2498435670446402865">ប្ដូរ​ឈ្មោះក្រុមផ្ទាំង</translation>
 <translation id="2536366509642644298">លែង​អាចប្រើ​ក្រុមផ្ទាំង "<ph name="TAB_GROUP_NAME_1" />" និង "<ph name="TAB_GROUP_NAME_2" />" បាន​ទៀតហើយ</translation>
 <translation id="2539705006853443997">{TABS_COUNT,plural, =1{បង្រួមផ្ទាំង <ph name="TABS_COUNT_ONE" />។}other{បង្រួមក្រុមផ្ទាំង​ដែលមាន <ph name="TABS_COUNT_MANY" />ផ្ទាំង។}}</translation>
@@ -111,6 +111,7 @@
 <translation id="5073204694187207510">លាក់ក្រឡា​ពេញ​អេក្រង់</translation>
 <translation id="5076161749301278626">មើលការវាយតម្លៃហាងឬ?</translation>
 <translation id="5161254044473106830">ត្រូវមានចំណងជើង</translation>
+<translation id="524477996738997490">{AUTO_DELETE_DELAY,plural, =1{Chrome បិទ​ក្រុមផ្ទាំង និងផ្ទាំង​អសកម្ម​ដោយ​ស្វ័យប្រវត្តិ​ក្រោយ​រយៈពេល <ph name="AUTO_DELETE_DELAY_ONE" /> ខែ។ អ្នកអាច​ប្ដូរលក្ខណៈនេះ​នៅក្នុង​ការកំណត់។}other{Chrome បិទ​ក្រុមផ្ទាំង និងផ្ទាំង​អសកម្ម​ដោយ​ស្វ័យប្រវត្តិ​ក្រោយ​រយៈពេល <ph name="AUTO_DELETE_DELAY_MANY" /> ខែ។ អ្នកអាច​ប្ដូរលក្ខណៈនេះ​នៅក្នុង​ការកំណត់។}}</translation>
 <translation id="5339733443032484186">ផ្ទាំង​ចុងក្រោយ​របស់អ្នក</translation>
 <translation id="5380159289133845234">ទុក​ផ្ទាំងស្ទួន​ក្នុងបណ្ណសារ</translation>
 <translation id="5400836586163650660">ប្រផេះ</translation>
@@ -133,7 +134,6 @@
 <translation id="6109251075362363230">ឥឡូវនេះ ផ្ទាំងស្ទួន​ទាំងអស់​ក៏នឹង​ត្រូវបាន​ទុកក្នុង​បណ្ណសារ​ផងដែរ លើកលែងតែ​ផ្ទាំងស្ទួន​ដែលបានប្រើ​ថ្មីៗបំផុត​ប៉ុណ្ណោះ។</translation>
 <translation id="6149218574440723463">{TABS_COUNT,plural, =1{បិទធាតុ <ph name="TABS_COUNT_ONE" /> ដែលបាន​ជ្រើសរើស}other{បិទធាតុ <ph name="TABS_COUNT_MANY" /> ដែលបាន​ជ្រើសរើស}}</translation>
 <translation id="61924696525243173">{WINDOW_COUNT,plural, =1{ផ្លាស់ទី​ក្រុមទៅ​វិនដូថ្មី}other{ផ្លាស់ទី​ក្រុមទៅ​វិនដូ​ផ្សេងទៀត}}</translation>
-<translation id="6220820548421939212">បាទ/ចាស។ ខ្ញុំយល់ព្រម</translation>
 <translation id="6228793724645064692">(ការវាយ​តម្លៃហាង)</translation>
 <translation id="6313830465749181217">{TABS_COUNT,plural, =1{បញ្ចូលផ្ទាំង​ទៅក្រុមថ្មី}other{បញ្ចូលផ្ទាំង​ទៅក្រុមថ្មី}}</translation>
 <translation id="6333260925957816943">ព័ត៌មានអំពី​ហាងនេះ</translation>
@@ -157,6 +157,7 @@
 <translation id="709473454666962555">ជ្រើសរើស​ក្រុមផ្ទាំង</translation>
 <translation id="7100731960740376323">{TABS_COUNT,plural, =1{ចែករំលែក​ផ្ទាំង}other{ចែករំលែក​ផ្ទាំង}}</translation>
 <translation id="7129458170538955174">បានបើក​ព័ត៌មានអំពី​ហាងនេះ​ពាក់កណ្ដាល​អេក្រង់</translation>
+<translation id="7151209024774799310">លុបផ្ទាំង​ចេញពីក្រុម</translation>
 <translation id="7204204600596740190">មុខងារ​ជ្រើសរើសច្រើន</translation>
 <translation id="7211038039686180558">ក្រុមផ្ទាំងរបស់អ្នករក្សាទុក និងធ្វើបច្ចុប្បន្នភាពដោយស្វ័យប្រវត្តិនៅលើគ្រប់ឧបករណ៍ដែល​ចូលគណនីរបស់អ្នក</translation>
 <translation id="731648547091221002">បាន​ជ្រើសរើសពណ៌<ph name="COLOR_NAME" /></translation>
@@ -183,7 +184,6 @@
 <translation id="7853202427316060426">សកម្មភាព</translation>
 <translation id="7854360405711302755">{REVIEWS,plural, =1{ ការវាយតម្លៃដោយដាក់ផ្កាយ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, មតិវាយតម្លៃ <ph name="REVIEWS_COUNT_ONE" />}other{ការវាយតម្លៃដោយដាក់ផ្កាយ <ph name="CURRENT_RATING" />/<ph name="RATING_BASELINE" />, មតិវាយតម្លៃ <ph name="REVIEWS_COUNT_MANY" />}}</translation>
 <translation id="7885132941432959125">ផ្លាស់ទី​ផ្ទាំង​ទៅ​ខាងស្ដាំ</translation>
-<translation id="788914896430720926">រក្សា​ផ្នែក​អសកម្ម​របស់អ្នក​ឱ្យមាន​របៀប​រៀបរយឬ?</translation>
 <translation id="7939917283308035850">មិនបាន​ជ្រើសរើសពណ៌<ph name="COLOR_NAME" />ទេ</translation>
 <translation id="7942349550061667556">ក្រហម</translation>
 <translation id="7961015016161918242">មិនដែល</translation>

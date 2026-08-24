@@ -9,9 +9,8 @@
  */
 #include "modules/audio_processing/aec3/block_processor.h"
 
-#include <stddef.h>
-
 #include <atomic>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>

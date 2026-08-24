@@ -359,6 +359,15 @@ class ManagePasswordsUIController
   // Returns true if password changing is currently running.
   bool IsPasswordChangeOngoing() const;
 
+  // Invoked after a user accepted the update bubble. If the credentials were
+  // not manually modified and if `password` is the backup password of an
+  // existing credential, then records the end of the password recovery flow and
+  // attempts to display a hats survey. Has to be called before `SavePassword`
+  // because otherwise we cannot tell if the credentials were modified manually.
+  void MaybeHandlePasswordRecoveryFinished(
+      const std::u16string& username,
+      const std::u16string& password) const;
+
   // Timeout in seconds for the manual fallback for saving.
   static int save_fallback_timeout_in_seconds_;
 

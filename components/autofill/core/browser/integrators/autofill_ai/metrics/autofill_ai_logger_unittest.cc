@@ -192,7 +192,7 @@ class BaseAutofillAiTest : public testing::Test {
     AutofillField& autofill_ai_field = test_api(*form).PushField();
     AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction
         prediction;
-    prediction.set_type(PASSPORT_NAME_TAG);
+    prediction.set_type(PASSPORT_NUMBER);
     autofill_ai_field.set_server_predictions({prediction});
 
     return form;
@@ -699,7 +699,7 @@ TEST_F(AutofillAiMqlsMetricsTest, KeyMetrics) {
 // Tests that KeyMetrics MQLS metrics aren't recorded if the user is not opted
 // in for Autofill AI.
 TEST_F(AutofillAiMqlsMetricsTest, KeyMetrics_OptOut) {
-  SetAutofillAiOptInStatus(autofill_client(), false);
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
   std::unique_ptr<FormStructure> form = CreateEligibleForm();
   test_api(manager()).logger().RecordFormMetrics(*form, /*ukm_source_id=*/{},
                                                  /*submission_state=*/true,

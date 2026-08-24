@@ -70,6 +70,7 @@ struct MaglevCallSiteInfo {
   CallKnownJSFunction* generic_call_node;
   compiler::FeedbackCellRef feedback_cell;
   float score;
+  int bytecode_length;
 };
 
 class MaglevGraphBuilder {
@@ -204,10 +205,6 @@ class MaglevGraphBuilder {
            v8_flags.maglev_licm;
   }
 
-  void RecordUseReprHint(Phi* phi, UseRepresentationSet reprs);
-  void RecordUseReprHint(Phi* phi, UseRepresentation repr);
-  void RecordUseReprHintIfPhi(ValueNode* node, UseRepresentation repr);
-
   SourcePosition GetCurrentSourcePosition() const;
 
   BasicBlock* current_block() const;
@@ -264,6 +261,13 @@ class MaglevGraphBuilder {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
     }
   }
+  int max_inlined_bytecode_size_small_total() {
+    if (is_turbolev()) {
+      return v8_flags.max_inlined_bytecode_size_small_total;
+    } else {
+      return v8_flags.max_maglev_inlined_bytecode_size_small_total;
+    }
+  }
   int max_inline_depth() {
     if (is_turbolev()) {
       // This is just to avoid some corner cases, especially since we allow
@@ -272,6 +276,16 @@ class MaglevGraphBuilder {
       return kMaxDepthForInlining;
     } else {
       return v8_flags.max_maglev_inline_depth;
+    }
+  }
+  // We allow small functions to be inlined deeper than regular functions.
+  int max_inline_depth_small() {
+    if (is_turbolev()) {
+      // For Turbolev, small and normal functions can all be inlined at the same
+      // depth.
+      return max_inline_depth();
+    } else {
+      return v8_flags.max_maglev_hard_inline_depth;
     }
   }
 
@@ -615,6 +629,9 @@ class MaglevGraphBuilder {
   ReduceResult GetSmiValue(ValueNode* value,
                            UseReprHintRecording record_use_repr_hint =
                                UseReprHintRecording::kRecord);
+  ReduceResult GetSmiValue(ReduceResult value_result,
+                           UseReprHintRecording record_use_repr_hint =
+                               UseReprHintRecording::kRecord);
 
   MaybeReduceResult GetSmiValue(interpreter::Register reg,
                                 UseReprHintRecording record_use_repr_hint =
@@ -664,9 +681,9 @@ class MaglevGraphBuilder {
 
   // Get an Int32 representation node whose value is equivalent to the given
   // node.
-  //
-  // Deopts if the value is not exactly representable as an Int32.
   ValueNode* GetInt32(ValueNode* value, bool can_be_heap_number = false);
+  ReduceResult GetInt32(ReduceResult value_result,
+                        bool can_be_heap_number = false);
 
   void EnsureInt32(ValueNode* value, bool can_be_heap_number = false);
 
@@ -891,6 +908,7 @@ class MaglevGraphBuilder {
   V(ArrayMap)                                  \
   V(ArrayPrototypeAt)                          \
   V(ArrayPrototypeEntries)                     \
+  V(ArrayPrototypeSlice)                       \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
   V(ArrayPrototypePush)                        \
@@ -1029,6 +1047,8 @@ class MaglevGraphBuilder {
       const compiler::FeedbackSource& feedback_source);
   bool CanInlineCall(compiler::SharedFunctionInfoRef shared,
                      float call_frequency);
+  bool IsFunctionSmall(compiler::SharedFunctionInfoRef shared,
+                       CallArguments& args);
   bool ShouldEagerInlineCall(compiler::SharedFunctionInfoRef shared,
                              CallArguments& args);
   ReduceResult BuildEagerInlineCall(ValueNode* context, ValueNode* function,
@@ -1150,9 +1170,6 @@ class MaglevGraphBuilder {
       std::pair<interpreter::Register, interpreter::Register> result);
 
   ValueNode* BuildSmiUntag(ValueNode* node);
-  ValueNode* BuildNumberOrOddballToFloat64(
-      ValueNode* node, NodeType allowed_input_type,
-      TaggedToFloat64ConversionType conversion_type);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
   ReduceResult BuildCheckNumber(ValueNode* object);
@@ -1275,9 +1292,9 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info);
 
   // Returns the loaded value node but doesn't update the accumulator yet.
-  ValueNode* BuildLoadField(compiler::PropertyAccessInfo const& access_info,
-                            ValueNode* lookup_start_object,
-                            compiler::NameRef name);
+  ReduceResult BuildLoadField(compiler::PropertyAccessInfo const& access_info,
+                              ValueNode* lookup_start_object,
+                              compiler::NameRef name);
   MaybeReduceResult TryBuildStoreField(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       compiler::AccessMode access_mode);
@@ -1295,16 +1312,16 @@ class MaglevGraphBuilder {
       const compiler::ProcessedFeedback& processed_feedback);
 
   ValueNode* BuildLoadFixedArrayLength(ValueNode* fixed_array);
-  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array,
-                                    NodeType length_type = NodeType::kSmi);
+  ReduceResult BuildLoadJSArrayLength(ValueNode* js_array,
+                                      NodeType length_type = NodeType::kSmi);
   ValueNode* BuildLoadElements(ValueNode* object);
 
   ValueNode* BuildLoadJSFunctionFeedbackCell(ValueNode* closure);
   ValueNode* BuildLoadJSFunctionContext(ValueNode* closure);
 
-  ReduceResult TryBuildCheckInt32Condition(
-      ValueNode* lhs, ValueNode* rhs, AssertCondition condition,
-      DeoptimizeReason reason, bool allow_unconditional_deopt = true);
+  ReduceResult TryBuildCheckInt32Condition(ValueNode* lhs, ValueNode* rhs,
+                                           AssertCondition condition,
+                                           DeoptimizeReason reason);
 
   MaybeReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -1479,6 +1496,7 @@ class MaglevGraphBuilder {
                                         ValueNode* done);
   VirtualObject* CreateJSStringIterator(compiler::MapRef map,
                                         ValueNode* string);
+  VirtualObject* CreateJSStringWrapper(ValueNode* value);
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);
@@ -1568,9 +1586,9 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   ReduceResult VisitBinarySmiOperation();
 
-  ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
+  ReduceResult BuildUnwrapStringWrapper(ValueNode* input);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
-  ValueNode* BuildNewConsStringMap(ValueNode* left, ValueNode* right);
+  ReduceResult BuildNewConsStringMap(ValueNode* left, ValueNode* right);
   size_t StringLengthStaticLowerBound(ValueNode* string, int max_depth = 2);
   MaybeReduceResult TryBuildNewConsString(
       ValueNode* left, ValueNode* right,
@@ -1992,6 +2010,9 @@ class MaglevGraphBuilder {
 
   ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>
       unobserved_context_slot_stores_;
+
+  // When set, inline only small functions.
+  bool only_inline_small_ = false;
 };
 
 template <bool is_possible_map_change>

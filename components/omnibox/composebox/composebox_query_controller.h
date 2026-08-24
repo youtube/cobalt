@@ -16,6 +16,7 @@
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_overlay_request_id_generator.h"
+#include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "components/search_engines/util.h"
 #include "components/variations/variations_client.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -31,13 +32,6 @@ class TemplateURLService;
 #include "third_party/skia/include/core/SkBitmap.h"
 #endif  // !BUILDFLAG(IS_IOS)
 
-enum class SessionState {
-  kNone = 0,
-  kSessionStarted = 1,
-  kSessionAbandoned = 2,
-  kQuerySubmitted = 3,
-};
-
 enum class QueryControllerState {
   // The initial state, before NotifySessionStarted() is called.
   kOff = 0,
@@ -48,38 +42,6 @@ enum class QueryControllerState {
   // The cluster info response was not received, or the cluster info has
   // expired.
   kClusterInfoInvalid = 3,
-};
-
-// Upload status of a file.
-enum class FileUploadStatus {
-  // Not uploaded.
-  kNotUploaded = 0,
-  // File being processed.
-  kProcessing = 1,
-  // Failed validation - Terminal for this file attempt.
-  kValidationFailed = 2,
-  // Request sent to Lens server.
-  kUploadStarted = 3,
-  // Server confirmed successful receipt.
-  kUploadSuccessful = 4,
-  // Server or network error during upload - Terminal for this file attempt.
-  kUploadFailed = 5,
-};
-
-// For upload error metrics.
-enum class FileUploadErrorType {
-  // Unknown.
-  kUnknown = 0,
-  // Browser error before/during request, not covered by validation.
-  kBrowserProcessingError = 1,
-  // Network-level issue (e.g., no connectivity, DNS failure).
-  kNetworkError = 2,
-  // Server returned an error (e.g., 5xx, specific API error).
-  kServerError = 3,
-  // Server rejected due to size after upload attempt - Considered terminal.
-  kServerSizeLimitExceeded = 4,
-  // Upload aborted by user deletion or session end.
-  kAborted = 5,
 };
 
 namespace version_info {
@@ -93,6 +55,7 @@ class IdentityManager;
 namespace composebox {
 // Image encoding options for an uploaded image.
 struct ImageEncodingOptions {
+  bool enable_webp_encoding;
   int max_size;
   int max_height;
   int max_width;
@@ -104,8 +67,10 @@ struct ImageEncodingOptions {
 using OAuthHeadersCreatedCallback =
     base::OnceCallback<void(std::vector<std::string>)>;
 // Callback type alias for the request body proto created.
+using FileUploadErrorType = composebox_query::mojom::FileUploadErrorType;
 using RequestBodyProtoCreatedCallback =
-    base::OnceCallback<void(lens::LensOverlayServerRequest)>;
+    base::OnceCallback<void(lens::LensOverlayServerRequest,
+                            std::optional<FileUploadErrorType>)>;
 // Callback type alias for the upload progress.
 using UploadProgressCallback =
     base::RepeatingCallback<void(uint64_t position, uint64_t total)>;
@@ -113,6 +78,7 @@ using UploadProgressCallback =
 using QueryControllerStateChangedCallback =
     base::RepeatingCallback<void(QueryControllerState state)>;
 // Callback for when the file upload status changes.
+using FileUploadStatus = composebox_query::mojom::FileUploadStatus;
 using FileUploadStatusChangedCallback =
     base::RepeatingCallback<void(std::string file_token,
                                  FileUploadStatus status)>;
@@ -215,7 +181,8 @@ class ComposeboxQueryController {
       version_info::Channel channel,
       std::string locale,
       TemplateURLService* template_url_service,
-      variations::VariationsClient* variations_client);
+      variations::VariationsClient* variations_client,
+      bool send_lns_surface);
   virtual ~ComposeboxQueryController();
 
   // Session management. Virtual for testing.
@@ -229,8 +196,6 @@ class ComposeboxQueryController {
   void AddObserver(FileUploadStatusObserver* obs);
   void RemoveObserver(FileUploadStatusObserver* obs);
 
-  SessionState session_state() { return session_state_; }
-
   // Triggers upload of the file with data and stores the file info in the
   // internal map. Call after setting the file info fields. Virtual for testing.
   virtual void StartFileUploadFlow(
@@ -239,6 +204,9 @@ class ComposeboxQueryController {
       std::optional<composebox::ImageEncodingOptions> image_options);
   // Removes file from file cache.
   virtual bool DeleteFile(const base::UnguessableToken& file_token);
+
+  // Clear entire file cache.
+  virtual void ClearFiles();
 
  protected:
   // Returns the EndpointFetcher to use with the given params. Protected to
@@ -255,6 +223,14 @@ class ComposeboxQueryController {
   // Creates the client context for Lens requests. Protected to allow access
   // from tests.
   lens::LensOverlayClientContext CreateClientContext() const;
+
+  // Clears all cluster info.
+  void ClearClusterInfo();
+
+  // Resets the request cluster info state. Protected to allow tests to
+  // override. `session_id` is used to determine if the async timer is
+  // from an old, invalid session.
+  virtual void ResetRequestClusterInfoState(int session_id);
 
   // The internal state of the query controller. Protected to allow tests to
   // access the state. Do not modify this state directly, use
@@ -318,8 +294,10 @@ class ComposeboxQueryController {
       RequestBodyProtoCreatedCallback callback);
 
   // Asynchronous handler for when the file upload request body is ready.
-  void OnUploadFileRequestBodyReady(const base::UnguessableToken& file_token,
-                                    lens::LensOverlayServerRequest request);
+  void OnUploadFileRequestBodyReady(
+      const base::UnguessableToken& file_token,
+      lens::LensOverlayServerRequest request,
+      std::optional<FileUploadErrorType> error_type);
 
   // Asynchronous handler for when the file upload request headers are ready.
   void OnUploadFileRequestHeadersReady(const base::UnguessableToken& file_token,
@@ -357,9 +335,6 @@ class ComposeboxQueryController {
   // incognito profiles.
   const raw_ptr<signin::IdentityManager> identity_manager_;
 
-  // TODO(420701010) Create SessionMetrics struct.
-  base::Time session_start_time_;
-
   // The url loader factory to use for Lens network requests.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
@@ -372,9 +347,6 @@ class ComposeboxQueryController {
   // The request id generator for this query flow instance.
   lens::LensOverlayRequestIdGenerator request_id_generator_;
 
-  // The session state.
-  SessionState session_state_ = SessionState::kNone;
-
   // The observer list, managed via AddObserver() and RemoveObserver().
   base::ObserverList<FileUploadStatusObserver> observers_;
 
@@ -386,6 +358,16 @@ class ComposeboxQueryController {
 
   // Owned by the Profile, and thus guaranteed to outlive this instance.
   const raw_ptr<variations::VariationsClient> variations_client_;
+
+  // Whether or not to send the lns_surface parameter.
+  // TODO(crbug.com/430070871): Remove this once the server supports the
+  // `lns_surface` parameter.
+  bool send_lns_surface_ = false;
+
+  // The session counter, incremented when the session is stopped. This is used
+  // to determine if the session is active when handling cluster info
+  // expiration.
+  int session_id_ = 0;
 
   base::WeakPtrFactory<ComposeboxQueryController> weak_ptr_factory_{this};
 };

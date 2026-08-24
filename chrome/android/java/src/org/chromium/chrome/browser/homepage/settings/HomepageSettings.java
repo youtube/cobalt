@@ -12,6 +12,7 @@ import androidx.preference.Preference;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.homepage.HomepageManager;
@@ -27,6 +28,7 @@ import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.url.GURL;
 
 /** Fragment that allows the user to configure homepage related preferences. */
+@NullMarked
 public class HomepageSettings extends ChromeBaseSettingsFragment {
     @VisibleForTesting public static final String PREF_HOMEPAGE_SWITCH = "homepage_switch";
 
@@ -54,6 +56,12 @@ public class HomepageSettings extends ChromeBaseSettingsFragment {
                         return HomepagePolicyManager.isHomepageLocationManaged()
                                 || HomepagePolicyManager.isShowHomeButtonManaged()
                                 || HomepagePolicyManager.isHomepageNewTabPageManaged();
+                    }
+
+                    @Override
+                    public @Nullable Boolean isPreferenceRecommendation(Preference preference) {
+                        if (!HomepagePolicyManager.isShowHomeButtonRecommended()) return null;
+                        return HomepagePolicyManager.isFollowingHomepageButtonRecommendation();
                     }
                 });
 
@@ -96,7 +104,8 @@ public class HomepageSettings extends ChromeBaseSettingsFragment {
     }
 
     /**
-     * Handle the preference changes when we toggled the homepage switch.
+     * Handle the preference changes when the homepage switch is toggled.
+     *
      * @param isChecked Whether switch is turned on.
      */
     private void onSwitchPreferenceChange(boolean isChecked) {

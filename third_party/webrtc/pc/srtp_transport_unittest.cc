@@ -10,9 +10,8 @@
 
 #include "pc/srtp_transport.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <vector>
 

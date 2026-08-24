@@ -85,8 +85,8 @@ using Stream = VideoCodecTester::VideoCodecStats::Stream;
 
 constexpr int kWidth = 2;
 constexpr int kHeight = 2;
-const DataRate kBitrate = DataRate::BytesPerSec(100);
-const Frequency kFramerate = Frequency::Hertz(30);
+constexpr DataRate kBitrate = DataRate::BytesPerSec(100);
+constexpr Frequency kFramerate = Frequency::Hertz(30);
 constexpr Frequency k90kHz = Frequency::Hertz(90000);
 
 scoped_refptr<I420Buffer> CreateYuvBuffer(uint8_t y = 0,

@@ -17,6 +17,9 @@
 #include "components/sync/protocol/user_event_specifics.pb.h"
 
 namespace safe_browsing {
+namespace internal {
+struct ReferringAppInfo;
+}  // namespace internal
 class SafeBrowsingUIHandler;
 }  // namespace safe_browsing
 
@@ -125,7 +128,49 @@ std::string AddFullHashCacheInfo(
 
 #endif
 
+// Serialization helper functions.
+std::string SerializeClientDownloadRequest(const ClientDownloadRequest& cdr);
+std::string SerializeClientDownloadResponse(const ClientDownloadResponse& cdr);
+std::string SerializeClientPhishingRequest(
+    const ClientPhishingRequestAndToken& cprat);
+std::string SerializeClientPhishingResponse(const ClientPhishingResponse& cpr);
+std::string SerializeCSBRR(const ClientSafeBrowsingReportRequest& report);
+std::string SerializeHitReport(const HitReport& hit_report);
 std::string SerializeJson(base::ValueView value);
+base::Value::Dict SerializePGEvent(const sync_pb::UserEventSpecifics& event);
+base::Value::Dict SerializeSecurityEvent(
+    const sync_pb::GaiaPasswordReuse& event);
+#if BUILDFLAG(IS_ANDROID)
+// This serializes the internal::ReferringAppInfo struct (not to be confused
+// with the protobuf message ReferringAppInfo), which contains intermediate
+// information obtained from Java.
+base::Value::Dict SerializeReferringAppInfo(
+    const internal::ReferringAppInfo& info);
+#endif
+std::string SerializePGPing(
+    const LoginReputationClientRequestAndToken& request_and_token);
+std::string SerializePGResponse(const LoginReputationClientResponse& response);
+std::string SerializeURTLookupPing(const URTLookupRequest& ping);
+std::string SerializeURTLookupResponse(const RTLookupResponse& response);
+std::string SerializeHPRTLookupPing(const HPRTLookupRequest& ping);
+std::string SerializeHPRTLookupResponse(
+    const V5::SearchHashesResponse& response);
+base::Value::Dict SerializeLogMessage(base::Time timestamp,
+                                      const std::string& message);
+base::Value::Dict SerializeReportingEvent(const base::Value::Dict& event);
+#if BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION) && !BUILDFLAG(IS_ANDROID)
+std::string SerializeContentAnalysisRequest(
+    bool per_profile_request,
+    const std::string& access_token_truncated,
+    const std::string& upload_info,
+    const std::string& upload_url,
+    const enterprise_connectors::ContentAnalysisRequest& request);
+std::string SerializeContentAnalysisResponse(
+    const enterprise_connectors::ContentAnalysisResponse& response);
+base::Value::Dict SerializeDeepScanDebugData(const std::string& token,
+                                             const DeepScanDebugData& data);
+#endif  // BUILDFLAG(SAFE_BROWSING_DOWNLOAD_PROTECTION) &&
+        // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace safe_browsing::web_ui
 

@@ -10,11 +10,10 @@
 
 #include "pc/legacy_stats_collector.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>

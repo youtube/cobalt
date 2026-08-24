@@ -73,12 +73,11 @@ TabModelJniBridge::TabModelJniBridge(JNIEnv* env,
   }
 }
 
-void TabModelJniBridge::Destroy(JNIEnv* env, const JavaParamRef<jobject>& obj) {
+void TabModelJniBridge::Destroy(JNIEnv* env) {
   delete this;
 }
 
 void TabModelJniBridge::TabAddedToModel(JNIEnv* env,
-                                        const JavaParamRef<jobject>& obj,
                                         TabAndroid* tab) {
   // Tab#initialize() should have been called by now otherwise we can't push
   // the window id.
@@ -94,9 +93,29 @@ void TabModelJniBridge::TabAddedToModel(JNIEnv* env,
 }
 
 void TabModelJniBridge::DuplicateTabForTesting(JNIEnv* env,
-                                               const JavaParamRef<jobject>& obj,
                                                TabAndroid* tab) {
   DuplicateTab(tab);
+}
+
+void TabModelJniBridge::AddTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  // If a first observer is being added then instantiate an observer bridge.
+  if (!observer_bridge_) {
+    JNIEnv* env = AttachCurrentThread();
+    observer_bridge_ = std::make_unique<TabModelObserverJniBridge>(
+        env, java_object_.get(env), *this);
+  }
+  observer_bridge_->AddTabListInterfaceObserver(observer);
+}
+
+void TabModelJniBridge::RemoveTabListInterfaceObserver(
+    TabListInterfaceObserver* observer) {
+  observer_bridge_->RemoveTabListInterfaceObserver(observer);
+
+  // Tear down the bridge if there are no observers left.
+  if (!observer_bridge_->has_observers()) {
+    observer_bridge_.reset();
+  }
 }
 
 int TabModelJniBridge::GetTabCount() const {
@@ -107,6 +126,10 @@ int TabModelJniBridge::GetTabCount() const {
 int TabModelJniBridge::GetActiveIndex() const {
   JNIEnv* env = AttachCurrentThread();
   return Java_TabModelJniBridge_index(env, java_object_.get(env));
+}
+
+tabs::TabInterface* TabModelJniBridge::GetActiveTab() {
+  return GetTab(GetActiveIndex());
 }
 
 void TabModelJniBridge::CreateTab(TabAndroid* parent,
@@ -213,8 +236,8 @@ void TabModelJniBridge::AddObserver(TabModelObserver* observer) {
   // If a first observer is being added then instantiate an observer bridge.
   if (!observer_bridge_) {
     JNIEnv* env = AttachCurrentThread();
-    observer_bridge_ =
-        std::make_unique<TabModelObserverJniBridge>(env, java_object_.get(env));
+    observer_bridge_ = std::make_unique<TabModelObserverJniBridge>(
+        env, java_object_.get(env), *this);
   }
   observer_bridge_->AddObserver(observer);
 }
@@ -228,9 +251,7 @@ void TabModelJniBridge::RemoveObserver(TabModelObserver* observer) {
   }
 }
 
-void TabModelJniBridge::BroadcastSessionRestoreComplete(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void TabModelJniBridge::BroadcastSessionRestoreComplete(JNIEnv* env) {
   if (!is_archived_tab_model_) {
     TabModel::BroadcastSessionRestoreComplete();
   }
@@ -293,9 +314,29 @@ tabs::TabInterface* TabModelJniBridge::GetTab(int index) {
   return GetTabAt(index);
 }
 
-void TabModelJniBridge::HighlightTabs(const std::set<tabs::TabHandle>& tabs) {
-  // TODO(crbug.com/415351293): Implement.
-  NOTIMPLEMENTED();
+int TabModelJniBridge::GetIndexOfTab(tabs::TabHandle tab) {
+  tabs::TabInterface* tab_interface = tab.Get();
+  if (!tab_interface) {
+    return -1;
+  }
+  int count = GetTabCount();
+  for (int i = 0; i < count; ++i) {
+    if (GetTabAt(i) == tab_interface) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+void TabModelJniBridge::HighlightTabs(tabs::TabHandle tab_to_activate,
+                                      const std::set<tabs::TabHandle>& tabs) {
+  std::vector<TabAndroid*> tabs_to_highlight = GetAllTabsFromHandles(tabs);
+  TabAndroid* tab_android = TabAndroid::FromTabHandle(tab_to_activate);
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  Java_TabModelJniBridge_highlightTabs(env, jobj, tab_android,
+                                       tabs_to_highlight);
 }
 
 void TabModelJniBridge::MoveTab(tabs::TabHandle tab, int index) {
@@ -335,13 +376,25 @@ std::vector<tabs::TabInterface*> TabModelJniBridge::GetAllTabs() {
 }
 
 void TabModelJniBridge::PinTab(tabs::TabHandle tab) {
-  // TODO(crbug.com/415351293): Implement.
-  NOTIMPLEMENTED();
+  TabAndroid* tab_android = TabAndroid::FromTabHandle(tab);
+  if (!tab_android) {
+    return;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  Java_TabModelJniBridge_pinTab(env, jobj, tab_android);
 }
 
 void TabModelJniBridge::UnpinTab(tabs::TabHandle tab) {
-  // TODO(crbug.com/415351293): Implement.
-  NOTIMPLEMENTED();
+  TabAndroid* tab_android = TabAndroid::FromTabHandle(tab);
+  if (!tab_android) {
+    return;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  Java_TabModelJniBridge_unpinTab(env, jobj, tab_android);
 }
 
 std::optional<tab_groups::TabGroupId> TabModelJniBridge::AddTabsToGroup(

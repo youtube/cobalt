@@ -10,10 +10,9 @@
 
 #include "examples/peerconnection/server/peer_channel.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <iterator>
 #include <string>

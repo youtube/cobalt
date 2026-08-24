@@ -104,6 +104,7 @@
 #include "content/public/common/result_codes.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/system/platform_handle.h"
@@ -418,7 +419,7 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(
   frame_token_message_queue_->Init(this);
 
   CHECK(delegate_);
-  CHECK_NE(MSG_ROUTING_NONE, routing_id_);
+  CHECK_NE(IPC::mojom::kRoutingIdNone, routing_id_);
   CHECK(base::ThreadPoolInstance::Get());
 
   AddInputEventObserver(BrowserAccessibilityStateImpl::GetInstance());
@@ -3835,10 +3836,9 @@ void RenderWidgetHostImpl::OnRenderFrameMetadataChangedAfterActivation(
 
   if (mobile_optimized_state_changed) {
     input_router()->NotifySiteIsMobileOptimized(is_mobile_optimized_);
-    if (auto* touch_emulator =
-            GetTouchEmulator(/*create_if_necessary=*/false)) {
-      touch_emulator->SetDoubleTapSupportForPageEnabled(!is_mobile_optimized_);
-    }
+  }
+  if (auto* touch_emulator = GetTouchEmulator(/*create_if_necessary=*/false)) {
+    touch_emulator->SetDoubleTapSupportForPageEnabled(!is_mobile_optimized_);
   }
 
   // TODO(danakj): Can this method be called during WebContents destruction?

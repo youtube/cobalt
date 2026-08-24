@@ -598,6 +598,19 @@ void ConvertFrameMetadata(
   metadata.frame_metadata.push_back(std::move(frame_metadata));
 }
 
+void ConvertScriptTool(
+    const blink::mojom::ScriptTool& tool,
+    optimization_guide::proto::ScriptTool* proto_script_tool) {
+  proto_script_tool->set_name(tool.name);
+  proto_script_tool->set_description(tool.description);
+  proto_script_tool->set_input_schema(tool.input_schema);
+
+  if (tool.annotations) {
+    proto_script_tool->mutable_annotations()->set_read_only(
+        tool.annotations->read_only);
+  }
+}
+
 void ConvertFrameData(
     const RenderFrameInfo& render_frame_info,
     const blink::mojom::AIPageContentFrameData& mojom_frame_data,
@@ -626,6 +639,14 @@ void ConvertFrameData(
         proto_frame_data->mutable_paid_content_metadata();
     paid_content_metadata->set_contains_paid_content(
         mojom_frame_data.contains_paid_content.value());
+  }
+
+  if (render_frame_info.media_data) {
+    *proto_frame_data->mutable_media_data() = *render_frame_info.media_data;
+  }
+
+  for (const auto& tool : mojom_frame_data.script_tools) {
+    ConvertScriptTool(*tool, proto_frame_data->add_script_tools());
   }
 }
 
@@ -704,7 +725,6 @@ bool ConvertNode(content::GlobalRenderFrameHostToken source_frame_token,
       if (!ConvertNode(render_frame_info->global_frame_token,
                        *frame_page_content.root_node, page_content_map,
                        frame_token_set, get_render_frame_info, metadata,
-
                        proto_child_frame_node)) {
         return false;
       }
@@ -954,5 +974,6 @@ std::optional<TargetNodeInfo> FindNodeWithID(
 
 RenderFrameInfo::RenderFrameInfo() = default;
 RenderFrameInfo::RenderFrameInfo(const RenderFrameInfo& other) = default;
+RenderFrameInfo::~RenderFrameInfo() = default;
 
 }  // namespace optimization_guide

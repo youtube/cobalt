@@ -12,9 +12,75 @@
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
+#include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace gpu {
+
+// static
+bool SharedMemoryImageBackingFactory::IsSizeValidForFormat(
+    const gfx::Size& size,
+    viz::SharedImageFormat format) {
+  auto buffer_format = ToBufferFormat(format);
+  switch (buffer_format) {
+    case gfx::BufferFormat::R_8:
+    case gfx::BufferFormat::R_16:
+    case gfx::BufferFormat::RG_88:
+    case gfx::BufferFormat::RG_1616:
+    case gfx::BufferFormat::BGR_565:
+    case gfx::BufferFormat::RGBA_4444:
+    case gfx::BufferFormat::RGBA_8888:
+    case gfx::BufferFormat::RGBX_8888:
+    case gfx::BufferFormat::BGRA_8888:
+    case gfx::BufferFormat::BGRX_8888:
+    case gfx::BufferFormat::BGRA_1010102:
+    case gfx::BufferFormat::RGBA_1010102:
+    case gfx::BufferFormat::RGBA_F16:
+      return true;
+    case gfx::BufferFormat::YVU_420:
+    case gfx::BufferFormat::YUV_420_BIPLANAR:
+    case gfx::BufferFormat::YUVA_420_TRIPLANAR:
+    case gfx::BufferFormat::P010: {
+      size_t num_planes =
+          gfx::NumberOfPlanesForLinearBufferFormat(buffer_format);
+      for (size_t i = 0; i < num_planes; ++i) {
+        size_t factor = gfx::SubsamplingFactorForBufferFormat(buffer_format, i);
+        if (size.width() % factor || size.height() % factor) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  NOTREACHED();
+}
+
+// static
+gfx::GpuMemoryBufferHandle
+SharedMemoryImageBackingFactory::CreateGpuMemoryBufferHandle(
+    const gfx::Size& size,
+    gfx::BufferFormat buffer_format,
+    gfx::BufferUsage buffer_usage) {
+  size_t buffer_size = 0u;
+  if (!gfx::BufferSizeForBufferFormatChecked(size, buffer_format,
+                                             &buffer_size)) {
+    return gfx::GpuMemoryBufferHandle();
+  }
+
+  auto shared_memory_region =
+      base::UnsafeSharedMemoryRegion::Create(buffer_size);
+  if (!shared_memory_region.IsValid()) {
+    return gfx::GpuMemoryBufferHandle();
+  }
+
+  gfx::GpuMemoryBufferHandle handle(std::move(shared_memory_region));
+  handle.type = gfx::SHARED_MEMORY_BUFFER;
+  handle.offset = 0;
+  handle.stride = static_cast<uint32_t>(
+      gfx::RowSizeForBufferFormat(size.width(), buffer_format, 0));
+  return handle;
+}
 
 SharedMemoryImageBackingFactory::SharedMemoryImageBackingFactory()
     : SharedImageBackingFactory(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
@@ -59,8 +125,10 @@ SharedMemoryImageBackingFactory::CreateSharedImage(
     bool is_thread_safe,
     gfx::BufferUsage buffer_usage) {
   auto buffer_format = ToBufferFormat(format);
-  auto handle = GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
-      size, buffer_format, buffer_usage);
+  gfx::GpuMemoryBufferHandle handle;
+  if (GpuMemoryBufferImplSharedMemory::IsUsageSupported(buffer_usage)) {
+    handle = CreateGpuMemoryBufferHandle(size, buffer_format, buffer_usage);
+  }
   SharedMemoryRegionWrapper shm_wrapper;
   if (!shm_wrapper.Initialize(handle, size, buffer_format)) {
     return nullptr;

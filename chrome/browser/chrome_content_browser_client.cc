@@ -108,7 +108,6 @@
 #include "chrome/browser/net/profile_network_context_service.h"
 #include "chrome/browser/net/profile_network_context_service_factory.h"
 #include "chrome/browser/net/system_network_context_manager.h"
-#include "chrome/browser/optimization_guide/chrome_browser_main_extra_parts_optimization_guide.h"
 #include "chrome/browser/payments/payment_request_display_manager_factory.h"
 #include "chrome/browser/performance_manager/public/chrome_browser_main_extra_parts_performance_manager.h"
 #include "chrome/browser/performance_manager/public/chrome_content_browser_client_performance_manager_part.h"
@@ -131,7 +130,6 @@
 #include "chrome/browser/privacy_budget/identifiability_study_state.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_settings_factory.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
-#include "chrome/browser/private_network_access/chrome_private_network_device_delegate.h"
 #include "chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_io_data.h"
@@ -361,7 +359,6 @@
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_private_key.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
@@ -553,7 +550,6 @@
 #include "chrome/browser/ui/webui/chrome_content_browser_client_webui_part.h"
 #include "chrome/browser/ui/webui/webui_util_desktop.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_error_page.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_loader_factory.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -565,6 +561,7 @@
 #include "components/commerce/core/commerce_feature_list.h"
 #include "components/password_manager/content/common/web_ui_constants.h"
 #include "components/password_manager/core/common/password_manager_features.h"
+#include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #endif  //  !BUILDFLAG(IS_ANDROID)
 
@@ -1504,6 +1501,11 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
       prefs::kSubAppsAPIsAllowedWithoutGestureAndAuthorizationForOrigins);
 #endif
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  registry->RegisterBooleanPref(
+      policy::policy_prefs::kProtectedContentIdentifiersAllowed, true);
+#endif
+
   registry->RegisterBooleanPref(prefs::kWebAudioOutputBufferingEnabled, false);
   registry->RegisterBooleanPref(prefs::kSharedWorkerBlobURLFixEnabled, true);
   registry->RegisterBooleanPref(
@@ -1707,9 +1709,6 @@ ChromeContentBrowserClient::CreateBrowserMainParts(bool is_integration_test) {
 
   main_parts->AddParts(
       std::make_unique<ChromeBrowserMainExtraPartsSegmentationPlatform>());
-
-  main_parts->AddParts(
-      std::make_unique<ChromeBrowserMainExtraPartsOptimizationGuide>());
 
   return main_parts;
 }
@@ -4636,6 +4635,17 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
           web_prefs->web_app_scope = registrar.GetAppScope(app_id);
         }
 
+        // IWA can close windows with window management permission.
+        if (browser->app_controller()->IsIsolatedWebApp() &&
+            profile->GetPermissionController()
+                    ->GetPermissionStatusForCurrentDocument(
+                        content::PermissionDescriptorUtil::
+                            CreatePermissionDescriptorForPermissionType(
+                                blink::PermissionType::WINDOW_MANAGEMENT),
+                        web_contents->GetPrimaryMainFrame()) ==
+                blink::mojom::PermissionStatus::GRANTED) {
+          web_prefs->allow_scripts_to_close_windows = true;
+        }
 #if BUILDFLAG(IS_CHROMEOS)
         auto* system_app = browser->app_controller()->system_app();
         if (system_app) {
@@ -5228,6 +5238,34 @@ void ChromeContentBrowserClient::SessionEnding(
 bool ChromeContentBrowserClient::ShouldEnableAudioProcessHighPriority() {
   return IsAudioProcessHighPriorityEnabled();
 }
+
+bool ChromeContentBrowserClient::ShouldRestrictCoreSharingOnRenderer() {
+  if (base::win::GetVersion() < base::win::Version::WIN11_24H2) {
+    return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          sandbox::policy::features::kWinSboxRestrictCoreSharingOnRenderer)) {
+    return true;
+  }
+
+  PrefService* local_state = nullptr;
+  if (g_browser_process) {
+    local_state = g_browser_process->local_state();
+  } else {
+    local_state = startup_data_.chrome_feature_list_creator()->local_state();
+  }
+
+  const PrefService::Preference* pref =
+      local_state->FindPreference(prefs::kRestrictCoreSharingOnRenderer);
+  // CPU core sharing is disabled if managed pref is set to false.
+  if (pref && pref->IsManaged() && pref->GetValue()->is_bool()) {
+    return pref->GetValue()->GetBool();
+  }
+
+  return false;
+}
+
 #endif  // BUILDFLAG(IS_WIN)
 
 void ChromeContentBrowserClient::
@@ -6584,15 +6622,6 @@ content::SerialDelegate* ChromeContentBrowserClient::GetSerialDelegate() {
     serial_delegate_ = std::make_unique<ChromeSerialDelegate>();
   }
   return serial_delegate_.get();
-}
-
-content::PrivateNetworkDeviceDelegate*
-ChromeContentBrowserClient::GetPrivateNetworkDeviceDelegate() {
-  if (!private_network_device_delegate_) {
-    private_network_device_delegate_ =
-        std::make_unique<ChromePrivateNetworkDeviceDelegate>();
-  }
-  return private_network_device_delegate_.get();
 }
 
 bool ChromeContentBrowserClient::IsSecurityLevelAcceptableForWebAuthn(
@@ -8325,20 +8354,23 @@ void ChromeContentBrowserClient::NotifyMultiCaptureStateChanged(
     content::GlobalRenderFrameHostId capturer_rfh_id,
     const std::string& label,
     MultiCaptureChanged state) {
-  content::WebContents* const web_contents = WebContents::FromRenderFrameHost(
-      RenderFrameHost::FromID(capturer_rfh_id));
-  if (!web_contents) {
-    return;
-  }
-
   switch (state) {
     case MultiCaptureChanged::kStarted: {
+      WebContents* web_contents = WebContents::FromRenderFrameHost(
+          RenderFrameHost::FromID(capturer_rfh_id));
       NotifyMultiCaptureStarted(
           label, web_contents, web_app::WebAppTabHelper::GetAppId(web_contents),
           web_contents->GetBrowserContext());
     } break;
     case MultiCaptureChanged::kStopped:
-      NotifyMultiCaptureStopped(label, web_contents->GetBrowserContext());
+      NotifyMultiCaptureStopped(
+          label,
+          // We can't use web contents to get the browser context because by the
+          // time we reach here, the web contents may be destroyed already (e.g.
+          // if the user just closes the window). This approach is only
+          // guaranteed to work well on ChromeOS.
+          ash::ProfileHelper::Get()->GetProfileByUser(
+              user_manager::UserManager::Get()->GetPrimaryUser()));
       break;
   }
 }

@@ -400,6 +400,37 @@ bool NeedsScopeActivation(
 
 }  // namespace
 
+SelectorChecker::FeaturelessMatch
+SelectorChecker::MatchesShadowHostInComplexSelector(
+    const SelectorCheckingContext& context,
+    MatchResult& result) const {
+  SelectorCheckingContext sub_context(context);
+  FeaturelessMatch match = kFeaturelessMatches;
+  while (sub_context.selector) {
+    if (sub_context.selector->Relation() != CSSSelector::kSubSelector) {
+      // We have a combinator left of a :host. Such selectors should evaluate to
+      // false, even when negated. For instance: :not(#foo > :host) { ... }
+      return kFeaturelessUnknown;
+    }
+    SubResult sub_result(result);
+    switch (MatchShadowHost(sub_context, sub_result)) {
+      case kFeaturelessMatches:
+        break;
+      case kFeaturelessFails:
+        // We need to keep matching within the compound for non-matching simple
+        // selectors since `:not(:not(:host))` should match,
+        // but `:not(:not(:host)#foo)` shouldn't, and we need to reach #foo to
+        // know that we need to return kFeaturelessUnknown.
+        match = kFeaturelessFails;
+        break;
+      case kFeaturelessUnknown:
+        return kFeaturelessUnknown;
+    }
+    sub_context.selector = sub_context.selector->NextSimpleSelector();
+  }
+  return match;
+}
+
 SelectorChecker::FeaturelessMatch SelectorChecker::MatchesShadowHostInList(
     const SelectorCheckingContext& context,
     const CSSSelector* selector_list,
@@ -408,21 +439,20 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchesShadowHostInList(
   sub_context.is_sub_selector = true;
   sub_context.in_nested_complex_selector = true;
   sub_context.pseudo_id = kPseudoIdNone;
-  FeaturelessMatch fail = kFeaturelessUnknown;
+  FeaturelessMatch match = kFeaturelessUnknown;
   for (sub_context.selector = selector_list; sub_context.selector;
        sub_context.selector = CSSSelectorList::Next(*sub_context.selector)) {
-    SubResult sub_result(result);
-    switch (MatchShadowHost(sub_context, sub_result)) {
+    switch (MatchesShadowHostInComplexSelector(sub_context, result)) {
       case kFeaturelessMatches:
         return kFeaturelessMatches;
       case kFeaturelessFails:
-        fail = kFeaturelessFails;
+        match = kFeaturelessFails;
         break;
       case kFeaturelessUnknown:
         break;
     }
   }
-  return fail;
+  return match;
 }
 
 SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
@@ -593,6 +623,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoMultiSelectFocus:
     case CSSSelector::kPseudoOpen:
     case CSSSelector::kPseudoPastCue:
+    case CSSSelector::kPseudoPatching:
     case CSSSelector::kPseudoPopoverInTopLayer:
     case CSSSelector::kPseudoPopoverOpen:
     case CSSSelector::kPseudoRelativeAnchor:
@@ -981,10 +1012,10 @@ SelectorChecker::MatchStatus SelectorChecker::MatchForRelation(
         // parent scope of the rule but somehow ignoring everything that isn't
         // :host.
         const TreeScope& host_tree_scope =
-            next_context.selector->IsDeeplyHostPseudoClass()
+            next_context.selector->IsDeeplyHostPseudoClass() &&
+                    context.element->GetTreeScope() == context.tree_scope
                 ? *context.tree_scope->ParentTreeScope()
                 : *context.tree_scope;
-
         if (next_context.element->GetTreeScope() == host_tree_scope) {
           return MatchSelector(next_context, result);
         }
@@ -2539,6 +2570,9 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
     case CSSSelector::kPseudoPastCue: {
       auto* vtt_element = DynamicTo<VTTElement>(element);
       return vtt_element && vtt_element->IsPastNode();
+    }
+    case CSSSelector::kPseudoPatching: {
+      return element.currentPatch();
     }
     case CSSSelector::kPseudoScope:
       return CheckPseudoScope(context, result);

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/environment/environment_factory.h"
 #include "api/jsep.h"
 #include "api/media_types.h"

@@ -111,18 +111,13 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
   // this transition instead of just zeroing the alpha here.
   browser.view.alpha = 0;
 
-  // Run the main animation.
-  if (@available(iOS 17, *)) {
-    // On iOS 17, there is an issue if the animation is run directly.
-    // See crbug.com/1458980.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
-                                 static_cast<int64_t>(0.01 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-                     [self.animation.animator startAnimation];
-                   });
-  } else {
-    [self.animation.animator startAnimation];
-  }
+  // Run the main animation. There is an issue if the animation is run directly.
+  // See crbug.com/1458980.
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                               static_cast<int64_t>(0.01 * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+                   [self.animation.animator startAnimation];
+                 });
 }
 
 - (void)transitionFromTabGrid:(UIViewController*)tabGrid
@@ -275,14 +270,22 @@ const CGFloat kToTabGroupAnimationDuration = 0.25;
     tabFinalAlpha = 1;
     tabFinalTransform = tab.transform;
     tab.transform = CGAffineTransformScale(tabFinalTransform, 0.75, 0.75);
-    tabFinalCornerRadius = DeviceCornerRadius();
+    if (IsDiamondPrototypeEnabled()) {
+      tabFinalCornerRadius = kDiamondBrowserCornerRadius;
+    } else {
+      tabFinalCornerRadius = DeviceCornerRadius();
+    }
     tab.layer.cornerRadius = 26.0;
   } else {
     // If dismissing, the the tab view animates out to 0% opacity, 75% scale,
     // and 26px corner radius.
     tabFinalAlpha = 0;
     tabFinalTransform = CGAffineTransformScale(tab.transform, 0.75, 0.75);
-    tab.layer.cornerRadius = DeviceCornerRadius();
+    if (IsDiamondPrototypeEnabled()) {
+      tab.layer.cornerRadius = kDiamondBrowserCornerRadius;
+    } else {
+      tab.layer.cornerRadius = DeviceCornerRadius();
+    }
     tabFinalCornerRadius = 26.0;
   }
 

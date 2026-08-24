@@ -10,9 +10,8 @@
 
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder_legacy.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <memory>
 #include <optional>

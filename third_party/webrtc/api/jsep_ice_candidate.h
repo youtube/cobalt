@@ -12,6 +12,6 @@
 #define API_JSEP_ICE_CANDIDATE_H_
 
 // TODO: webrtc:406795492 - Delete file once no longer #included.
-#include "api/jsep.h"
+#include "api/jsep.h"  // IWYU pragma: keep
 
 #endif  // API_JSEP_ICE_CANDIDATE_H_

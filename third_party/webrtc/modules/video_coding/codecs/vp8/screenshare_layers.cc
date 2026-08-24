@@ -9,10 +9,9 @@
 
 #include "modules/video_coding/codecs/vp8/screenshare_layers.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -597,7 +596,7 @@ void ScreenshareLayers::UpdateHistograms() {
     return;
   int64_t duration_sec =
       (TimeMillis() - stats_.first_frame_time_ms_ + 500) / 1000;
-  if (duration_sec >= metrics::kMinRunTimeInSeconds) {
+  if (duration_sec >= metrics::kMinRunTime.seconds()) {
     RTC_HISTOGRAM_COUNTS_10000(
         "WebRTC.Video.Screenshare.Layer0.FrameRate",
         (stats_.num_tl0_frames_ + (duration_sec / 2)) / duration_sec);

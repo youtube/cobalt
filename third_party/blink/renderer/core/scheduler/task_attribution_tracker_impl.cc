@@ -48,6 +48,8 @@ perfetto::protos::pbzero::BlinkTaskScope::TaskScopeType ToProtoEnum(
       return ProtoType::TASK_SCOPE_XML_HTTP_REQUEST;
     case TaskAttributionTracker::TaskScopeType::kSoftNavigation:
       return ProtoType::TASK_SCOPE_SOFT_NAVIGATION;
+    case TaskAttributionTracker::TaskScopeType::kMiscEvent:
+      return ProtoType::TASK_SCOPE_MISC_EVENT;
   }
 }
 
@@ -183,9 +185,14 @@ void TaskAttributionTrackerImpl::OnObserverScopeDestroyed(
   observer_ = observer_scope.PreviousObserver();
 }
 
-void TaskAttributionTrackerImpl::AddSameDocumentNavigationTask(
-    TaskAttributionInfo* task) {
-  same_document_navigation_tasks_.push_back(task);
+std::optional<TaskAttributionId>
+TaskAttributionTrackerImpl::AsyncSameDocumentNavigationStarted() {
+  scheduler::TaskAttributionInfo* task_state = CurrentTaskState();
+  if (!task_state) {
+    return std::nullopt;
+  }
+  same_document_navigation_tasks_.push_back(task_state);
+  return task_state->Id();
 }
 
 void TaskAttributionTrackerImpl::ResetSameDocumentNavigationTasks() {

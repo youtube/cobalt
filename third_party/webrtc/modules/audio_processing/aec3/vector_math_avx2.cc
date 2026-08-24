@@ -9,7 +9,8 @@
  */
 
 #include <immintrin.h>
-#include <math.h>
+
+#include <cmath>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/aec3/vector_math.h"

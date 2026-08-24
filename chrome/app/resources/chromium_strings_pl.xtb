@@ -65,6 +65,7 @@
 <translation id="1880677175115548835">Zaznacz tekst</translation>
 <translation id="1881322772814446296">Logujesz się na zarządzane konto i przekazujesz jego administratorowi kontrolę nad swoim profilem Chromium. Twoje dane Chromium, takie jak aplikacje, zakładki, historia, hasła i inne ustawienia, zostaną trwale powiązane z użytkownikiem <ph name="USER_NAME" />. Będzie można je usunąć w Panelu kont Google, ale nie będzie można ich powiązać z innym kontem. Możesz też utworzyć nowy profil, by przechowywać swoje dotychczasowe dane Chromium osobno. <ph name="LEARN_MORE" /></translation>
 <translation id="1896836275755235458">Chromium oszczędza baterię, ograniczając aktywność w tle i efekty wizualne, takie jak płynne przewijanie i liczba klatek w filmie. <ph name="BEGIN_LINK" />Więcej informacji o Oszczędzaniu energii<ph name="END_LINK" /></translation>
+<translation id="1898804291554630487">Zapytaj o tę stronę</translation>
 <translation id="1900969832270057921">Usługa aktualizatora Chromium</translation>
 <translation id="1911763535808217981">Jeśli wyłączysz tę opcję, możesz logować się na stronach Google takich jak Gmail bez logowania się w Chromium</translation>
 <translation id="1916451563296275579">Usuń dane tej aplikacji z Chromium</translation>
@@ -132,6 +133,7 @@
 <translation id="2711502716910134313">Karta Chromium</translation>
 <translation id="2718390899429598676">Dla większego bezpieczeństwa Chromium szyfruje dane.</translation>
 <translation id="2721354645805494590">Aby usunąć konto Google z Chromium, wyloguj się</translation>
+<translation id="2722636413143664436">Aby mieć dostęp do haseł, zakładek oraz innych ustawień i danych na wszystkich swoich urządzeniach, zaloguj się w Chromium</translation>
 <translation id="2738871930057338499">Nie można połączyć się z internetem. Kod HTTP 403 (Zabroniony). Sprawdź konfigurację proxy.</translation>
 <translation id="2753623023919742414">Kliknij, aby wyszukać</translation>
 <translation id="2768103863314748511">Ustaw Chromium jako domyślną przeglądarkę plików PDF</translation>
@@ -159,6 +161,7 @@
 <translation id="3032787606318309379">Dodawanie do Chromium...</translation>
 <translation id="3038232873781883849">Czekam na instalację…</translation>
 <translation id="3045032126857188731">Język tłumaczenia: <ph name="LANGUAGE" /></translation>
+<translation id="3047590466164881923">Zamknij okno opinii</translation>
 <translation id="3068187312562070417">Inne profile Chromium</translation>
 <translation id="3068515742935458733">Pomóż nam ulepszyć Chromium, przesyłając do Google raporty o awariach i <ph name="UMA_LINK" /></translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{Co najmniej 1 rozszerzenie do Chromium uzyskuje dostęp do 1 urządzenia USB}=1{Co najmniej 1 rozszerzenie do Chromium uzyskuje dostęp do 1 urządzenia USB}few{Co najmniej 1 rozszerzenie do Chromium uzyskuje dostęp do # urządzeń USB}many{Co najmniej 1 rozszerzenie do Chromium uzyskuje dostęp do # urządzeń USB}other{Co najmniej 1 rozszerzenie do Chromium uzyskuje dostęp do # urządzenia USB}}</translation>
@@ -400,6 +403,7 @@
 <translation id="6366160072964553914">Pobieranie zostało zablokowane przez Chromium, ponieważ ten plik nie jest często pobierany i może być niebezpieczny</translation>
 <translation id="6373523479360886564">Czy na pewno chcesz odinstalować Chromium?</translation>
 <translation id="6375219077595103062">Dodaj skrót do Menedżera haseł</translation>
+<translation id="6388799252195623474">pomóż mi w tym</translation>
 <translation id="6390800440335263989">Aby przejść dalej, zaloguj się w Chromium jako <ph name="EMAIL" />. Dzięki temu zachowasz zgodność z zasadami organizacji.</translation>
 <translation id="6400112897226594999">Logo Chromium na ekranie komputera.</translation>
 <translation id="6403826409255603130">Chromium to przeglądarka obsługująca strony i aplikacje z szybkością błyskawicy. Jest szybka, stabilna i łatwa w użyciu. Bezpiecznie przeglądaj internet dzięki wbudowanej w Chromium ochronie przed złośliwym oprogramowaniem i phishingiem.</translation>
@@ -498,6 +502,7 @@ Chromium nie może odzyskać ustawień.</translation>
 <translation id="7585391435984513350">Ta witryna nie była przez Ciebie ostatnio odwiedzana. Przeglądarka Chromium usunęła te uprawnienia: <ph name="PERMISSION" />.</translation>
 <translation id="761356813943268536">Chromium używa Twojej kamery i mikrofonu.</translation>
 <translation id="7617377681829253106">Przeglądarka Chromium jest jeszcze lepsza</translation>
+<translation id="7622753900276619808">Teraz masz do dyspozycji więcej funkcji w Chromium</translation>
 <translation id="7649070708921625228">Pomoc</translation>
 <translation id="7658239707568436148">Anuluj</translation>
 <translation id="7686590090926151193">Chromium nie jest domyślną przeglądarką</translation>

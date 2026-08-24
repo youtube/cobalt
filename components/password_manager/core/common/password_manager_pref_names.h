@@ -69,20 +69,6 @@ inline constexpr char kDeletingUndecryptablePasswordsEnabled[] =
 
 #if BUILDFLAG(IS_ANDROID)
 
-// The timestamp at which the UPM password access loss warning was last
-// shown to the user at the time of Chrome startup in microseconds since Windows
-// epoch. This is needed to ensure that the UI is prompted only once per given
-// time interval (currently seven days).
-inline constexpr char kPasswordAccessLossWarningShownAtStartupTimestamp[] =
-    "password_access_loss_warning_shown_at_startup_timestamp";
-
-// The timestamp at which the UPM password access loss warning was last
-// shown to the user in microseconds since Windows epoch. This is needed to
-// ensure that the UI is prompted only once per given time interval (currently
-// one day).
-inline constexpr char kPasswordAccessLossWarningShownTimestamp[] =
-    "password_access_loss_warning_shown_timestamp";
-
 // Boolean pref indicating if the one-time notice for account storage was shown.
 // The notice informs passwords will start being saved to the signed-in account.
 inline constexpr char kAccountStorageNoticeShown[] =
@@ -111,21 +97,10 @@ inline constexpr char kEmptyProfileStoreLoginDatabase[] =
 inline constexpr char kOfferToSavePasswordsEnabledGMS[] =
     "profile.save_passwords_enabed_gms";
 
-// Boolean value indicating whether the regular prefs that apply to the local
-// password store were migrated to UPM settings. It will be set to true
-// automatically if there is nothing to migrate.
-inline constexpr char kSettingsMigratedToUPMLocal[] =
-    "profile.settings_migrated_to_upm_local";
-
 // Integer value which indicates the version used to migrate passwords from
 // built in storage to Google Mobile Services.
 inline constexpr char kCurrentMigrationVersionToGoogleMobileServices[] =
     "current_migration_version_to_google_mobile_services";
-
-// Timestamps of when credentials from the GMS Core to the built in storage were
-// last time migrated, in milliseconds since UNIX epoch.
-inline constexpr char kTimeOfLastMigrationAttempt[] =
-    "time_of_last_migration_attempt";
 #endif
 
 // The total amount of passwords available in Password Manager account store.

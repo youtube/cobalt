@@ -56,24 +56,6 @@ constexpr char kHatsSurveyTriggerAutofillPasswordUserPerception[] =
     "autofill-password-users-perception";
 constexpr char kHatsSurveyTriggerAutofillCard[] = "autofill-card";
 constexpr char kHatsSurveyTriggerAutofillPassword[] = "autofill-password";
-constexpr char kHatsSurveyTriggerIdentityAddressBubbleSignin[] =
-    "identity-address-bubble-signin";
-constexpr char kHatsSurveyTriggerIdentityDiceWebSigninAccepted[] =
-    "identity-dice-web-signin-accepted";
-constexpr char kHatsSurveyTriggerIdentityDiceWebSigninDeclined[] =
-    "identity-dice-web-signin-declined";
-constexpr char kHatsSurveyTriggerIdentityFirstRunSignin[] =
-    "identity-first-run-signin";
-constexpr char kHatsSurveyTriggerIdentityPasswordBubbleSignin[] =
-    "identity-password-bubble-signin";
-constexpr char kHatsSurveyTriggerIdentityProfileMenuSignin[] =
-    "identity-profile-menu-signin";
-constexpr char kHatsSurveyTriggerIdentityProfilePickerAddProfileSignin[] =
-    "identity-profile-picker-add-profile-signin";
-constexpr char kHatsSurveyTriggerIdentitySigninInterceptProfileSeparation[] =
-    "identity-signin-intercept-profile-separation";
-constexpr char kHatsSurveyTriggerIdentitySigninPromoBubbleDismissed[] =
-    "identity-signin-promo-bubble-dismissed";
 constexpr char kHatsSurveyTriggerDownloadWarningBubbleBypass[] =
     "download-warning-bubble-bypass";
 constexpr char kHatsSurveyTriggerDownloadWarningBubbleHeed[] =
@@ -87,12 +69,38 @@ constexpr char kHatsSurveyTriggerDownloadWarningPageHeed[] =
 constexpr char kHatsSurveyTriggerDownloadWarningPageIgnore[] =
     "download-warning-page-ignore";
 constexpr char kHatsSurveyTriggerHistoryEmbeddings[] = "history-embeddings";
+constexpr char kHatsSurveyTriggerIdentityAddressBubbleSignin[] =
+    "identity-address-bubble-signin";
+constexpr char kHatsSurveyTriggerIdentityDiceWebSigninAccepted[] =
+    "identity-dice-web-signin-accepted";
+constexpr char kHatsSurveyTriggerIdentityDiceWebSigninDeclined[] =
+    "identity-dice-web-signin-declined";
+constexpr char kHatsSurveyTriggerIdentityFirstRunSignin[] =
+    "identity-first-run-signin";
+constexpr char kHatsSurveyTriggerIdentityPasswordBubbleSignin[] =
+    "identity-password-bubble-signin";
+constexpr char kHatsSurveyTriggerIdentityProfileMenuDismissed[] =
+    "identity-profile-menu-dismissed";
+constexpr char kHatsSurveyTriggerIdentityProfileMenuSignin[] =
+    "identity-profile-menu-signin";
+constexpr char kHatsSurveyTriggerIdentityProfilePickerAddProfileSignin[] =
+    "identity-profile-picker-add-profile-signin";
+constexpr char kHatsSurveyTriggerIdentitySigninInterceptProfileSeparation[] =
+    "identity-signin-intercept-profile-separation";
+constexpr char kHatsSurveyTriggerIdentitySigninPromoBubbleDismissed[] =
+    "identity-signin-promo-bubble-dismissed";
+constexpr char kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu[] =
+    "identity-switch-profile-profile-menu";
+constexpr char kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker[] =
+    "identity-switch-profile-profile-picker";
 constexpr char kHatsSurveyTriggerLensOverlayResults[] = "lens-overlay-results";
 constexpr char kHatsSurveyTriggerNtpModules[] = "ntp-modules";
 constexpr char kHatsSurveyTriggerNtpPhotosModuleOptOut[] =
     "ntp-photos-module-opt-out";
 constexpr char kHatsSurveyTriggerPasswordChangeCanceled[] =
     "password-change-canceled";
+constexpr char kHatsSurveyTriggerPasswordChangeDelayed[] =
+    "password-change-delayed";
 constexpr char kHatsSurveyTriggerPasswordChangeError[] =
     "password-change-error";
 constexpr char kHatsSurveyTriggerPasswordChangeSuccess[] =
@@ -501,6 +509,9 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   survey_configs.emplace_back(
       &switches::kChromeIdentitySurveyPasswordBubbleSignin,
       kHatsSurveyTriggerIdentityPasswordBubbleSignin);
+  survey_configs.emplace_back(
+      &switches::kChromeIdentitySurveyProfileMenuDismissed,
+      kHatsSurveyTriggerIdentityProfileMenuDismissed);
   survey_configs.emplace_back(&switches::kChromeIdentitySurveyProfileMenuSignin,
                               kHatsSurveyTriggerIdentityProfileMenuSignin);
   survey_configs.emplace_back(
@@ -512,6 +523,12 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   survey_configs.emplace_back(
       &switches::kChromeIdentitySurveySigninPromoBubbleDismissed,
       kHatsSurveyTriggerIdentitySigninPromoBubbleDismissed);
+  survey_configs.emplace_back(
+      &switches::kChromeIdentitySurveySwitchProfileFromProfileMenu,
+      kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu);
+  survey_configs.emplace_back(
+      &switches::kChromeIdentitySurveySwitchProfileFromProfilePicker,
+      kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -715,6 +732,18 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
               kPasswordChangeBreachedPasswordsCount,
           password_manager::features_util::kPasswordChangeSavedPasswordsCount,
           password_manager::features_util::kPasswordChangeRuntime});
+  survey_configs.emplace_back(
+      &password_manager::features::kImprovedPasswordChangeService,
+      kHatsSurveyTriggerPasswordChangeDelayed,
+      password_manager::features::kPasswordChangeDelayedSurveyTriggerId.Get(),
+      /*product_specific_bits_data_fields=*/
+      std::vector<std::string>{password_manager::features_util::
+                                   kPasswordChangeSuggestedPasswordsAdoption},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{
+          password_manager::features_util::
+              kPasswordChangeBreachedPasswordsCount,
+          password_manager::features_util::kPasswordChangeSavedPasswordsCount});
 
 #else
   survey_configs.emplace_back(&chrome::android::kChromeSurveyNextAndroid,

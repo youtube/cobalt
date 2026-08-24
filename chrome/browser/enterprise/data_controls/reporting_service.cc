@@ -4,9 +4,11 @@
 
 #include "chrome/browser/enterprise/data_controls/reporting_service.h"
 
+#include "chrome/browser/enterprise/data_protection/content_area_user_provider.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/enterprise/data_controls/core/browser/prefs.h"
 #include "components/enterprise/data_controls/core/browser/verdict.h"
 #include "components/policy/core/common/policy_types.h"
@@ -184,7 +186,7 @@ void ReportingService::ReportPaste(
     const Verdict& verdict) {
   ReportCopyOrPaste(
       source, destination, metadata, verdict,
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload,
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger,
       GetEventResult(verdict.level()));
 }
 
@@ -195,7 +197,7 @@ void ReportingService::ReportPasteWarningBypassed(
     const Verdict& verdict) {
   ReportCopyOrPaste(
       source, destination, metadata, verdict,
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload,
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger,
       enterprise_connectors::EventResult::BYPASSED);
 }
 
@@ -204,7 +206,7 @@ void ReportingService::ReportCopy(const content::ClipboardEndpoint& source,
                                   const Verdict& verdict) {
   ReportCopyOrPaste(
       source, /*destination=*/std::nullopt, metadata, verdict,
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerClipboardCopy,
+      enterprise_connectors::kClipboardCopyDataTransferEventTrigger,
       GetEventResult(verdict.level()));
 }
 
@@ -214,7 +216,7 @@ void ReportingService::ReportCopyWarningBypassed(
     const Verdict& verdict) {
   ReportCopyOrPaste(
       source, /*destination=*/std::nullopt, metadata, verdict,
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerClipboardCopy,
+      enterprise_connectors::kClipboardCopyDataTransferEventTrigger,
       enterprise_connectors::EventResult::BYPASSED);
 }
 
@@ -237,7 +239,7 @@ void ReportingService::ReportCopyOrPaste(
   std::string destination_string;
   std::string source_string;
   if (trigger ==
-      extensions::SafeBrowsingPrivateEventRouter::kTriggerWebContentUpload) {
+      enterprise_connectors::kWebContentUploadDataTransferEventTrigger) {
     DCHECK(destination.has_value());
 
     url = GetURL(*destination);
@@ -245,9 +247,8 @@ void ReportingService::ReportCopyOrPaste(
     source_string = GetClipboardSourceString(source, *destination,
                                              kDataControlsRulesScopePref);
   } else {
-    DCHECK_EQ(
-        trigger,
-        extensions::SafeBrowsingPrivateEventRouter::kTriggerClipboardCopy);
+    DCHECK_EQ(trigger,
+              enterprise_connectors::kClipboardCopyDataTransferEventTrigger);
     DCHECK(!destination.has_value());
 
     url = GetURL(source);
@@ -261,6 +262,8 @@ void ReportingService::ReportCopyOrPaste(
       /*destination=*/destination_string,
       /*mime_type=*/GetMimeType(metadata.format_type),
       /*trigger=*/trigger,
+      /*source_active_user_email=*/
+      enterprise_data_protection::GetActiveContentAreaUser(source),
       /*triggered_rules=*/verdict.triggered_rules(),
       /*event_result=*/event_result,
       /*content_size=*/metadata.size.value_or(-1));

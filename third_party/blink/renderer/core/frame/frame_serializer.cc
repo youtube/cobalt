@@ -815,7 +815,7 @@ class SerializerMarkupAccumulator : public MarkupAccumulator {
     // page.
     auto metadata = std::make_unique<JSONObject>();
     auto custom_elements = std::make_unique<JSONArray>();
-    CustomElementRegistry* custom_registry = CustomElement::Registry(document);
+    CustomElementRegistry* custom_registry = document.customElementRegistry();
     if (custom_registry) {
       for (const AtomicString& name : custom_registry->DefinedNames()) {
         CustomElementDefinition* definition =
@@ -980,8 +980,8 @@ function main(metadata) {
   }
 
   void AppendAttributeValue(const String& attribute_value) {
-    MarkupFormatter::AppendAttributeValue(markup_, attribute_value,
-                                          IsA<HTMLDocument>(document_));
+    MarkupFormatter::AppendAttributeValue(
+        markup_, attribute_value, IsA<HTMLDocument>(document_), *document_);
   }
 
   void AppendRewrittenAttribute(const Element& element,
@@ -1262,6 +1262,7 @@ function main(metadata) {
       case CSSRule::kPositionTryRule:
       case CSSRule::kFunctionDeclarationsRule:
       case CSSRule::kFunctionRule:
+      case CSSRule::kCustomMediaRule:
         break;
     }
   }

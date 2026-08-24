@@ -218,8 +218,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   if (!track->OnObject(/*is_datagram=*/true)) {
-    Error(MoqtError::kProtocolViolation,
-          "Received DATAGRAM for non-datagram track");
+    OnMalformedTrack(track);
     return;
   }
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
@@ -233,7 +232,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     // TODO(martinduke): Handle extension headers.
     PublishedObjectMetadata metadata;
     metadata.location = Location(message.group_id, message.object_id);
-    metadata.subgroup = std::nullopt;
+    metadata.subgroup = message.object_id;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
     metadata.arrival_time = callbacks_.clock->Now();
@@ -639,8 +638,8 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
         }
         if (fetch->session_->WriteObjectToStream(
                 stream_, fetch->request_id(), object.metadata,
-                std::move(object.payload),
-                MoqtDataStreamType::kStreamHeaderFetch, !stream_header_written_,
+                std::move(object.payload), MoqtDataStreamType::Fetch(),
+                !stream_header_written_,
                 /*fin=*/false)) {
           stream_header_written_ = true;
         }
@@ -694,7 +693,7 @@ bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
     if (stream == nullptr) {
       continue;
     }
-    stream->ResetWithUserCode(kResetCodeCancelled);
+    stream->ResetWithUserCode(kResetCodeCanceled);
   }
   return true;
 }
@@ -1598,7 +1597,7 @@ void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {
                   << message.request_id << " " << track->full_track_name();
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
   fetch->OnFetchResult(
-      message.end_location, absl::OkStatus(),
+      message.end_location, message.group_order, absl::OkStatus(),
       [=, session = session_]() { session->CancelFetch(message.request_id); });
 }
 
@@ -1630,7 +1629,8 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
   absl::Status status =
       RequestErrorCodeToStatus(message.error_code, message.error_reason);
-  fetch->OnFetchResult(Location(0, 0), status, nullptr);
+  fetch->OnFetchResult(Location(0, 0), MoqtDeliveryOrder::kAscending, status,
+                       nullptr);
   session_->upstream_by_id_.erase(message.request_id);
 }
 
@@ -1685,18 +1685,20 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
-  QUICHE_BUG_IF(quic_bug_object_with_no_stream_type,
-                !parser_.stream_type().has_value())
-      << "Object delivered without a stream type";
+  if (!parser_.stream_type().has_value()) {
+    QUICHE_BUG(quic_bug_object_with_no_stream_type)
+        << "Object delivered without a stream type";
+    return;
+  }
   // Get a pointer to the upstream state.
   RemoteTrack* track = track_.GetIfAvailable();
   if (track == nullptr) {
-    track = (*parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch)
+    track = (parser_.stream_type()->IsFetch())
                 // message.track_alias is actually a fetch ID for fetches.
                 ? session_->RemoteTrackById(message.track_alias)
                 : session_->RemoteTrackByAlias(message.track_alias);
     if (track == nullptr) {
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       // Received object for nonexistent track.
       return;
     }
@@ -1712,8 +1714,27 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     return;
   }
   if (!track->is_fetch()) {
+    if (no_more_objects_) {
+      // Already got a stream-ending object.
+      session_->OnMalformedTrack(track);
+      return;
+    }
+    if (message.object_id < next_object_id_) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
+    if (end_of_message) {
+      next_object_id_ = message.object_id + 1;
+      if (message.object_status == MoqtObjectStatus::kEndOfTrack ||
+          message.object_status == MoqtObjectStatus::kEndOfGroup) {
+        no_more_objects_ = true;
+      }
+    }
     SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-    subscribe->OnObject(/*is_datagram=*/false);
+    if (!subscribe->OnObject(/*is_datagram=*/false)) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
     if (subscribe->visitor() != nullptr) {
       // TODO(martinduke): Send extension headers.
       PublishedObjectMetadata metadata;
@@ -1728,10 +1749,15 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   } else {  // FETCH
     track->OnObjectOrOk();
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+    if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
+                                message.object_status, end_of_message)) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       return;
     }
     if (!task->HasObject()) {
@@ -1756,8 +1782,9 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   if (!track_.IsValid()) {
     return;
   }
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch) {
+  if (parser_.stream_type().has_value() && parser_.stream_type()->IsFetch()) {
     session_->upstream_by_id_.erase(*parser_.track_alias());
+    return;
   }
   // It's a subscribe.
   SubscribeRemoteTrack* subscribe =
@@ -1771,7 +1798,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
 
 void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
   if (!parser_.track_alias().has_value() ||
-      parser_.stream_type() != MoqtDataStreamType::kStreamHeaderFetch) {
+      !parser_.stream_type().has_value() || !parser_.stream_type()->IsFetch()) {
     QUICHE_BUG(quic_bug_read_one_object_parser_unexpected_state)
         << "Requesting object, parser in unexpected state";
   }
@@ -1805,7 +1832,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     }
   }
   bool knew_track_alias = parser_.track_alias().has_value();
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
+  if (parser_.stream_type()->IsSubgroup()) {
     parser_.ReadAllData();
   } else if (!knew_track_alias) {
     parser_.ReadTrackAlias();
@@ -1813,7 +1840,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
   if (!parser_.track_alias().has_value()) {
     return;
   }
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
+  if (parser_.stream_type()->IsSubgroup()) {
     if (knew_track_alias) {
       return;
     }
@@ -1824,7 +1851,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
                       << "Received object for a track with no SUBSCRIBE";
       // This is a not a session error because there might be an UNSUBSCRIBE in
       // flight.
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       return;
     }
     it->second->OnStreamOpened();
@@ -1835,7 +1862,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
     // This is a not a session error because there might be an UNSUBSCRIBE in
     // flight.
-    stream_->SendStopSending(kResetCodeCancelled);
+    stream_->SendStopSending(kResetCodeCanceled);
     return;
   }
   if (it->second == nullptr) {
@@ -2106,6 +2133,13 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
   }
   std::vector<webtransport::StreamId> streams =
       stream_map().GetStreamsForGroup(group_id);
+  if (delivery_timeout_.IsInfinite() && largest_sent_.has_value() &&
+      largest_sent_->group <= group_id) {
+    session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kTooFarBehind,
+                              "");
+    // No class access below this line!
+    return;
+  }
   for (webtransport::StreamId stream_id : streams) {
     webtransport::Stream* raw_stream =
         session_->session_->GetStreamById(stream_id);
@@ -2113,6 +2147,8 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
       continue;
     }
     raw_stream->ResetWithUserCode(kResetCodeDeliveryTimeout);
+    // Sending the Reset will call the destructor for OutgoingDataStream, which
+    // will erase it from the SendStreamMap.
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
   absl::erase_if(reset_subgroups_, [&](const DataStreamIndex& index) {
@@ -2202,7 +2238,7 @@ void MoqtSession::PublishedSubscription::OnDataStreamCreated(
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
     webtransport::StreamId id, DataStreamIndex end_sequence) {
-  stream_map().RemoveStream(end_sequence, id);
+  stream_map().RemoveStream(end_sequence);
 }
 
 void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
@@ -2221,6 +2257,10 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       stream_(stream),
       subscription_id_(subscription.request_id()),
       index_(parameters.index),
+      // Always include extension header length, because it's difficult to know
+      // a priori if they're going to appear on a stream.
+      stream_type_(MoqtDataStreamType::Subgroup(
+          index_.subgroup, parameters.first_object, false)),
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
@@ -2267,7 +2307,7 @@ MoqtSession::PublishedSubscription*
 MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it == session_->published_subscriptions_.end()) {
-    stream_->ResetWithUserCode(kResetCodeCancelled);
+    stream_->ResetWithUserCode(kResetCodeCanceled);
     return nullptr;
   }
 
@@ -2321,11 +2361,9 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
       return;
     }
-
     if (!session_->WriteObjectToStream(
             stream_, subscription.track_alias(), object->metadata,
-            std::move(object->payload),
-            MoqtDataStreamType::kStreamHeaderSubgroup, !stream_header_written_,
+            std::move(object->payload), stream_type_, !stream_header_written_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
       // there is no need to process the stream any further.
@@ -2402,6 +2440,22 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   return true;
 }
 
+void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
+  if (!track->is_fetch()) {
+    static_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
+        track->full_track_name());
+    Unsubscribe(track->full_track_name());
+    return;
+  }
+  UpstreamFetch::UpstreamFetchTask* task =
+      static_cast<UpstreamFetch*>(track)->task();
+  if (task != nullptr) {
+    task->OnStreamAndFetchClosed(kResetCodeMalformedTrack,
+                                 "Malformed track received");
+  }
+  CancelFetch(track->request_id());
+}
+
 void MoqtSession::CancelFetch(uint64_t request_id) {
   if (is_closing_) {
     return;
@@ -2436,7 +2490,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
   header.object_status = object->metadata.status;
-  header.subgroup_id = std::nullopt;
+  header.subgroup_id = header.object_id;
   header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
       header, object->payload.AsStringView());

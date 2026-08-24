@@ -14,19 +14,25 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/container/inlined_vector.h"
+#include "api/environment/environment.h"
+#include "api/video_codecs/h264_profile_level_id.h"
+#include "api/video_codecs/scalability_mode.h"
 #include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_encoder.h"
 #include "media/base/media_constants.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 #include "rtc_base/trace_event.h"
 
 #if defined(WEBRTC_USE_H264)
 #include "modules/video_coding/codecs/h264/h264_decoder_impl.h"
 #include "modules/video_coding/codecs/h264/h264_encoder_impl.h"
 #endif
-
-#include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 namespace webrtc {
 

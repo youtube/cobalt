@@ -14,6 +14,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "ui/accessibility/aura/aura_window_properties.h"
 #include "ui/accessibility/ax_action_data.h"
+#include "ui/accessibility/ax_action_handler_registry.h"
 #include "ui/accessibility/ax_event.h"
 #include "ui/accessibility/ax_tree_source_checker.h"
 #include "ui/accessibility/platform/ax_platform.h"
@@ -356,7 +357,7 @@ void ViewsAXManager::SendPendingUpdate() {
 
   // We must now serialize any changes that were not associated with an event.
   ui::AXTreeUpdate update;
-  for (auto& id : pending_data_changes_copy) {
+  for (auto id : pending_data_changes_copy) {
     auto* aura_obj = cache_->Get(id);
     if (!aura_obj) {
       continue;

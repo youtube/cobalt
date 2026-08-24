@@ -19,9 +19,11 @@
 #include <map>
 #include <memory>
 
+#include "api/scoped_refptr.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/full_screen_window_detector.h"
 #include "modules/desktop_capture/win/screen_capture_utils.h"
 #include "modules/desktop_capture/win/wgc_capture_session.h"
 #include "modules/desktop_capture/win/wgc_capture_source.h"

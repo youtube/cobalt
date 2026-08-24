@@ -51,14 +51,6 @@ void LoadDecoders(NetEq* neteq) {
             neteq->RegisterPayloadType(0, SdpAudioFormat("pcmu", 8000, 1)));
   ASSERT_EQ(true,
             neteq->RegisterPayloadType(8, SdpAudioFormat("pcma", 8000, 1)));
-#if defined(WEBRTC_CODEC_ISAC) || defined(WEBRTC_CODEC_ISACFX)
-  ASSERT_EQ(true,
-            neteq->RegisterPayloadType(103, SdpAudioFormat("isac", 16000, 1)));
-#endif
-#ifdef WEBRTC_CODEC_ISAC
-  ASSERT_EQ(true,
-            neteq->RegisterPayloadType(104, SdpAudioFormat("isac", 32000, 1)));
-#endif
 #ifdef WEBRTC_CODEC_OPUS
   ASSERT_EQ(true,
             neteq->RegisterPayloadType(
@@ -111,17 +103,12 @@ void NetEqDecodingTest::OpenInputFile(absl::string_view rtp_file) {
 
 void NetEqDecodingTest::Process() {
   // Check if time to receive.
-  while (packet_ && clock_.TimeInMilliseconds() >= packet_->time_ms()) {
-    if (packet_->payload_length_bytes() > 0) {
-#ifndef WEBRTC_CODEC_ISAC
-      // Ignore payload type 104 (iSAC-swb) if ISAC is not supported.
-      if (packet_->header().payloadType != 104)
-#endif
-        ASSERT_EQ(0, neteq_->InsertPacket(packet_->header(),
-                                          ArrayView<const uint8_t>(
-                                              packet_->payload(),
-                                              packet_->payload_length_bytes()),
-                                          clock_.CurrentTime()));
+  while (packet_ && clock_.CurrentTime() >= packet_->arrival_time()) {
+    if (packet_->payload_size() > 0) {
+      RTPHeader rtp_header;
+      packet_->GetHeader(&rtp_header);
+      ASSERT_EQ(0, neteq_->InsertPacket(rtp_header, packet_->payload(),
+                                        clock_.CurrentTime()));
     }
     // Get next packet.
     packet_ = rtp_source_->NextPacket();

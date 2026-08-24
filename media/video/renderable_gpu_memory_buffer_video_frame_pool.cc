@@ -39,20 +39,18 @@ class InternalRefCountedPool;
 class FrameResources {
  public:
   FrameResources(scoped_refptr<InternalRefCountedPool> pool,
-                 VideoPixelFormat format,
-                 const gfx::Size& coded_size,
-                 const gfx::ColorSpace& color_space);
+                 const gfx::Size& visible_size);
   ~FrameResources();
   FrameResources(const FrameResources& other) = delete;
   FrameResources& operator=(const FrameResources& other) = delete;
 
   // Allocate GpuMemoryBuffer and create SharedImage. Returns false on failure
   // to do so.
-  bool Initialize();
+  bool Initialize(VideoPixelFormat format, const gfx::ColorSpace& color_space);
 
   // Return true if these resources can be reused for a frame with the specified
   // parameters.
-  bool IsCompatibleWith(const gfx::Size& coded_size,
+  bool IsCompatibleWith(const gfx::Size& visible_size,
                         const gfx::ColorSpace& color_space) const;
 
   // Create a VideoFrame using these resources.
@@ -68,9 +66,7 @@ class FrameResources {
   // SharedImage) will not be destroyed until after `this` is destroyed.
   const scoped_refptr<InternalRefCountedPool> pool_;
 
-  const VideoPixelFormat format_;
-  const gfx::Size coded_size_;
-  const gfx::ColorSpace color_space_;
+  const gfx::Size visible_size_;
   scoped_refptr<gpu::ClientSharedImage> shared_image_;
   gpu::SyncToken sync_token_;
 };
@@ -95,7 +91,7 @@ class InternalRefCountedPool
   // Create a VideoFrame with the specified parameters, reusing the resources
   // of a previous frame, if possible.
   scoped_refptr<VideoFrame> MaybeCreateVideoFrame(
-      const gfx::Size& coded_size,
+      const gfx::Size& visible_size,
       const gfx::ColorSpace& color_space);
 
   // Indicate that the owner of `this` is being destroyed. This will eventually
@@ -134,7 +130,7 @@ class RenderableGpuMemoryBufferVideoFramePoolImpl
       VideoPixelFormat format);
 
   scoped_refptr<VideoFrame> MaybeCreateVideoFrame(
-      const gfx::Size& coded_size,
+      const gfx::Size& visible_size,
       const gfx::ColorSpace& color_space) override;
 
   ~RenderableGpuMemoryBufferVideoFramePoolImpl() override;
@@ -147,17 +143,8 @@ class RenderableGpuMemoryBufferVideoFramePoolImpl
 // FrameResources
 
 FrameResources::FrameResources(scoped_refptr<InternalRefCountedPool> pool,
-                               const VideoPixelFormat format,
-                               const gfx::Size& coded_size,
-                               const gfx::ColorSpace& color_space)
-    : pool_(std::move(pool)),
-      format_(format),
-      coded_size_(coded_size),
-      color_space_(color_space) {
-  // Currently only support ARGB, ABGR and NV12.
-  CHECK(format == PIXEL_FORMAT_ARGB || format == PIXEL_FORMAT_ABGR ||
-        format == PIXEL_FORMAT_NV12);
-}
+                               const gfx::Size& visible_size)
+    : pool_(std::move(pool)), visible_size_(visible_size) {}
 
 FrameResources::~FrameResources() {
   if (shared_image_) {
@@ -166,27 +153,32 @@ FrameResources::~FrameResources() {
   }
 }
 
-gfx::Size GetBufferSizeInPixelsForVideoPixelFormat(
-    VideoPixelFormat format,
-    const gfx::Size& coded_size) {
+gfx::Size GetCodedSizeForVideoPixelFormat(VideoPixelFormat format,
+                                          const gfx::Size& visible_size) {
   switch (format) {
     case PIXEL_FORMAT_ARGB:
     case PIXEL_FORMAT_ABGR:
-      return coded_size;
+      return visible_size;
     case PIXEL_FORMAT_NV12:
       // Align number of rows to 2, because it's required by YUV_420_BIPLANAR
       // buffer allocation code.
       // Align buffer stride to 4, because our SharedImage shared memory backing
       // code requires it, since it sometimes treats Y-planes are 4 bytes per
       // pixel textures.
-      return {cc::MathUtil::CheckedRoundUp(coded_size.width(), 4),
-              cc::MathUtil::CheckedRoundUp(coded_size.height(), 2)};
+      return {cc::MathUtil::CheckedRoundUp(visible_size.width(), 4),
+              cc::MathUtil::CheckedRoundUp(visible_size.height(), 2)};
     default:
       NOTREACHED();
   }
 }
 
-bool FrameResources::Initialize() {
+bool FrameResources::Initialize(VideoPixelFormat format,
+                                const gfx::ColorSpace& color_space) {
+  // Currently only support ARGB, ABGR and NV12.
+  CHECK(format == PIXEL_FORMAT_ARGB || format == PIXEL_FORMAT_ABGR ||
+        format == PIXEL_FORMAT_NV12)
+      << format;
+
   auto* context = pool_->GetContext();
 
   constexpr gfx::BufferUsage kBufferUsage =
@@ -197,11 +189,8 @@ bool FrameResources::Initialize() {
 #endif
       ;
 
-  const gfx::BufferFormat buffer_format =
-      VideoPixelFormatToGfxBufferFormat(format_).value();
-
-  const gfx::Size buffer_size_in_pixels =
-      GetBufferSizeInPixelsForVideoPixelFormat(format_, coded_size_);
+  const gfx::Size coded_size =
+      GetCodedSizeForVideoPixelFormat(format, visible_size_);
 
   gpu::SharedImageUsageSet usage =
 #if BUILDFLAG(IS_MAC)
@@ -236,18 +225,14 @@ bool FrameResources::Initialize() {
     usage |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
   }
 
-  CHECK(format_ == PIXEL_FORMAT_NV12 || format_ == PIXEL_FORMAT_ABGR ||
-        format_ == PIXEL_FORMAT_ARGB)
-      << format_;
   const viz::SharedImageFormat si_format =
-      viz::GetSharedImageFormat(buffer_format);
+      VideoPixelFormatToSharedImageFormat(format).value();
 
-  shared_image_ =
-      context->CreateSharedImage(buffer_size_in_pixels, kBufferUsage, si_format,
-                                 color_space_, usage, sync_token_);
+  shared_image_ = context->CreateSharedImage(
+      coded_size, kBufferUsage, si_format, color_space, usage, sync_token_);
   if (!shared_image_) {
-    DLOG(ERROR) << "Failed to allocate shared image for frame: coded_size="
-                << coded_size_.ToString()
+    DLOG(ERROR) << "Failed to allocate shared image for frame: visible_size="
+                << visible_size_.ToString()
                 << ", si_format=" << si_format.ToString();
     return false;
   }
@@ -255,14 +240,15 @@ bool FrameResources::Initialize() {
 }
 
 bool FrameResources::IsCompatibleWith(
-    const gfx::Size& coded_size,
+    const gfx::Size& visible_size,
     const gfx::ColorSpace& color_space) const {
-  return coded_size_ == coded_size && color_space_ == color_space;
+  return visible_size_ == visible_size &&
+         shared_image_->color_space() == color_space;
 }
 
 scoped_refptr<VideoFrame> FrameResources::CreateVideoFrame() {
-  const gfx::Rect visible_rect(coded_size_);
-  const gfx::Size natural_size = coded_size_;
+  const gfx::Rect visible_rect(visible_size_);
+  const gfx::Size natural_size = visible_size_;
 
   CHECK(shared_image_);
   auto video_frame = VideoFrame::WrapMappableSharedImage(
@@ -272,7 +258,7 @@ scoped_refptr<VideoFrame> FrameResources::CreateVideoFrame() {
     return nullptr;
   }
 
-  video_frame->set_color_space(color_space_);
+  video_frame->set_color_space(shared_image_->color_space());
   video_frame->metadata().allow_overlay =
       shared_image_->usage().Has(gpu::SHARED_IMAGE_USAGE_SCANOUT);
 
@@ -297,22 +283,21 @@ InternalRefCountedPool::InternalRefCountedPool(
     : format_(format), context_(std::move(context)) {}
 
 scoped_refptr<VideoFrame> InternalRefCountedPool::MaybeCreateVideoFrame(
-    const gfx::Size& coded_size,
+    const gfx::Size& visible_size,
     const gfx::ColorSpace& color_space) {
   // Find or create a suitable FrameResources.
   std::unique_ptr<FrameResources> frame_resources;
   while (!available_frame_resources_.empty()) {
     frame_resources = std::move(available_frame_resources_.front());
     available_frame_resources_.pop_front();
-    if (!frame_resources->IsCompatibleWith(coded_size, color_space)) {
+    if (!frame_resources->IsCompatibleWith(visible_size, color_space)) {
       frame_resources = nullptr;
       continue;
     }
   }
   if (!frame_resources) {
-    frame_resources = std::make_unique<FrameResources>(this, format_,
-                                                       coded_size, color_space);
-    if (!frame_resources->Initialize()) {
+    frame_resources = std::make_unique<FrameResources>(this, visible_size);
+    if (!frame_resources->Initialize(format_, color_space)) {
       DLOG(ERROR) << "Failed to initialize frame resources.";
       return nullptr;
     }
@@ -383,9 +368,9 @@ RenderableGpuMemoryBufferVideoFramePoolImpl::
 
 scoped_refptr<VideoFrame>
 RenderableGpuMemoryBufferVideoFramePoolImpl::MaybeCreateVideoFrame(
-    const gfx::Size& coded_size,
+    const gfx::Size& visible_size,
     const gfx::ColorSpace& color_space) {
-  return pool_internal_->MaybeCreateVideoFrame(coded_size, color_space);
+  return pool_internal_->MaybeCreateVideoFrame(visible_size, color_space);
 }
 
 RenderableGpuMemoryBufferVideoFramePoolImpl::

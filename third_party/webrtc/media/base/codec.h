@@ -192,6 +192,9 @@ struct RTC_EXPORT Codec {
         sink.Append("video/");
     }
     absl::Format(&sink, "%s/%d/%d", c.name, c.clockrate, c.channels);
+    if (c.packetization) {
+      absl::Format(&sink, ",packetization=%s", *c.packetization);
+    }
     for (auto param : c.params) {
       sink.Append(";");
       sink.Append(param.first);

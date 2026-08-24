@@ -10,10 +10,9 @@
 
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
 
-#include <stdint.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <optional>
@@ -27,7 +26,6 @@
 #include "api/candidate.h"
 #include "api/dtls_transport_interface.h"
 #include "api/rtc_event_log/rtc_event.h"
-#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/rtp_headers.h"
 #include "api/rtp_parameters.h"
 #include "api/transport/bandwidth_usage.h"
@@ -87,6 +85,7 @@
 #include "modules/rtp_rtcp/source/rtcp_packet/pli.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/psfb.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/receiver_report.h"
+#include "modules/rtp_rtcp/source/rtcp_packet/rtpfb.h"
 #include "modules/rtp_rtcp/source/rtcp_packet/sender_report.h"
 #include "modules/rtp_rtcp/source/rtp_dependency_descriptor_extension.h"
 #include "modules/rtp_rtcp/source/rtp_header_extensions.h"

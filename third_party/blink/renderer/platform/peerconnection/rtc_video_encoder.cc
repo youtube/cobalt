@@ -181,7 +181,8 @@ class ScopedSignaledValue {
 
 // TODO(https://crbug.com/1448809): Move to base/memory/ref_counted_memory.h
 class RefCountedWritableSharedMemoryMapping
-    : public ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping> {
+    : public blink::ThreadSafeRefCounted<
+          RefCountedWritableSharedMemoryMapping> {
  public:
   explicit RefCountedWritableSharedMemoryMapping(
       base::WritableSharedMemoryMapping mapping)
@@ -201,7 +202,8 @@ class RefCountedWritableSharedMemoryMapping
   size_t size() const { return mapping_.size(); }
 
  private:
-  friend class ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping>;
+  friend class blink::ThreadSafeRefCounted<
+      RefCountedWritableSharedMemoryMapping>;
   ~RefCountedWritableSharedMemoryMapping() = default;
 
   base::WritableSharedMemoryMapping mapping_;
@@ -716,8 +718,7 @@ bool UseSoftwareForLowResolution(const webrtc::VideoCodecType codec,
 scoped_refptr<gpu::ClientSharedImage> CreateClientSharedImage(
     media::GpuVideoAcceleratorFactories* gpu_factories,
     gfx::Size size) {
-  const auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
-  const auto si_format = viz::GetSharedImageFormat(buffer_format);
+  const auto si_format = viz::MultiPlaneFormat::kNV12;
   const auto buffer_usage =
       gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE;
 
@@ -962,7 +963,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // Metadata for frames passed to Encode(), matched to encoded frames using
   // timestamps.
-  WTF::Deque<FrameInfo> submitted_frames_;
+  Deque<FrameInfo> submitted_frames_;
 
   // Indicates that timestamp match failed and we should no longer attempt
   // matching.
@@ -970,7 +971,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // The pending frames to be encoded with the boolean representing whether the
   // frame must be encoded keyframe.
-  WTF::Deque<FrameChunk> pending_frames_;
+  Deque<FrameChunk> pending_frames_;
 
   // Frame sizes.
   gfx::Size input_frame_coded_size_;

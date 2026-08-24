@@ -22,6 +22,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 @NullMarked
 public class MessageService {
+    // TODO(crbug.com/431986099): Decouple tab list messages from the message service.
     @IntDef({
         MessageType.IPH,
         MessageType.PRICE_MESSAGE,
@@ -83,15 +84,6 @@ public class MessageService {
      * @see #sendAvailabilityNotification(MessageData).
      */
     public interface MessageData {}
-
-    /**
-     * Extends {@link MessageData} for CUSTOM_MESSAGE types which require a {@link
-     * CustomMessageCardProvider}.
-     */
-    public interface CustomMessageData extends MessageData {
-        /** Returns a provider of information used for custom messages. */
-        CustomMessageCardProvider getProvider();
-    }
 
     /**
      * An interface to be notified about changes to a Message. TODO(meiliang): Need to define this

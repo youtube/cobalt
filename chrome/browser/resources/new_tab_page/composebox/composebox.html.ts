@@ -14,7 +14,18 @@ export function getHtml(this: ComposeboxElement) {
   <div class="gradient gradient-outer-glow"></div>
   <div class="gradient"></div>
   <div class="background"></div>
-  <div id="composebox" tabindex="-1" @keydown="${this.onKeydown_}">
+  ${this.showErrorScrim_ ? html`
+    <div id="errorScrim">
+      <p>${this.errorMessage_}</p>
+      <cr-button id="dismissErrorButton"
+          @click="${this.onDismissErrorButtonClick_}">
+        <cr-icon icon="cr:close" slot="prefix-icon"></cr-icon>
+        <div>$i18n{dismissButton}</div>
+      </cr-button>
+    </div>
+  `: ''}
+  <div id="composebox" tabindex="-1" @keydown="${this.onKeydown_}"
+      ?inert=${this.showErrorScrim_}>
     <div id="inputContainer">
       <ntp-composebox-file-carousel
         id="carousel"
@@ -24,7 +35,8 @@ export function getHtml(this: ComposeboxElement) {
       <textarea autocomplete="off" id="input"
           type="search" spellcheck="false"
           placeholder="$i18n{composeboxPlaceholderText}"
-          @keydown="${this.onInputKeydown_}"></textarea>
+          @keydown="${this.onInputKeydown_}"
+          @input=${this.handleInput_}></textarea>
       <div id="uploadContainer">
         <cr-icon-button
             class="upload-icon no-overlap"
@@ -38,24 +50,24 @@ export function getHtml(this: ComposeboxElement) {
             class="upload-icon no-overlap"
             id="fileUploadButton"
             iron-icon="composebox:fileUpload"
-            title="$i18n{composeboxFileUploadButtonTitle}"
+            title="$i18n{composeboxPdfUploadButtonTitle}"
             .disabled="${this.inputsDisabled_}"
             @click="${this.openFileUpload_}">
         </cr-icon-button>
       </div>
     </div>
     <cr-icon-button
-        class="action-icon icon-clear"
-        id="cancelIcon"
-        title="$i18n{composeboxCancelButtonTitle}"
-        @click="${this.onCancelClick_}">
-    </cr-icon-button>
-    <cr-icon-button
       class="action-icon icon-arrow-upward"
       id="submitIcon"
       title="$i18n{composeboxSubmitButtonTitle}"
       @click="${this.onSubmitClick_}"
       ?disabled="${!this.submitEnabled_}">
+    </cr-icon-button>
+    <cr-icon-button
+        class="action-icon icon-clear"
+        id="cancelIcon"
+        title="${this.computeCancelButtonTitle_()}"
+        @click="${this.onCancelClick_}">
     </cr-icon-button>
   </div>
   <input type="file"

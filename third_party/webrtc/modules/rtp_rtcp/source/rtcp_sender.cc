@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/rtcp_sender.h"
 
-#include <string.h>  // memcpy
-
-#include <algorithm>  // std::min
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>

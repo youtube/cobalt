@@ -17,7 +17,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import static org.chromium.ui.listmenu.ListItemType.CONTEXT_MENU_ITEM;
+import static org.chromium.ui.listmenu.ListItemType.MENU_ITEM;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.ENABLED;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.MENU_ITEM_ID;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
@@ -78,7 +78,6 @@ import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
-import org.chromium.ui.listmenu.ContextMenuSubmenuItemProperties;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.listmenu.MenuModelBridge;
@@ -1866,7 +1865,7 @@ public class ChromeContextMenuPopulatorTest {
         ModelList modelListFromBridge = new ModelList();
         modelListFromBridge.add(
                 new ListItem(
-                        CONTEXT_MENU_ITEM,
+                        MENU_ITEM,
                         new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
                                 .with(TITLE, "Test title")
                                 .build()));
@@ -1892,14 +1891,12 @@ public class ChromeContextMenuPopulatorTest {
         List<ListItem> submenuItems = new ArrayList<>();
         submenuItems.add(
                 new ListItem(
-                        ListItemType.CONTEXT_MENU_ITEM,
+                        ListItemType.MENU_ITEM,
                         new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
                                 .with(TITLE, "Sample submenu item")
                                 .build()));
         String menuItemWithSubmenuTitle = "Sample item with Submenu";
-        modelList.add(
-                mPopulator.createListItemWithSubmenu(
-                        menuItemWithSubmenuTitle, /* menuItemId= */ 1000, submenuItems));
+        modelList.add(mPopulator.createListItemWithSubmenu(menuItemWithSubmenuTitle, submenuItems));
 
         when(mMenuModelBridge.populateModelList()).thenReturn(modelList);
 
@@ -1911,7 +1908,7 @@ public class ChromeContextMenuPopulatorTest {
         assertEquals(
                 "Title of the found submenu item should match",
                 menuItemWithSubmenuTitle,
-                menuItemWithSubmenu.model.get(ContextMenuSubmenuItemProperties.TITLE));
+                menuItemWithSubmenu.model.get(TITLE));
     }
 
     @Test
@@ -2121,6 +2118,99 @@ public class ChromeContextMenuPopulatorTest {
     @SmallTest
     @UiThreadTest
     @EnableFeatures(ChromeFeatureList.CCT_CONTEXTUAL_MENU_ITEMS)
+    public void testCustomContentActions_ImageLink_DoesNotSetPageUri()
+            throws PendingIntent.CanceledException {
+        FirstRunStatus.setFirstRunFlowComplete(true);
+        final int imageActionId = 202;
+        final String imageDescription = "Custom Image Action";
+        PendingIntent mockPendingIntent =
+                PendingIntent.getBroadcast(
+                        ContextUtils.getApplicationContext(),
+                        1,
+                        new Intent(),
+                        PendingIntent.FLAG_IMMUTABLE);
+        CustomContentAction imageAction =
+                new CustomContentAction.Builder(
+                                imageActionId,
+                                imageDescription,
+                                mockPendingIntent,
+                                CustomTabsIntent.CONTENT_TARGET_TYPE_IMAGE)
+                        .build();
+
+        List<CustomContentAction> customActions = List.of(imageAction);
+
+        ContextMenuParams imageParams =
+                new ContextMenuParams(
+                        0,
+                        mMenuModelBridge,
+                        ContextMenuDataMediaType.IMAGE,
+                        new GURL(PAGE_URL),
+                        new GURL(LINK_URL),
+                        "",
+                        GURL.emptyGURL(),
+                        new GURL(IMAGE_SRC_URL),
+                        IMAGE_TITLE_TEXT,
+                        null,
+                        true,
+                        0,
+                        0,
+                        MenuSourceType.TOUCH,
+                        false,
+                        false,
+                        0,
+                        null);
+
+        initializePopulator(
+                ChromeContextMenuPopulator.ContextMenuMode.CUSTOM_TAB, imageParams, customActions);
+
+        mPopulator.setPendingIntentSenderForTesting(mMockPendingIntentSender);
+
+        doAnswer(
+                        (invocation) -> {
+                            Callback<Uri> callback = invocation.getArgument(1);
+                            callback.onResult(RETRIEVED_IMAGE_URI);
+                            return null;
+                        })
+                .when(mNativeDelegate)
+                .retrieveImageForShare(eq(ContextMenuImageFormat.ORIGINAL), any());
+
+        List<ModelList> menuState = mPopulator.buildContextMenu();
+        assertFalse("Menu should contain at least one group", menuState.isEmpty());
+
+        ListItem customItem = findItemWithTitle(menuState, imageDescription);
+        assertNotNull(
+                "Custom image item with title '" + imageDescription + "' was not found.",
+                customItem);
+
+        int customItemId = customItem.model.get(MENU_ITEM_ID);
+        assertTrue(
+                "Custom item ID should be == the starting ID",
+                customItemId == ChromeContextMenuPopulator.getCustomMenuItemIdStartForTesting());
+
+        var imageHistogramWatcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        ChromeContextMenuPopulator
+                                .getContextualCustomActionTypeSelectedHistogramForTesting(),
+                        ChromeContextMenuPopulator.ContextualCustomActionType.IMAGE);
+        assertTrue(
+                "Clicking custom image item should be handled.",
+                mPopulator.onItemSelected(
+                        ChromeContextMenuPopulator.getCustomMenuItemIdStartForTesting()));
+        imageHistogramWatcher.assertExpected();
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockPendingIntentSender)
+                .send(eq(mockPendingIntent), any(Context.class), eq(0), intentCaptor.capture());
+
+        Intent capturedIntent = intentCaptor.getValue();
+        assertNull(
+                "The page uri should not be set for image-link items.", capturedIntent.getData());
+    }
+
+    @Test
+    @SmallTest
+    @UiThreadTest
+    @EnableFeatures(ChromeFeatureList.CCT_CONTEXTUAL_MENU_ITEMS)
     public void testCustomContentActions_enforcesLimitWithMixedActionTypes() {
         FirstRunStatus.setFirstRunFlowComplete(true);
 
@@ -2257,7 +2347,7 @@ public class ChromeContextMenuPopulatorTest {
     private ListItem findItemWithTitle(List<ModelList> menuState, String title) {
         for (ModelList group : menuState) {
             for (ListItem item : group) {
-                if (item.type == CONTEXT_MENU_ITEM) {
+                if (item.type == MENU_ITEM) {
                     if (title.equals(item.model.get(TITLE))) {
                         return item;
                     }

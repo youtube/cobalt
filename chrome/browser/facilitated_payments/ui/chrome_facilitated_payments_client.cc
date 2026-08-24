@@ -12,6 +12,7 @@
 #include "base/functional/callback_helpers.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/strike_database_factory.h"
+#include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
 #include "chrome/browser/facilitated_payments/ui/android/facilitated_payments_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -29,7 +30,9 @@
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
+#include "url/origin.h"
 
 ChromeFacilitatedPaymentsClient::ChromeFacilitatedPaymentsClient(
     content::WebContents* web_contents,
@@ -51,6 +54,11 @@ void ChromeFacilitatedPaymentsClient::LoadRiskData(
     base::OnceCallback<void(const std::string&)> on_risk_data_loaded_callback) {
   autofill::risk_util::LoadRiskData(/*obfuscated_gaia_id=*/0, &GetWebContents(),
                                     std::move(on_risk_data_loaded_callback));
+}
+
+const url::Origin& ChromeFacilitatedPaymentsClient::GetLastCommittedOrigin()
+    const {
+  return GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin();
 }
 
 autofill::PaymentsDataManager*
@@ -130,6 +138,10 @@ ChromeFacilitatedPaymentsClient::GetDeviceDelegate() {
   return &device_delegate_;
 }
 
+bool ChromeFacilitatedPaymentsClient::IsWebContentsVisibleOrOccluded() {
+  return GetWebContents().GetVisibility() != content::Visibility::HIDDEN;
+}
+
 void ChromeFacilitatedPaymentsClient::ShowPixPaymentPrompt(
     base::span<const autofill::BankAccount> bank_account_suggestions,
     base::OnceCallback<void(int64_t)> on_payment_account_selected) {
@@ -189,6 +201,15 @@ void ChromeFacilitatedPaymentsClient::ShowPixAccountLinkingPrompt(
     base::OnceCallback<void()> on_declined) {
   facilitated_payments_controller_->ShowPixAccountLinkingPrompt(
       std::move(on_accepted), std::move(on_declined));
+}
+
+bool ChromeFacilitatedPaymentsClient::HasScreenlockOrBiometricSetup() {
+  device_reauth::DeviceAuthParams params(
+      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill);
+  auto authenticator = ChromeDeviceAuthenticatorFactory::GetForProfile(
+      Profile::FromBrowserContext(GetWebContents().GetBrowserContext()),
+      GetWebContents().GetTopLevelNativeWindow(), params);
+  return authenticator->CanAuthenticateWithBiometricOrScreenLock();
 }
 
 void ChromeFacilitatedPaymentsClient::RegisterAllowlists() {

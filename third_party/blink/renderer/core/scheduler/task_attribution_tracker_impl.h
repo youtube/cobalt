@@ -55,9 +55,10 @@ class CORE_EXPORT TaskAttributionTrackerImpl : public TaskAttributionTracker {
       TaskAttributionInfo* task_state) override;
 
   ObserverScope RegisterObserver(Observer* observer) override;
-  void AddSameDocumentNavigationTask(TaskAttributionInfo* task) override;
-  void ResetSameDocumentNavigationTasks() override;
+  std::optional<TaskAttributionId> AsyncSameDocumentNavigationStarted()
+      override;
   TaskAttributionInfo* CommitSameDocumentNavigation(TaskAttributionId) override;
+  void ResetSameDocumentNavigationTasks() override;
 
  private:
   explicit TaskAttributionTrackerImpl(v8::Isolate*);
@@ -72,7 +73,7 @@ class CORE_EXPORT TaskAttributionTrackerImpl : public TaskAttributionTracker {
   // same-document navigation that was sent to the browser side. They are kept
   // here to ensure the relevant object remains alive (and hence properly
   // tracked through task attribution).
-  WTF::Deque<Persistent<TaskAttributionInfo>> same_document_navigation_tasks_;
+  Deque<Persistent<TaskAttributionInfo>> same_document_navigation_tasks_;
 
   // The lifetime of this class is tied to the `isolate_`.
   v8::Isolate* isolate_;

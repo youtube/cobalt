@@ -10,7 +10,7 @@
 
 #include "pc/media_stream.h"
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "api/media_stream_interface.h"
 #include "api/scoped_refptr.h"

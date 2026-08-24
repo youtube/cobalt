@@ -29,7 +29,7 @@ constexpr uint32_t kSsrc2 = 42;
 constexpr uint32_t kRtxSsrc1 = 18;
 constexpr uint32_t kRtxSsrc2 = 43;
 constexpr uint16_t kPacketId = 2345;
-const TimeDelta kMaxPacketDelay = TimeDelta::Seconds(11);
+constexpr TimeDelta kMaxPacketDelay = TimeDelta::Seconds(11);
 constexpr int kMinRequiredPeriodicSamples = 5;
 constexpr int kProcessIntervalMs = 2000;
 }  // namespace

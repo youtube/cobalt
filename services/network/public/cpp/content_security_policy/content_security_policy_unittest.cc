@@ -1651,14 +1651,19 @@ TEST(ContentSecurityPolicy, ParseSerializedSourceList) {
       },
 #if BUILDFLAG(IS_COBALT)
       {
+          mojom::CSPDirectiveName::ScriptSrc,
           "'wrong' 'cobalt_insecure_local_network'",
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();
             csp->cobalt_insecure_local_network = true;
             return csp;
           }),
+          "The source list for the Content Security Policy directive "
+          "'script-src' contains an invalid source: ''wrong''. It will be "
+          "ignored.",
       },
       {
+          mojom::CSPDirectiveName::ScriptSrc,
           "'wrong' 'cobalt_insecure_private_range'",
           base::BindOnce([] {
             auto csp = mojom::CSPSourceList::New();

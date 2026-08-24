@@ -280,14 +280,15 @@ bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
 }
 
 size_t JsepSessionDescription::RemoveCandidates(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
-  size_t num_removed = 0;
+  int mediasection_index = GetMediasectionIndex(mid);
+  if (mediasection_index < 0) {
+    return 0u;
+  }
+
+  size_t num_removed = 0u;
   for (auto& candidate : candidates) {
-    int mediasection_index = GetMediasectionIndex(candidate.transport_name());
-    if (mediasection_index < 0) {
-      // Not found.
-      continue;
-    }
     num_removed += candidate_collection_[mediasection_index].remove(candidate);
     UpdateConnectionAddress(
         candidate_collection_[mediasection_index],

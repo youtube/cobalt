@@ -35,11 +35,13 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "services/on_device_model/on_device_model_service.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#include "content/utility/on_device_model/on_device_model_sandbox_init.h"  // nogncheck
+#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/file_descriptor_store.h"
@@ -287,7 +289,7 @@ int UtilityMain(MainFunctionParams parameters) {
 
 #if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
-    CHECK(on_device_model::OnDeviceModelService::PreSandboxInit());
+    CHECK(on_device_model::PreSandboxInit());
   }
 #endif  // !BUILDFLAG(IS_COBALT)
 
@@ -336,9 +338,8 @@ int UtilityMain(MainFunctionParams parameters) {
       break;
 #if !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
-      on_device_model::OnDeviceModelService::AddSandboxLinuxOptions(
-          sandbox_options);
-      pre_sandbox_hook = base::BindOnce(&GpuPreSandboxHook);
+      on_device_model::AddSandboxLinuxOptions(sandbox_options);
+      pre_sandbox_hook = base::BindOnce(&on_device_model::PreSandboxHook);
       break;
 #endif  // !BUILDFLAG(IS_COBALT)
     case sandbox::mojom::Sandbox::kSpeechRecognition:
@@ -523,7 +524,7 @@ int UtilityMain(MainFunctionParams parameters) {
 
 #if !BUILDFLAG(IS_COBALT)
   if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
-    CHECK(on_device_model::OnDeviceModelService::Shutdown());
+    CHECK(on_device_model::Shutdown());
   }
 #endif  // !BUILDFLAG(IS_COBALT)
 

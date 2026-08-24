@@ -9,9 +9,8 @@
  */
 #include "rtc_base/stream.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 

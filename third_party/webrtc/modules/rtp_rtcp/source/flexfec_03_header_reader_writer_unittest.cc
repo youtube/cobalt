@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/flexfec_03_header_reader_writer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 

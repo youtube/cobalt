@@ -10,12 +10,10 @@
 
 #include "rtc_base/socket.h"
 
-#include <errno.h>
-#include <stdint.h>
-#include <string.h>
-
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>

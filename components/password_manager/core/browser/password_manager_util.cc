@@ -140,13 +140,7 @@ void UserTriggeredManualGenerationFromContextMenu(
 
 bool IsAbleToSavePasswords(password_manager::PasswordManagerClient* client) {
 #if BUILDFLAG(IS_ANDROID)
-  // After LoginDb deprecation all users have split stores.
-  bool uses_split_stores =
-      base::FeatureList::IsEnabled(
-          password_manager::features::kLoginDbDeprecationAndroid) ||
-      password_manager::UsesSplitStoresAndUPMForLocal(client->GetPrefs());
-  if (uses_split_stores &&
-      password_manager::sync_util::HasChosenToSyncPasswords(
+  if (password_manager::sync_util::HasChosenToSyncPasswords(
           client->GetSyncService())) {
     // After store split on Android, AccountPasswordStore is a default store for
     // saving passwords when sync is enabled. If either of conditions above is
@@ -261,6 +255,17 @@ const PasswordForm* FindFormByUsername(
     }
   }
   return nullptr;
+}
+
+const password_manager::PasswordForm* FindLoginWithChangedPassword(
+    const password_manager::PasswordFormManagerForUI& submitted_manager) {
+  const password_manager::PasswordForm* match = FindFormByUsername(
+      submitted_manager.GetBestMatches(),
+      submitted_manager.GetPendingCredentials().username_value);
+  return match && match->type ==
+                      password_manager::PasswordForm::Type::kChangeSubmission
+             ? match
+             : nullptr;
 }
 
 const PasswordForm* GetMatchForUpdating(

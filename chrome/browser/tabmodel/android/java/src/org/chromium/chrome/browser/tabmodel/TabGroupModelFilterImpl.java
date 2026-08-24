@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
@@ -176,16 +177,19 @@ public class TabGroupModelFilterImpl implements TabGroupModelFilterInternal, Tab
     @Override
     public void moveRelatedTabs(@TabId int id, int newIndex) {
         List<Tab> tabs = getRelatedTabList(id);
+        if (tabs.isEmpty()) return;
+
         TabModel tabModel = getTabModel();
         newIndex = MathUtils.clamp(newIndex, 0, tabModel.getCount());
-        int curIndex = TabModelUtils.getTabIndexById(tabModel, tabs.get(0).getId());
+        Tab firstTab = tabs.get(0);
+        int curIndex = TabModelUtils.getTabIndexById(tabModel, firstTab.getId());
 
         if (curIndex == INVALID_TAB_INDEX || curIndex == newIndex) {
             return;
         }
 
         for (TabGroupModelFilterObserver observer : mGroupFilterObserver) {
-            observer.willMoveTabGroup(curIndex, newIndex);
+            observer.willMoveTabGroup(assumeNonNull(firstTab.getTabGroupId()), curIndex);
         }
 
         int offset = 0;
@@ -346,7 +350,7 @@ public class TabGroupModelFilterImpl implements TabGroupModelFilterInternal, Tab
                 // Since the undo group merge logic is unsupported when called from the tab strip,
                 // skip notifying the UndoGroupSnackbarController observer which shows the snackbar.
                 if (!skipUpdateTabModel) {
-                    observer.didCreateGroup(
+                    observer.showUndoGroupSnackbar(
                             tabsIncludingDestination,
                             originalIndexes,
                             originalRootIds,
@@ -474,7 +478,7 @@ public class TabGroupModelFilterImpl implements TabGroupModelFilterInternal, Tab
 
             // Do not show a snackbar for new tab group creations as they launch a dialog.
             if (notify && !willMergingCreateNewGroup) {
-                observer.didCreateGroup(
+                observer.showUndoGroupSnackbar(
                         mergedTabs,
                         originalIndexes,
                         originalRootIds,
@@ -1764,7 +1768,7 @@ public class TabGroupModelFilterImpl implements TabGroupModelFilterInternal, Tab
     }
 
     @Override
-    public void didSelectTab(Tab tab, int type, int lastId) {
+    public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
         RecordHistogram.recordBooleanHistogram(
                 "TabGroups.SelectedTabInTabGroup", isTabInTabGroup(tab));
         selectTab(tab);
@@ -1829,9 +1833,10 @@ public class TabGroupModelFilterImpl implements TabGroupModelFilterInternal, Tab
     }
 
     @Override
-    public void multipleTabsPendingClosure(List<Tab> tabs, boolean isAllTabs) {
+    public void multipleTabsPendingClosure(
+            List<Tab> tabs, boolean isAllTabs, @TabClosingSource int closingSource) {
         for (TabModelObserver observer : mFilteredObservers) {
-            observer.multipleTabsPendingClosure(tabs, isAllTabs);
+            observer.multipleTabsPendingClosure(tabs, isAllTabs, closingSource);
         }
     }
 

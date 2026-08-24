@@ -56,7 +56,6 @@ declare_args() {
 
 use_custom_libcxx =
     use_custom_libcxx || (use_custom_libcxx_for_host && !is_a_target_toolchain)
-use_custom_libcxx = use_custom_libcxx
 
 # Cobalt comment: Override the use_custom_libcxx variable for partner toolchains to
 # avoid linking with chromium's C++ libraries.
@@ -109,7 +108,7 @@ if (is_android && export_libcxxabi_from_executables) {
   libcxx_is_shared = true
 }
 
-if (use_libcxx_modules) {
+if (use_clang_modules) {
   libcxx_prefix = "${root_gen_dir}/third_party/libc++/src"
   libcxx_modulemap_in =
       read_file("//third_party/libc++/src/include/module.modulemap.in",

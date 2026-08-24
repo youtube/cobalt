@@ -88,9 +88,7 @@ class PeerConnectionSdpMethods {
   virtual bool dtls_enabled() const = 0;
   virtual const PeerConnectionFactoryInterface::Options* options() const = 0;
 
-  // Returns the CryptoOptions for this PeerConnection. This will always
-  // return the RTCConfiguration.crypto_options if set and will only default
-  // back to the PeerConnectionFactory settings if nothing was set.
+  // Returns the CryptoOptions for this PeerConnection.
   virtual CryptoOptions GetCryptoOptions() = 0;
   virtual JsepTransportController* transport_controller_s() = 0;
   virtual JsepTransportController* transport_controller_n() = 0;

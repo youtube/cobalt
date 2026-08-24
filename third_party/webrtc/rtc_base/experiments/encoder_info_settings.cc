@@ -10,10 +10,9 @@
 
 #include "rtc_base/experiments/encoder_info_settings.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>

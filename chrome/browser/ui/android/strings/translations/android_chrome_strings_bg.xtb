@@ -108,6 +108,7 @@
 <translation id="1419753403124156396">Да се рестартира ли Chrome?</translation>
 <translation id="1428770807407000502">Да се изключи ли синхронизирането?</translation>
 <translation id="1430915738399379752">Печат</translation>
+<translation id="1433478348197382180">Режим на четене</translation>
 <translation id="1435593198351412143">Автоматично отваряне на PDF файловете</translation>
 <translation id="1437543266176261764">Изпълнява се в(ъв) <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Организирайте проследяваните от вас продукти в „Отметки“</translation>
@@ -239,6 +240,7 @@
 <translation id="2088833076121753253">За да завършите настройването на функцията за автоматично попълване, рестартирайте Chrome сега. Разделите ви автоматично ще се отворят отново.</translation>
 <translation id="2091863218454846791">Показва се компактният изглед</translation>
 <translation id="2093731487903423814">последните 15 минути</translation>
+<translation id="2096577711562668473">Искате ли да промените услугата за автоматично попълване?</translation>
 <translation id="2100273922101894616">Автоматичен вход</translation>
 <translation id="2109384632594340939">снимка на потребителския профил</translation>
 <translation id="2111511281910874386">Към страницата</translation>
@@ -324,6 +326,7 @@
 <translation id="2496180316473517155">История на сърфирането</translation>
 <translation id="2497852260688568942">Синхронизирането е деактивирано от администратора ви</translation>
 <translation id="250020030759455918">В Chrome ще виждате дали сте влезли в профила си в <ph name="SITE_NAME" />, както и съответните данни за сърфирането и сайта</translation>
+<translation id="2502798195266898572">Долният лист за режима на четене е отворен на пълната височина</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> се инсталира...</translation>
 <translation id="2512234228327349533">Търсене на опции за купуване</translation>
 <translation id="2513403576141822879">За още настройки за поверителността, сигурността и събирането на данни вижте <ph name="BEGIN_LINK" />Синхронизиране и услуги на Google<ph name="END_LINK" /></translation>
@@ -719,6 +722,7 @@
 <translation id="4306489587293957491">Въведете</translation>
 <translation id="4307992518367153382">Основни положения</translation>
 <translation id="4311652497846705514">Да се отвори ли PDF файлът?</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Възможен спам}other{Възможен спам (#)}}</translation>
 <translation id="4320177379694898372">Няма връзка с интернет</translation>
 <translation id="4326079409704643112">Потвърдете, че сте вие, за да използвате и запазвате данните от Chrome в профила си в Google</translation>
 <translation id="433213510553688132">Започвате да следите...</translation>
@@ -932,6 +936,7 @@
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{Изтегля се файл…}other{Изтеглят се # файла…}}</translation>
 <translation id="5210286577605176222">Преминаване към предишния раздел</translation>
 <translation id="5210365745912300556">Затваряне на раздела</translation>
+<translation id="5212800876504289412">Рестартирайте Chrome, за да завършите тази промяна. Разделите се отварят автоматично след рестартиране.</translation>
 <translation id="5215957675041756913">Управление на данните и профила ви</translation>
 <translation id="5218324087477576825">Номер на картата, задължителен</translation>
 <translation id="5221437554987713282">„<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ и др. <ph name="SEPARATOR" /> Chrome премахна тези разрешения, защото не сте посещавали този сайт наскоро</translation>
@@ -974,7 +979,6 @@
 <translation id="5414836363063783498">Потвърждава се…</translation>
 <translation id="5415871492522952905">Ще имате достъп до историята и разделите си на всичките си устройства, за да можете да продължавате заниманията си на всяко от тях</translation>
 <translation id="542073632571549028"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) незабавно ще загуби достъп до групата раздели „<ph name="GROUP_NAME" />“</translation>
-<translation id="5423934151118863508">Най-посещаваните от вас страници ще се показват тук</translation>
 <translation id="5424588387303617268">Налични: <ph name="GIGABYTES" /> ГБ</translation>
 <translation id="543338862236136125">Редактиране на паролата</translation>
 <translation id="5433691172869980887">Потребителското име е копирано</translation>
@@ -1057,8 +1061,10 @@
 <translation id="580893287573699959">Управлявайте темите и сайтовете, които ви интересуват</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{преди # час}other{преди # часа}}</translation>
 <translation id="5810288467834065221">Авторски права <ph name="YEAR" /> г. Google LLC. Всички права запазени.</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Показване на известието}other{Показване на известията}}</translation>
 <translation id="5814749351757353073">Получавайте актуална информация от любимите си сайтове</translation>
 <translation id="5823093032261493462">Искате ли да изтеглите „<ph name="FILE_NAME" />“ от <ph name="DOWNLOAD_DOMAIN" /> въпреки това?</translation>
+<translation id="5825135637446025843">След рестартирането на Chrome информацията, запазена от новия ви доставчик, ще се използва за автоматично попълване на пароли, ключове за достъп, адреси, начини на плащане и други данни.</translation>
 <translation id="5828921839638612740">Можете да изтриете данните в настройките на Chrome</translation>
 <translation id="5829586821381540080">Запазено в(ъв) „<ph name="FOLDER_NAME" />“</translation>
 <translation id="583281660410589416">Неизвестно</translation>
@@ -1167,6 +1173,7 @@
 <translation id="6255809143828972562">С помощта на инструментите от Chrome можете да сърфирате безопасно и да запазите контрол</translation>
 <translation id="6264376385120300461">Изтегляне въпреки това</translation>
 <translation id="6264485186158353794">Назад към безопасната страница</translation>
+<translation id="6267063201726531683">Долен лист за режима на четене</translation>
 <translation id="6277522088822131679">При отпечатването на страницата възникна проблем. Моля, опитайте отново.</translation>
 <translation id="6278428485366576908">Тема</translation>
 <translation id="6284472661216707937">Известието „Паролите са достъпни на всичките ви устройства“ е затворено</translation>
@@ -1174,6 +1181,7 @@
 <translation id="6295158916970320988">Всички сайтове</translation>
 <translation id="6296366034485697675">Експортиране и изтриване</translation>
 <translation id="629730747756840877">Профил</translation>
+<translation id="6300697579369314762">Долният лист за режима на четене е отворен на половината височина</translation>
 <translation id="6301526076346731664">Отваряне на инструментите за програмисти</translation>
 <translation id="6303969859164067831">Изход от профила и изключване на синхронизирането</translation>
 <translation id="6307241780749477694">Потвърдете самоличността си, за да получите всичките си пароли на това устройство</translation>
@@ -1394,6 +1402,7 @@
 <translation id="71503698506017927">Шифроването с пропуск не включва начините на плащане и адресите от Google Pay.
 
 За да промените тази настройка, <ph name="BEGIN_LINK" />изтрийте данните от Chrome в профила си<ph name="END_LINK" />.</translation>
+<translation id="7151332203500147130">Долният лист за режима на четене е затворен</translation>
 <translation id="7165972437814027679">Научете повече за това защо Chrome блокира някои файлове</translation>
 <translation id="7168323970702333693">Влезли сте като <ph name="USER_NAME" />. Отваря настройките.</translation>
 <translation id="7173114856073700355">Към настройките</translation>
@@ -1727,7 +1736,6 @@
 <translation id="8493948351860045254">Освобождаване на място</translation>
 <translation id="8497242791509864205">Отваряне на опциите за сортиране</translation>
 <translation id="8497480609928300907">Обяснение на ръководството за поверителност</translation>
-<translation id="8497726226069778601">Тук няма нищо… засега</translation>
 <translation id="8503813439785031346">Потребителско име</translation>
 <translation id="8505766168025405649">Вижте известието за състоянието на изтегляне</translation>
 <translation id="8506357771923193001">Тук ще намерите изтеглянията си</translation>

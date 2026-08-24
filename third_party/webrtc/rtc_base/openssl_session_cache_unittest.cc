@@ -11,7 +11,8 @@
 #include "rtc_base/openssl_session_cache.h"
 
 #include <openssl/ssl.h>
-#include <stdlib.h>
+
+#include <cstdlib>
 
 #include "rtc_base/ssl_stream_adapter.h"
 #include "test/gtest.h"

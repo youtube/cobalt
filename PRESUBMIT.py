@@ -39,7 +39,6 @@ _EXCLUDED_PATHS = (
     r".*MakeFile$",
     r".+_autogen\.h$",
     r".+_pb2(_grpc)?\.py$",
-    r".+/pnacl_shim\.c$",
     r"^gpu/config/.*_list_json\.cc$",
     r"tools/md_browser/.*\.css$",
     # Test pages for Maps telemetry tests.
@@ -773,6 +772,8 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'.*fuchsia.*test\.(cc|h)',
             # Clang plugins have different build config.
             '^tools/clang/plugins/',
+            # Needed for interop with Android native-only services.
+            r'^content/app/android/javaless_child_process_service\.cc',
             _THIRD_PARTY_EXCEPT_BLINK
         ],  # Not an error in third_party folders.
     ),
@@ -2726,14 +2727,10 @@ def CheckForgettingMAYBEInTests(input_api, output_api):
     #   IN_PROC_TEST_F(SyncTest, MAYBE_Start) {
     # With a wrapper macro around the test name:
     #   IN_PROC_TEST_F(SyncTest, E2E_ENABLED(MAYBE_Start)) {
-    # And the odd-ball NACL_BROWSER_TEST_f format:
-    #    NACL_BROWSER_TEST_F(NaClBrowserTest, SimpleLoad, {
     # The optional E2E_ENABLED-style is handled with (\w*\()?
-    # The NACL_BROWSER_TEST_F pattern is handled by allowing a trailing comma or
-    # trailing ')'.
     test_maybe_pattern = (
-        r'^\s*\w*TEST[^(]*\(\s*\w+,\s*(\w*\()?MAYBE_{test_name}[\),]')
-    suite_maybe_pattern = r'^\s*\w*TEST[^(]*\(\s*MAYBE_{test_name}[\),]'
+        r'^\s*\w*TEST[^(]*\(\s*\w+,\s*(\w*\()?MAYBE_{test_name}')
+    suite_maybe_pattern = r'^\s*\w*TEST[^(]*\(\s*MAYBE_{test_name}'
     warnings = []
 
     # Read the entire files. We can't just read the affected lines, forgetting to
@@ -6619,28 +6616,12 @@ def CheckForUseOfChromeAppsDeprecations(input_api, output_api):
         detection_list=['"app":'],
         files_to_check=[r'.*%s' % _MANIFEST_FILES])
 
-    # NaCl / PNaCl: any file that in its diff contains the strings in the list
-    problems += _CheckForDeprecatedTech(
-        input_api,
-        output_api,
-        detection_list=['config=nacl', 'enable-nacl', 'cpu=pnacl', 'nacl_io'],
-        files_to_skip=files_to_skip + [r"^native_client_sdk/"])
-
-    # PPAPI: any C/C++ file that in its diff includes a ppapi library
-    problems += _CheckForDeprecatedTech(
-        input_api,
-        output_api,
-        detection_list=['#include "ppapi', '#include <ppapi'],
-        files_to_check=(r'.+%s' % _HEADER_EXTENSIONS,
-                        r'.+%s' % _IMPLEMENTATION_EXTENSIONS),
-        files_to_skip=[r"^ppapi/"])
-
     if problems:
         return [
             output_api.PresubmitPromptWarning(
                 'You are adding/modifying code'
-                'related to technologies which will soon be deprecated (Chrome Apps, NaCl,'
-                ' PNaCl, PPAPI). See this blog post for more details:\n'
+                'related to technologies which will soon be deprecated (Chrome Apps'
+                '). See this blog post for more details:\n'
                 'https://blog.chromium.org/2020/08/changes-to-chrome-app-support-timeline.html\n'
                 'and this documentation for options to replace these technologies:\n'
                 'https://developer.chrome.com/docs/apps/migration/\n' +
@@ -7311,7 +7292,8 @@ def CheckDeprecationOfPreferences(input_api, output_api):
                 'Migrate*Prefs() in chrome/browser/prefs/browser_prefs.cc and\n'
                 'chrome/browser/prefs/README.md for examples.\n'
                 'This may be a false positive warning (e.g. if you move preference\n'
-                'registrations to a different place).\n', potential_problems)
+                'registrations to a different place or if the preference was only\n'
+                'written to by the policy stack).\n', potential_problems)
         ]
     return []
 

@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
@@ -31,6 +32,7 @@
 #include "net/http/transport_security_state_source.h"
 #include "net/log/net_log_with_source.h"
 #include "net/net_buildflags.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace net {
 
@@ -160,12 +162,12 @@ class NET_EXPORT TransportSecurityState {
     base::Time expiry;
 
     // Optional; hashes of pinned SubjectPublicKeyInfos.
-    HashValueVector spki_hashes;
+    absl::flat_hash_set<SHA256HashValue> spki_hashes;
 
     // Optional; hashes of static known-bad SubjectPublicKeyInfos which MUST
     // NOT intersect with the set of SPKIs in the TLS server's certificate
     // chain.
-    HashValueVector bad_spki_hashes;
+    absl::flat_hash_set<SHA256HashValue> bad_spki_hashes;
 
     // Are subdomains subject to this policy state?
     bool include_subdomains = false;
@@ -190,7 +192,7 @@ class NET_EXPORT TransportSecurityState {
     //
     // |bad_static_spki_hashes| contains public keys that we don't want to
     // trust.
-    bool CheckPublicKeyPins(const HashValueVector& hashes) const;
+    bool CheckPublicKeyPins(const std::vector<SHA256HashValue>& hashes) const;
 
     // Returns true if any of the HashValueVectors |static_spki_hashes|,
     // |bad_static_spki_hashes|, or |dynamic_spki_hashes| contains any
@@ -201,23 +203,23 @@ class NET_EXPORT TransportSecurityState {
   class NET_EXPORT PinSet {
    public:
     PinSet(std::string name,
-           std::vector<std::vector<uint8_t>> static_spki_hashes,
-           std::vector<std::vector<uint8_t>> bad_static_spki_hashes);
+           std::vector<SHA256HashValue> static_spki_hashes,
+           std::vector<SHA256HashValue> bad_static_spki_hashes);
     PinSet(const PinSet& other);
     ~PinSet();
 
     const std::string& name() const { return name_; }
-    const std::vector<std::vector<uint8_t>>& static_spki_hashes() const {
+    const std::vector<SHA256HashValue>& static_spki_hashes() const {
       return static_spki_hashes_;
     }
-    const std::vector<std::vector<uint8_t>>& bad_static_spki_hashes() const {
+    const std::vector<SHA256HashValue>& bad_static_spki_hashes() const {
       return bad_static_spki_hashes_;
     }
 
    private:
     std::string name_;
-    std::vector<std::vector<uint8_t>> static_spki_hashes_;
-    std::vector<std::vector<uint8_t>> bad_static_spki_hashes_;
+    std::vector<SHA256HashValue> static_spki_hashes_;
+    std::vector<SHA256HashValue> bad_static_spki_hashes_;
   };
 
   struct NET_EXPORT PinSetInfo {
@@ -259,9 +261,10 @@ class NET_EXPORT TransportSecurityState {
   bool ShouldUpgradeToSSL(std::string_view host,
                           bool is_top_level_nav,
                           const NetLogWithSource& net_log = NetLogWithSource());
-  PKPStatus CheckPublicKeyPins(std::string_view host,
-                               bool is_issued_by_known_root,
-                               const HashValueVector& hashes);
+  PKPStatus CheckPublicKeyPins(
+      std::string_view host,
+      bool is_issued_by_known_root,
+      const std::vector<SHA256HashValue>& public_key_hashes);
   bool HasPublicKeyPins(std::string_view host);
 
   // Returns CT_REQUIREMENTS_NOT_MET if a connection violates CT policy
@@ -281,7 +284,7 @@ class NET_EXPORT TransportSecurityState {
   ct::CTRequirementsStatus CheckCTRequirements(
       std::string_view host,
       bool is_issued_by_known_root,
-      const HashValueVector& public_key_hashes,
+      const std::vector<SHA256HashValue>& public_key_hashes,
       const X509Certificate* validated_certificate_chain,
       ct::CTPolicyCompliance policy_compliance);
 
@@ -440,7 +443,7 @@ class NET_EXPORT TransportSecurityState {
   // Helper method for actually checking pins.
   PKPStatus CheckPublicKeyPinsImpl(std::string_view host,
                                    bool is_issued_by_known_root,
-                                   const HashValueVector& hashes);
+                                   const std::vector<SHA256HashValue>& hashes);
 
   // If a Delegate is present, notify it that the internal state has
   // changed.
@@ -464,7 +467,7 @@ class NET_EXPORT TransportSecurityState {
   // satisfies the pins in |pkp_state|, and false otherwise.
   PKPStatus CheckPins(bool is_issued_by_known_root,
                       const TransportSecurityState::PKPState& pkp_state,
-                      const HashValueVector& hashes);
+                      const std::vector<SHA256HashValue>& hashes);
 
   // Returns true if the static key pinning list has been updated in the last 10
   // weeks.

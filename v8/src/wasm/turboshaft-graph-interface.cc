@@ -2283,6 +2283,11 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kLinkError:
         return false;
 
+      // Custom Descriptors proposal.
+      // These are more relevant for Liftoff than for Turbofan.
+      case WKI::kConfigureAllPrototypes:
+        return false;
+
       // JS String Builtins proposal.
       case WKI::kStringCast: {
         result = ExternRefToString(args[0]);
@@ -5328,8 +5333,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                          Map::kInstanceDescriptorsOffset);
   }
 
-  compiler::SubtypeCheckExactness GetExactness(FullDecoder* decoder,
-                                               HeapType target) {
+  using SubtypeCheckExactness = compiler::SubtypeCheckExactness;
+
+  SubtypeCheckExactness GetExactness(FullDecoder* decoder, HeapType target) {
     // For exact target types, an exact match is needed for correctness;
     // for final target types, it's a performance optimization.
     // For types with custom descriptors, we need to look at their immediate
@@ -5338,13 +5344,12 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // here is not called for instructions using custom descriptors
     // (ref.cast_desc, br_on_cast_desc{,_fail}).
     const TypeDefinition& type = decoder->module_->type(target.ref_index());
-    if (!type.has_descriptor() && (type.is_final || target.is_exact())) {
-      return compiler::SubtypeCheckExactness::kExactMatchOnly;
+    if (type.is_final || target.is_exact()) {
+      return type.has_descriptor()
+                 ? SubtypeCheckExactness::kExactMatchLastSupertype
+                 : SubtypeCheckExactness::kExactMatchOnly;
     }
-    if (type.has_descriptor() && target.is_exact()) {
-      return compiler::SubtypeCheckExactness::kExactMatchLastSupertype;
-    }
-    return compiler::SubtypeCheckExactness::kMayBeSubtype;
+    return SubtypeCheckExactness::kMayBeSubtype;
   }
 
   void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
@@ -8687,6 +8692,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                               const StructIndexImmediate& imm,
                               const Value& descriptor, OpIndex args[],
                               bool has_nondefault_args) {
+    if (__ generating_unreachable_operations()) return {};
     const TypeDefinition& type = decoder->module_->type(imm.index);
     DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
     V<Map> rtt;
@@ -8712,6 +8718,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
     }
 
+    // TODO(jkummerow): If the struct is in new-space (i.e. it is not shared
+    // and not a descriptor), we could skip the write barrier.
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
       __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
                    compiler::kWithoutNullCheck, {});

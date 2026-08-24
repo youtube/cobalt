@@ -1058,7 +1058,7 @@ TEST_F(TurnPortTest, TestTurnBadCredentials) {
                         {.timeout = TimeDelta::Millis(kSimulatedRtt * 3),
                          .clock = &fake_clock_}),
               IsRtcOk());
-  EXPECT_EQ(error_event_.error_text, "Unauthorized");
+  EXPECT_EQ(error_event_.error_text, "Unauthorized.");
 }
 
 // Test that we fail without emitting an error if we try to get an address from

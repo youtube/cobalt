@@ -694,11 +694,14 @@ TEST_P(PrefetchStreamingURLLoaderTest, EligibleRedirect) {
   base::RunLoop on_head_received_loop;
   OnPrefetchCompleteTestFuture on_complete;
 
+  // `on_complete` and `on_head_received_loop` shouldn't be notified via
+  // `redirect_response_reader`.
   auto [redirect_response_reader, streaming_loader] =
       CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
           shared_test_url_loader_factory(), *prefetch_request,
-          &on_response_received_loop, &on_complete, &on_receive_redirect,
-          &on_head_received_loop);
+          &on_response_received_loop, /*on_complete=*/NotReachedTagForTests(),
+          &on_receive_redirect,
+          /*on_head_received=*/NotReachedTagForTests());
 
   ASSERT_TRUE(test_url_loader_factory()->test_url_loader());
   test_url_loader_factory()->test_url_loader()->SetOnFollowRedirectClosure(
@@ -715,7 +718,11 @@ TEST_P(PrefetchStreamingURLLoaderTest, EligibleRedirect) {
   on_follow_redirect_loop.Run();
 
   // Switch to a new ResponseReader.
-  auto final_response_reader = base::MakeRefCounted<PrefetchResponseReader>();
+  // `on_complete` and `on_head_received_loop` should be notified via
+  // `final_response_reader`.
+  auto final_response_reader = base::MakeRefCounted<PrefetchResponseReader>(
+      on_head_received_loop.QuitClosure(),
+      on_complete.GetCallback<const network::URLLoaderCompletionStatus&>());
   ASSERT_TRUE(streaming_loader);
   streaming_loader->SetResponseReader(final_response_reader->GetWeakPtr());
 
@@ -834,6 +841,9 @@ TEST_P(PrefetchStreamingURLLoaderTest, IneligibleRedirect) {
   OnPrefetchReceiveRedirectTestFuture on_receive_redirect;
   base::RunLoop on_head_received_loop;
 
+  // TODO(https://crbug.com/400761083): `on_complete` isn't called upon failed
+  // redirects, but for completeness we might want to call the callbacks (or
+  // another new callback).
   auto [response_reader, streaming_loader] =
       CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
           shared_test_url_loader_factory(), *prefetch_request,
@@ -1008,6 +1018,55 @@ TEST_P(PrefetchStreamingURLLoaderTest,
   histogram_tester.ExpectUniqueSample(
       "PrefetchProxy.Prefetch.StreamingURLLoaderFinalStatus",
       PrefetchStreamingURLLoaderStatus::kFailedInvalidRedirect, 1);
+}
+
+TEST_P(PrefetchStreamingURLLoaderTest, UnexpectedUrlLoaderDisconnect) {
+  base::HistogramTester histogram_tester;
+  const GURL kTestUrl = GURL("https://example.com");
+  const std::string kBodyContent = "example body";
+
+  std::unique_ptr<network::ResourceRequest> prefetch_request =
+      std::make_unique<network::ResourceRequest>();
+  prefetch_request->url = kTestUrl;
+  prefetch_request->method = "GET";
+
+  base::RunLoop on_deletion_scheduled_loop;
+
+  // TODO(https://crbug.com/400761083): `on_complete` and
+  // `on_head_received_loop` aren't called upon unexpected mojo disconnection,
+  // but for completeness we might want to call these callbacks (or another new
+  // callback).
+  auto [response_reader, streaming_loader] =
+      CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
+          shared_test_url_loader_factory(), *prefetch_request,
+          /*on_response_received=*/NotReachedTagForTests(),
+          /*on_complete=*/NotReachedTagForTests(),
+          /*on_receive_redirect=*/NotReachedTagForTests(),
+          /*on_head_received=*/NotReachedTagForTests());
+  streaming_loader->SetOnDeletionScheduledForTests(
+      on_deletion_scheduled_loop.QuitClosure());
+
+  // Simulate unexpected mojo disconnection before receiving any responses.
+  test_url_loader_factory()->DisconnectMojoPipes();
+  on_deletion_scheduled_loop.Run();
+  ASSERT_TRUE(streaming_loader);
+  task_environment()->RunUntilIdle();
+
+  // Streaming loader deletes itself asynchronously once prefetching URL loader
+  // is disconnected.
+  EXPECT_FALSE(streaming_loader);
+
+  // Since the network URL loader was disconnected, then prefetch should not be
+  // servable.
+  EXPECT_FALSE(response_reader->Servable(base::TimeDelta::Max()));
+
+  response_reader.reset();
+
+  // TODO(https://crbug.com/400761083): Also this remains `kWaitingOnHead`, but
+  // this probably should be set to a failure status.
+  histogram_tester.ExpectUniqueSample(
+      "PrefetchProxy.Prefetch.StreamingURLLoaderFinalStatus",
+      PrefetchStreamingURLLoaderStatus::kWaitingOnHead, 1);
 }
 
 TEST_P(PrefetchStreamingURLLoaderTest, Decoy) {

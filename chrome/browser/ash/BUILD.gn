@@ -70,6 +70,7 @@ source_set("unit_tests") {
     "//chromeos/components/onc",
     "//chromeos/dbus/power",
     "//chromeos/dbus/tpm_manager",
+    "//components/account_id:test_support",
     "//components/download/content/public",
     "//components/download/public/common:test_support",
     "//components/onc",
@@ -243,6 +244,10 @@ source_set("unit_tests") {
   }
 
   data = [ "//chromeos/test/data/" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 group("browser_tests") {

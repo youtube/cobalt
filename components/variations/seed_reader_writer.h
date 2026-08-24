@@ -19,6 +19,7 @@
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/version_info/channel.h"
+#include "components/variations/proto/stored_seed_info.pb.h"
 
 class PrefService;
 
@@ -146,10 +147,14 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   void StoreValidatedSeedInfo(ValidatedSeedInfo seed_info);
 
   // Clears seed data and other seed-related info. The following fields are
-  // cleared: seed data, signature, milestone, seed_date, client_fetch_time and
-  // session_country_code. To clear permanent_country_code and version, use
+  // cleared: seed data, signature, milestone, seed_date and client_fetch_time.
+  // To clear the session_country_code, use ClearSessionCountry() instead.
+  // To clear permanent_country_code and version, use
   // ClearPermanentConsistencyCountryAndVersion() instead.
   void ClearSeedInfo();
+
+  // Clears the session country code.
+  void ClearSessionCountry();
 
   // Returns stored seed data.
   StoredSeed GetSeedData() const;
@@ -174,24 +179,6 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
                                                 std::string_view version);
 
  private:
-  // TODO(crbug.com/380465790): Represents the seed and other related info.
-  // This info will be stored together in the SeedFile. Once all the
-  // seed-related info is stored in the struct, change it to a proto and use it
-  // to serialize and deserialize the data.
-  struct SeedInfo {
-    SeedInfo();
-    ~SeedInfo();
-
-    std::string data;
-    std::string signature;
-    int milestone = 0;
-    base::Time seed_date;
-    base::Time client_fetch_time;
-    std::string session_country_code;
-    std::string permanent_country_code;
-    std::string permanent_country_version;
-  };
-
   // Returns the serialized data to be written to disk. This is done
   // asynchronously during the write process.
   base::ImportantFileWriter::BackgroundDataProducerCallback
@@ -202,7 +189,8 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   // ScheduleSeedFileClear() instead.
   void ScheduleSeedFileWrite(ValidatedSeedInfo seed_info);
 
-  // Schedules `seed_info` to be cleared using `seed_writer_`.
+  // Schedules `seed_info_` to be cleared using `seed_writer_`. See
+  // VariationsSeedStore::ClearPrefs() .
   void ScheduleSeedFileClear();
 
   // Schedules the deletion of a seed file.
@@ -239,7 +227,7 @@ class COMPONENT_EXPORT(VARIATIONS) SeedReaderWriter
   // Stored seed info. Used to store a seed applied during field trial
   // setup or a seed fetched from a variations server. Also stores other
   // seed-related info.
-  SeedInfo seed_info_;
+  StoredSeedInfo seed_info_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

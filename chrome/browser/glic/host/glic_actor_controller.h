@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_GLIC_HOST_GLIC_ACTOR_CONTROLLER_H_
 #define CHROME_BROWSER_GLIC_HOST_GLIC_ACTOR_CONTROLLER_H_
 
+#include <optional>
+
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -15,12 +17,7 @@
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 
-namespace optimization_guide::proto {
-class BrowserStartTaskResult;
-}
-
 namespace actor {
-class ExecutionEngine;
 class ActorTask;
 }  // namespace actor
 
@@ -57,26 +54,19 @@ class GlicActorController {
   void OnResponseStarted();
   void OnResponseStopped();
 
+  // TODO(crbug.com/418280472): This temporarily gates providing observations
+  // after action failure, to avoid confusing the client before it's updated.
+  static bool ProvideObservationOnActionFailureEnabled();
+
  private:
-  void OnTaskStartedForAct(
-      optimization_guide::proto::BrowserAction action,
-      const mojom::GetTabContextOptions& options,
-      mojom::WebClientHandler::ActInFocusedTabCallback callback,
-      optimization_guide::proto::BrowserStartTaskResult result);
-
-  // Core logic to execute an action.
-  void ActImpl(const optimization_guide::proto::BrowserAction& action,
-               const mojom::GetTabContextOptions& options,
-               mojom::WebClientHandler::ActInFocusedTabCallback callback) const;
-
   // Handles the result of the action, returning new page context if necessary.
   void OnActionFinished(
       actor::TaskId task_id,
       const mojom::GetTabContextOptions& options,
       mojom::WebClientHandler::ActInFocusedTabCallback callback,
-      actor::mojom::ActionResultPtr result) const;
+      actor::mojom::ActionResultCode result,
+      std::optional<size_t> index_of_failed_action) const;
 
-  actor::ExecutionEngine* GetExecutionEngine() const;
   actor::ActorTask* GetCurrentTask() const;
 
   base::WeakPtr<const GlicActorController> GetWeakPtr() const;
@@ -85,8 +75,6 @@ class GlicActorController {
   class OngoingRequest;
 
   raw_ptr<Profile> profile_;
-  // True if and only if a task is in the process of being started.
-  bool starting_task_ = false;
   std::unique_ptr<OngoingRequest> current_request_;
   base::WeakPtrFactory<GlicActorController> weak_ptr_factory_{this};
 };

@@ -1841,6 +1841,10 @@ inline constexpr char kWebRTCIPHandlingPolicy[] = "webrtc.ip_handling_policy";
 // When no URL pattern matches, WebRTC will default to the policy
 // WebRTCIPHandlingPolicy above.
 inline constexpr char kWebRTCIPHandlingUrl[] = "webrtc.ip_handling_url";
+// Define the WebRTCPostQuantumKeyAgreement policy that controls enabling
+// post-quantum key agreement for WebRTC.
+inline constexpr char kWebRTCPostQuantumKeyAgreement[] =
+    "webrtc.post_quantum_key_agreement";
 // Define range of UDP ports allowed to be used by WebRTC PeerConnections.
 inline constexpr char kWebRTCUDPPortRange[] = "webrtc.udp_port_range";
 // Whether WebRTC event log collection by Google domains is allowed.
@@ -2658,6 +2662,13 @@ inline constexpr char kMediaCdmOriginData[] = "media.cdm.origin_data";
 inline constexpr char kNetworkServiceSandboxEnabled[] =
     "net.network_service_sandbox";
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+
+// If non-zero, then the last major version of Chrome where a failed launch of
+// the network service occurred. A failed launch is defined as either the
+// sandboxed network service process failed to launch entirely, or the network
+// service process was unable to reach UtilityMain to bootstrap IPC and mojo.
+inline constexpr char kNetworkServiceFailedLaunchMajorVersion[] =
+    "net.network_service_failed_launch_major_version";
 
 #if BUILDFLAG(IS_LINUX)
 // Records whether the user has seen an HTTP auth "negotiate" header.
@@ -3617,6 +3628,9 @@ inline constexpr char kWebShareVisitedTargets[] =
 inline constexpr char kRendererCodeIntegrityEnabled[] =
     "renderer_code_integrity_enabled";
 
+inline constexpr char kRestrictCoreSharingOnRenderer[] =
+    "restrict_core_sharing_on_renderer";
+
 // A boolean value, controlling whether Chrome renderer processes should have
 // Renderer App Container enabled or not. If this pref is set to false then
 // Renderer App Container is disabled, otherwise Renderer App Container is
@@ -4274,6 +4288,14 @@ inline constexpr char kPrefetchWithServiceWorkerEnabled[] =
 // Boolean that specifies whether ServiceWorkerAutoPreload is enabled.
 inline constexpr char kServiceWorkerAutoPreloadEnabled[] =
     "worker.service_worker_auto_preload_enabled";
+
+#if !BUILDFLAG(IS_ANDROID)
+// Version string in MAJOR.MINOR.BUILD.PATCH format for the last shown non
+// milestone update toast version. If there's new non milestone update a toast
+// will be shown and this pref will set to the new version.
+inline constexpr char kNonMilestoneUpdateToastVersion[] =
+    "toast.non_milestone_update_toast_version";
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace prefs
 

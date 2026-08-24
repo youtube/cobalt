@@ -705,6 +705,15 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
                   ->shared()
                   ->internal_formal_parameter_count_without_receiver(),
               expected_sig->parameter_count());
+    if (preknown_import == WellKnownImport::kConfigureAllPrototypes) {
+      // Note: this relies on no other WKI storing the same Smi in the
+      // FixedArray. If that ever becomes a problem, we could switch to some
+      // unique symbol (in read-only space). As of this writing, there are only
+      // two other users of this array, and they both store HeapObjects.
+      trusted_instance_data->well_known_imports()->set(
+          func_index, Smi::FromInt(static_cast<int>(
+                          WellKnownImport::kConfigureAllPrototypes)));
+    }
     return ImportCallKind::kJSFunction;
   }
   Isolate* isolate = Isolate::Current();
@@ -1079,7 +1088,7 @@ class JSPrototypesSetup {
     DirectHandle<WasmFuncRef> funcref =
         WasmTrustedInstanceData::GetOrCreateFuncRef(
             isolate_, shared ? shared_instance_data_ : trusted_instance_data_,
-            index);
+            index, kPrecreateExternal);
     DirectHandle<WasmInternalFunction> internal_function(
         funcref->internal(isolate_), isolate_);
     return Cast<WasmExportedFunction>(
@@ -1229,7 +1238,8 @@ class InstanceBuilder {
  private:
   Isolate* isolate_;
   v8::metrics::Recorder::ContextId context_id_;
-  NativeModule* native_module_;
+  const std::shared_ptr<NativeModule> native_module_;
+  const base::Vector<const uint8_t> wire_bytes_;
   const WasmEnabledFeatures enabled_;
   const WasmModule* const module_;
   ErrorThrower* thrower_;
@@ -1261,7 +1271,7 @@ class InstanceBuilder {
   std::string ImportName(uint32_t index) {
     const WasmImport& import = module_->import_table[index];
     const char* wire_bytes_start =
-        reinterpret_cast<const char*>(native_module_->wire_bytes().data());
+        reinterpret_cast<const char*>(wire_bytes_.data());
     std::ostringstream oss;
     oss << "Import #" << index << " \"";
     oss.write(wire_bytes_start + import.module_name.offset(),
@@ -1439,7 +1449,8 @@ InstanceBuilder::InstanceBuilder(
     MaybeDirectHandle<JSArrayBuffer> asmjs_memory_buffer)
     : isolate_(isolate),
       context_id_(context_id),
-      native_module_(module_object->native_module()),
+      native_module_(module_object->shared_native_module()),
+      wire_bytes_(native_module_->wire_bytes()),
       enabled_(native_module_->enabled_features()),
       module_(native_module_->module()),
       thrower_(thrower),
@@ -1508,17 +1519,17 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   //--------------------------------------------------------------------------
   // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
-  TRACE("New module instantiation for %p\n", native_module_);
-  trusted_data_ =
-      WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
+  TRACE("New module instantiation for %p\n", native_module_.get());
+  trusted_data_ = WasmTrustedInstanceData::New(
+      isolate_, untrusted_module_object_, native_module_, false);
   bool shared = module_->has_shared_part;
   if (shared) {
     // For now, allocate the shared part in non-shared space. We do not need it
     // in shared space yet since no shared objects point to it.
     // TODO(42204563): This will change once we introduce shared globals,
     // tables, or functions.
-    shared_trusted_data_ =
-        WasmTrustedInstanceData::New(isolate_, untrusted_module_object_, false);
+    shared_trusted_data_ = WasmTrustedInstanceData::New(
+        isolate_, untrusted_module_object_, native_module_, false);
     trusted_data_->set_shared_part(*shared_trusted_data_);
   }
 
@@ -1861,7 +1872,8 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
       bool function_is_shared = module_->type(function.sig_index).is_shared;
       DirectHandle<WasmFuncRef> func_ref =
           WasmTrustedInstanceData::GetOrCreateFuncRef(
-              isolate_, trusted_data(function_is_shared), start_index);
+              isolate_, trusted_data(function_is_shared), start_index,
+              kPrecreateExternal);
       DirectHandle<WasmInternalFunction> internal{func_ref->internal(isolate_),
                                                   isolate_};
       start_function_ = WasmInternalFunction::GetOrCreateExternal(internal);
@@ -1869,7 +1881,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   }
 
   DCHECK(!isolate_->has_exception());
-  TRACE("Successfully built instance for module %p\n", native_module_);
+  TRACE("Successfully built instance for module %p\n", native_module_.get());
 
 #if V8_ENABLE_DRUMBRAKE
   // Skip this event because not (yet) supported by Chromium.
@@ -2097,7 +2109,6 @@ MaybeDirectHandle<Object> InstanceBuilder::LookupImportAsm(
 // Load data segments into the memory.
 // TODO(14616): Consider what to do with shared memories.
 void InstanceBuilder::LoadDataSegments() {
-  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t size = segment.source.length();
 
@@ -2135,7 +2146,7 @@ void InstanceBuilder::LoadDataSegments() {
 
     uint8_t* memory_base = trusted_data_->memory_base(segment.memory_index);
     std::memcpy(memory_base + dest_offset,
-                wire_bytes.begin() + segment.source.offset(), size);
+                wire_bytes_.begin() + segment.source.offset(), size);
   }
 }
 
@@ -2159,27 +2170,28 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
 // Returns the name, Builtin ID, and "length" (in the JSFunction sense, i.e.
 // number of parameters) for the function representing the given import.
 std::tuple<const char*, Builtin, int> NameBuiltinLength(WellKnownImport wki) {
-#define CASE(CamelName, name, length)       \
-  case WellKnownImport::kString##CamelName: \
-    return std::make_tuple(name, Builtin::kWebAssemblyString##CamelName, length)
+#define CASE(CamelName, name, length) \
+  case WellKnownImport::k##CamelName: \
+    return std::make_tuple(name, Builtin::kWebAssembly##CamelName, length)
   switch (wki) {
-    CASE(Cast, "cast", 1);
-    CASE(CharCodeAt, "charCodeAt", 2);
-    CASE(CodePointAt, "codePointAt", 2);
-    CASE(Compare, "compare", 2);
-    CASE(Concat, "concat", 2);
-    CASE(Equals, "equals", 2);
-    CASE(FromCharCode, "fromCharCode", 1);
-    CASE(FromCodePoint, "fromCodePoint", 1);
-    CASE(FromUtf8Array, "decodeStringFromUTF8Array", 3);
-    CASE(FromWtf16Array, "fromCharCodeArray", 3);
-    CASE(IntoUtf8Array, "encodeStringIntoUTF8Array", 3);
-    CASE(Length, "length", 1);
-    CASE(MeasureUtf8, "measureStringAsUTF8", 1);
-    CASE(Substring, "substring", 3);
-    CASE(Test, "test", 1);
-    CASE(ToUtf8Array, "encodeStringToUTF8Array", 1);
-    CASE(ToWtf16Array, "intoCharCodeArray", 3);
+    CASE(ConfigureAllPrototypes, "configureAll", 4);
+    CASE(StringCast, "cast", 1);
+    CASE(StringCharCodeAt, "charCodeAt", 2);
+    CASE(StringCodePointAt, "codePointAt", 2);
+    CASE(StringCompare, "compare", 2);
+    CASE(StringConcat, "concat", 2);
+    CASE(StringEquals, "equals", 2);
+    CASE(StringFromCharCode, "fromCharCode", 1);
+    CASE(StringFromCodePoint, "fromCodePoint", 1);
+    CASE(StringFromUtf8Array, "decodeStringFromUTF8Array", 3);
+    CASE(StringFromWtf16Array, "fromCharCodeArray", 3);
+    CASE(StringIntoUtf8Array, "encodeStringIntoUTF8Array", 3);
+    CASE(StringLength, "length", 1);
+    CASE(StringMeasureUtf8, "measureStringAsUTF8", 1);
+    CASE(StringSubstring, "substring", 3);
+    CASE(StringTest, "test", 1);
+    CASE(StringToUtf8Array, "encodeStringToUTF8Array", 1);
+    CASE(StringToWtf16Array, "intoCharCodeArray", 3);
     default:
       UNREACHABLE();  // Only call this for compile-time imports.
   }
@@ -2225,7 +2237,6 @@ void InstanceBuilder::FinalizeExportsObject(
 }
 
 void InstanceBuilder::SanitizeImports() {
-  base::Vector<const uint8_t> wire_bytes = native_module_->wire_bytes();
   const WellKnownImportsList& well_known_imports =
       module_->type_feedback.well_known_imports;
   const std::string& magic_string_constants =
@@ -2238,7 +2249,7 @@ void InstanceBuilder::SanitizeImports() {
 
   if (v8_flags.experimental_wasm_custom_descriptors &&
       !module_->descriptors_section.is_empty()) {
-    js_prototypes_setup_.emplace(isolate_, wire_bytes, module_, thrower_,
+    js_prototypes_setup_.emplace(isolate_, wire_bytes_, module_, thrower_,
                                  sanitized_imports_);
     js_prototypes_setup_->MaterializeDescriptorOptions(ffi_);
     if (thrower_->error()) return;
@@ -2251,10 +2262,10 @@ void InstanceBuilder::SanitizeImports() {
     if (import.kind == kExternalGlobal && has_magic_string_constants &&
         import.module_name.length() == magic_string_constants.size() &&
         std::equal(magic_string_constants.begin(), magic_string_constants.end(),
-                   wire_bytes.begin() + import.module_name.offset())) {
+                   wire_bytes_.begin() + import.module_name.offset())) {
       DirectHandle<String> value =
           WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-              isolate_, wire_bytes, import.field_name, kNoInternalize);
+              isolate_, wire_bytes_, import.field_name, kNoInternalize);
       sanitized_imports_[index] = value;
       continue;
     }
@@ -2278,11 +2289,11 @@ void InstanceBuilder::SanitizeImports() {
 
     DirectHandle<String> module_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, wire_bytes, import.module_name, kInternalize);
+            isolate_, wire_bytes_, import.module_name, kInternalize);
 
     DirectHandle<String> import_name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, wire_bytes, import.field_name, kInternalize);
+            isolate_, wire_bytes_, import.field_name, kInternalize);
 
     MaybeDirectHandle<Object> result =
         is_asmjs_module(module_)
@@ -2949,7 +2960,7 @@ void InstanceBuilder::ProcessExports() {
   for (const WasmExport& exp : module_->export_table) {
     DirectHandle<String> name =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-            isolate_, native_module_->wire_bytes(), exp.name, kInternalize);
+            isolate_, wire_bytes_, exp.name, kInternalize);
     DirectHandle<JSAny> value;
     switch (exp.kind) {
       case kExternalFunction: {
@@ -2957,7 +2968,7 @@ void InstanceBuilder::ProcessExports() {
         bool shared = module_->function_is_shared(exp.index);
         DirectHandle<WasmFuncRef> func_ref =
             WasmTrustedInstanceData::GetOrCreateFuncRef(
-                isolate_, trusted_data(shared), exp.index);
+                isolate_, trusted_data(shared), exp.index, kPrecreateExternal);
         DirectHandle<WasmInternalFunction> internal_function{
             func_ref->internal(isolate_), isolate_};
         DirectHandle<JSFunction> wasm_external_function =
@@ -3260,7 +3271,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate,
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     DirectHandle<WasmTrustedInstanceData> shared_trusted_instance_data,
-    uint32_t segment_index) {
+    uint32_t segment_index, PrecreateExternal precreate_external_functions) {
   bool shared =
       trusted_instance_data->module()->elem_segments[segment_index].shared;
   DirectHandle<WasmTrustedInstanceData> data =
@@ -3271,20 +3282,46 @@ std::optional<MessageTemplate> InitializeElementSegment(
   const WasmModule* module = native_module->module();
   const WasmElemSegment& elem_segment = module->elem_segments[segment_index];
 
-  base::Vector<const uint8_t> module_bytes = native_module->wire_bytes();
+  base::Vector<const uint8_t> segment_bytes =
+      native_module->wire_bytes() + elem_segment.elements_wire_bytes_offset;
 
-  Decoder decoder(module_bytes);
-  decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+  Decoder decoder(segment_bytes);
 
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(elem_segment.element_count);
 
-  for (size_t i = 0; i < elem_segment.element_count; ++i) {
-    ValueOrError value = ConsumeElementSegmentEntry(
-        zone, isolate, trusted_instance_data, shared_trusted_instance_data,
-        elem_segment, decoder, kStrictFunctionsAndNull);
-    if (is_error(value)) return {to_error(value)};
-    result->set(static_cast<int>(i), *to_value(value).to_ref());
+  if (elem_segment.element_type == WasmElemSegment::kFunctionIndexElements) {
+    // Streamlining this path saves about 20ns per function.
+    // {precreate_external_functions}, when applicable, saves another 80ns
+    // per function.
+    // For very large segments (thousands of functions), the macro
+    // FOR_WITH_HANDLE_SCOPE saves another 50ns per function.
+    size_t elem_count = elem_segment.element_count;
+    const uint8_t* pc = decoder.pc();
+    FOR_WITH_HANDLE_SCOPE(isolate, size_t, i = 0, i, i < elem_count, i++, {
+      // Not using {consume_u32v} to avoid validation overhead. At this point
+      // we already know that the segment is valid.
+      auto [function_index, length] =
+          decoder.read_u32v<Decoder::NoValidationTag>(pc, "function index");
+      pc += length;
+      bool function_is_shared =
+          module->type(module->functions[function_index].sig_index).is_shared;
+      DirectHandle<WasmFuncRef> value =
+          WasmTrustedInstanceData::GetOrCreateFuncRef(
+              isolate,
+              function_is_shared ? shared_trusted_instance_data
+                                 : trusted_instance_data,
+              function_index, precreate_external_functions);
+      result->set(static_cast<int>(i), *value);
+    });
+  } else {
+    for (size_t i = 0; i < elem_segment.element_count; ++i) {
+      ValueOrError value = ConsumeElementSegmentEntry(
+          zone, isolate, trusted_instance_data, shared_trusted_instance_data,
+          elem_segment, decoder, kStrictFunctionsAndNull);
+      if (is_error(value)) return {to_error(value)};
+      result->set(static_cast<int>(i), *to_value(value).to_ref());
+    }
   }
 
   data->element_segments()->set(segment_index, *result);
@@ -3333,10 +3370,7 @@ void InstanceBuilder::LoadTableSegments() {
       return;
     }
 
-    base::Vector<const uint8_t> module_bytes =
-        trusted_data_->native_module()->wire_bytes();
-    Decoder decoder(module_bytes);
-    decoder.consume_bytes(elem_segment.elements_wire_bytes_offset);
+    Decoder decoder(wire_bytes_ + elem_segment.elements_wire_bytes_offset);
 
     bool is_function_table =
         IsSubtypeOf(module_->tables[table_index].type, kWasmFuncRef, module_);

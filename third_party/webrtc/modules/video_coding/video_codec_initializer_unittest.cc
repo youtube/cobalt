@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/include/video_codec_initializer.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>

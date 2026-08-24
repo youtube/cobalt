@@ -16,9 +16,8 @@
 #endif
 
 namespace actor::ui {
-using UiCompleteCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
-using ActorUiTabControllerCallback =
-    base::OnceCallback<void(ActorUiTabControllerInterface&)>;
+using UiCompleteCallback =
+    base::OnceCallback<void(::actor::mojom::ActionResultPtr)>;
 
 // ExpiryPeriod from when the user completes a task and when it should no longer
 // show on the ui
@@ -42,23 +41,30 @@ class ActorUiStateManagerInterface {
   };
   virtual ~ActorUiStateManagerInterface() = default;
 
-  // Called whenever an actor task state changes.
-  virtual void OnActorTaskStateChange(TaskId task_id,
-                                      ActorTask::State task_state) = 0;
-
-  // Called whenever a ui event occurs.
+  // Handles a UiEvent that may be processed asynchronously.
   virtual void OnUiEvent(AsyncUiEvent event, UiCompleteCallback callback) = 0;
+  // Handles a UiEvent that must be processed synchronously.
   virtual void OnUiEvent(SyncUiEvent event) = 0;
 
-  // Runs the specified function on the ActorUiTabController if the `tab`
+  // Gets the relevant UiTabController if the `tab`
   // exists. Can be stubbed out to do nothing in tests.
-  virtual void RunOnUiTabController(tabs::TabInterface* tab,
-                                    ActorUiTabControllerCallback callback) = 0;
+  virtual ActorUiTabControllerInterface* GetUiTabController(
+      tabs::TabInterface* tab) = 0;
 
 #if BUILDFLAG(ENABLE_GLIC)
-  // Called on glic window (floaty) state change.
+  // Called on glic window (floaty) state change. Receives new state and the
+  // last active window before the floaty became active.
   virtual void OnGlicUpdateFloatyState(
-      glic::GlicWindowController::State floaty_state) = 0;
+      glic::GlicWindowController::State floaty_state,
+      BrowserWindowInterface* bwi) = 0;
+
+  // Register for this callback to detect changes to the glic floaty status and
+  // UiState.
+  using FloatyTaskStateChangeCallback =
+      base::RepeatingCallback<void(ActorUiStateManagerInterface::UiState,
+                                   glic::GlicWindowController::State)>;
+  virtual base::CallbackListSubscription RegisterFloatyTaskStateChange(
+      FloatyTaskStateChangeCallback callback) = 0;
 #endif
 };
 

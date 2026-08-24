@@ -132,15 +132,6 @@ export declare interface GlicBrowserHost {
   enableDragResize?(enabled: boolean): Promise<void>;
 
   /**
-   * Returns true if the web client should resize its content to fit the
-   * window.
-   *
-   * @todo This should be the default sizing mode. Remove after the manual
-   * resizing is landed. crbug.com/402795394.
-   */
-  shouldFitWindow?(): Promise<boolean>;
-
-  /**
    * Set the areas of the glic window from which it should be draggable. If
    * `areas` is empty, a default draggable area will be created.
    *
@@ -158,6 +149,11 @@ export declare interface GlicBrowserHost {
    * will not affect the current glic window size.
    */
   setMinimumWidgetSize?(width: number, height: number): Promise<void>;
+
+  /**
+   * Returns the model quality client ID.
+   */
+  getModelQualityClientId?(): Promise<string>;
 
   /**
    * Fetches page context for the currently focused tab, optionally including
@@ -182,6 +178,12 @@ export declare interface GlicBrowserHost {
    * tab. Can fail if the tab is not pinned or focused.
    */
   getContextFromTab?
+      (tabId: string, options: TabContextOptions): Promise<TabContextResult>;
+
+  /**
+   * Similar to `getContextFromTab`, but for actors. Skips the focus check.
+   */
+  getContextForActorFromTab?
       (tabId: string, options: TabContextOptions): Promise<TabContextResult>;
 
   /**
@@ -268,6 +270,15 @@ export declare interface GlicBrowserHost {
    */
   resumeActorTask?(taskId: number, tabContextOptions: TabContextOptions):
       Promise<TabContextResult>;
+
+  /**
+   * Returns the observable state of the actor task with the given ID. Updates
+   * are sent whenever:
+   * - The task is created, paused, resumed or stopped.
+   * - The task is performing an action.
+   * - The task is going away.
+   */
+  getActorTaskState?(taskId: number): ObservableValue<ActorTaskState>;
 
   /**
    * Requests the host to capture a screenshot. The choice of the screenshot
@@ -579,14 +590,24 @@ export declare interface GlicBrowserHost {
 
   /**
    * Returns an observable that emits a ranked list of pin tab candidates per
-   * the given options. The list is currently only returned once. The results
-   * are sorted by string match and then last active time.
+   * the given options. The list is returned once, and then again whenever the
+   * list of candidates changes. The results are sorted by string match and then
+   * last active time.
    *
    * If a query is provided, it currently returns all top sorted results, even
    * if entries don't match the query.
    *
-   * @todo Actually implement dynamic updates based on tab changes.
-   * crbug.com/429022523
+   * Calling this function will invalidate any previously returned
+   * `ObservableValue` instances. So if a previous one existed, it will stop
+   * receiving updates when a new one is obtained.
+   *
+   * Dynamic updates can be a costly operation so the observable value should be
+   * released/destroyed as soon as it's not useful anymore.
+   *
+   * TODO(b/432258121): A race condition can occur when a consumer
+   * unsubscribes and a new one subscribes. An update from the first
+   * subscription that is already in-flight may be delivered to the second
+   * consumer.
    */
   getPinCandidates?
       (options: GetPinCandidatesOptions): ObservableValue<PinCandidate[]>;
@@ -695,6 +716,11 @@ export declare interface GlicBrowserHostMetrics {
    * This can get fired multiple times in a single session.
    */
   onClosedCaptionsShown?(): void;
+
+  /**
+   * Called when a turn has been completed.
+   */
+  onTurnCompleted?(model: WebClientModel, duration: number): void;
 }
 
 /** Web client's operation modes */
@@ -703,6 +729,14 @@ export enum WebClientMode {
   TEXT = 0,
   /** Audio operation mode. */
   AUDIO = 1,
+}
+
+export enum WebClientModel {
+  /** Default model. */
+  DEFAULT = 0,
+
+  /** Actor model. */
+  ACTOR = 1,
 }
 
 /** An encoded journal. */
@@ -766,6 +800,12 @@ export declare interface GlicBrowserHostJournal {
    * Requests journal stop logging.
    */
   stop(): void;
+
+  /**
+   * Called when the user rates a response to submit a feedback with the current
+   * journal snapshot.
+   */
+  recordFeedback?(positive: boolean, reason: string): void;
 }
 
 /** Data sent back to the host about the opening of the panel. */
@@ -1189,6 +1229,19 @@ export enum CreateTaskErrorReason {
   TASK_SYSTEM_UNAVAILABLE = 1,
 }
 
+/** The state of the actor task. */
+export enum ActorTaskState {
+  UNKNOWN = 0,
+  /** The actor task is idle and waiting for the next action instruction. */
+  IDLE = 1,
+  /** The actor task is performing an action. */
+  ACTING = 2,
+  /** The actor task is paused and waiting to be resumed or stopped. */
+  PAUSED = 3,
+  /** The actor task is stopped and going away. */
+  STOPPED = 4,
+}
+
 export enum PerformActionsErrorReason {
   UNKNOWN = 0,
 
@@ -1216,6 +1269,11 @@ export enum CaptureScreenshotErrorReason {
 export declare interface ActInFocusedTabResult {
   // The tab context result after acting and gathering new context.
   tabContextResult?: TabContextResult;
+  // The outcome of the action.
+  // Note that this is an enum ActionResultCode from chrome/common/actor.mojom.
+  // It is expected that the client has an equivalent enum definition. See
+  // http://shortn/_gLyPxrRm6p
+  actionResult?: number;
 }
 
 export declare interface ActInFocusedTabParams {
@@ -1253,14 +1311,21 @@ export declare interface ScrollToParams {
   /**
    * Identifies the document we want to perform the scrollTo operation on. When
    * specified, we verify that the currently focused tab's document matches the
-   * ID, and throw an error if doesn't. If not specified, the implementation
-   * will use the main frame of the currently focused tab without verification.
-   *
-   * Note: documentId is being migrated to become a required param and the
-   * client will soon throw a NotSupported error (behind a flag currently) when
-   * not specified.
+   * ID, and throw an error if doesn't. This is a required parameter for all
+   * document types except PDF (see `url` below), and a NOT_SUPPORTED error will
+   * be thrown if it is not specified.
    */
   documentId?: string;
+
+  /**
+   * Identifies the url of a document we want to perform the scrollTo
+   * operation on. This is only required when scrolling PDF documents (and is
+   * ignored otherwise; other document types require `documentId` to be
+   * specified instead), and is used to verify that the currently focused tab
+   * still points to a PDF with that URL. If not specified, and the currently
+   * focused tab has a PDF loaded, a NOT_SUPPORTED error will be thrown.
+   */
+  url?: string;
 }
 
 /**
@@ -1355,10 +1420,10 @@ export enum ScrollToErrorReason {
    */
   FOCUSED_TAB_CHANGED_OR_NAVIGATED = 4,
   /**
-   * The documentId provided doesn't match the currently focused tab's primary
-   * document. The document may have been navigated away, may not currently be
-   * in focus, or may not be in a primary main frame (we don't currently support
-   * iframes).
+   * The documentId or url provided doesn't match the currently focused tab's
+   * primary document. The document may have been navigated away, may not
+   * currently be in focus, or may not be in a primary main frame (we don't
+   * currently support iframes).
    */
   NO_MATCHING_DOCUMENT = 5,
 
@@ -1410,7 +1475,13 @@ export declare interface Observable<T> {
  *
  * See also comments about Observable.
  */
-export interface ObservableValue<T> extends Observable<T> {}
+export interface ObservableValue<T> extends Observable<T> {
+  /**
+   * Provides synchronous access to the current value. Returns undefined if the
+   * initial value has not yet been populated.
+   */
+  getCurrentValue(): T|undefined;
+}
 
 /** Allows control of a subscription to an Observable. */
 export declare interface Subscriber {
@@ -1466,6 +1537,11 @@ export declare interface ZeroStateSuggestionsV2 {
    * be empty.
    */
   suggestions: SuggestionContent[];
+  /**
+   * Whether there is a current outstanding request to generate suggestions for
+   * the current tab context.
+   */
+  isPending?: boolean;
 }
 
 /**
@@ -1565,4 +1641,5 @@ export interface ExtensibleEnums {
   performActionsErrorReason: typeof PerformActionsErrorReason;
   settingsPageField: typeof SettingsPageField;
   hostCapability: typeof HostCapability;
+  actorTaskState: typeof ActorTaskState;
 }

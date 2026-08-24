@@ -309,7 +309,7 @@ class SendStatisticsProxy : public VideoStreamEncoderObserver,
   const std::optional<int> fallback_max_pixels_disabled_;
   mutable Mutex mutex_;
   VideoEncoderConfig::ContentType content_type_ RTC_GUARDED_BY(mutex_);
-  const int64_t start_ms_;
+  const Timestamp start_;
   VideoSendStream::Stats stats_ RTC_GUARDED_BY(mutex_);
   ExpFilter encode_time_ RTC_GUARDED_BY(mutex_);
   QualityLimitationReasonTracker quality_limitation_reason_tracker_

@@ -129,10 +129,8 @@ void BindTracedProcessFromUIThread(
 // static
 std::unique_ptr<BrowserChildProcessHost> BrowserChildProcessHost::Create(
     content::ProcessType process_type,
-    BrowserChildProcessHostDelegate* delegate,
-    ChildProcessHost::IpcMode ipc_mode) {
-  return std::make_unique<BrowserChildProcessHostImpl>(process_type, delegate,
-                                                       ipc_mode);
+    BrowserChildProcessHostDelegate* delegate) {
+  return std::make_unique<BrowserChildProcessHostImpl>(process_type, delegate);
 }
 
 BrowserChildProcessHost* BrowserChildProcessHost::FromID(int child_process_id) {
@@ -174,8 +172,7 @@ void BrowserChildProcessHostImpl::RemoveObserver(
 
 BrowserChildProcessHostImpl::BrowserChildProcessHostImpl(
     content::ProcessType process_type,
-    BrowserChildProcessHostDelegate* delegate,
-    ChildProcessHost::IpcMode ipc_mode)
+    BrowserChildProcessHostDelegate* delegate)
     : data_(process_type, ChildProcessHostImpl::GenerateChildProcessUniqueId()),
       delegate_(delegate) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -183,7 +180,7 @@ BrowserChildProcessHostImpl::BrowserChildProcessHostImpl(
   // Create a persistent memory segment for subprocess histograms.
   CreateMetricsAllocator();
 
-  child_process_host_ = ChildProcessHost::Create(this, ipc_mode);
+  child_process_host_ = ChildProcessHost::Create(this);
 
   g_child_process_list.Get().push_back(this);
   GetContentClient()->browser()->BrowserChildProcessHostCreated(this);
@@ -401,19 +398,11 @@ ChildProcessTerminationInfo BrowserChildProcessHostImpl::GetTerminationInfo(
   return child_process_launcher_->GetChildTerminationInfo(known_dead);
 }
 
-bool BrowserChildProcessHostImpl::OnMessageReceived(
-    const IPC::Message& message) {
-  return delegate_->OnMessageReceived(message);
-}
-
 void BrowserChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   DCHECK(has_legacy_ipc_channel_);
   is_channel_connected_ = true;
-
-  delegate_->OnChannelConnected(peer_pid);
-
   OnProcessConnected();
 }
 
@@ -429,10 +418,6 @@ void BrowserChildProcessHostImpl::OnProcessConnected() {
     launched_and_connected_ = true;
     NotifyProcessLaunchedAndConnected(data_);
   }
-}
-
-void BrowserChildProcessHostImpl::OnChannelError() {
-  delegate_->OnChannelError();
 }
 
 void BrowserChildProcessHostImpl::OnBadMessageReceived(
@@ -552,11 +537,6 @@ void BrowserChildProcessHostImpl::OnChildDisconnected() {
 #endif  // BUILDFLAG(IS_ANDROID)
   }
   delete delegate_;  // Will delete us
-}
-
-bool BrowserChildProcessHostImpl::Send(IPC::Message* message) {
-  DCHECK(has_legacy_ipc_channel_);
-  return child_process_host_->Send(message);
 }
 
 void BrowserChildProcessHostImpl::CreateMetricsAllocator() {

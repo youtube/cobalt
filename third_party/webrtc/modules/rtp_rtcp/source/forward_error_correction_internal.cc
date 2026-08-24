@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/forward_error_correction_internal.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 #include "modules/include/module_fec_types.h"

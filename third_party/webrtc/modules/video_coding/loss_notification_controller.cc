@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/loss_notification_controller.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "api/sequence_checker.h"

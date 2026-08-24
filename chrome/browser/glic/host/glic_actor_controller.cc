@@ -5,12 +5,14 @@
 #include "chrome/browser/glic/host/glic_actor_controller.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 
 #include "base/feature_list.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
@@ -26,6 +28,7 @@
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/tabs/public/tab_interface.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace glic {
 
@@ -35,6 +38,7 @@ using ::actor::BuildToolRequest;
 using ::actor::BuildToolRequestResult;
 using ::actor::TaskId;
 using ::actor::ToolRequest;
+using ::actor::ToolRequestList;
 
 namespace {
 
@@ -70,6 +74,7 @@ void OnFetchPageContext(
     const GURL& url,
     mojo_base::ProtoWrapperBytes::PassKey proto_pass_key,
     std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry> journal_entry,
+    actor::mojom::ActionResultCode result_code,
     mojom::WebClientHandler::ActInFocusedTabCallback callback,
     base::WeakPtr<actor::ExecutionEngine> execution_engine,
     mojom::GetContextResultPtr tab_context_result) {
@@ -109,10 +114,24 @@ void OnFetchPageContext(
   mojom::ActInFocusedTabResultPtr result =
       mojom::ActInFocusedTabResult::NewActInFocusedTabResponse(
           mojom::ActInFocusedTabResponse::New(
-              std::move(tab_context_result->get_tab_context())));
+              std::move(tab_context_result->get_tab_context()),
+              base::to_underlying(result_code)));
 
   std::move(callback).Run(std::move(result));
 }
+
+void LogAddTabError(actor::mojom::ActionResultPtr result) {
+  if (!actor::IsOk(*result)) {
+    LOG(DFATAL)
+        << "Unexpected error when calling AddTab from GlicActorController::Act "
+           "(crbug.com/431239173): "
+        << actor::ToDebugString(*result);
+  }
+}
+
+BASE_FEATURE(kGlicProvideObservationOnActionFailure,
+             "GlicProvideObservationOnActionFailure",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace
 
@@ -134,89 +153,73 @@ void GlicActorController::Act(
     const optimization_guide::proto::BrowserAction& action,
     const mojom::GetTabContextOptions& options,
     mojom::WebClientHandler::ActInFocusedTabCallback callback) {
+  auto* actor_service = actor::ActorKeyedService::Get(profile_);
+  CHECK(actor_service);
+
+  actor_service->GetJournal().Log(
+      GURL(), TaskId(action.task_id()), "GlicActInFocusedTab",
+      absl::StrFormat("Proto: %s", actor::ToBase64(action)));
+
+  actor::BuildToolRequestResult result =
+      actor::BuildToolRequest(action, /*deprecated_fallback_tab=*/nullptr);
+
+  if (!result.has_value()) {
+    actor::ActorKeyedService::Get(profile_)->GetJournal().Log(
+        /*url=*/GURL(), actor::TaskId(), "ActImpl",
+        absl::StrFormat("Invalid BrowserAction proto[%d]", result.error()));
+    PostTaskForActCallback(
+        std::move(callback),
+        mojom::ActInFocusedTabErrorReason::kInvalidActionProto);
+    return;
+  }
+
+  ToolRequestList& tool_requests = result.value();
+
+  // TODO(crbug.com/431325114): Once the front end injected CreateTabAction
+  // provides a task ID we can remove the GetMostRecentTask branch.
+  actor::ActorTask* task =
+      action.has_task_id() && action.task_id() != 0
+          ? actor_service->GetTask(actor::TaskId(action.task_id()))
+          : actor_service->GetMostRecentTask();
+
   // TODO(crbug.com/431239173): It's not clear what should happen if the current
   // task has no observed tabs in its set yet, and the incoming actions will not
   // add one (e.g. first action in a new task is Wait). This workaround
   // preserves existing behavior, we'll use the currently focused tab. Long term
   // the API should have support to deal with this case (Should we return an
   // empty observation? Should we return an error?).
-  auto* actor_service = actor::ActorKeyedService::Get(profile_);
-  actor::ActorTask* task =
-      action.has_task_id()
-          ? actor_service->GetTask(actor::TaskId(action.task_id()))
-          : nullptr;
   if (task && task->GetTabs().empty()) {
-    actor::BuildToolRequestResult result =
-        actor::BuildToolRequest(action, /*deprecated_fallback_tab=*/nullptr);
-    if (result.has_value()) {
-      bool will_observe_tab = std::ranges::any_of(
-          result.value(), [](const std::unique_ptr<ToolRequest>& request) {
-            return request->AddsTabToObservationSet();
-          });
+    bool will_observe_tab = std::ranges::any_of(
+        tool_requests, [](const std::unique_ptr<ToolRequest>& request) {
+          return request->AddsTabToObservationSet();
+        });
 
-      if (!will_observe_tab) {
-        actor_service->GetJournal().Log(
-            /*url=*/GURL(), task->id(), "[Warning] No observable tab",
-            "Action will end without an observable tab, adding active tab.");
+    if (!will_observe_tab) {
+      actor_service->GetJournal().Log(
+          /*url=*/GURL(), task->id(), "[Warning] No observable tab",
+          "Action will end without an observable tab, adding active tab.");
 
-        // Get the most recently active browser for this profile.
-        Browser* browser = chrome::FindTabbedBrowser(
-            profile_, /*match_original_profiles=*/false);
-        // If no browser exists create one.
-        if (!browser) {
-          browser = Browser::Create(
-              Browser::CreateParams(profile_, /*user_gesture=*/false));
-        }
-        task->AddToTabSet(browser->GetActiveTabInterface()->GetHandle());
+      // Get the most recently active browser for this profile.
+      Browser* browser = chrome::FindTabbedBrowser(
+          profile_, /*match_original_profiles=*/false);
+      // If no browser exists create one.
+      if (!browser) {
+        browser = Browser::Create(
+            Browser::CreateParams(profile_, /*user_gesture=*/false));
       }
+      // TODO(crbug.com/431239173): We should remove this call as the UI has
+      // no mechanism for reporting errors when launching on this tab.
+      task->AddTab(browser->GetActiveTabInterface()->GetHandle(),
+                   base::BindOnce(&LogAddTabError));
     }
   }
 
-  // A task is in the process of being started. This means Act() was called
-  // twice in a row without waiting for the first one to finish.
-  if (starting_task_) {
-    PostTaskForActCallback(
-        std::move(callback),
-        mojom::ActInFocusedTabErrorReason::kFailedToStartTask);
-    return;
-  }
-
-  // Create a new task if one doesn't exist already.
-  if (!GetCurrentTask()) {
-    starting_task_ = true;
-    optimization_guide::proto::BrowserStartTask start_task;
-    start_task.set_tab_id(action.tab_id());
-    // Glic doesn't know about tab IDs yet, so we set it in `start_task` but
-    // it's always 0. This will cause `StartTask` to create a new tab.
-    actor::ActorKeyedService::Get(profile_)->StartTask(
-        std::move(start_task),
-        base::BindOnce(&GlicActorController::OnTaskStartedForAct, GetWeakPtr(),
-                       action, options, std::move(callback)));
-    return;
-  }
-
-  ActImpl(action, options, std::move(callback));
-}
-
-void GlicActorController::OnTaskStartedForAct(
-    optimization_guide::proto::BrowserAction action,
-    const mojom::GetTabContextOptions& options,
-    mojom::WebClientHandler::ActInFocusedTabCallback callback,
-    optimization_guide::proto::BrowserStartTaskResult result) {
-  starting_task_ = false;
-  if (result.status() !=
-      optimization_guide::proto::BrowserStartTaskResult::SUCCESS) {
-    PostTaskForActCallback(
-        std::move(callback),
-        mojom::ActInFocusedTabErrorReason::kFailedToStartTask);
-    return;
-  }
-
-  CHECK(GetCurrentTask());
-
-  action.set_task_id(GetCurrentTask()->id().value());
-
-  ActImpl(action, options, std::move(callback));
+  ActorKeyedService::PerformActionsCallback action_callback =
+      base::BindOnce(&GlicActorController::OnActionFinished, GetWeakPtr(),
+                     task->id(), options, std::move(callback));
+  actor_service->PerformActions(task ? task->id() : TaskId(),
+                                std::move(tool_requests),
+                                std::move(action_callback));
 }
 
 // TODO(mcnee): Determine if we need additional mechanisms, within the browser,
@@ -292,25 +295,14 @@ void GlicActorController::OnResponseStopped() {
   current_request_.reset();
 }
 
-void GlicActorController::ActImpl(
-    const optimization_guide::proto::BrowserAction& action,
-    const mojom::GetTabContextOptions& options,
-    mojom::WebClientHandler::ActInFocusedTabCallback callback) const {
-  actor::ActorTask* task = GetCurrentTask();
-  CHECK(task);
-
-  actor::ExecutionEngine::ActionResultCallback action_callback =
-      base::BindOnce(&GlicActorController::OnActionFinished, GetWeakPtr(),
-                     task->id(), options, std::move(callback));
-  task->Act(action, std::move(action_callback));
-}
-
 void GlicActorController::OnActionFinished(
     actor::TaskId task_id,
     const mojom::GetTabContextOptions& options,
     mojom::WebClientHandler::ActInFocusedTabCallback callback,
-    actor::mojom::ActionResultPtr result) const {
-  if (!actor::IsOk(*result)) {
+    actor::mojom::ActionResultCode result_code,
+    std::optional<size_t> index_of_failed_action) const {
+  if (!actor::IsOk(result_code) &&
+      !ProvideObservationOnActionFailureEnabled()) {
     PostTaskForActCallback(std::move(callback),
                            mojom::ActInFocusedTabErrorReason::kTargetNotFound);
     return;
@@ -338,20 +330,26 @@ void GlicActorController::OnActionFinished(
   // the same permission checks, etc. should apply here.
   if (tab) {
     const GURL& url = tab->GetContents()->GetLastCommittedURL();
-    auto journal_entry =
-        journal.CreatePendingAsyncEntry(url, task_id, "FetchPageContext", "");
+    auto journal_entry = journal.CreatePendingAsyncEntry(
+        url, task_id, "FetchPageContext",
+        "TabHandle:" + base::ToString(tab->GetHandle()));
 
-    FetchPageContext(
-        tab, *ActionableOptions(options),
-        base::BindOnce(OnFetchPageContext, url,
-                       mojo_base::ProtoWrapperBytes::GetPassKey(),
-                       std::move(journal_entry), std::move(callback),
-                       GetExecutionEngine()->GetWeakPtr()));
+    FetchPageContext(tab, *ActionableOptions(options),
+                     base::BindOnce(OnFetchPageContext, url,
+                                    mojo_base::ProtoWrapperBytes::GetPassKey(),
+                                    std::move(journal_entry), result_code,
+                                    std::move(callback),
+                                    task->GetExecutionEngine()->GetWeakPtr()));
   } else {
     journal.Log(GURL::EmptyGURL(), task_id, "FetchPageContext", "Tab is gone");
     PostTaskForActCallback(std::move(callback),
                            mojom::ActInFocusedTabErrorReason::kTargetNotFound);
   }
+}
+
+// static
+bool GlicActorController::ProvideObservationOnActionFailureEnabled() {
+  return base::FeatureList::IsEnabled(kGlicProvideObservationOnActionFailure);
 }
 
 base::WeakPtr<const GlicActorController> GlicActorController::GetWeakPtr()
@@ -361,14 +359,6 @@ base::WeakPtr<const GlicActorController> GlicActorController::GetWeakPtr()
 
 base::WeakPtr<GlicActorController> GlicActorController::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
-}
-
-actor::ExecutionEngine* GlicActorController::GetExecutionEngine() const {
-  actor::ActorTask* task = GetCurrentTask();
-  if (!task) {
-    return nullptr;
-  }
-  return task->GetExecutionEngine();
 }
 
 actor::ActorTask* GlicActorController::GetCurrentTask() const {

@@ -10,10 +10,9 @@
 
 #include "modules/audio_processing/agc2/noise_level_estimator.h"
 
-#include <stddef.h>
-
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <memory>
 #include <numeric>
 

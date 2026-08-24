@@ -67,10 +67,10 @@ namespace {
 // Preferred filename extension for the imported files.
 const base::FilePath::CharType kFileExtension[] = FILE_PATH_LITERAL("csv");
 
-// Limiting the file size to 150 KB: a limit is introduced to limit the
+// Limiting the file size to 1000 KB: a limit is introduced to limit the
 // number of passwords and limit the amount of data that can be displayed in
 // memory to preview the content of the import in a single run.
-const int32_t kMaxFileSizeBytes = 150 * 1024;
+const int32_t kMaxFileSizeBytes = 1000 * 1024;
 
 // Reads and returns a status and the contents of the file at |path| as a
 // optional string. The string will be present if the status is SUCCESS.
@@ -79,8 +79,8 @@ base::expected<std::string, ImportResults::Status> ReadFileToString(
   std::optional<int64_t> file_size = base::GetFileSize(path);
 
   if (file_size.has_value()) {
-    base::UmaHistogramCounts1M("PasswordManager.ImportFileSize",
-                               file_size.value());
+    base::UmaHistogramCounts10M("PasswordManager.ImportFileSize2",
+                                file_size.value());
     if (file_size.value() > kMaxFileSizeBytes) {
       return base::unexpected(ImportResults::Status::MAX_FILE_SIZE);
     }
@@ -97,7 +97,7 @@ base::expected<std::string, ImportResults::Status> ReadFileToString(
 base::expected<std::string, ImportResults::Status> ValidateString(
     std::string string) {
   int64_t file_size = string.size();
-  base::UmaHistogramCounts1M("PasswordManager.ImportFileSize", file_size);
+  base::UmaHistogramCounts10M("PasswordManager.ImportFileSize2", file_size);
   if (file_size > kMaxFileSizeBytes) {
     return base::unexpected(ImportResults::Status::MAX_FILE_SIZE);
   }

@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_format_video_generic.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <variant>
 
 #include "api/array_view.h"

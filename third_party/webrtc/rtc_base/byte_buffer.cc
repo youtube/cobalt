@@ -10,9 +10,8 @@
 
 #include "rtc_base/byte_buffer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"

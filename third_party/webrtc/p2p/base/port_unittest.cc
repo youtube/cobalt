@@ -124,7 +124,7 @@ constexpr int kTiebreaker1 = 11111;
 constexpr int kTiebreaker2 = 22222;
 constexpr int kTiebreakerDefault = 44444;
 
-const char* kTestData = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+constexpr char kTestData[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
 Candidate GetCandidate(Port* port) {
   RTC_DCHECK_GE(port->Candidates().size(), 1);

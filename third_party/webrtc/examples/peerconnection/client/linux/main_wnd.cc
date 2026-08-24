@@ -18,11 +18,11 @@
 #include <glibconfig.h>
 #include <gobject/gclosure.h>
 #include <gtk/gtk.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <map>
 
 #include "api/media_stream_interface.h"

@@ -9,9 +9,8 @@
  */
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <optional>

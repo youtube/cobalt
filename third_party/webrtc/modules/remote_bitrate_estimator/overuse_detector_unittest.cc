@@ -10,12 +10,11 @@
 
 #include "modules/remote_bitrate_estimator/overuse_detector.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "api/transport/bandwidth_usage.h"
 #include "modules/remote_bitrate_estimator/inter_arrival.h"

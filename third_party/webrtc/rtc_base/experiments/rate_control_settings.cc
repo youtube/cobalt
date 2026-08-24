@@ -10,8 +10,6 @@
 
 #include "rtc_base/experiments/rate_control_settings.h"
 
-#include <stdio.h>
-
 #include <cstdint>
 #include <memory>
 #include <optional>

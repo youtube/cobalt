@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <tuple>
 #include <vector>
 
 #include "absl/container/btree_map.h"
@@ -71,23 +70,9 @@ struct DataStreamIndex {
       : group(group), subgroup(subgroup) {}
   explicit DataStreamIndex(const PublishedObject& object)
       : group(object.metadata.location.group),
-        subgroup(object.metadata.subgroup.value_or(0)) {}
+        subgroup(object.metadata.subgroup) {}
 
-  bool operator==(const DataStreamIndex& other) const {
-    return group == other.group && subgroup == other.subgroup;
-  }
-
-  bool operator<(const DataStreamIndex& other) const {
-    return std::make_tuple(group, subgroup) <
-           std::make_tuple(other.group, other.subgroup);
-  }
-  bool operator<=(const DataStreamIndex& other) const {
-    return std::make_tuple(group, subgroup) <=
-           std::make_tuple(other.group, other.subgroup);
-  }
-  bool operator>(const DataStreamIndex& other) const {
-    return !(*this <= other);
-  }
+  auto operator<=>(const DataStreamIndex&) const = default;
 
   template <typename H>
   friend H AbslHashValue(H h, const DataStreamIndex& index) {
@@ -103,7 +88,7 @@ class QUICHE_EXPORT SendStreamMap {
   std::optional<webtransport::StreamId> GetStreamFor(
       DataStreamIndex index) const;
   void AddStream(DataStreamIndex index, webtransport::StreamId stream_id);
-  void RemoveStream(DataStreamIndex index, webtransport::StreamId stream_id);
+  void RemoveStream(DataStreamIndex index);
   std::vector<webtransport::StreamId> GetAllStreams() const;
   std::vector<webtransport::StreamId> GetStreamsForGroup(
       uint64_t group_id) const;

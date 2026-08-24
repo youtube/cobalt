@@ -9,6 +9,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "components/crash/core/common/crash_key.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
 
 namespace safe_browsing {
 
@@ -32,18 +34,18 @@ std::string MaybeGetUnscannedReason(BinaryUploadService::Result result) {
       return "";
 
     case BinaryUploadService::Result::FILE_TOO_LARGE:
-      return "FILE_TOO_LARGE";
+      return enterprise_connectors::kFileTooLargeUnscannedReason;
     case BinaryUploadService::Result::TOO_MANY_REQUESTS:
-      return "TOO_MANY_REQUESTS";
+      return enterprise_connectors::kTooManyRequestsUnscannedReason;
     case BinaryUploadService::Result::TIMEOUT:
-      return "TIMEOUT";
+      return enterprise_connectors::kTimeoutUnscannedReason;
     case BinaryUploadService::Result::UNKNOWN:
     case BinaryUploadService::Result::UPLOAD_FAILURE:
     case BinaryUploadService::Result::FAILED_TO_GET_TOKEN:
     case BinaryUploadService::Result::INCOMPLETE_RESPONSE:
-      return "SERVICE_UNAVAILABLE";
+      return enterprise_connectors::kServiceUnavailableUnscannedReason;
     case BinaryUploadService::Result::FILE_ENCRYPTED:
-      return "FILE_PASSWORD_PROTECTED";
+      return enterprise_connectors::kFilePasswordProtectedUnscannedReason;
   }
 }
 
@@ -163,12 +165,10 @@ void MaybeReportDeepScanningVerdict(
     const enterprise_connectors::ContentAnalysisResponse& response,
     enterprise_connectors::EventResult event_result) {
   DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
-  auto* safe_browsing_router =
-      extensions::SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile);
   auto* reporting_event_router =
       enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
           profile);
-  if (!safe_browsing_router || !reporting_event_router) {
+  if (!reporting_event_router) {
     return;
   }
 
@@ -177,7 +177,7 @@ void MaybeReportDeepScanningVerdict(
     reporting_event_router->OnUnscannedFileEvent(
         url, tab_url, source, destination, file_name, download_digest_sha256,
         mime_type, trigger, unscanned_reason, content_transfer_method,
-        content_size, referrer_chain, event_result);
+        content_size, event_result);
   }
 
   if (result != BinaryUploadService::Result::SUCCESS)
@@ -195,13 +195,15 @@ void MaybeReportDeepScanningVerdict(
       reporting_event_router->OnUnscannedFileEvent(
           url, tab_url, source, destination, file_name, download_digest_sha256,
           mime_type, trigger, std::move(unscanned_reason),
-          content_transfer_method, content_size, referrer_chain, event_result);
+          content_transfer_method, content_size, event_result);
     } else if (response_result.triggered_rules_size() > 0) {
-      safe_browsing_router->OnAnalysisConnectorResult(
+      reporting_event_router->OnAnalysisConnectorResult(
           url, tab_url, source, destination, file_name, download_digest_sha256,
           mime_type, trigger, response.request_token(), content_transfer_method,
-          source_email, response_result, content_size, referrer_chain,
-          event_result);
+          source_email,
+          enterprise_connectors::ContentAreaUserProvider::GetUser(profile,
+                                                                  tab_url),
+          response_result, content_size, referrer_chain, event_result);
     }
   }
 }

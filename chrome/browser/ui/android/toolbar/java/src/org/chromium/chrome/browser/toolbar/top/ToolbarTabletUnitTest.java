@@ -98,7 +98,6 @@ public final class ToolbarTabletUnitTest {
     private ImageButton mBackButton;
     private ImageButton mForwardButton;
     private ImageButton mBookmarkButton;
-    private ImageButton mSaveOfflineButton;
     private ToolbarProgressBar mProgressBar;
 
     @Before
@@ -124,7 +123,6 @@ public final class ToolbarTabletUnitTest {
         mForwardButton = mToolbarTablet.findViewById(R.id.forward_button);
         mReloadingButton = mToolbarTablet.findViewById(R.id.refresh_button);
         mBookmarkButton = mToolbarTablet.findViewById(R.id.bookmark_button);
-        mSaveOfflineButton = mToolbarTablet.findViewById(R.id.save_offline_button);
         mProgressBar = new ToolbarProgressBar(mActivity, null);
         mProgressBar.setAnimatingView(new ToolbarProgressBarAnimatingView(mActivity, null));
         when(mReloadButtonCoordinator.getFadeAnimator(false))
@@ -178,7 +176,8 @@ public final class ToolbarTabletUnitTest {
                 mProgressBar,
                 mReloadButtonCoordinator,
                 mBackButtonCoordinator,
-                /* homeButtonDisplay= */ null);
+                /* homeButtonDisplay= */ null,
+                null);
         when(mToolbarDataProvider.getNewTabPageDelegate()).thenReturn(mNewTabPageDelegate);
         when(mToolbarDataProvider.isIncognitoBranded()).thenReturn(true);
         mToolbarTablet.onTabOrModelChanged();
@@ -271,7 +270,8 @@ public final class ToolbarTabletUnitTest {
                 mProgressBar,
                 mReloadButtonCoordinator,
                 mBackButtonCoordinator,
-                /* homeButtonDisplay= */ null);
+                /* homeButtonDisplay= */ null,
+                null);
         when(mToolbarDataProvider.getNewTabPageDelegate()).thenReturn(mNewTabPageDelegate);
         when(mToolbarDataProvider.isIncognitoBranded()).thenReturn(true);
         mToolbarTablet.onTabOrModelChanged();
@@ -688,10 +688,6 @@ public final class ToolbarTabletUnitTest {
                 "Forward button tint is incorrect.",
                 activityFocusTint.getDefaultColor(),
                 mForwardButton.getImageTintList().getDefaultColor());
-        Assert.assertEquals(
-                "Save offline button tint is incorrect.",
-                tint.getDefaultColor(),
-                mSaveOfflineButton.getImageTintList().getDefaultColor());
         Assert.assertEquals(
                 "Bookmark button tint is incorrect.",
                 tint.getDefaultColor(),

@@ -47,6 +47,7 @@ if (is_android) {
 
     deps = [
       ":generated_jni",
+      "../../api:create_modular_peer_connection_factory",
       "../../api:enable_media_with_defaults",
       "../../api:make_ref_counted",
       "../../api:media_stream_interface",

@@ -52,11 +52,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   base::File rar_file = env.InitRarFile();
   rar_file.WriteAtCurrentPos(base::span<const uint8_t>(data, size));
 
+  // Seek back to the beginning so `RarReader` reads from the start.
+  rar_file.Seek(base::File::FROM_BEGIN, 0);
+
   // Fuzz the opening and parsing of the file.
   third_party_unrar::RarReader reader;
   if (!reader.Open(std::move(rar_file), env.GetTempFile())) {
     env.CleanUpRarFile();
-    return 0;
+    // Reject uninteresting inputs: do not add unopenable files to the corpus.
+    return -1;
   }
   while (reader.ExtractNextEntry()) {
   }

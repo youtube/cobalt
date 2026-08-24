@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/deprecated/session_info.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"

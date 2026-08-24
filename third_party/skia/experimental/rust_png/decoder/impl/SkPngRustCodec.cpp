@@ -213,7 +213,8 @@ std::unique_ptr<SkEncodedInfo::ICCProfile> CreateColorProfile(const rust_png::Re
     return SkEncodedInfo::ICCProfile::Make(profile);
 }
 
-SkEncodedInfo CreateEncodedInfo(const rust_png::Reader& reader) {
+// Returns `nullopt` when input errors are encountered.
+std::optional<SkEncodedInfo> CreateEncodedInfo(const rust_png::Reader& reader) {
     rust_png::ColorType rustColor = reader.output_color_type();
     SkEncodedInfo::Color skColor = ToColor(rustColor);
 
@@ -222,9 +223,13 @@ SkEncodedInfo CreateEncodedInfo(const rust_png::Reader& reader) {
         profile = nullptr;
     }
 
-    // `SkPngRustCodec::MakeFromStream` checks image dimensions against
-    // `kMaxPNGSize` before calling `CreateEncodedInfo`.  So here we can
-    // just assert that these casts are safe.
+    // Protect against large PNGs. See http://bugzil.la/251381 for more details.
+    constexpr uint32_t kMaxPNGSize = 1000000;
+    if ((reader.width() > kMaxPNGSize) || (reader.height() > kMaxPNGSize)) {
+        return std::nullopt;
+    }
+    // We checked image dimensions above, so here we can just assert that casts
+    // from `uint32_t` to `int` work ok.
     //
     // We don't use a saturating cast, because this could invalidate `fcTL`
     // checks done within the `png` crate.  For example, the new / truncated
@@ -429,6 +434,55 @@ SkEncodedOrigin GetEncodedOrigin(const rust_png::Reader& reader) {
     return kTopLeft_SkEncodedOrigin;
 }
 
+bool IsValidFctlIfAny(const SkEncodedInfo& imageInfo,
+                      const rust_png::Reader& reader) {
+    // Enforce that if an `fcTL` appears before an `IDAT` chunk, then it has the
+    // same dimensions as the ones in the earlier `IHDR` chunk.  This
+    // corresponds to the restrictions that the spec at
+    // https://www.w3.org/TR/png-3/#fcTL-chunk places on "fcTL chunk
+    // corresponding to the default image".
+    //
+    // Doing this check here is more robust than doing it inside
+    // `setFrameInfoFromCurrentFctlChunk`, because the code elsewhere in
+    // `SkPngRustCodec` may ignore the `fcTL` chunk (e.g. if
+    // `idatIsNotPartOfAnimation` and/or if `acTL` chunk is missing).
+    //
+    // Reporting a hard error is more robust than trying to ignore the `fcTL`
+    // chunk and falling back to decoding a static image, because such a
+    // fallback would risk discrepancies between dimensions used in different
+    // layers of the software stack (see https://crbug.com/428205250).
+    //
+    // This check is kind of a defense-in-depth - in the long-term the
+    // dimensions should be checked in the Rust `png` crate itself
+    // (see https://github.com/image-rs/image-png/pull/614 which hasn't yet been
+    // released in a new crates.io version).
+    if (reader.has_fctl_chunk()) {
+        uint32_t width = 0;
+        uint32_t height = 0;
+        uint32_t xOffset = 0;
+        uint32_t yOffset = 0;
+        auto ignoredDisposeOp = rust_png::DisposeOp::None;
+        auto ignoredBlendOp = rust_png::BlendOp::Source;
+        uint32_t ignoredDurationMs = 0;
+        reader.get_fctl_info(width, height, xOffset, yOffset,
+                             ignoredDisposeOp, ignoredBlendOp, ignoredDurationMs);
+
+        SkSafeMath safe;
+        int frameWidth = safe.castTo<int>(width);
+        int frameHeight = safe.castTo<int>(height);
+        if (!safe.ok()) {
+            return false;
+        }
+
+        if (xOffset != 0 || frameWidth != imageInfo.width() ||
+                yOffset != 0 || frameHeight != imageInfo.height()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace
 
 // static
@@ -446,15 +500,20 @@ std::unique_ptr<SkPngRustCodec> SkPngRustCodec::MakeFromStream(std::unique_ptr<S
     }
     rust::Box<rust_png::Reader> reader = resultOfReader->unwrap();
 
-    // Protect against large PNGs. See http://bugzil.la/251381 for more details.
-    constexpr uint32_t kMaxPNGSize = 1000000;
-    if ((reader->width() > kMaxPNGSize) || (reader->height() > kMaxPNGSize)) {
-        *result = SkCodec::kErrorInInput;
+    std::optional<SkEncodedInfo> maybeImageInfo = CreateEncodedInfo(*reader);
+    if (!maybeImageInfo.has_value()) {
+        *result = kErrorInInput;
+        return nullptr;
+    }
+    SkEncodedInfo& imageInfo = *maybeImageInfo;
+
+    if (!IsValidFctlIfAny(imageInfo, *reader)) {
+        *result = kErrorInInput;
         return nullptr;
     }
 
     return std::make_unique<SkPngRustCodec>(
-            CreateEncodedInfo(*reader), std::move(stream), std::move(reader));
+            std::move(imageInfo), std::move(stream), std::move(reader));
 }
 
 SkPngRustCodec::SkPngRustCodec(SkEncodedInfo&& encodedInfo,
@@ -805,19 +864,17 @@ int SkPngRustCodec::onGetFrameCount() {
 
         if (fPrivStream->hasLength()) {
             size_t currentLength = fPrivStream->getLength();
-            if (fStreamLengthDuringLastCallToParseAdditionalFrameInfos.has_value()) {
-                size_t oldLength = *fStreamLengthDuringLastCallToParseAdditionalFrameInfos;
-                if (oldLength == currentLength) {
+            if (fMaxStreamLengthSeenWhenParsingAdditionalFrameInfos.has_value()) {
+                size_t oldLength = *fMaxStreamLengthSeenWhenParsingAdditionalFrameInfos;
+                // We use `>=` instead of `==`, because the underlying stream
+                // can be "cleared" - see https://crbug.com/431273809#comment4.
+                if (oldLength >= currentLength) {
                     // Don't retry `parseAdditionalFrameInfos` if the input
-                    // didn't change.
+                    // didn't change (or is smaller than last time).
                     break;
                 }
-                // We expect the input stream's length to be monotonically
-                // increasing (even though the code may not yet rely on that
-                // expectation).
-                SkASSERT_RELEASE(currentLength > oldLength);
             }
-            fStreamLengthDuringLastCallToParseAdditionalFrameInfos = currentLength;
+            fMaxStreamLengthSeenWhenParsingAdditionalFrameInfos = currentLength;
         }
 
         switch (this->parseAdditionalFrameInfos()) {

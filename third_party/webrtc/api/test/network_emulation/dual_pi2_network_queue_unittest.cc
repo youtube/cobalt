@@ -31,7 +31,7 @@ using ::testing::Field;
 using ::testing::Optional;
 using ::testing::Property;
 
-const DataSize kPacketSize = DataSize::Bytes(1000);
+constexpr DataSize kPacketSize = DataSize::Bytes(1000);
 
 TEST(DualPi2NetworkQueueTest, EnqueuePacket) {
   DualPi2NetworkQueue queue;

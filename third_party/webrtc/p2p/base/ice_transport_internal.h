@@ -381,11 +381,6 @@ class RTC_EXPORT IceTransportInternal : public PacketTransportInternal {
   // agents.
   sigslot::signal1<IceTransportInternal*> SignalRoleConflict;
 
-  // Emitted whenever the transport state changed.
-  // TODO(bugs.webrtc.org/9308): Remove once all uses have migrated to the new
-  // IceTransportState.
-  sigslot::signal1<IceTransportInternal*> SignalStateChanged;
-
   // Emitted whenever the new standards-compliant transport state changed.
   sigslot::signal1<IceTransportInternal*> SignalIceTransportStateChanged;
 

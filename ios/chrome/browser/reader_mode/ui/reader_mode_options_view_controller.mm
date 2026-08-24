@@ -27,52 +27,70 @@ constexpr CGFloat kHideReaderModeButtonCornerRadius = 12.0;
 // The minimum height for the "Hide Reader Mode" button.
 constexpr CGFloat kHideReaderModeButtonMinHeight = 50.0;
 
-// The identifier for the custom content detent.
-NSString* const kReaderModeOptionsViewControllerCustomDetentIdentifier =
-    @"kReaderModeOptionsViewControllerCustomDetentIdentifier";
-
 }  // namespace
 
-@implementation ReaderModeOptionsViewController {
-  UIStackView* _mainStackView;
-}
+@interface ReaderModeOptionsViewController ()
+
+// Main stack view. Lazily created.
+@property(nonatomic, readonly) UIStackView* mainStackView;
+
+@end
+
+@implementation ReaderModeOptionsViewController
 
 @synthesize controlsView = _controlsView;
+@synthesize mainStackView = _mainStackView;
 
 #pragma mark - UIViewController
 
 - (void)viewDidLoad {
+  self.title = l10n_util::GetNSString(IDS_IOS_READER_MODE_OPTIONS_TITLE);
+  self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+      initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                           target:self
+                           action:@selector(hideReaderModeOptions)];
+  self.navigationItem.rightBarButtonItem.accessibilityIdentifier =
+      kReaderModeOptionsCloseButtonAccessibilityIdentifier;
+  self.view.accessibilityIdentifier =
+      kReaderModeOptionsViewAccessibilityIdentifier;
+  self.view.backgroundColor =
+      [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
+
+  UIView* mainStackView = self.mainStackView;
+  [self.view addSubview:mainStackView];
+
+  UILayoutGuide* safeAreaLayoutGuide = self.view.safeAreaLayoutGuide;
+  [NSLayoutConstraint activateConstraints:@[
+    [safeAreaLayoutGuide.topAnchor
+        constraintEqualToAnchor:mainStackView.topAnchor],
+    [safeAreaLayoutGuide.centerXAnchor
+        constraintEqualToAnchor:mainStackView.centerXAnchor],
+    [safeAreaLayoutGuide.widthAnchor
+        constraintEqualToAnchor:mainStackView.widthAnchor
+                       constant:2 * kMainStackViewInset]
+  ]];
+
   [super viewDidLoad];
-
-  _controlsView = [self createControlsView];
-  _mainStackView = [self createMainStackView];
-
-  self.viewControllers = @[ [self createContentViewController] ];
-
-  // Initialize custom content detent.
-  UISheetPresentationControllerDetent* contentDetent =
-      [self createCustomContentDetent];
-  self.sheetPresentationController.prefersEdgeAttachedInCompactHeight = YES;
-  self.sheetPresentationController.detents = @[ contentDetent ];
-  self.sheetPresentationController.largestUndimmedDetentIdentifier =
-      contentDetent.identifier;
 }
 
 - (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
   __weak __typeof(self) weakSelf = self;
-  [self.sheetPresentationController animateChanges:^{
-    [weakSelf.sheetPresentationController invalidateDetents];
+  [self.navigationController.sheetPresentationController animateChanges:^{
+    [weakSelf.navigationController
+            .sheetPresentationController invalidateDetents];
   }];
 }
 
-#pragma mark - Private
+#pragma mark - Public
 
 - (CGFloat)resolveDetentValueForSheetPresentation:
     (id<UISheetPresentationControllerDetentResolutionContext>)context {
   CGFloat detentValue =
-      [_mainStackView systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
+      [self.mainStackView
+          systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
           .height +
-      self.navigationBar.frame.size.height;
+      self.navigationController.navigationBar.frame.size.height;
   // If there is no safe area inset preventing the bottom of the main stack
   // from touching the bottom of `self.view`, then add an inset manually.
   if (self.view.safeAreaInsets.bottom == 0) {
@@ -93,61 +111,36 @@ NSString* const kReaderModeOptionsViewControllerCustomDetentIdentifier =
 
 #pragma mark - UI creation helpers
 
-// Returns the root view controller.
-- (UIViewController*)createContentViewController {
-  UIViewController* contentViewController = [[UIViewController alloc] init];
-  contentViewController.title =
-      l10n_util::GetNSString(IDS_IOS_READER_MODE_OPTIONS_TITLE);
-  contentViewController.navigationItem.rightBarButtonItem =
-      [[UIBarButtonItem alloc]
-          initWithBarButtonSystemItem:UIBarButtonSystemItemClose
-                               target:self
-                               action:@selector(hideReaderModeOptions)];
-  contentViewController.navigationItem.rightBarButtonItem
-      .accessibilityIdentifier =
-      kReaderModeOptionsCloseButtonAccessibilityIdentifier;
-  contentViewController.view.accessibilityIdentifier =
-      kReaderModeOptionsViewAccessibilityIdentifier;
-  contentViewController.view.backgroundColor =
-      [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
+// Lazily creates and returns the main stack view.
+- (UIStackView*)mainStackView {
+  if (_mainStackView) {
+    return _mainStackView;
+  }
 
-  [contentViewController.view addSubview:_mainStackView];
-
-  UILayoutGuide* safeAreaLayoutGuide =
-      contentViewController.view.safeAreaLayoutGuide;
-  [NSLayoutConstraint activateConstraints:@[
-    [safeAreaLayoutGuide.topAnchor
-        constraintEqualToAnchor:_mainStackView.topAnchor],
-    [safeAreaLayoutGuide.centerXAnchor
-        constraintEqualToAnchor:_mainStackView.centerXAnchor],
-    [safeAreaLayoutGuide.widthAnchor
-        constraintEqualToAnchor:_mainStackView.widthAnchor
-                       constant:2 * kMainStackViewInset]
-  ]];
-
-  return contentViewController;
-}
-
-// Returns the main stack view.
-- (UIStackView*)createMainStackView {
   UIStackView* mainStackView = [[UIStackView alloc] init];
   mainStackView.axis = UILayoutConstraintAxisVertical;
   mainStackView.spacing = kMainStackViewSpacing;
   mainStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
-  [mainStackView addArrangedSubview:_controlsView];
+  [mainStackView addArrangedSubview:self.controlsView];
   [mainStackView addArrangedSubview:[self createHideReaderModeButton]];
 
-  return mainStackView;
+  _mainStackView = mainStackView;
+  return _mainStackView;
 }
 
-// Returns the controls view.
-- (ReaderModeOptionsControlsView*)createControlsView {
+// Lazily creates and returns the controls view.
+- (ReaderModeOptionsControlsView*)controlsView {
+  if (_controlsView) {
+    return _controlsView;
+  }
+
   ReaderModeOptionsControlsView* controlsView =
       [[ReaderModeOptionsControlsView alloc] init];
   controlsView.translatesAutoresizingMaskIntoConstraints = NO;
-  controlsView.mutator = self.mutator;
-  return controlsView;
+
+  _controlsView = controlsView;
+  return _controlsView;
 }
 
 // Returns the button to hide Reader mode.
@@ -191,20 +184,6 @@ NSString* const kReaderModeOptionsViewControllerCustomDetentIdentifier =
       .active = YES;
 
   return button;
-}
-
-// Returns the custom content detent.
-- (UISheetPresentationControllerDetent*)createCustomContentDetent {
-  __weak __typeof(self) weakSelf = self;
-  return [UISheetPresentationControllerDetent
-      customDetentWithIdentifier:
-          kReaderModeOptionsViewControllerCustomDetentIdentifier
-                        resolver:^CGFloat(
-                            id<UISheetPresentationControllerDetentResolutionContext>
-                                context) {
-                          return [weakSelf
-                              resolveDetentValueForSheetPresentation:context];
-                        }];
 }
 
 @end

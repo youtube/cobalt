@@ -10,9 +10,8 @@
 
 #include "media/base/rtp_utils.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "api/array_view.h"

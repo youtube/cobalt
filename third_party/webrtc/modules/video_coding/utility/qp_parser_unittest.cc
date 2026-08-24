@@ -10,8 +10,7 @@
 
 #include "modules/video_coding/utility/qp_parser.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 

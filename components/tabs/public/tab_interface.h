@@ -14,7 +14,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "components/tab_groups/tab_group_id.h"
-#include "components/tabs/public/supports_handles.h"
+#include "components/tabs/public/tab_handle_factory.h"
 
 namespace ui {
 class UnownedUserDataHost;
@@ -46,8 +46,6 @@ class ScopedTabModalUI {
   virtual ~ScopedTabModalUI() = default;
 };
 
-DECLARE_HANDLE_FACTORY(TabInterface);
-
 // TODO(crbug.com/404889112): This interface will be reused for Android as part
 // of the effort to share tab collections between desktop and Android. Some
 // features of TabInterface are unsupported on Android. A buildflag is used to
@@ -59,7 +57,7 @@ DECLARE_HANDLE_FACTORY(TabInterface);
 // Ping erikchen for assistance if this class does not have the functionality
 // your feature needs. This comment will be deleted after there are 10+ features
 // in TabFeatures.
-class TabInterface : public SupportsHandles<TabInterfaceHandleFactory> {
+class TabInterface : public SupportsTabHandles {
  public:
   // This method exists to ease the transition from WebContents to TabInterface.
   // This method should only be called on instances of WebContents that are
@@ -99,9 +97,16 @@ class TabInterface : public SupportsHandles<TabInterfaceHandleFactory> {
   // };
   virtual base::WeakPtr<TabInterface> GetWeakPtr() = 0;
 
-  // When a tab is in the background, the WebContents may be discarded to save
-  // memory. When a tab is in the foreground it is guaranteed to have a
-  // WebContents.
+  // Returns the WebContents that is currently associated with this tab.
+  //
+  // The returned pointer is guaranteed to be non-null.
+  //
+  // However, the WebContents object *itself* can be replaced, most notably
+  // when a background tab's contents are discarded to save memory.
+  // Callers who need to observe the tab for its entire lifetime should not
+  // cache the WebContents pointer directly. Instead, they should hold a
+  // reference to the TabInterface and call GetContents() when needed, or use
+  // RegisterWillDiscardContents() to be notified of swaps.
   virtual content::WebContents* GetContents() const = 0;
 
   // Closes the tab.

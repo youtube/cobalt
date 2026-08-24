@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "gpu/command_buffer/tests/gl_manager.h"
 
@@ -176,7 +172,6 @@ void GLManager::InitializeWithWorkaroundsImpl(
 
   ContextCreationAttribs attribs;
   attribs.context_type = options.context_type;
-  attribs.bind_generates_resource = bind_generates_resource;
 
   translator_cache_ =
       std::make_unique<gles2::ShaderTranslatorCache>(gpu_preferences_);

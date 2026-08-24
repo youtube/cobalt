@@ -45,6 +45,10 @@ luci.project(
             groups = "project-boringssl-tryjob-access",
         ),
         acl.entry(
+            roles = acl.CQ_NEW_PATCHSET_RUN_TRIGGERER,
+            groups = "project-boringssl-tryjob-access",
+        ),
+        acl.entry(
             roles = acl.SCHEDULER_OWNER,
             groups = "project-boringssl-admins",
         ),
@@ -126,6 +130,17 @@ def ci_builder(
         short_name = None,
         execution_timeout = None,
         properties = {}):
+    """Defines a CI builder.
+
+    Args:
+      name: The name to use for the builder.
+      host: The host to run on.
+      recipe: The recipe to run.
+      category: Category in which to display the builder in the console view.
+      short_name: The short name for the builder in the console view.
+      execution_timeout: Overrides the default timeout.
+      properties: Properties to pass to the recipe.
+    """
     dimensions = dict(host["dimensions"])
     dimensions["pool"] = "luci.flex.ci"
     caches = [swarming.cache("gocache"), swarming.cache("gopath")]
@@ -166,6 +181,17 @@ def cq_builder(
         cq_enabled = True,
         execution_timeout = None,
         properties = {}):
+    """Defines a CQ builder.
+
+    Args:
+      name: The name to use for the builder.
+      host: The host to run on.
+      recipe: The recipe to run.
+      cq_enabled: Whether the try builder is enabled by default. (If false,
+        the builder is includable_only.)
+      execution_timeout: Overrides the default timeout.
+      properties: Properties to pass to the recipe.
+    """
     dimensions = dict(host["dimensions"])
     dimensions["pool"] = "luci.flex.try"
     if execution_timeout == None:
@@ -190,6 +216,21 @@ def cq_builder(
         includable_only = not cq_enabled,
     )
 
+luci.cq_tryjob_verifier(
+    cq_group = "main-cq",
+    builder = "chromium:try/tricium-clang-tidy",
+    owner_whitelist = ["project-boringssl-tryjob-access"],
+    experiment_percentage = 100,
+    disable_reuse = True,
+    mode_allowlist = [cq.MODE_NEW_PATCHSET_RUN],
+    location_filters = [
+        cq.location_filter(path_regexp = r".+\.h"),
+        cq.location_filter(path_regexp = r".+\.c"),
+        cq.location_filter(path_regexp = r".+\.cc"),
+        cq.location_filter(path_regexp = r".+\.cpp"),
+    ],
+)
+
 def both_builders(
         name,
         host,
@@ -201,6 +242,24 @@ def both_builders(
         cq_compile_only = None,
         execution_timeout = None,
         properties = {}):
+    """Defines both a CI builder and similarly-configured CQ builder.
+
+    Args:
+      name: The name to use for both builders.
+      host: The host to run on.
+      recipe: The recipe to run.
+      category: Category in which to display the builder in the console view.
+      short_name: The short name for the builder in the console view.
+      cq_enabled: Whether the try builder is enabled by default. (If false,
+        the builder is includable_only.)
+      cq_compile_only: If cq_compile_only is specified, we generate both a
+        disabled builder that matches the CI builder, and a compile-only
+        builder. The compile-only builder is controlled by cq_enabled.
+        cq_compile_only also specifies the host to run on, because the
+        compile-only builder usually has weaker requirements.
+      execution_timeout: Overrides the default timeout.
+      properties: Properties to pass to the recipe.
+    """
     ci_builder(
         name,
         host,
@@ -211,11 +270,6 @@ def both_builders(
         properties = properties,
     )
 
-    # If cq_compile_only is specified, we generate both a disabled builder that
-    # matches the CI builder, and a compile-only builder. The compile-only
-    # builder is controlled by cq_enabled. cq_compile_only also specifies the
-    # host to run on, because the compile-only builder usually has weaker
-    # requirements.
     cq_builder(
         name,
         host,
@@ -361,7 +415,6 @@ both_builders(
         },
     },
 )
-
 
 # delocate works on aarch64. Test this by also building the static library mode
 # for android_aarch64_fips. Additionally, urandom_test doesn't work in shared
@@ -773,6 +826,19 @@ both_builders(
             "CMAKE_C_FLAGS": "-DOPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED=1",
             "CMAKE_CXX_FLAGS": "-DOPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED=1",
         },
+    },
+)
+
+# TODO(crbug.com/42290446): Enable on both CQ and CI.
+cq_builder(
+    "linux_rust",
+    LINUX_HOST,
+    cq_enabled = False,
+    properties = {
+        "cmake_args": {
+            "RUST_BINDINGS": "x86_64-unknown-linux-gnu",
+        },
+        "rust": True,
     },
 )
 both_builders(

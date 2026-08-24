@@ -12,10 +12,10 @@
 #include "rtc_base/ssl_identity.h"
 
 #include <openssl/ossl_typ.h>
-#include <string.h>
-#include <time.h>
 
 #include <cstdint>
+#include <cstring>
+#include <ctime>
 #include <memory>
 #include <optional>
 #include <string>

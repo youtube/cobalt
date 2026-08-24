@@ -9,6 +9,7 @@
 #include <atomic>
 #include <cinttypes>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <memory>
 #include <optional>
@@ -1674,6 +1675,32 @@ class CurrentScriptNameStackVisitor {
   Handle<String> name_or_url_;
 };
 
+class CurrentScriptIdStackVisitor {
+ public:
+  void SetPrevFrameAsConstructCall() {
+    // Nothing to do.
+  }
+
+  bool Visit(FrameSummary& summary) {
+    // Skip frames that aren't subject to debugging. Keep this in sync with
+    // StackFrameBuilder::Visit so both visitors visit the same frames.
+    if (!summary.is_subject_to_debugging()) return true;
+
+    // Frames that are subject to debugging always have a valid script object. A
+    // valid script object should have a valid id.
+    auto script = Cast<Script>(summary.script());
+    script_id_ = script->id();
+
+    DCHECK_LT(0, script_id_);
+    return false;
+  }
+
+  int CurrentScriptId() const { return script_id_; }
+
+ private:
+  int script_id_ = v8::Message::kNoScriptIdInfo;
+};
+
 class CurrentScriptStackVisitor {
  public:
   void SetPrevFrameAsConstructCall() {
@@ -1703,6 +1730,13 @@ DirectHandle<String> Isolate::CurrentScriptNameOrSourceURL() {
   CurrentScriptNameStackVisitor visitor(this);
   VisitStack(this, &visitor);
   return visitor.CurrentScriptNameOrSourceURL();
+}
+
+int Isolate::CurrentScriptId() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.stack_trace"), __func__);
+  CurrentScriptIdStackVisitor visitor;
+  VisitStack(this, &visitor);
+  return visitor.CurrentScriptId();
 }
 
 MaybeDirectHandle<Script> Isolate::CurrentReferrerScript() {
@@ -5538,8 +5572,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_group()->AddIsolate(this);
   Isolate* const use_shared_space_isolate =
       isolate_group()->shared_space_isolate();
+#if DEBUG
+  is_shared_space_isolate_initialized_ = true;
+#endif  // DEBUG
 
-  CHECK_IMPLIES(is_shared_space_isolate_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
+  CHECK_IMPLIES(is_shared_space_isolate(), V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
   stress_deopt_count_ = v8_flags.deopt_every_n_times;
   force_slow_path_ = v8_flags.force_slow_path;
@@ -5578,7 +5615,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   interpreter_ = new interpreter::Interpreter(this);
   bigint_processor_ = bigint::Processor::New(new BigIntPlatform(this));
 
-  if (is_shared_space_isolate_) {
+  if (is_shared_space_isolate()) {
     global_safepoint_ = std::make_unique<GlobalSafepoint>(this);
   }
 
@@ -7282,12 +7319,23 @@ base::LazyMutex print_with_timestamp_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 void Isolate::PrintWithTimestamp(const char* format, ...) {
   base::MutexGuard guard(print_with_timestamp_mutex_.Pointer());
-  base::OS::Print("[%d:%p:%d] %8.0f ms: ", base::OS::GetCurrentProcessId(),
-                  static_cast<void*>(this), id(), time_millis_since_init());
+
+  static constexpr size_t kBufferSize = 16 * KB;
+  static char output_buffer[kBufferSize];
+
   va_list arguments;
   va_start(arguments, format);
-  base::OS::VPrint(format, arguments);
+  vsnprintf(output_buffer, kBufferSize, format, arguments);
   va_end(arguments);
+
+  base::OS::Print("[%d:%p:%d] %8.0f ms: %s", base::OS::GetCurrentProcessId(),
+                  static_cast<void*>(this), id(), time_millis_since_init(),
+                  output_buffer);
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_EVENT_INSTANT1("v8", "V8.PrintWithTimestamp", TRACE_EVENT_SCOPE_THREAD,
+                       "value", TRACE_STR_COPY(output_buffer));
+#endif
 }
 
 void Isolate::SetIdle(bool is_idle) {

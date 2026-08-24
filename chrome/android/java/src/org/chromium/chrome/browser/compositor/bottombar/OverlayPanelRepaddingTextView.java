@@ -4,10 +4,14 @@
 
 package org.chromium.chrome.browser.compositor.bottombar;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
 
 /**
@@ -15,6 +19,7 @@ import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
  * This implementation simply does a binary transition when the panel is 50% of the way
  * between peek and expanded states.
  */
+@NullMarked
 public abstract class OverlayPanelRepaddingTextView extends OverlayPanelInflater {
     private static final float REPADDING_THRESHOLD = 0.5f;
 
@@ -43,8 +48,8 @@ public abstract class OverlayPanelRepaddingTextView extends OverlayPanelInflater
             int layoutResource,
             int layoutId,
             Context context,
-            ViewGroup container,
-            DynamicResourceLoader resourceLoader,
+            @Nullable ViewGroup container,
+            @Nullable DynamicResourceLoader resourceLoader,
             int peekedDimension,
             int expandedDimension) {
         super(panel, layoutResource, layoutId, context, container, resourceLoader);
@@ -107,7 +112,7 @@ public abstract class OverlayPanelRepaddingTextView extends OverlayPanelInflater
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        View view = getView();
+        View view = assumeNonNull(getView());
         mPaddingStart = view.getPaddingStart();
         mPaddingTop = view.getPaddingTop();
         mPaddingBottom = view.getPaddingBottom();

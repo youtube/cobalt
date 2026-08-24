@@ -10,8 +10,7 @@
 
 #include "api/audio_codecs/L16/audio_encoder_L16.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>

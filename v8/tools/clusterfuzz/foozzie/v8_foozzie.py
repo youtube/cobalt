@@ -26,31 +26,15 @@ CONFIGS = dict(
         '--turbo-filter=~',
         '--no-turbofan',
         '--no-sparkplug',
-        '--liftoff',
+        '--liftoff-only',
         '--no-wasm-tier-up',
-        '--no-maglev',
-    ],
-    ignition_asm=[
-        '--turbo-filter=~',
-        '--no-turbofan',
-        '--no-sparkplug',
-        '--validate-asm',
-        '--stress-validate-asm',
-        '--no-maglev',
-    ],
-    ignition_eager=[
-        '--turbo-filter=~',
-        '--no-turbofan',
-        '--no-sparkplug',
-        '--no-lazy',
-        '--no-lazy-inner-functions',
         '--no-maglev',
     ],
     ignition_no_ic=[
         '--turbo-filter=~',
         '--no-turbofan',
         '--no-sparkplug',
-        '--liftoff',
+        '--liftoff-only',
         '--no-wasm-tier-up',
         '--no-use-ic',
         '--no-lazy-feedback-allocation',
@@ -60,14 +44,19 @@ CONFIGS = dict(
     ignition_turbo_no_ic=[
         '--no-use-ic',
     ],
-    ignition_turbo_opt=[
-        '--always-turbofan',
+    prepare_opt=[
+        '--no-flush-bytecode',
+        '--no-lazy',
+        '--no-lazy-feedback-allocation',
         '--no-liftoff',
     ],
-    ignition_turbo_opt_eager=[
-        '--always-turbofan',
+    # TODO(https://crbug.com/431974094): Remove this in 2026. Until then
+    # keep it aligned with the above for bisection stability.
+    ignition_turbo_opt=[
+        '--no-flush-bytecode',
         '--no-lazy',
-        '--no-lazy-inner-functions',
+        '--no-lazy-feedback-allocation',
+        '--no-liftoff',
     ],
     ignition_maglev=[
         '--maglev',
@@ -80,9 +69,19 @@ CONFIGS = dict(
     slow_path=[
         '--force-slow-path',
     ],
-    slow_path_opt=[
-        '--always-turbofan',
+    slow_path_prepare_opt=[
         '--force-slow-path',
+        '--no-flush-bytecode',
+        '--no-lazy',
+        '--no-lazy-feedback-allocation',
+    ],
+    # TODO(https://crbug.com/431974094): Remove this in 2026. Until then
+    # keep it aligned with the above for bisection stability.
+    slow_path_opt=[
+        '--force-slow-path',
+        '--no-flush-bytecode',
+        '--no-lazy',
+        '--no-lazy-feedback-allocation',
     ],
 )
 

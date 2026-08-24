@@ -10,10 +10,9 @@
 
 #include "rtc_base/strings/json.h"
 
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
-
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
 #include <string>
 #include <vector>
 

@@ -9,9 +9,8 @@
  */
 #include "video/video_quality_test.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <tuple>
 #include <utility>

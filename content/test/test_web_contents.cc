@@ -31,6 +31,7 @@
 #include "content/public/test/prerender_test_util.h"
 #include "content/test/navigation_simulator_impl.h"
 #include "content/test/test_render_view_host.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/clone_traits.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page_state/page_state.h"
@@ -202,6 +203,17 @@ bool TestWebContents::TestDidDownloadImage(
   return true;
 }
 
+bool TestWebContents::TestDidAddMessageToConsole(
+    blink::mojom::ConsoleMessageLevel log_level,
+    const std::u16string& message,
+    int32_t line_no,
+    const std::u16string& source_id,
+    const std::optional<std::u16string>& untrusted_stack_trace) {
+  return WebContentsImpl::DidAddMessageToConsole(
+      /*source_frame=*/nullptr, log_level, message, line_no, source_id,
+      untrusted_stack_trace);
+}
+
 void TestWebContents::TestSetFaviconURL(
     const std::vector<blink::mojom::FaviconURLPtr>& favicon_urls) {
   GetPrimaryPage().set_favicon_urls(mojo::Clone(favicon_urls));
@@ -285,7 +297,7 @@ bool TestWebContents::CreateRenderViewForRenderManager(
     RenderFrameProxyHost* proxy_host,
     const std::optional<base::UnguessableToken>& navigation_metrics_token) {
   const auto proxy_routing_id =
-      proxy_host ? proxy_host->GetRoutingID() : MSG_ROUTING_NONE;
+      proxy_host ? proxy_host->GetRoutingID() : IPC::mojom::kRoutingIdNone;
   // This will go to a TestRenderViewHost.
   static_cast<RenderViewHostImpl*>(render_view_host)
       ->CreateRenderView(opener_frame_token, proxy_routing_id, false,
@@ -507,6 +519,7 @@ FrameTreeNodeId TestWebContents::AddPrerender(const GURL& url) {
       ui::PAGE_TRANSITION_LINK,
       /*should_warm_up_compositor=*/false,
       /*should_prepare_paint_tree=*/false,
+      /*should_pause_javascript_execution=*/false,
       /*url_match_predicate=*/{},
       /*prerender_navigation_handle_callback=*/{},
       PreloadPipelineInfoImpl::Create(

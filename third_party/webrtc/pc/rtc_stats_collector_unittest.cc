@@ -10,9 +10,8 @@
 
 #include "pc/rtc_stats_collector.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <map>
 #include <memory>

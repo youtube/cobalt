@@ -20,6 +20,7 @@ source_set("lens") {
     "lens_search_controller.h",
     "lens_searchbox_controller.h",
     "lens_side_panel_untrusted_ui.h",
+    "lens_string_utils.h",
   ]
   friend = [ ":*" ]
   sources = [
@@ -39,6 +40,7 @@ source_set("lens") {
     "lens_permission_bubble_controller.h",
     "lens_preselection_bubble.h",
     "lens_search_contextualization_controller.h",
+    "lens_search_feature_flag_utils.h",
     "lens_session_metrics_logger.h",
     "lens_url_matcher.h",
     "page_content_type_conversions.h",
@@ -101,9 +103,11 @@ source_set("impl") {
     "lens_preselection_bubble.cc",
     "lens_search_contextualization_controller.cc",
     "lens_search_controller.cc",
+    "lens_search_feature_flag_utils.cc",
     "lens_searchbox_controller.cc",
     "lens_session_metrics_logger.cc",
     "lens_side_panel_untrusted_ui.cc",
+    "lens_string_utils.cc",
     "lens_url_matcher.cc",
     "page_content_type_conversions.cc",
   ]
@@ -115,6 +119,7 @@ source_set("impl") {
     "//chrome/app/theme:theme_resources_grit",
     "//chrome/app/vector_icons",
     "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/browser:primitives",
     "//chrome/browser/feedback",
     "//chrome/browser/lens/region_search",
@@ -140,6 +145,7 @@ source_set("impl") {
     "//chrome/browser/ui/webui/util",
     "//chrome/common",
     "//chrome/common:channel_info",
+    "//components/application_locale_storage",
     "//components/base32",
     "//components/constrained_window",
     "//components/feature_engagement/public",
@@ -278,6 +284,10 @@ source_set("browser_tests") {
   if (enable_pdf) {
     deps += [ "//chrome/browser/pdf" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("interactive_ui_tests") {
@@ -361,4 +371,8 @@ source_set("unit_tests") {
     "//ui/gfx/geometry",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

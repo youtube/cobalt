@@ -72,6 +72,7 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/utils/observable_boolean.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
@@ -81,7 +82,8 @@
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
-#import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_id.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_features.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_removal_observer_bridge.h"
@@ -93,6 +95,7 @@
 #import "ios/chrome/browser/synced_sessions/model/distant_tab.h"
 #import "ios/chrome/browser/synced_sessions/model/synced_sessions.h"
 #import "ios/chrome/browser/synced_sessions/model/synced_sessions_bridge.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/chrome/browser/tabs/model/tab_sync_util.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -486,11 +489,24 @@ class TabResumptionMediatorProxy {
     case TabResumptionItemType::kMostRecentTab: {
       [self.NTPActionsDelegate recentTabTileOpenedAtIndex:index];
       [IntentDonationHelper donateIntent:IntentType::kOpenLatestTab];
-      web::NavigationManager::WebLoadParams webLoadParams =
-          web::NavigationManager::WebLoadParams(item.tabURL);
-      UrlLoadParams params = UrlLoadParams::SwitchToTab(webLoadParams);
-      params.web_params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
-      _URLLoadingBrowserAgent->Load(params);
+      // Check if the item is in current browser.
+      // In that case, switch to the tab.
+      // Otherwise, open the URL.
+      web::WebState* webState = item.localWebState.get();
+      WebStateList* webStateList = _browser->GetWebStateList();
+      int webStateIndex = WebStateList::kInvalidIndex;
+      if (webState) {
+        webStateIndex = webStateList->GetIndexOfWebState(webState);
+      }
+      if (webStateIndex != WebStateList::kInvalidIndex) {
+        webStateList->ActivateWebStateAt(webStateIndex);
+      } else {
+        web::NavigationManager::WebLoadParams webLoadParams =
+            web::NavigationManager::WebLoadParams(item.tabURL);
+        UrlLoadParams params = UrlLoadParams::SwitchToTab(webLoadParams);
+        params.web_params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
+        _URLLoadingBrowserAgent->Load(params);
+      }
       break;
     }
   }
@@ -886,28 +902,26 @@ class TabResumptionMediatorProxy {
 
 // Fetches the snapshot of the tab showing `item`.
 - (void)fetchSnapshotForItem:(TabResumptionItem*)item {
-  if (!IsTabResumptionImagesThumbnailsEnabled()) {
+  if (!IsTabResumptionImagesThumbnailsEnabled() || !item.localWebState) {
     return [self fetchSalientImageForItem:item];
   }
+
+  web::WebState* webState = item.localWebState.get();
   BrowserList* browserList =
       BrowserListFactory::GetForProfile(_browser->GetProfile());
-  for (Browser* browser : browserList->BrowsersOfType(
-           BrowserList::BrowserType::kRegularAndInactive)) {
-    WebStateList* const webStateList = browser->GetWebStateList();
-    const int index = webStateList->GetIndexOfWebStateWithURL(item.tabURL);
-    if (index == WebStateList::kInvalidIndex) {
-      continue;
-    }
-    web::WebState* webState = webStateList->GetWebStateAt(index);
-    if (!webState) {
-      continue;
-    }
-    __weak TabResumptionMediator* weakSelf = self;
-    SnapshotTabHelper* snapshotTabHelper =
-        SnapshotTabHelper::FromWebState(webState);
-    snapshotTabHelper->RetrieveColorSnapshot(^(UIImage* image) {
-      [weakSelf snapshotFetched:image forItem:item];
-    });
+  Browser* webStateBrowser = GetBrowserForTabWithCriteria(
+      browserList,
+      WebStateSearchCriteria{.identifier = webState->GetUniqueIdentifier()},
+      false);
+
+  if (webStateBrowser) {
+    __weak __typeof(self) weakSelf = self;
+    SnapshotBrowserAgent::FromBrowser(webStateBrowser)
+        ->RetrieveSnapshotWithID(SnapshotID(webState->GetUniqueIdentifier()),
+                                 SnapshotKindColor, ^(UIImage* image) {
+                                   [weakSelf snapshotFetched:image
+                                                     forItem:item];
+                                 });
     return;
   }
   return [self fetchSalientImageForItem:item];
@@ -1041,6 +1055,7 @@ class TabResumptionMediatorProxy {
   item.tabTitle = base::SysUTF16ToNSString(webState->GetTitle());
   item.syncedTime = openedTime;
   item.tabURL = webState->GetLastCommittedURL();
+  item.localWebState = webState->GetWeakPtr();
   item.commandHandler = self;
   item.delegate = self;
   item.shouldShowSeeMore = true;

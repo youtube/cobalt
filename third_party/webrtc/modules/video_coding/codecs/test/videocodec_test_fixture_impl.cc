@@ -10,11 +10,10 @@
 
 #include "modules/video_coding/codecs/test/videocodec_test_fixture_impl.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <iterator>
 #include <memory>
 #include <optional>

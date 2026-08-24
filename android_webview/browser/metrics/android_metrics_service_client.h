@@ -135,6 +135,7 @@ class AndroidMetricsServiceClient
   variations::SyntheticTrialRegistry* GetSyntheticTrialRegistry() override;
   MetricsService* GetMetricsService() override;
   void SetMetricsClientId(const std::string& client_id) override;
+  int32_t GetProduct() override;
   std::string GetApplicationLocale() override;
   const network_time::NetworkTimeTracker* GetNetworkTimeTracker() override;
   bool GetBrand(std::string* brand_code) override;
@@ -197,15 +198,12 @@ class AndroidMetricsServiceClient
   // should use `GetAppPackageNameIfLoggable`.
   std::string GetAppPackageName();
 
-  // Returns the installer type of the app.
+  // Returns the installer type of the app. Virtual for testing.
   virtual InstallerPackageType GetInstallerPackageType();
 
  protected:
   // Called by MaybeStartMetrics() to allow embedder specific initialization.
   virtual void OnMetricsStart() = 0;
-
-  // Called by MaybeStartMetrics() when metrics collection failed to start.
-  virtual void OnMetricsNotStarted() = 0;
 
   // Returns the metrics sampling rate, to be used by IsInSample(). This is a
   // per mille value, so this integer must always be in the inclusive range [0,
@@ -216,8 +214,8 @@ class AndroidMetricsServiceClient
   // Returns a value in the inclusive range [0, 999], to be compared against a
   // per mille sample rate. This value will be based on a persisted value, so it
   // should be consistent across restarts. This value should also be mostly
-  // consistent across upgrades, to avoid significantly impacting IsInSample()
-  // and ShouldRecordPackageName(). Virtual for testing.
+  // consistent across upgrades, to avoid significantly impacting IsInSample().
+  // Virtual for testing.
   virtual int GetSampleBucketValue() const;
 
   // Determines if the client is within the random sample of clients for which
@@ -230,16 +228,6 @@ class AndroidMetricsServiceClient
   // package name. If this returns false, GetAppPackageNameIfLoggable() must
   // return empty string. Virtual for testing.
   virtual bool CanRecordPackageNameForAppType();
-
-  // Determines if this client falls within the group for which the embedding
-  // app's package name may be included. If this returns false,
-  // GetAppPackageNameIfLoggable() must return the empty string.
-  virtual bool ShouldRecordPackageName();
-
-  // Caps the rate at which we include package names in UMA logs, expressed as a
-  // per mille value. See GetSampleRatePerMille() for a description of how per
-  // mille values are handled.
-  virtual int GetPackageNameLimitRatePerMille() = 0;
 
   // Called by CreateMetricsService, allows the embedder to register additional
   // MetricsProviders. Does nothing by default.

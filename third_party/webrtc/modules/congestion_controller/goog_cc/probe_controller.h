@@ -146,8 +146,8 @@ class ProbeController {
   // SetBitrates.
   void EnableRepeatedInitialProbing(bool enable);
 
-  void SetAlrStartTimeMs(std::optional<int64_t> alr_start_time);
-  void SetAlrEndedTimeMs(int64_t alr_end_time);
+  void SetAlrStartTime(std::optional<Timestamp> alr_start_time);
+  void SetAlrEndedTime(Timestamp alr_end_time);
 
   ABSL_MUST_USE_RESULT std::vector<ProbeClusterConfig> RequestProbe(
       Timestamp at_time);

@@ -13,8 +13,10 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/values.h"
+#include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/common/extensions/api/tabs.h"
+#include "components/safe_browsing/buildflags.h"
 #include "components/translate/core/browser/translate_driver.h"
 #include "components/zoom/zoom_controller.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -25,10 +27,11 @@
 #include "extensions/common/user_script.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/chrome_extension_function_details.h"
+#if BUILDFLAG(FULL_SAFE_BROWSING)
+#include "chrome/browser/safe_browsing/extension_telemetry/tabs_api_signal.h"
 #endif
 
+class BrowserWindowInterface;
 class GURL;
 class SkBitmap;
 class TabStripModel;
@@ -51,9 +54,19 @@ class PrefRegistrySyncable;
 
 namespace extensions {
 
+// This namespace includes a collection of conceptually-internal helper methods
+// and constants that are currently here because they are used by both
+// tabs_api.cc and tabs_api_non_android.cc. Eventually, they should only be
+// used by tabs_api.cc, and we can move them to an anonymous namespace in
+// tabs_api.cc.
+// TODO(devlin): Do that. ^^
+namespace tabs_internal {
+
+inline constexpr char kMissingLockWindowFullscreenPrivatePermission[] =
+    "Cannot lock window to fullscreen or close a locked fullscreen window "
+    "without lockWindowFullscreenPrivate manifest permission";
+
 // A helper class to extract popular properties from different arguments.
-// TODO(devlin): Move this to the .cc file when it's no longer needed in
-// multiple .cc's (tabs_api_non_android.cc and tabs_api.cc).
 template <typename T>
 class ApiParameterExtractor {
  public:
@@ -78,6 +91,50 @@ class ApiParameterExtractor {
  private:
   raw_ref<T> params_;
 };
+
+// Returns true if the given `extension` has API access to the locked
+// fullscreen permission.
+bool ExtensionHasLockedFullscreenPermission(const Extension* extension);
+
+// Helper method to generate a new tab object for the given `contents`,
+// appropriately scrubbed of data for the given `extension`.
+api::tabs::Tab CreateTabObjectHelper(content::WebContents* contents,
+                                     const Extension* extension,
+                                     mojom::ContextType context,
+                                     BrowserWindowInterface* browser,
+                                     int tab_index);
+
+// Retrieves the tab associated with the given `tab_id`, populating
+// `contents_out`, `window_out`, and `index_out` with the result. If the tab
+// isn't found and `error_out` is non-null, populates `error_out` with an
+// appropriate error.
+// Returns true if the tab was found.
+bool GetTabById(int tab_id,
+                content::BrowserContext* context,
+                bool include_incognito,
+                WindowController** window_out,
+                content::WebContents** contents_out,
+                int* index_out,
+                std::string* error_out);
+
+#if BUILDFLAG(FULL_SAFE_BROWSING)
+// Notifies the safe browsing telemetry service of a relevant extension action.
+void NotifyExtensionTelemetry(Profile* profile,
+                              const Extension* extension,
+                              safe_browsing::TabsApiInfo::ApiMethod api_method,
+                              const std::string& current_url,
+                              const std::string& new_url,
+                              const std::optional<StackTrace>& js_callstack);
+#endif
+
+// Gets the WebContents for `tab_id` if it is specified. Otherwise get the
+// WebContents for the active tab in the `function`'s current window.
+// Returns nullptr and fills `error` if failed.
+content::WebContents* GetTabsAPIDefaultWebContents(ExtensionFunction* function,
+                                                   int tab_id,
+                                                   std::string* error);
+
+}  // namespace tabs_internal
 
 // Converts a ZoomMode to its ZoomSettings representation.
 void ZoomModeToZoomSettings(zoom::ZoomController::ZoomMode zoom_mode,
@@ -216,11 +273,10 @@ class TabsRemoveFunction : public ExtensionFunction {
   int remaining_tabs_count_ = 0;
   bool triggered_all_tab_removals_ = false;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   class WebContentsDestroyedObserver;
   std::vector<std::unique_ptr<WebContentsDestroyedObserver>>
       web_contents_destroyed_observers_;
-#endif
+
   DECLARE_EXTENSION_FUNCTION("tabs.remove", TABS_REMOVE)
 };
 class TabsGroupFunction : public ExtensionFunction {
@@ -242,7 +298,6 @@ class TabsDetectLanguageFunction
   ~TabsDetectLanguageFunction() override = default;
   ResponseAction Run() override;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   // content::WebContentsObserver:
   void NavigationEntryCommitted(
       const content::LoadCommittedDetails& load_details) override;
@@ -259,15 +314,12 @@ class TabsDetectLanguageFunction
   // Indicates if this instance is observing the tabs' WebContents and the
   // ContentTranslateDriver, in which case the observers must be unregistered.
   bool is_observing_ = false;
-#endif
 
   DECLARE_EXTENSION_FUNCTION("tabs.detectLanguage", TABS_DETECTLANGUAGE)
 };
 
 class TabsCaptureVisibleTabFunction :
-#if BUILDFLAG(ENABLE_EXTENSIONS)
     public extensions::WebContentsCaptureClient,
-#endif
     public ExtensionFunction {
  public:
   TabsCaptureVisibleTabFunction();
@@ -285,16 +337,13 @@ class TabsCaptureVisibleTabFunction :
 
   // ExtensionFunction implementation.
   ResponseAction Run() override;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   void GetQuotaLimitHeuristics(QuotaLimitHeuristics* heuristics) const override;
   bool ShouldSkipQuotaLimiting() const override;
-#endif
 
  protected:
   ~TabsCaptureVisibleTabFunction() override = default;
 
  private:
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   ChromeExtensionFunctionDetails chrome_details_;
 
   content::WebContents* GetWebContentsForID(int window_id, std::string* error);
@@ -305,7 +354,6 @@ class TabsCaptureVisibleTabFunction :
   bool ClientAllowsTransparency() override;
   void OnCaptureSuccess(const SkBitmap& bitmap) override;
   void OnCaptureFailure(CaptureResult result) override;
-#endif
 
   void EncodeBitmapOnWorkerThread(
       scoped_refptr<base::TaskRunner> reply_task_runner,
@@ -315,9 +363,7 @@ class TabsCaptureVisibleTabFunction :
  private:
   DECLARE_EXTENSION_FUNCTION("tabs.captureVisibleTab", TABS_CAPTUREVISIBLETAB)
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   static std::string CaptureResultToErrorMessage(CaptureResult result);
-#endif
 
   static bool disable_throttling_for_test_;
 };
@@ -341,12 +387,10 @@ class ExecuteCodeInTabFunction : public ExecuteCodeFunction {
   const GURL& GetWebViewSrc() const override;
 
  private:
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  const ChromeExtensionFunctionDetails chrome_details_;
+  const ChromeExtensionFunctionDetails chrome_details_{this};
 
   // Id of tab which executes code.
-  int execute_tab_id_;
-#endif
+  int execute_tab_id_ = -1;
 };
 
 class TabsExecuteScriptFunction : public ExecuteCodeInTabFunction {

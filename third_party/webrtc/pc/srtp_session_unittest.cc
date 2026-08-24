@@ -10,8 +10,6 @@
 
 #include "pc/srtp_session.h"
 
-#include <string.h>
-
 #include <cstdint>
 #include <cstring>
 #include <limits>

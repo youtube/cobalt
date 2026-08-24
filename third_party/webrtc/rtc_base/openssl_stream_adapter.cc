@@ -144,13 +144,15 @@ int GetForceDtls13(const FieldTrialsView* field_trials) {
     return kForceDtls13Off;
   }
 #ifdef DTLS1_3_VERSION
-  auto mode = field_trials->Lookup("WebRTC-ForceDtls13");
-  RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13: " << mode;
-  if (mode == "Enabled") {
+  if (field_trials->IsEnabled("WebRTC-ForceDtls13")) {
+    RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Enabled";
     return kForceDtls13Enabled;
-  } else if (mode == "Only") {
+  }
+  if (field_trials->Lookup("WebRTC-ForceDtls13") == "Only") {
+    RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Only";
     return kForceDtls13Only;
   }
+  RTC_LOG(LS_WARNING) << "WebRTC-ForceDtls13 Disabled";
 #endif
   return kForceDtls13Off;
 }

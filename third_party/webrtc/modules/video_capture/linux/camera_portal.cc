@@ -10,11 +10,7 @@
 
 #include "modules/video_capture/linux/camera_portal.h"
 
-#include <gio/gio.h>
 #include <gio/gunixfdlist.h>
-#include <glib-object.h>
-#include <glib.h>
-#include <glibconfig.h>
 
 #include <cstdint>
 #include <memory>

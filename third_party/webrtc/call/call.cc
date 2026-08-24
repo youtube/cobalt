@@ -10,11 +10,10 @@
 
 #include "call/call.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
@@ -656,7 +655,7 @@ Call::SendStats::~SendStats() {
     return;
 
   TimeDelta elapsed = clock_->CurrentTime() - *first_sent_packet_time_;
-  if (elapsed.seconds() < metrics::kMinRunTimeInSeconds)
+  if (elapsed < metrics::kMinRunTime)
     return;
 
   const int kMinRequiredPeriodicSamples = 5;

@@ -113,6 +113,7 @@ Oodake enne konto vahetamist paar minutit. Kui vahetate kohe kontot, siis need a
 <translation id="3728124580182886854">Linkige Chromium ja teised Google’i teenused isikupärastamiseks ja muudel eesmärkidel</translation>
 <translation id="377649297473651452">Chromiumi automaattäite laiendatud vaade</translation>
 <translation id="3780779443901618967">Hoiatab teid ohtlike saitide eest, isegi nende eest, millest Google varem ei teadnud, analüüsides standardse kaitsega võrreldes rohkem saitidelt pärinevaid andmeid. Soovi korral saate Chromiumi hoiatused vahele jätta.</translation>
+<translation id="3804124559081428680">Chromiumi nõuanne: kinnitage oma isik</translation>
 <translation id="3805899903892079518">Chromiumil pole juurdepääsu fotodele ega videotele. Lubage iOS-is juurdepääs valikutega Seaded &gt; Privaatsus &gt; Fotod.</translation>
 <translation id="3816686541346279443">Chromium pakub võimalust parool salvestada.</translation>
 <translation id="3827545470516145620">Saate selles seadmes standardse turvakaitse</translation>
@@ -252,6 +253,7 @@ Tasub teada
 
 Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Parooli ei saadeta Google’ile ja Google ei salvesta seda. Kui parooli unustate või soovite seda seadet muuta, <ph name="BEGIN_LINK" />kustutage oma kontol Chromiumi andmed<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Chromiumi märguanded on praegu teie seadme seadetes välja lülitatud.</translation>
+<translation id="7195217321165708458">Gemini Chromiumis</translation>
 <translation id="7219205286115692265">Avage Chromium kiiremini iPadi avakuva doki kaudu.</translation>
 <translation id="7222001353246886083">Otsige Chromiumis ${searchPhrase}</translation>
 <translation id="7228180817326917122">Chromiumi nõuanne: valige aadressiriba asukoht</translation>

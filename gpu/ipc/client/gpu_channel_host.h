@@ -139,12 +139,6 @@ class GPU_IPC_CLIENT_EXPORT GpuChannelHost
                              gfx::BufferUsage buffer_usage,
                              gfx::GpuMemoryBufferHandle* handle);
 
-  void GetGpuMemoryBufferHandleInfo(const Mailbox& mailbox,
-                                    gfx::GpuMemoryBufferHandle* handle,
-                                    viz::SharedImageFormat* format,
-                                    gfx::Size* size,
-                                    gfx::BufferUsage* buffer_usage);
-
 #if BUILDFLAG(IS_WIN)
   void CopyToGpuMemoryBufferAsync(
       const Mailbox& mailbox,
@@ -247,7 +241,6 @@ class GPU_IPC_CLIENT_EXPORT GpuChannelHost
 
     // IPC::Listener implementation
     // (called on the IO thread):
-    bool OnMessageReceived(const IPC::Message& msg) override;
     void OnChannelError() override;
 
    private:

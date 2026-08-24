@@ -10,17 +10,15 @@
 
 const $Headers = require('safeMethods').SafeMethods.$Headers;
 
-function convertUrlPatternsToMatchPatterns(urlPatterns) {
-  // TODO(crbug.com/419101630): Implement this.
-  return urlPatterns;
-}
+const convertURLPatternsToMatchPatterns =
+  require('controlledFrameURLPatternsHelper').convertURLPatternsToMatchPatterns;
 
 function convertExtensionHeadersToWeb(httpHeaders) {
   const headers = new $Headers.self();
   for (const header of httpHeaders) {
-    const value = (header.value !== undefined)
-        ? header.value
-        : $String.fromCharCode(...header.binaryValue);
+    const value = (header.value !== undefined) ?
+        header.value :
+        $String.fromCharCode(...header.binaryValue);
     $Headers.append(headers, header.name, value);
   }
   return headers;
@@ -51,7 +49,7 @@ function mapString(mapping, value) {
 }
 
 function extractAndMapValues(obj, mapping) {
-  const mapped = { __proto__: null };
+  const mapped = {__proto__: null};
   for (const [key, value] of $Object.entries(obj)) {
     if (key in mapping) {
       $Object.defineProperty(mapped, key, {
@@ -173,20 +171,12 @@ class ControlledFrameWebRequest {
     }
     if (options.includeHeaders !== undefined &&
         !$Array.includes(
-            $Array.self('none', 'same-origin', 'cross-origin'),
-            options.includeHeaders)) {
+            $Array.self('none', 'cors', 'all'), options.includeHeaders)) {
       throw new TypeError(
           'If defined, "includeHeaders" must equal the string ' +
-          '"none", "same-origin", or "cross-origin".');
+          '"none", "cors", or "all".');
     }
     return new WebRequestInterceptor(this.#webRequest, options);
-  }
-
-  interceptorBehaviorChanged() {
-    return new $Promise.self((resolve) => {
-      // TODO(crbug.com/421986167): handlerBehaviorChanged is undefined.
-      this.#webRequest.handlerBehaviorChanged(resolve);
-    });
   }
 }
 
@@ -220,7 +210,7 @@ class WebRequestInterceptor extends EventTarget {
 
     this.#filter = {
       __proto__: null,
-      urls: convertUrlPatternsToMatchPatterns(options.urlPatterns),
+      urls: convertURLPatternsToMatchPatterns(options.urlPatterns),
     };
     if (options.resourceTypes !== undefined) {
       this.#filter.types =
@@ -243,10 +233,10 @@ class WebRequestInterceptor extends EventTarget {
     if (options.includeRequestBody === true) {
       $Array.push(this.#extraInfoSpec, 'requestBody');
     }
-    if (options.includeHeaders === 'same-origin') {
+    if (options.includeHeaders === 'cors') {
       $Array.push(this.#extraInfoSpec, 'requestHeaders');
       $Array.push(this.#extraInfoSpec, 'responseHeaders');
-    } else if (options.includeHeaders === 'cross-origin') {
+    } else if (options.includeHeaders === 'all') {
       $Array.push(this.#extraInfoSpec, 'requestHeaders');
       $Array.push(this.#extraInfoSpec, 'responseHeaders');
       $Array.push(this.#extraInfoSpec, 'extraHeaders');
@@ -367,8 +357,8 @@ class WebRequestInterceptor extends EventTarget {
       return;
     }
 
-    const resultPromises = $Array.self(
-        $Promise.resolve(result.authCredentials));
+    const resultPromises =
+        $Array.self($Promise.resolve(result.authCredentials));
     if (options.signal) {
       $Array.push(resultPromises, new $Promise.self((resolve) => {
         options.signal.addEventListener('abort', resolve);

@@ -10,10 +10,9 @@
 
 #include "modules/video_coding/packet_buffer.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 #include <variant>

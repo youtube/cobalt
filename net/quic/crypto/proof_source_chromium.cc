@@ -5,6 +5,7 @@
 #include "net/quic/crypto/proof_source_chromium.h"
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "crypto/openssl_util.h"
 #include "net/cert/x509_util.h"
@@ -51,9 +52,8 @@ bool ProofSourceChromium::Initialize(const base::FilePath& cert_path,
     return false;
   }
 
-  const uint8_t* p = reinterpret_cast<const uint8_t*>(key_data.data());
-  std::vector<uint8_t> input(p, UNSAFE_TODO(p + key_data.size()));
-  private_key_ = crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(input);
+  private_key_ = crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(
+      base::as_byte_span(key_data));
   if (!private_key_) {
     DLOG(FATAL) << "Unable to create private key.";
     return false;

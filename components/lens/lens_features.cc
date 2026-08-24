@@ -41,7 +41,7 @@ BASE_FEATURE(kLensOverlayImageContextMenuActions,
 
 BASE_FEATURE(kLensOverlayContextualSearchbox,
              "LensOverlayContextualSearchbox",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions,
              "LensOverlayContextualSearchboxForOmniboxSuggestions",
@@ -83,17 +83,13 @@ BASE_FEATURE(kLensOverlayUpdatedClientContext,
              "LensOverlayUpdatedClientContext",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensOverlayMGTInSidePanel,
-             "LensOverlayMGTInSidePanel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensSearchSidePanelNewFeedback,
              "LensSearchSidePanelNewFeedback",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensSearchSidePanelScrollToAPI,
              "LensSearchSidePanelScrollToAPI",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the Lens Overlay omnibox entry point. This is a separate feature from
 // kLensOverlay so that the omnibox entry point can be disabled without a
@@ -141,6 +137,18 @@ BASE_FEATURE(kLensOverlayBackToPage,
 
 BASE_FEATURE(kLensSearchNotFoundOnPageToast,
              "kLensSearchNotFoundOnPageToast",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayStraightToSrp,
+             "LensOverlayStraightToSrp",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensSearchAimM3,
+             "LensSearchAimM3",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayEntrypointLabelAlt,
+             "LensOverlayEntrypointLabelAlt",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kLensOverlayMinRamMb{&kLensOverlay, "min_ram_mb",
@@ -385,7 +393,6 @@ constexpr base::FeatureParam<bool> kHandleSidePanelTextDirectives{
     &kLensOverlayContextualSearchbox, "handle-side-panel-text-directives",
     true};
 
-
 constexpr base::FeatureParam<int> kZstdCompressionLevel{
     &kLensOverlayContextualSearchbox, "zstd-compression-level", 3};
 
@@ -562,6 +569,18 @@ const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic{
 
 constexpr base::FeatureParam<int> kLensSearchSidePanelDefaultWidth{
     &kLensSearchSidePanelDefaultWidthChange, "lens-panel-default-width", 440};
+
+constexpr base::FeatureParam<std::string> kLensOverlayStraightToSrpQuery{
+    &kLensOverlayStraightToSrp, "query", ""};
+
+constexpr base::FeatureParam<bool> kOpenAimInSidePanel{
+    &kLensSearchAimM3, "open-aim-in-side-panel", true};
+
+constexpr base::FeatureParam<bool> kAimSearchboxEnabled{
+    &kLensSearchAimM3, "aim-searchbox-enabled", true};
+
+const base::FeatureParam<int> kLensOverlayEntrypointLabelAltId{
+    &kLensOverlayEntrypointLabelAlt, "id", 0};
 
 std::string GetHomepageURLForLens() {
   return kHomepageURLForLens.Get();
@@ -877,12 +896,6 @@ int GetLensOverlayImageContextMenuActionsTextReceivedTimeout() {
   return kLensOverlayImageContextMenuActionsTextReceivedTimeout.Get();
 }
 
-bool IsLensOverlayContextualSearchboxEnabled() {
-  return base::FeatureList::IsEnabled(kLensOverlayContextualSearchbox) ||
-         base::FeatureList::IsEnabled(
-             kLensOverlayContextualSearchboxForOmniboxSuggestions);
-}
-
 bool IsLensOverlaySidePanelOpenInNewTabEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlaySidePanelOpenInNewTab);
 }
@@ -953,7 +966,6 @@ bool IsLensOverlayRoutingInfoEnabled() {
 bool HandleSidePanelTextDirectivesEnabled() {
   return kHandleSidePanelTextDirectives.Get();
 }
-
 
 int GetZstdCompressionLevel() {
   return kZstdCompressionLevel.Get();
@@ -1066,8 +1078,14 @@ bool IsUpdatedClientContextEnabled() {
   return base::FeatureList::IsEnabled(kLensOverlayUpdatedClientContext);
 }
 
-bool ShouldShowMGTInSidePanel() {
-  return base::FeatureList::IsEnabled(kLensOverlayMGTInSidePanel);
+bool ShouldShowAimInSidePanel() {
+  return base::FeatureList::IsEnabled(kLensSearchAimM3) &&
+         kOpenAimInSidePanel.Get();
+}
+
+bool GetAimSearchboxEnabled() {
+  return base::FeatureList::IsEnabled(kLensSearchAimM3) &&
+         kAimSearchboxEnabled.Get();
 }
 
 bool ShouldUseAltLoadingHintWeb() {
@@ -1183,6 +1201,14 @@ bool IsLensOverlayBackToPageEnabled() {
 
 bool IsLensSearchNotFoundOnPageToastEnabled() {
   return base::FeatureList::IsEnabled(kLensSearchNotFoundOnPageToast);
+}
+
+bool IsLensOverlayStraightToSrpEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayStraightToSrp);
+}
+
+std::string GetStraightToSrpQuery() {
+  return kLensOverlayStraightToSrpQuery.Get();
 }
 
 }  // namespace lens::features

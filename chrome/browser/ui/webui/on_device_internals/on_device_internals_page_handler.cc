@@ -18,6 +18,7 @@
 #include "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
@@ -30,6 +31,7 @@
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "services/on_device_model/ml/performance_class.h"
 #include "services/on_device_model/public/cpp/buildflags.h"
+#include "services/on_device_model/public/cpp/features.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
 #include "services/preferences/public/cpp/dictionary_value_update.h"
 #include "services/preferences/public/cpp/scoped_pref_update.h"
@@ -60,7 +62,8 @@ on_device_model::ModelAssets LoadModelAssets(const base::FilePath& model_path) {
     model_paths.weights = model_path;
   }
 
-  if (optimization_guide::features::ForceCpuBackendForOnDeviceModel()) {
+  if (base::FeatureList::IsEnabled(
+          on_device_model::features::kOnDeviceModelForceCpuBackend)) {
     model_paths.cache =
         model_paths.weights.AddExtension(FILE_PATH_LITERAL("cache"));
   }
@@ -220,7 +223,8 @@ void PageHandler::OnModelAssetsLoaded(
   auto params = on_device_model::mojom::LoadModelParams::New();
   params->assets = std::move(assets);
   params->backend_type =
-      optimization_guide::features::ForceCpuBackendForOnDeviceModel()
+      base::FeatureList::IsEnabled(
+          on_device_model::features::kOnDeviceModelForceCpuBackend)
           ? ml::ModelBackendType::kCpuBackend
           : ml::ModelBackendType::kGpuBackend;
   params->max_tokens = 4096;
@@ -329,12 +333,9 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
       optimization_guide::features::GetOnDeviceModelCrashCountBeforeDisable();
 
   // Get data on feature adaptations.
-  const base::flat_map<optimization_guide::ModelBasedCapabilityKey,
-                       optimization_guide::OnDeviceModelAdaptationMetadata>&
-      feature_adaptations =
-          optimization_guide_keyed_service_->GetModelExecutionManager()
-              ->GetOnDeviceModelServiceController()
-              ->model_adaptation_metadata();
+  optimization_guide::OnDeviceModelServiceController& controller =
+      *optimization_guide_keyed_service_->GetModelExecutionManager()
+           ->GetOnDeviceModelServiceController();
   const PrefService* local_state = g_browser_process->local_state();
   for (const auto feature : optimization_guide::kAllModelBasedCapabilityKeys) {
     if (!optimization_guide::features::internal::
@@ -346,13 +347,11 @@ void PageHandler::OnReceivedPerformanceInfoForPageData(
     feature_adaptation_info->feature_key = static_cast<int32_t>(feature);
     feature_adaptation_info->is_recently_used =
         WasOnDeviceEligibleFeatureRecentlyUsed(feature, *local_state);
-
-    auto it = feature_adaptations.find(feature);
-    if (it != feature_adaptations.end()) {
-      feature_adaptation_info->version = it->second.version();
-    } else {
-      feature_adaptation_info->version = 0;
-    }
+    feature_adaptation_info->version =
+        controller.GetFeatureMetadata(feature)
+            .transform(
+                &optimization_guide::OnDeviceModelAdaptationMetadata::version)
+            .value_or(0);
     data->feature_adaptations.push_back(std::move(feature_adaptation_info));
   }
   data->min_vram_mb = GetMinimumVramRequired();

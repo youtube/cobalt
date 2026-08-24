@@ -138,6 +138,7 @@
 #include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/status_bubble_views.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
@@ -1424,13 +1425,13 @@ void Browser::WindowFullscreenStateChanged() {
       ->fullscreen_controller()
       ->WindowFullscreenStateChanged();
   command_controller_->FullscreenStateChanged();
-  features_->bookmark_bar_controller()->UpdateBookmarkBarState(
+  BookmarkBarController::From(this)->UpdateBookmarkBarState(
       BookmarkBarController::StateChangeReason::kToggleFullscreen);
 }
 
 void Browser::FullscreenTopUIStateChanged() {
   command_controller_->FullscreenStateChanged();
-  features_->bookmark_bar_controller()->UpdateBookmarkBarState(
+  BookmarkBarController::From(this)->UpdateBookmarkBarState(
       BookmarkBarController::StateChangeReason::kToolbarOptionChange);
 }
 
@@ -1488,13 +1489,6 @@ void Browser::OpenFile() {
   select_file_dialog_->SelectFile(ui::SelectFileDialog::SELECT_OPEN_FILE,
                                   std::u16string(), directory, &file_types, 0,
                                   base::FilePath::StringType(), parent_window);
-}
-
-void Browser::UpdateDownloadShelfVisibility(bool visible) {
-  std::vector<StatusBubble*> status_bubbles = GetStatusBubbles();
-  for (StatusBubble* status_bubble : status_bubbles) {
-    status_bubble->UpdateDownloadShelfVisibility(visible);
-  }
 }
 
 bool Browser::CanSaveContents(content::WebContents* web_contents) const {
@@ -1735,10 +1729,11 @@ void Browser::OnSplitTabChanged(const SplitTabChange& change) {
       UpdateSplitTabSessionVisualData(change.split_id);
       break;
     }
+
     case SplitTabChange::Type::kVisualsChanged: {
-      // Update for ratio is done from resize from multicontent view delegate.
-      if (change.GetVisualsChange()->reason() !=
-          SplitTabChange::SplitVisualChangeReason::kRatioUpdated) {
+      // Update for resize from the handle is done from multicontent view
+      // delegate.
+      if (!GetBrowserView().multi_contents_view()->IsSplitResizing()) {
         UpdateSplitTabSessionVisualData(change.split_id);
       }
       break;
@@ -3130,7 +3125,7 @@ void Browser::OnActiveTabChanged(WebContents* old_contents,
 
   // Update the bookmark state, since the BrowserWindow may query it during
   // OnActiveTabChanged() below.
-  features_->bookmark_bar_controller()->UpdateBookmarkBarState(
+  BookmarkBarController::From(this)->UpdateBookmarkBarState(
       BookmarkBarController::StateChangeReason::kTabSwitch);
 
   bool is_blocked = tab_strip_model_->IsTabBlocked(index);
@@ -3384,7 +3379,7 @@ void Browser::ProcessPendingUIUpdates() {
       // Update bookmark bar state with kTabState to handle tab state changes
       // (like crashes). This is different from kTabSwitch which is already
       // handled in Browser::OnActiveTabChanged().
-      features_->bookmark_bar_controller()->UpdateBookmarkBarState(
+      BookmarkBarController::From(this)->UpdateBookmarkBarState(
           BookmarkBarController::StateChangeReason::kTabState);
 
       // TODO(crbug.com/40122780): Ideally, we should simply ask the state to

@@ -1425,6 +1425,9 @@ PaintLayer* PaintLayer::HitTestLayer(
             recursion_data.location) &&
         GetLayoutBox()->HitTestOverflowControl(
             result, recursion_data.location, layer_fragments[0].layer_offset)) {
+      if (z_offset && local_transform_state) {
+        *z_offset = ComputeZOffset(*local_transform_state);
+      }
       return this;
     }
   }
@@ -1504,11 +1507,6 @@ PaintLayer* PaintLayer::HitTestLayer(
     candidate_layer = hit_layer;
   }
 
-  // If we found a layer, return. Child layers, and foreground always render
-  // in front of background.
-  if (candidate_layer)
-    return candidate_layer;
-
   if (recursion_data.intersects_location && IsSelfPaintingLayer()) {
     STACK_UNINITIALIZED HitTestResult temp_result(
         result.GetHitTestRequest(), recursion_data.original_location);
@@ -1533,7 +1531,7 @@ PaintLayer* PaintLayer::HitTestLayer(
     }
   }
 
-  return nullptr;
+  return candidate_layer;
 }
 
 bool PaintLayer::HitTestForegroundForFragments(
@@ -1586,7 +1584,7 @@ bool PaintLayer::HitTestFragmentsWithPhase(
       // transform, though, we'll only have one PaintLayerFragment in the list
       // at this point (we iterate over them further up on the stack, and pass a
       // "list" of one fragment at a time from there instead).
-      DCHECK(fragment.fragment_idx != WTF::kNotFound);
+      DCHECK(fragment.fragment_idx != kNotFound);
       HitTestLocation location_for_fragment(hit_test_location,
                                             fragment.fragment_idx);
       if (HitTestFragmentWithPhase(result, fragment.physical_fragment,

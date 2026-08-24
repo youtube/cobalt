@@ -28,6 +28,8 @@ source_set("color") {
     "new_tab_page_color_palette.mm",
     "new_tab_page_color_palette_util.h",
     "new_tab_page_color_palette_util.mm",
+    "new_tab_page_trait.h",
+    "new_tab_page_trait.mm",
     "theme_utils.h",
     "theme_utils.mm",
   ]
@@ -113,6 +115,7 @@ source_set("coordinator") {
     "new_tab_page_coordinator.mm",
   ]
   deps = [
+    ":color",
     ":component_factory_protocol",
     ":constants",
     ":feature_flags",
@@ -136,6 +139,7 @@ source_set("coordinator") {
     "//components/supervised_user/core/common:features",
     "//ios/chrome/app/profile",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/aim/prototype/coordinator",
     "//ios/chrome/browser/authentication/ui_bundled:continuation",
     "//ios/chrome/browser/authentication/ui_bundled/account_menu",
     "//ios/chrome/browser/authentication/ui_bundled/account_menu:constants",
@@ -160,6 +164,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/home_customization/utils",
     "//ios/chrome/browser/lens/ui_bundled:lens_entrypoint",
     "//ios/chrome/browser/ntp/model",
+    "//ios/chrome/browser/ntp/search_engine_logo/mediator",
     "//ios/chrome/browser/ntp/shared/metrics",
     "//ios/chrome/browser/ntp/shared/metrics:constants",
     "//ios/chrome/browser/ntp/shared/metrics:home_metrics",
@@ -249,6 +254,7 @@ source_set("ntp_internal") {
     "//components/signin/public/identity_manager/objc",
     "//components/strings",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/aim/model:aim_availability",
     "//ios/chrome/browser/alert_view/ui_bundled",
     "//ios/chrome/browser/browser_view/model",
     "//ios/chrome/browser/bubble/ui_bundled",

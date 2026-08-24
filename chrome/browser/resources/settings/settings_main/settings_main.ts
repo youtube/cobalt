@@ -11,11 +11,14 @@ import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import '../about_page/about_page.js';
+import '../ai_page/ai_page_index.js';
 import '../appearance_page/appearance_page_index.js';
 import '../autofill_page/autofill_page_index.js';
 import '../basic_page/basic_page.js';
 import '../on_startup_page/on_startup_page.js';
+import '../people_page/people_page_index.js';
 import '../performance_page/performance_page_index.js';
+import '../reset_page/reset_profile_banner.js';
 import '../search_page/search_page_index.js';
 // <if expr="not is_chromeos">
 import '../default_browser_page/default_browser_page.js';
@@ -113,6 +116,13 @@ export class SettingsMainElement extends SettingsMainElementBase {
         value: false,
       },
 
+      showResetProfileBanner_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('showResetProfileBanner');
+        },
+      },
+
       toolbarSpinnerActive: {
         type: Boolean,
         value: false,
@@ -131,6 +141,7 @@ export class SettingsMainElement extends SettingsMainElementBase {
   declare private routes_: SettingsRoutes;
   declare private inSearchMode_: boolean;
   declare private showNoResultsFound_: boolean;
+  declare private showResetProfileBanner_: boolean;
   declare toolbarSpinnerActive: boolean;
 
   // <if expr="not is_chromeos">
@@ -141,6 +152,8 @@ export class SettingsMainElement extends SettingsMainElementBase {
 
   override connectedCallback() {
     super.connectedCallback();
+
+    this.setAttribute('role', 'main');
 
     // Request loading of the lazy loaded module within an idle callback.
     requestIdleCallback(() => ensureLazyLoaded());
@@ -184,6 +197,12 @@ export class SettingsMainElement extends SettingsMainElementBase {
     if (!sectionElement) {
       // Wait for any pageVisibility <dom-if>s to render and try again.
       await this.beforeNextRenderPromise_();
+
+      if (this.lastRoute_ !== effectiveRoute || !this.isConnected) {
+        // A newer currentRouteChanged call happened while awaiting or no longer
+        // connected (both can happen in tests). Do nothing.
+        return;
+      }
       sectionElement = this.$.switcher.querySelector(`#${newSection}`);
     }
 
@@ -248,18 +267,17 @@ export class SettingsMainElement extends SettingsMainElementBase {
     });
   }
 
-  private renderBasicPage_(): boolean {
-    return this.lastRoute_ !== routes.ABOUT;
-  }
-
   private renderPlugin_(route: Route): boolean {
-    assert(route.hasMigratedToPlugin);
     return this.inSearchMode_ ||
         (!!this.lastRoute_ && route.contains(this.lastRoute_));
   }
 
   private showPage_(visibility?: boolean): boolean {
     return visibility !== false;
+  }
+
+  private showAiPage_(visibility?: boolean): boolean {
+    return loadTimeData.getBoolean('showAiPage') && this.showPage_(visibility);
   }
 
   private showManagedHeader_(): boolean {
@@ -270,6 +288,10 @@ export class SettingsMainElement extends SettingsMainElementBase {
   private shouldShowAll_(): boolean {
     return this.inSearchMode_ && !!this.lastRoute_ &&
         !this.lastRoute_.isSubpage();
+  }
+
+  private onResetProfileBannerClose_() {
+    this.showResetProfileBanner_ = false;
   }
 }
 

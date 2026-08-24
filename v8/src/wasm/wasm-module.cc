@@ -723,9 +723,9 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            784
+                            824
 #else   // V8_ENABLE_DRUMBRAKE
-                            752
+                            792
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -743,6 +743,7 @@ size_t WasmModule::EstimateStoredSize() const {
          ContentSize(stringref_literals) +               // --
          ContentSize(elem_segments) +                    // --
          ContentSize(branch_hints) +                     // --
+         ContentSize(compilation_priorities) +           // --
          ContentSize(inst_traces) +                      // --
          (num_declared_functions + 7) / 8;               // validated_functions
 }
@@ -801,9 +802,9 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            784
+                            824
 #else   // V8_ENABLE_DRUMBRAKE
-                            752
+                            792
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();
@@ -848,7 +849,7 @@ int JumpTableOffset(const WasmModule* module, int func_index) {
 size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
   return StringHasher::HashSequentialString(
       reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      kZeroHashSeed);
+      HashSeed::Default());
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {

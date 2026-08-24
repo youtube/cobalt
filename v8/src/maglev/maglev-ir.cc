@@ -124,6 +124,23 @@ void NodeBase::CheckCanOverwriteWith(Opcode new_opcode,
 
 #endif  // DEBUG
 
+std::ostream& operator<<(std::ostream& os, UseRepresentation repr) {
+  switch (repr) {
+    case UseRepresentation::kTagged:
+      return os << "Tagged";
+    case UseRepresentation::kInt32:
+      return os << "Int32";
+    case UseRepresentation::kTruncatedInt32:
+      return os << "TruncatedInt32";
+    case UseRepresentation::kUint32:
+      return os << "Uint32";
+    case UseRepresentation::kFloat64:
+      return os << "Float64";
+    case UseRepresentation::kHoleyFloat64:
+      return os << "HoleyFloat64";
+  }
+}
+
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
 bool Phi::is_unmerged_loop_phi() const {
@@ -221,6 +238,15 @@ void PrintResult(std::ostream& os, const ValueNode* node) {
         os << ", but required";
       } else {
         os << " 🪦";
+      }
+    }
+    // Don't print to non float64 nodes, nor to nodes that we bypass the flag.
+    if (node->value_representation() == ValueRepresentation::kFloat64 &&
+        !node->Is<Float64Constant>() && !node->Is<ChangeInt32ToFloat64>()) {
+      if (node->can_truncate_to_int32()) {
+        os << ", can truncate to int32 " << node->GetRange();
+      } else {
+        os << ", cannot truncate to int32";
       }
     }
   }
@@ -512,6 +538,8 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
   }
   switch (opcode()) {
     case Opcode::kPhi:
@@ -581,6 +609,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kStringAt:
     case Opcode::kStringConcat:
     case Opcode::kBuiltinStringFromCharCode:
+    case Opcode::kNewConsString:
       return NodeType::kString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
@@ -919,6 +948,7 @@ void Phi::VerifyInputs() const {
     CASE_REPR(HoleyFloat64)
 #undef CASE_REPR
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 }
@@ -3875,12 +3905,8 @@ void CheckTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   } else {
     length = ToRegister(length_input());
   }
-  // The index must be a zero-extended Uint32 for this to work.
-#ifdef V8_TARGET_ARCH_RISCV64
-  // All Word32 values are been signed-extended in Register in RISCV.
-  __ ZeroExtendWord(index, index);
-#endif
-  __ AssertZeroExtended(index);
+  // This also handles negative indices.
+  __ SignExtend32To64Bits(index, index);
   __ CompareIntPtrAndJumpIf(
       index, length, kUnsignedGreaterThanEqual,
       __ GetDeoptLabel(this, DeoptimizeReason::kOutOfBounds));
@@ -8417,7 +8443,7 @@ void Call::PrintParams(std::ostream& os) const {
 void CallSelf::PrintParams(std::ostream& os) const {}
 
 void CallKnownJSFunction::PrintParams(std::ostream& os) const {
-  os << "(" << shared_function_info_.object() << ")";
+  os << "(" << shared_function_info_.object() << ", " << uses_repr_hint_ << ")";
 }
 
 void CallKnownApiFunction::PrintParams(std::ostream& os) const {
@@ -8580,6 +8606,38 @@ std::optional<int32_t> NodeBase::TryGetInt32ConstantInput(int index) {
     return i32->value();
   }
   return {};
+}
+
+RangeType ValueNode::GetRange() const {
+  // TODO(victorgomes): Support other constant nodes.
+  if (Is<Float64Constant>()) {
+    double value = Cast<Float64Constant>()->value().get_scalar();
+    if (!IsSafeInteger(value)) return {};
+    return RangeType(value);
+  }
+  if (properties().is_conversion()) {
+    return input(0).node()->GetRange();
+  }
+  switch (value_representation()) {
+    case ValueRepresentation::kInt32:
+      // TODO(victorgomes): we could be more precise for Int32 operations.
+      return RangeType(INT32_MIN, INT32_MAX);
+    case ValueRepresentation::kFloat64:
+      switch (opcode()) {
+        case Opcode::kFloat64Add:
+          return Cast<Float64Add>()->range();
+        case Opcode::kFloat64Subtract:
+          return Cast<Float64Subtract>()->range();
+        case Opcode::kFloat64Multiply:
+          return Cast<Float64Multiply>()->range();
+        case Opcode::kFloat64Divide:
+          return Cast<Float64Divide>()->range();
+        default:
+          return {};
+      }
+    default:
+      return {};
+  }
 }
 
 }  // namespace maglev

@@ -42,7 +42,8 @@
 #import "ios/chrome/browser/follow/model/follow_menu_updater.h"
 #import "ios/chrome/browser/follow/model/follow_tab_helper.h"
 #import "ios/chrome/browser/follow/model/follow_util.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
@@ -702,7 +703,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
                                  handler:^{
                                    [weakSelf beginCustomization];
                                  }];
-  if (IsLensOverlayAvailable(_profilePrefs)) {
+  if ([self isLensOverlayEnabled]) {
     self.lensOverlayAction = [self openLensOverlayAction];
   }
 
@@ -1590,7 +1591,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       search_engines::SupportsSearchImageWithLens(self.templateURLService);
   BOOL portraitOverride =
       IsLensOverlayLandscapeOrientationEnabled(_profilePrefs);
-  return isSupported && (isPortrait || portraitOverride) &&
+  BOOL isAvailable = IsLensOverlayAvailable(_profilePrefs);
+  return isAvailable && isSupported && (isPortrait || portraitOverride) &&
          ![self isLensOverlayVisible];
 }
 
@@ -1771,9 +1773,11 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     return NO;
   }
   if (_webState) {
-    BwgTabHelper* BWGTabHelper = BwgTabHelper::FromWebState(_webState);
-    if (BWGTabHelper) {
-      return BWGTabHelper->IsBwgAvailableForWebState();
+    ProfileIOS* profile =
+        ProfileIOS::FromBrowserState(_webState->GetBrowserState());
+    BwgService* BWGService = BwgServiceFactory::GetForProfile(profile);
+    if (BWGService) {
+      return BWGService->IsBwgAvailableForWebState(_webState);
     }
   }
   return NO;
@@ -2124,7 +2128,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   actions.push_back(overflow_menu::ActionType::FindInPage);
   actions.push_back(overflow_menu::ActionType::TextZoom);
 
-  if (IsLensOverlayAvailable(_profilePrefs)) {
+  if ([self isLensOverlayEnabled]) {
     actions.push_back(overflow_menu::ActionType::LensOverlay);
   }
 

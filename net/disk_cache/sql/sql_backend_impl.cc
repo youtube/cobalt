@@ -14,12 +14,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/task/task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/sql/sql_entry_impl.h"
 #include "net/disk_cache/sql/sql_persistent_store.h"
+#include "sql_backend_constants.h"
 
 namespace disk_cache {
 namespace {
@@ -134,26 +136,27 @@ class SqlBackendImpl::IteratorImpl : public Backend::Iterator {
     // Request the next entry from the persistent store. `res_id_iterator_`
     // keeps track of the last `res_id` returned, allowing the store to fetch
     // entries older than that.
+    // `handle` will be destroyed after executing
+    // `OnOpenLatestEntryBeforeResIdFinished()`, may be triggering queued
+    // operations.
     backend_->store_->OpenLatestEntryBeforeResId(
         res_id_iterator_,
         base::BindOnce(&IteratorImpl::OnOpenLatestEntryBeforeResIdFinished,
-                       weak_factory_.GetWeakPtr(), std::move(handle)));
+                       weak_factory_.GetWeakPtr())
+            .Then(DoNothingWithBoundHandle(std::move(handle))));
   }
 
   // Callback for `SqlPersistentStore::OpenLatestEntryBeforeResId`.
   void OnOpenLatestEntryBeforeResIdFinished(
-      std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle,
       SqlPersistentStore::OptionalEntryInfoWithIdAndKey result) {
     CHECK(callback_);
     if (!backend_) {
       std::move(callback_).Run(EntryResult::MakeError(net::ERR_FAILED));
-      // `handle` is destroyed here, may be triggering queued operations.
       return;
     }
     // If no more entries are found or an error occurred in the store.
     if (!result.has_value()) {
       std::move(callback_).Run(EntryResult::MakeError(net::ERR_FAILED));
-      // `handle` is destroyed here, may be triggering queued operations.
       return;
     }
     SqlPersistentStore::EntryInfoWithIdAndKey& entry_info = *result;
@@ -166,14 +169,6 @@ class SqlBackendImpl::IteratorImpl : public Backend::Iterator {
     // reuse the existing `SqlEntryImpl` instance.
     if (SqlEntryImpl* entry = backend_->GetActiveEntry(entry_info.key)) {
       entry->AddRef();
-      // Reset `handle` here to trigger queued operations. This is intended not
-      // to starve normal operations.
-      // TODO(crbug.com/422065015): Resetting the handle here introduces
-      // complexities, such as the possibility of passing a doomed entry to the
-      // callback, which makes the behavior harder to reason about. We should
-      // remove this handle reset once a more sophisticated scheduling mechanism
-      // is implemented in ExclusiveOperationCoordinator.
-      handle.reset();
       std::move(callback_).Run(EntryResult::MakeOpened(entry));
       return;
     }
@@ -207,14 +202,7 @@ class SqlBackendImpl::IteratorImpl : public Backend::Iterator {
               .insert(std::make_pair(entry_info.key,
                                      raw_ref<SqlEntryImpl>(*new_entry.get())))
               .second);
-    // Reset `handle` here to trigger queued operations. This is intended not to
-    // starve normal operations.
-    // TODO(crbug.com/422065015): Resetting the handle here introduces
-    // complexities, such as the possibility of passing a doomed entry to the
-    // callback, which makes the behavior harder to reason about. We should
-    // remove this handle reset once a more sophisticated scheduling mechanism
-    // is implemented in ExclusiveOperationCoordinator.
-    handle.reset();
+
     // Return the newly opened entry.
     std::move(callback_).Run(EntryResult::MakeOpened(new_entry.get()));
   }
@@ -239,6 +227,14 @@ SqlBackendImpl::SqlBackendImpl(const base::FilePath& path,
                                         GetCacheType(),
                                         background_task_runner_)) {
   DVLOG(1) << "SqlBackendImpl::SqlBackendImpl " << path;
+
+  // Schedule a one-time task to clean up doomed entries from previous sessions.
+  // This runs after a delay to avoid impacting startup performance.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&SqlBackendImpl::TriggerDeleteDoomedEntries,
+                     weak_factory_.GetWeakPtr()),
+      kSqlBackendDeleteDoomedEntriesDelay);
 }
 
 SqlBackendImpl::~SqlBackendImpl() = default;
@@ -935,6 +931,32 @@ void SqlBackendImpl::HandleTriggerEvictionOperation(
   store_->StartEviction(
       std::move(excluded_keys),
       base::BindOnce([](SqlPersistentStore::Error result) {}));
+}
+
+void SqlBackendImpl::TriggerDeleteDoomedEntries() {
+  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
+      base::BindOnce(&SqlBackendImpl::HandleDeleteDoomedEntriesOperation,
+                     weak_factory_.GetWeakPtr())));
+}
+
+void SqlBackendImpl::HandleDeleteDoomedEntriesOperation(
+    std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle) {
+  std::vector<base::UnguessableToken> excluded_tokens_vec;
+  excluded_tokens_vec.reserve(doomed_entries_.size());
+  for (const auto& entry : doomed_entries_) {
+    excluded_tokens_vec.push_back(entry->token());
+  }
+  std::sort(excluded_tokens_vec.begin(), excluded_tokens_vec.end());
+  base::flat_set<base::UnguessableToken> excluded_tokens(
+      base::sorted_unique, std::move(excluded_tokens_vec));
+  store_->DeleteDoomedEntries(
+      std::move(excluded_tokens),
+      base::BindOnce([](SqlPersistentStore::Error result) {
+      }).Then(DoNothingWithBoundHandle(std::move(handle))));
+}
+
+void SqlBackendImpl::EnableStrictCorruptionCheckForTesting() {
+  store_->EnableStrictCorruptionCheckForTesting();  // IN-TEST
 }
 
 SqlBackendImpl::InFlightEntryModification::InFlightEntryModification(

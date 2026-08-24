@@ -14,9 +14,9 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/pool.h>
-#include <stdint.h>
-#include <string.h>
 
+#include <cstdint>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>

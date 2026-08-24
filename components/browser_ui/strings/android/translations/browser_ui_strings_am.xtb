@@ -63,6 +63,7 @@
 <translation id="1704230497453185209">ጣቢያዎች ድምፅ እንዲጫወቱ አይፍቀዱ</translation>
 <translation id="1717218214683051432">የእንቅስቃሴ ዳሳሾች</translation>
 <translation id="1717996979683942279">እንዲሁም ሲበራ ጣቢያዎች በሁሉም የእርስዎ ማሳያዎች ላይ መስኮቶችን ለማስተዳደር መጠየቅ ይችላሉ። ሲጠፋ ጣቢያዎች በሁሉም የእርስዎ ማሳያዎች ላይ መስኮቶችን ማስተዳደር አይችሉም።</translation>
+<translation id="1738912554587725807">የአዲስ ትር ገፅ መልክ ገጽታ ስብስቦች ግርጌ ሉህ</translation>
 <translation id="1743802530341753419">ጣቢያዎች ከአንድ መሣሪያ ጋር እንዲገናኙ ከመፍቀድ በፊት ጠይቅ (የሚመከር)</translation>
 <translation id="1777815584158991902">የምግብ የግርጌ ሉህ ያግኙ</translation>
 <translation id="1779089405699405702">ስውር ምስል መፍቻ</translation>
@@ -120,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> ሜባ</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />፣ <ph name="PERMISSION_2" />፣ እና <ph name="NUM_MORE" /> ተጨማሪ ተፈቅደዋል}one{<ph name="PERMISSION_1" />፣ <ph name="PERMISSION_2" /> እና <ph name="NUM_MORE" /> ተጨማሪ ተፈቅደዋል}other{<ph name="PERMISSION_1" />፣ <ph name="PERMISSION_2" /> እና <ph name="NUM_MORE" /> ተጨማሪ ተፈቅደዋል}}</translation>
 <translation id="2410940059315936967">እርስዎ የሚጎበኙት ጣቢያ ከሌሎች ጣቢያዎች ይዘት መክተት ይችላል ለምሳሌ፣ ምስሎች፣ ማስታወቂያዎች እና ጽሁፍ። በእነዚህ ሌሎች ጣቢያዎች የተቀናበሩ ኩኪዎች የሦስተኛ ወገን ኩኪዎች ይባላሉ።</translation>
+<translation id="2411116727035790889">አቋራጮችን ያብሩ</translation>
 <translation id="2433507940547922241">ገጽታ</translation>
 <translation id="2434158240863470628">ማውረድ ተጠናቅቋል <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">ይህ ጣቢያ የሦስተኛ ወገን ኩኪዎች እንዲጠቀም በጊዜያዊነት ፈቅደዋል፣ ይህም ያነሰ የአሰሳ ጥበቃ ማለት ነው ነገር ግን የጣቢያ ባህሪያት እንደሚጠበቀው የመሥራት ዕድላቸው ከፍተኛ ነው። <ph name="BEGIN_LINK" />ግብረመልስ ይላኩ<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@
 <translation id="3114012059975132928">ቪዲዮ ማጫወቻ</translation>
 <translation id="3115898365077584848">መረጃ አሳይ</translation>
 <translation id="3123473560110926937">በአንዳንድ ጣቢያዎች ላይ ታግዷል</translation>
+<translation id="3132996321662585180">በየቀኑ ዳግም አድስ</translation>
 <translation id="3143754809889689516">ከመጀመሪያው አጫውት</translation>
 <translation id="3162899666601560689">ጣቢያዎች የአሰሳዎን ተሞክሮ ለማሻሻል ኩኪዎችን መጠቀም ይችላሉ፣ ለምሳሌ እርስዎ በመለያ እንደገቡ ማቆየት ወይም በግዢ ጋሪዎ ውስጥ ንጥሎችን ለማስታወስ</translation>
 <translation id="3165022941318558018">አንድ ጣቢያ የሦስተኛ ወገን ኩኪዎችን እንዲጠቀም ይፍቀዱ</translation>
@@ -356,6 +359,7 @@
 <translation id="5100237604440890931">ተሰብስቧል - ለመዘርጋት ጠቅ ያድርጉ</translation>
 <translation id="5116239826668864748">አገናኞችን በመልዕክቶች፣ በሰነዶች እና በሌሎች መተግበሪያዎች ውስጥ መታ በሚያደርጉበት በማንኛውም ጊዜ Chrome መጠቀም ይችላሉ</translation>
 <translation id="5123685120097942451">ማንነት የማያሳውቅ ትር</translation>
+<translation id="512938610812707830">የአዲስ ትር ገፅ መልክ ገጽታ ስብስቦች የግርጌ ሉህ በሙሉ ቁመት ተከፍቷል</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{ክፍት በሆኑ ትሮችዎ ላይ የዋጋ ቅናሽ}one{ክፍት በሆኑ ትሮችዎ ላይ የዋጋ ቅናሽ}other{ክፍት በሆኑ ትሮችዎ ላይ የዋጋዎች ቅናሽ}}</translation>
 <translation id="5186036860380548585">አማራጮች ከማያ ገጹ አናት አጠገብ ይገኛሉ</translation>
 <translation id="5197729504361054390">የመረጧቸው እውቂያዎች ለ<ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" /> ይጋራሉ።</translation>
@@ -608,7 +612,6 @@
 <translation id="8186479265534291036">ጣቢያው እየሰራ አይደለም? የሦስተኛ ወገን ኩኪዎች ታግደዋል</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> ተፈቅዷል</translation>
 <translation id="8200772114523450471">ከቆመበት ቀጥል</translation>
-<translation id="8206354486702514201">ይህ ቅንብር በአስተዳዳሪዎ ነው በግዳጅ እንዲፈጸም የተደረገው።</translation>
 <translation id="8211406090763984747">ግንኙነት ደኅንነቱ የተጠበቀ ነው</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />፣ <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">ወደ ላይ ውሰድ</translation>
@@ -619,6 +622,7 @@
 <translation id="8324158725704657629">ዳግም አትጠይቅ</translation>
 <translation id="8362795839483915693">እርስዎ በሚገበኟቸው ጣቢያዎች ላይ ማጉላት ወይም ማሳነስ ይችላሉ</translation>
 <translation id="8372893542064058268">ለአንድ የተወሰነ ጣቢያ የጀርባ ስምረትን ይፍቀዱ።</translation>
+<translation id="8378714024927312812">በእርስዎ ድርጅት የሚተዳደር</translation>
 <translation id="83792324527827022">አንድ ጣቢያ የእርስዎን ካሜራ እና ማይክሮፎን እየተጠቀመ ነው</translation>
 <translation id="8380167699614421159">ይህ ጣቢያ ረባሽ ወይም አሳሳች ማስታወቂያዎችን ያሳያል</translation>
 <translation id="8394832520002899662">ወደ ጣቢያው ለመመለስ መታ ያድርጉ</translation>

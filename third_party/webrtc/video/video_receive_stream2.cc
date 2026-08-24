@@ -10,11 +10,10 @@
 
 #include "video/video_receive_stream2.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <initializer_list>
 #include <map>
 #include <memory>

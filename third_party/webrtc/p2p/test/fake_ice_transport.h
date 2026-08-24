@@ -164,7 +164,7 @@ class FakeIceTransport : public IceTransportInternal {
     // In this fake transport channel, `connection_count_` determines the
     // transport state.
     if (connection_count_ < old_connection_count) {
-      SignalStateChanged(this);
+      SignalIceTransportStateChanged(this);
     }
   }
 

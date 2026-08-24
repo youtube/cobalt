@@ -168,6 +168,10 @@
     "META": {"sizes": {"includes": [10],}},
     "includes": [2750],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/actor_overlay/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [2755],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/app_home/resources.grd": {
     "META": {"sizes": {"includes": [20]}},
     "includes": [2760],
@@ -684,7 +688,7 @@
     "META": {"sizes": {"includes": [30]}},
     "includes": [5020],
   }, "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/tab_group_home/resources.grd": {
-    "META": {"sizes": {"includes": [10]}},
+    "META": {"sizes": {"includes": [20]}},
     "includes": [5030],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/tab_search/resources.grd": {
@@ -735,6 +739,14 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [5220],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/watermark/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [5230],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/tab_strip_internals/resources.grd": {
+    "META": {"sizes": {"includes": [5]}},
+    "includes": [5240],
+  },
   # END chrome/ WebUI resources section
 
   # START chrome/ miscellaneous section.
@@ -774,10 +786,6 @@
   "chromeos/ash/components/emoji/emoji.grd" : {
     "META": {"sizes": {"includes": [45],}},
     "includes" : [5740],
-  },
-  "<(SHARED_INTERMEDIATE_DIR)/chromeos/ash/components/kiosk/vision/webui/resources.grd" : {
-    "META": {"sizes": {"includes": [15]}},
-    "includes" : [5760],
   },
   "chromeos/ash/resources/ash_resources.grd": {
     "includes": [5780],
@@ -1219,20 +1227,6 @@
   },
   "ios/chrome/open_extension/strings/ios_open_extension_google_chrome_strings.grd": {
     "messages": [1160],
-  },
-  "ios/chrome/search_widget_extension/strings/ios_search_widget_extension_chromium_strings.grd": {
-    "META": {"join": 2},
-    "messages": [1180],
-  },
-  "ios/chrome/search_widget_extension/strings/ios_search_widget_extension_google_chrome_strings.grd": {
-    "messages": [1180],
-  },
-  "ios/chrome/content_widget_extension/strings/ios_content_widget_extension_chromium_strings.grd": {
-    "META": {"join": 2},
-    "messages": [1200],
-  },
-  "ios/chrome/content_widget_extension/strings/ios_content_widget_extension_google_chrome_strings.grd": {
-    "messages": [1200],
   },
   "ios/chrome/credential_provider_extension/strings/ios_credential_provider_extension_strings.grd": {
     "META": {"join": 2},

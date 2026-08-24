@@ -186,7 +186,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, URLLoaderIsProxied) {
         return 'FAIL: frame or frame.request is undefined';
       }
       frame.request.createWebRequestInterceptor({
-        urlPatterns: ['<all_urls>'],
+        urlPatterns: ['*://*/*'],
         resourceTypes: ['main-frame'],
         blocking: true,
       }).addEventListener('beforerequest', (e) => {
@@ -635,8 +635,8 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsWebRequest) {
       frame.savedAddEventListener('loadabort', reject);
       frame.savedAddEventListener('loadstop', () => {
         frame.request.createWebRequestInterceptor({
-          urlPatterns: ['<all_urls>'],
-          includeHeaders: 'cross-origin',
+          urlPatterns: ['*://*/*'],
+          includeHeaders: 'all',
         }).addEventListener('completed', (e) => {
           resolve();
         });

@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/ulpfec_header_reader_writer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "api/scoped_refptr.h"

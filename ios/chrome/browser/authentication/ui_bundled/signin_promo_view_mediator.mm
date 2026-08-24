@@ -146,6 +146,7 @@ bool IsSupportedAccessPoint(signin_metrics::AccessPoint access_point) {
         kEnterpriseManagementDisclaimerAfterBrowserFocus:
     case signin_metrics::AccessPoint::
         kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
       return false;
   }
 }
@@ -252,6 +253,7 @@ void RecordImpressionsTilSigninButtonsHistogramForAccessPoint(
         kEnterpriseManagementDisclaimerAfterBrowserFocus:
     case signin_metrics::AccessPoint::
         kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
       NOTREACHED() << "Unexpected value for access point "
                    << static_cast<int>(access_point);
   }
@@ -359,6 +361,7 @@ void RecordImpressionsTilXButtonHistogramForAccessPoint(
         kEnterpriseManagementDisclaimerAfterBrowserFocus:
     case signin_metrics::AccessPoint::
         kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
       NOTREACHED() << "Unexpected value for access point "
                    << static_cast<int>(access_point);
   }
@@ -455,6 +458,7 @@ const char* DisplayedCountPreferenceKey(
         kEnterpriseManagementDisclaimerAfterBrowserFocus:
     case signin_metrics::AccessPoint::
         kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
       return nullptr;
   }
 }
@@ -550,6 +554,7 @@ const char* AlreadySeenSigninViewPreferenceKey(
         kEnterpriseManagementDisclaimerAfterBrowserFocus:
     case signin_metrics::AccessPoint::
         kEnterpriseManagementDisclaimerAfterSignin:
+    case signin_metrics::AccessPoint::kNtpFeaturePromo:
       return nullptr;
   }
 }
@@ -675,17 +680,9 @@ id<SystemIdentity> GetDisplayedIdentity(
                                   (AuthenticationService*)authenticationService
                                         prefService:(PrefService*)prefService {
   // Checks if user can't sign in.
-  switch (authenticationService->GetServiceStatus()) {
-    case AuthenticationService::ServiceStatus::SigninForcedByPolicy:
-    case AuthenticationService::ServiceStatus::SigninAllowed:
-      // The user is allowed to sign-in, so the sign-in/sync promo can be
-      // displayed.
-      break;
-    case AuthenticationService::ServiceStatus::SigninDisabledByUser:
-    case AuthenticationService::ServiceStatus::SigninDisabledByPolicy:
-    case AuthenticationService::ServiceStatus::SigninDisabledByInternal:
-      // The user is not allowed to sign-in. The promo cannot be displayed.
-      return NO;
+  if (!authenticationService->SigninEnabled()) {
+    // The user is not allowed to sign-in. The promo cannot be displayed.
+    return NO;
   }
 
   // Always show the feed signin promo if the experimental setting is enabled.

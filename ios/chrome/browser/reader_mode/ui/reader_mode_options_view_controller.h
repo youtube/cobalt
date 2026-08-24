@@ -12,16 +12,19 @@
 @protocol ReaderModeOptionsMutator;
 
 // View controller for the reader mode options.
-@interface ReaderModeOptionsViewController : UINavigationController
+@interface ReaderModeOptionsViewController : UIViewController
 
 // The view that contains the controls for the Reader Mode options.
-@property(nonatomic, strong, readonly)
-    ReaderModeOptionsControlsView* controlsView;
+@property(nonatomic, readonly) ReaderModeOptionsControlsView* controlsView;
 
 @property(nonatomic, weak) id<ReaderModeOptionsMutator> mutator;
 
 @property(nonatomic, weak) id<ReaderModeOptionsCommands>
     readerModeOptionsHandler;
+
+// Returns the appropriate detent value for a sheet presentation in `context`.
+- (CGFloat)resolveDetentValueForSheetPresentation:
+    (id<UISheetPresentationControllerDetentResolutionContext>)context;
 
 @end
 

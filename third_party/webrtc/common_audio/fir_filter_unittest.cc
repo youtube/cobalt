@@ -10,9 +10,8 @@
 
 #include "common_audio/fir_filter.h"
 
-#include <string.h>
-
 #include <array>
+#include <cstring>
 #include <memory>
 
 #include "common_audio/fir_filter_factory.h"

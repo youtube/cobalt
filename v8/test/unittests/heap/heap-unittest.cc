@@ -400,7 +400,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   if (v8_flags.single_generation) return;
   v8_flags.allow_natives_syntax = true;
   v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  if (!isolate()->use_optimizer() || v8_flags.always_turbofan) return;
+  if (!isolate()->use_optimizer()) return;
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking)
     return;
@@ -897,7 +897,7 @@ TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
 
   Address number_address = number->address();
 
-  i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+  i::MutablePageMetadata::FromHeapObject(*number)->SetFlagNonExecutable(
       i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
 
   InvokeMajorGC();
@@ -982,7 +982,7 @@ TEST_F(HeapTest,
   Address number_address = number->address();
 
   for (int i = 0; i < 10; i++) {
-    i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+    i::MutablePageMetadata::FromHeapObject(*number)->SetFlagNonExecutable(
         i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
     InvokeMajorGC();
     CHECK_EQ(number_address, number->address());

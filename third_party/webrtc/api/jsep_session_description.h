@@ -62,7 +62,8 @@ class JsepSessionDescription : public SessionDescriptionInterface {
   virtual bool RemoveCandidate(const IceCandidate* candidate);
   // TODO: https://issues.webrtc.org/42233526 - Remove this method in favor of
   // the IceCandidate version.
-  virtual size_t RemoveCandidates(const std::vector<Candidate>& candidates);
+  virtual size_t RemoveCandidates(absl::string_view mid,
+                                  const std::vector<Candidate>& candidates);
   virtual size_t number_of_mediasections() const;
   virtual const IceCandidateCollection* candidates(
       size_t mediasection_index) const;

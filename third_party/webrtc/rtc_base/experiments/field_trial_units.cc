@@ -9,8 +9,7 @@
  */
 #include "rtc_base/experiments/field_trial_units.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <limits>
 #include <optional>
 #include <string>

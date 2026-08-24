@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
@@ -48,6 +49,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_web_contents_listener.h"
+#include "chrome/browser/ui/tabs/tab_creation_metrics_controller.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
@@ -72,6 +74,7 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chrome/common/chrome_features.h"
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
@@ -256,6 +259,13 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           std::make_unique<glic::GlicTabIndicatorHelper>(&tab);
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
+    // TODO(crbug.com/433973411): Move this logic to a helper function.
+    if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+        profile->IsRegularProfile()) {
+      actor_ui_tab_controller_ =
+          std::make_unique<actor::ui::ActorUiTabController>(
+              tab, actor::ActorKeyedService::Get(profile));
+    }
   }  // IsInNormalWindow() end.
 
   // This block instantiates the page action controllers that depends on the
@@ -336,13 +346,12 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   tab_alert_controller_ = std::make_unique<TabAlertController>(tab);
 
+  tab_creation_metrics_controller_ =
+      std::make_unique<TabCreationMetricsController>(&tab);
+
   tab_ui_helper_ = std::make_unique<TabUIHelper>(tab);
 
   task_manager::WebContentsTags::CreateForTabContents(tab.GetContents());
-
-  // TODO(crbug.com/425952887): Gate behind feature flag.
-  actor_ui_tab_controller_ =
-      std::make_unique<actor::ui::ActorUiTabController>(tab);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)

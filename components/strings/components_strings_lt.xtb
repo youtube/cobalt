@@ -43,6 +43,7 @@
 <translation id="1070333806075222467">Metalas (blizgus)</translation>
 <translation id="1070901266639972381">Naktis</translation>
 <translation id="1073690811593784042">Stiklas (spalvotas)</translation>
+<translation id="1074287282535157335">Išsimokėkite per keturis kartus arba kas mėnesį (yra sąlygų)</translation>
 <translation id="1074497978438210769">Nesaugi</translation>
 <translation id="1074779248866616641">Rezultatas</translation>
 <translation id="1075364221219156102">Naudoti prieigos raktą</translation>
@@ -575,6 +576,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="1959001866257244765">Padėkite gerinti visų naudotojų saugumą žiniatinklyje – atsiųskite <ph name="BEGIN_WHITEPAPER_LINK" />lankomų puslapių URL, ribotos sistemos informacijos ir puslapių turinio<ph name="END_WHITEPAPER_LINK" /> į „Google“. <ph name="BEGIN_PRIVACY_PAGE_LINK" />Privatumo politika<ph name="END_PRIVACY_PAGE_LINK" /></translation>
 <translation id="1959445535228047762">Jūsų teksto ir puslapio turinys siunčiami „Google“ ir gali būti naudojami siekiant patobulinti šią funkciją.
   <ph name="BEGIN_LINK" />Sužinokite daugiau<ph name="END_LINK" /></translation>
+<translation id="1960664692890490165">Kai perkate naršyklėje „Chrome“, pateikiami ne kortelių mokėjimo metodai kaip parinktis</translation>
 <translation id="196146181975453736">Atlikite vienkartinę saugos patikrą, kad galėtumėte greičiau mokėti</translation>
 <translation id="1962204205936693436"><ph name="DOMAIN" /> žymės</translation>
 <translation id="1973335181906896915">Serijinio rengimo klaida</translation>
@@ -656,6 +658,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="2102134110707549001">Siūlyti sudėtingą slaptažodį…</translation>
 <translation id="2102495993840063010">„Android“ programos</translation>
 <translation id="2102519472192754194">Žiniatinklio naršyklės</translation>
+<translation id="2103210856015238101">Lojalumo kortelės, kurias galima užpildyti palietus, atidarytos per visą ekrano aukštį.</translation>
 <translation id="2105838220373099643">Vaidmenų žaidimai</translation>
 <translation id="2107021941795971877">Spausdinimo atraminės struktūros</translation>
 <translation id="2108755909498034140">Iš naujo paleiskite kompiuterį</translation>
@@ -1020,6 +1023,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="2690699652723742414">Pastarosios 30 dienų</translation>
 <translation id="2691385045260836588">Modelis</translation>
 <translation id="2691924980723297736">Saugos įspėjimas</translation>
+<translation id="2696385693639654606">„Chrome Enterprise Core“ leidžia valdyti naršyklės politiką, programas ir plėtinius iš debesies</translation>
 <translation id="2697248912349197812">Paklauskite „<ph name="KEYWORD_SHORT_NAME" />“</translation>
 <translation id="2699273987028089219">Pasiekiamas submeniu: norėdami naršyti papildomas parinktis, naudokite <ph name="SHORTCUT" />.</translation>
 <translation id="2701514975700770343">Gerąja puse į apačią</translation>
@@ -1141,6 +1145,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="2930531075747147366">Skirtukas iš kito jūsų įrenginio</translation>
 <translation id="2930577230479659665">Apkarpymas po kiekvienos kopijos</translation>
 <translation id="2933624813161016821">Įspausta folija</translation>
+<translation id="293796669683825859">Komentarai</translation>
 <translation id="2938225289965773019">Atidaryti „<ph name="PROTOCOL" />“ nuorodas</translation>
 <translation id="2940418897281183211">PNG vaizdas</translation>
 <translation id="2941878205777356567">9 x 12 col. vokas</translation>
@@ -1297,6 +1302,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="3187472288455401631">Skelbimų vertinimas</translation>
 <translation id="3190736958609431397">Nebestebėti</translation>
 <translation id="3194737229810486521"><ph name="URL" /> prašo leidimo nuolat saugoti duomenis jūsų įrenginyje</translation>
+<translation id="3194765668709099364">Klarna</translation>
 <translation id="3195213714973468956">„<ph name="PRINTER_NAME" />“ serveryje „<ph name="SERVER_NAME" />“</translation>
 <translation id="3197136577151645743">Gali būti prašoma leisti sužinoti, kada aktyviai naudojate įrenginį</translation>
 <translation id="3201482403106004262">Įvyko apklausos klaida.</translation>
@@ -1772,6 +1778,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="3963721102035795474">Skaitytojo režimas</translation>
 <translation id="3965672182149944205">Išsaugoti adresą?</translation>
 <translation id="3966044442021752214">Produkto sauga</translation>
+<translation id="396761677631735618">Lojalumo kortelės, kurias galima užpildyti palietus, atidarytos per pusę ekrano aukščio.</translation>
 <translation id="3969869202926863008">Vietinio tinklo pasiekiamumas</translation>
 <translation id="3970239200223030389">Išdavimo data</translation>
 <translation id="397105322502079400">Skaičiuojama...</translation>
@@ -1892,6 +1899,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="4165986682804962316">Svetainės nustatymai</translation>
 <translation id="4169189393773057143">Tvarkykite lojalumo korteles arba išjunkite šiuos pasiūlymus naudodami „Google Wallet“</translation>
 <translation id="4169535189173047238">Neleisti</translation>
+<translation id="4170851022123611628">Lojalumo kortelių sąrašas uždarytas.</translation>
 <translation id="4171400957073367226">Netinkamas patvirtinimo parašas</translation>
 <translation id="4171489848299289778"><ph name="RESULT_MODIFIED_DATE" /> – <ph name="RESULT_OWNER" /> – <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="4171557247032367596">Užraktai ir spynų meistrai</translation>
@@ -1900,6 +1908,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="4173827307318847180">{MORE_ITEMS,plural, =1{Dar <ph name="ITEM_COUNT" /> elementas}one{Dar <ph name="ITEM_COUNT" /> elementas}few{Dar <ph name="ITEM_COUNT" /> elementai}many{Dar <ph name="ITEM_COUNT" /> elemento}other{Dar <ph name="ITEM_COUNT" /> elementų}}</translation>
 <translation id="4176463684765177261">Išjungta</translation>
 <translation id="4177501066905053472">Skelbimų temos</translation>
+<translation id="4178863275556660738">Naudoti mokėjimo ne kortele būdus</translation>
 <translation id="4179515394835346607"><ph name="ROW_NAME" /> <ph name="ROW_CONTENT" /></translation>
 <translation id="4186035307311647330">Nebestebėti kainų</translation>
 <translation id="4190446002599583608">Istorijos paieška, kurią teikia DI</translation>
@@ -1987,6 +1996,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="4298000214066716287">Investavimas</translation>
 <translation id="42981349822642051">Išskleisti</translation>
 <translation id="4298925811540301889">Šios svetainės slapukai sinchronizuojami „ChromeOS“ įrenginiuose. Jei norite tvarkyti sinchronizuojamą turinį, eikite į skiltį „<ph name="SYNC_SETTINGS" />“.</translation>
+<translation id="4300272766492248925">Atidaryti programą</translation>
 <translation id="4300675098767811073">Kelios skylės dešinėje</translation>
 <translation id="4302514097724775343">Palieskite dinozaurą, kad paleistumėte</translation>
 <translation id="4304049446746819918">{0,plural, =1{Pagal administratoriaus politikos nuostatas nerekomenduojama perkelti šio failo į <ph name="DESTINATION_NAME" />}one{Pagal administratoriaus politikos nuostatas nerekomenduojama perkelti šių failų į <ph name="DESTINATION_NAME" />}few{Pagal administratoriaus politikos nuostatas nerekomenduojama perkelti šių failų į <ph name="DESTINATION_NAME" />}many{Pagal administratoriaus politikos nuostatas nerekomenduojama perkelti šių failų į <ph name="DESTINATION_NAME" />}other{Pagal administratoriaus politikos nuostatas nerekomenduojama perkelti šių failų į <ph name="DESTINATION_NAME" />}}</translation>
@@ -2095,6 +2105,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="449126573531210296">Šifruoti sinchronizuotus slaptažodžius naudojant „Google“ paskyrą</translation>
 <translation id="4493480324863638523">Netinkamas URL. Tai turi būti įprastos schemos URL, pvz., http://example.com arba https://example.com.</translation>
 <translation id="4494323206460475851">Galite peržiūrėti skelbimų temas nustatymuose ir užblokuoti tas, kurių nenorite bendrinti su svetainėmis. „Chrome“ taip pat automatiškai ištrina senesnes nei keturių savaičių skelbimų temas.</translation>
+<translation id="4497010149473852018">Lojalumo korteles galima užpildyti palietus. Klaviatūra paslėpta.</translation>
 <translation id="4500587658229086076">nesaugus turinys</translation>
 <translation id="4504850595255879616"><ph name="ENGINE" /> žmonių</translation>
 <translation id="450602096898954067">Tikrinantys žmonės gali matyti duomenis, kad galėtų tobulinti šią funkciją</translation>
@@ -2662,6 +2673,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="5466018172325111652">Negavote kodo? <ph name="BEGIN_LINK" />Gaukite naują kodą<ph name="END_LINK" /></translation>
 <translation id="5470861586879999274">&amp;Redaguoti dar kartą</translation>
 <translation id="5472588168895083535">Rankų stebėjimas užblokuotas</translation>
+<translation id="5479505548832623900">Tikėtina, kad plėtinys nepaisė.</translation>
 <translation id="547963486735802022">Pabandykite dar kartą perkelti failus</translation>
 <translation id="5481076368049295676">Šiuo turiniu gali būti bandoma priversti jus įrenginyje įdiegti pavojingą programinę įrangą, kuri vagia arba ištrina jūsų informaciją. <ph name="BEGIN_LINK" />Rodyti vis tiek<ph name="END_LINK" /></translation>
 <translation id="5481604577800516617">Langų ir skirtukų išdėstymas</translation>
@@ -3027,6 +3039,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="6101583188322746099">Maisto prekių pristatymas</translation>
 <translation id="6104072995492677441">JIS B6</translation>
 <translation id="6105460996796456817">Sukurti svetainę</translation>
+<translation id="6105511947520166941">Kitą kartą mokėkite naudodami „Pix“ tiesiogiai naršyklėje „Chrome“</translation>
 <translation id="6106989379647458772">Gali būti, kad tinklalapis adresu <ph name="PAGE" /> laikinai neveikia arba yra visam laikui perkeltas nauju žiniatinklio adresu.</translation>
 <translation id="6107012941649240045">Išduotas</translation>
 <translation id="6107864469867367783"><ph name="USER_DISPLAY_NAME" /> pakeitė grupės pavadinimą</translation>
@@ -3136,6 +3149,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="6284449872909111707">Teksto ir tikralaikio pokalbio žinutės</translation>
 <translation id="6284517535531159884">Variantų šaltinio tipas</translation>
 <translation id="6287197303017372967">Gaukite nuoseklias nuorodas į kelionės tikslą naudodami navigacijos funkciją.</translation>
+<translation id="6288559570252410796">Klausti „Google“ DI režimu</translation>
 <translation id="628877850550444614">Rasta nuolaida</translation>
 <translation id="6289939620939689042">Puslapio spalva</translation>
 <translation id="6292819926564202163">Paieškos variklis naršyklėje „Chrome“</translation>
@@ -3302,6 +3316,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="6527049834925947126">Maisto gamyba</translation>
 <translation id="6529173248185917884">Septintas ritinėlis</translation>
 <translation id="6529602333819889595">&amp;Ištrinti dar kartą</translation>
+<translation id="6532101170117367231">Išsaugoti „Google“ diske</translation>
 <translation id="6535617236508021606">Ši kortelė išsaugota jūsų „Google“ paskyroje, kad galėtumėte ją naudoti „Google“ paslaugose.</translation>
 <translation id="6536221421038631327">Pašalinus „Passpoint“ prenumeratą iš „<ph name="DEVICE_TYPE" />“ bus pašalinti susiję tinklai. Susisiekite su „<ph name="FRIENDLY_NAME" />“ ir atlikite prenumeratos plano pakeitimus. <ph name="LEARN_MORE" /></translation>
 <translation id="653801826293432362">Norėdami peržiūrėti palyginimo lenteles, įjunkite sinchronizavimą</translation>
@@ -3549,6 +3564,7 @@ Kitu atveju tai bus užblokuota pagal jūsų privatumo nustatymus. Taip turinys,
 <translation id="6970885655016700774">Audinys (archyvinis)</translation>
 <translation id="6971439137020188025">Greitai sukurkite naują „Google“ pristatymą Skaidrėse</translation>
 <translation id="6972629891077993081">HID įrenginiai</translation>
+<translation id="6972867931824045907">Jei norite naudoti iškarpinę, suteikite „Chrome“ prieigą <ph name="LINK" />.</translation>
 <translation id="6973656660372572881">Nurodyti fiksuoti įgaliotieji serveriai ir .pac scenarijaus URL.</translation>
 <translation id="6973988895180423160">3,5 x 5 col.</translation>
 <translation id="6978121630131642226">Paieškos sistemos</translation>
@@ -3912,6 +3928,7 @@ Papildoma išsami informacija:
 <translation id="7569490014721427265">Golfas</translation>
 <translation id="7569952961197462199">Pašalinti kredito kortelės informaciją iš „Chrome“?</translation>
 <translation id="7569983096843329377">Juoda</translation>
+<translation id="7571813784389228510">„Google“ DI režimas</translation>
 <translation id="7574998639136359461">Žiemos sporto įranga</translation>
 <translation id="7575207903026901870">Pašalinkite pasiūlymo mygtuką, paspauskite „Enter“, kad pašalintumėte šį pasiūlymą</translation>
 <translation id="7575800019233204241">„Ryšys nėra privatus“, „&lt;span class="error-code"&gt;NET::ERR_CERT_AUTHORITY_INVALID&lt;/span&gt;“, „&lt;span class="error-code"&gt;ERR_CERT_COMMON_NAME_INVALID&lt;/span&gt;“, „&lt;span class="error-code"&gt;NET::ERR_CERT_WEAK_SIGNATURE_ALGORITHM&lt;/span&gt;“ arba „SSL sertifikato klaida“</translation>
@@ -4349,6 +4366,7 @@ Papildoma išsami informacija:
 <translation id="831997045666694187">Vakaras</translation>
 <translation id="8321448084834652864">Paieškos variklį galite bet kada pakeisti „Chromium“ nustatymuose.</translation>
 <translation id="8321476692217554900">pranešimai</translation>
+<translation id="8322230666450346681"><ph name="STARTER_PACK_AI_MODE_FOCUSED_FRIENDLY_MATCH_TEXT" />, paspauskite „Enter“, jei norite užduoti klausimą „Google“ DI režimu</translation>
 <translation id="8322402665880479974">Lovos ir galvūgaliai</translation>
 <translation id="8323505966575306467">Užtikrinkite geresnę slaptažodžių apsaugą</translation>
 <translation id="832547548543012337">Ištrinti pasą</translation>
@@ -4433,7 +4451,6 @@ Papildoma išsami informacija:
 <translation id="8460854335417802511">Įjungti</translation>
 <translation id="8461694314515752532">Šifruokite sinchronizuojamus duomenis taikydami savo sinchronizavimo slaptafrazę</translation>
 <translation id="8461973047386722744">Slaptažodžių nerasta</translation>
-<translation id="8465128304789431677">Mokėjimas naudojant „Pix“ tiesiogiai naršyklėje „Chrome“</translation>
 <translation id="8467494337615822642">Eiti į „Chrome“ saugos patikros puslapį nustatymuose</translation>
 <translation id="8468358362970107653">C3 vokas</translation>
 <translation id="8469428721212363950">Mažmeninė prekyba</translation>
@@ -4640,6 +4657,7 @@ Papildoma išsami informacija:
 <translation id="883848425547221593">Kitos žymės</translation>
 <translation id="8842351563145134519">Mokėjimo metodai, kuriuos galima užpildyti palietus, atidaryti per pusę ekrano aukščio.</translation>
 <translation id="884264119367021077">Siuntimo adresas</translation>
+<translation id="8849032795302265570">Lengvai tvarkykite, kaip jūsų darbuotojai naršo žiniatinklį</translation>
 <translation id="8849231003559822746">130 x 180 mm</translation>
 <translation id="884923133447025588">Nerasta atšaukimo mechanizmo.</translation>
 <translation id="8849262850971482943">Naudokite virtualią kortelę didesnei saugai užtikrinti</translation>
@@ -4890,6 +4908,7 @@ Papildoma išsami informacija:
 <translation id="950926967802086924">Prieigos raktas • „Google“ slaptažodžių tvarkyklė</translation>
 <translation id="955429569736351433">VR leidžiama</translation>
 <translation id="955627189349169688">Šios politikos galite atsisakyti <ph name="BEGIN_LINK" />„Chrome“ sinchronizavimo funkcijos nustatymuose<ph name="END_LINK" />.</translation>
+<translation id="95676157383774931">DI režimo mygtukas: suaktyvinkite, kad galėtumėte užduoti klausimą „Google“ DI režimu</translation>
 <translation id="95721182352849470">2 geltona</translation>
 <translation id="961663415146723894">Įrišimas apačioje</translation>
 <translation id="961856697154696964">Ištrinti naršymo duomenis</translation>

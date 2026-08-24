@@ -552,8 +552,7 @@ void GrTriangulator::pathToContours(float tolerance, const SkRect& clipBounds,
     VertexList* contour = contours;
     SkPath::Iter iter(fPath, false);
     if (fPath.isInverseFillType()) {
-        SkPoint quad[4];
-        clipBounds.toQuad(quad);
+        const std::array<SkPoint, 4> quad = clipBounds.toQuad();
         for (int i = 3; i >= 0; i--) {
             this->appendPointToContour(quad[i], contours);
         }
@@ -1807,10 +1806,9 @@ static int get_contour_count(const SkPath& path, SkScalar tolerance) {
 
 std::tuple<Poly*, bool> GrTriangulator::pathToPolys(float tolerance, const SkRect& clipBounds, bool* isLinear) {
     int contourCnt = get_contour_count(fPath, tolerance);
-    bool countLeZero = contourCnt <= 0;
-    if (countLeZero || contourCnt > kMaxContourCount) {
+    if (contourCnt <= 0) {
         *isLinear = true;
-        return { nullptr, countLeZero };
+        return { nullptr, true };
     }
 
     if (SkPathFillType_IsInverse(fPath.getFillType())) {

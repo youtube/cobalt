@@ -1242,6 +1242,7 @@ public class PeerConnectionEndToEndTest {
     PeerConnection.RTCConfiguration rtcConfig =
         new PeerConnection.RTCConfiguration(Collections.emptyList());
     rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
+    rtcConfig.cryptoOptions = CryptoOptions.builder().createCryptoOptions();
     // NONE would prevent any candidate being signaled to the PC.
     rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.NONE;
     // We must have the continual gathering enabled to allow the surfacing of candidates on the ICE

@@ -10,7 +10,7 @@
 
 #include "modules/audio_processing/aec3/aec3_common.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/cpu_info.h"

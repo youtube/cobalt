@@ -81,8 +81,8 @@ std::vector<Suggestion> CreateAutofillProfileSuggestions() {
 
   suggestions.emplace_back(SuggestionType::kSeparator);
 
-  Suggestion settings(l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_ADDRESSES));
-  settings.type = SuggestionType::kManageAddress;
+  Suggestion settings(l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_ADDRESSES),
+                      SuggestionType::kManageAddress);
   settings.icon = Suggestion::Icon::kSettings;
   suggestions.push_back(std::move(settings));
 
@@ -100,8 +100,8 @@ std::vector<Suggestion> CreateCreditCardSuggestions() {
   suggestions.emplace_back(SuggestionType::kSeparator);
 
   Suggestion settings(
-      l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS));
-  settings.type = SuggestionType::kManageCreditCard;
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_PAYMENT_METHODS),
+      SuggestionType::kManageCreditCard);
   settings.icon = Suggestion::Icon::kSettings;
   suggestions.push_back(std::move(settings));
 
@@ -269,6 +269,81 @@ class PopupViewViewsBrowsertestBase
   std::unique_ptr<PopupViewViews> popup_parent_;
 };
 
+class PopupViewViewsBrowsertestNewFopOn : public PopupViewViewsBrowsertestBase {
+ protected:
+  base::test::ScopedFeatureList feature_list_{
+      features::kAutofillEnableNewFopDisplayDesktop};
+};
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertestNewFopOn, InvokeUi_CreditCard) {
+  PrepareSuggestions(CreateCreditCardSuggestions());
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertestNewFopOn,
+                       InvokeUi_CreditCard_MultipleLabels) {
+  Suggestion suggestion1(
+      "Visa",
+      {{Suggestion::Text(u"Filling credit card - your card for payments"),
+        Suggestion::Text(u"Alexander Joseph Ricardo Park")},
+       {Suggestion::Text(u"Full credit card"), Suggestion::Text(u"Alex Park")}},
+      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
+
+  // Also create a 1 label line suggestion to make sure they work well together.
+  Suggestion suggestion2(
+      "Visa",
+      {{Suggestion::Text(u"Filling credit card - your card for payments")}},
+      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
+  PrepareSuggestions({suggestion1, suggestion2});
+  ShowAndVerifyUi();
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PopupViewViewsBrowsertestNewFopOn,
+                         Combine(Bool(), Bool()),
+                         PopupViewViewsBrowsertestBase::GetTestSuffix);
+
+class PopupViewViewsBrowsertestNewFopOff
+    : public PopupViewViewsBrowsertestBase {
+ public:
+  PopupViewViewsBrowsertestNewFopOff() {
+    feature_list_.InitAndDisableFeature(
+        features::kAutofillEnableNewFopDisplayDesktop);
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertestNewFopOff,
+                       InvokeUi_CreditCard) {
+  PrepareSuggestions(CreateCreditCardSuggestions());
+  ShowAndVerifyUi();
+}
+
+IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertestNewFopOff,
+                       InvokeUi_CreditCard_MultipleLabels) {
+  Suggestion suggestion1(
+      "Visa",
+      {{Suggestion::Text(u"Filling credit card - your card for payments"),
+        Suggestion::Text(u"Alexander Joseph Ricardo Park")},
+       {Suggestion::Text(u"Full credit card"), Suggestion::Text(u"Alex Park")}},
+      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
+
+  // Also create a 1 label line suggestion to make sure they work well together.
+  Suggestion suggestion2(
+      "Visa",
+      {{Suggestion::Text(u"Filling credit card - your card for payments")}},
+      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
+  PrepareSuggestions({suggestion1, suggestion2});
+  ShowAndVerifyUi();
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         PopupViewViewsBrowsertestNewFopOff,
+                         Combine(Bool(), Bool()),
+                         PopupViewViewsBrowsertestBase::GetTestSuffix);
+
 using PopupViewViewsBrowsertest = PopupViewViewsBrowsertestBase;
 
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest, InvokeUi_Autocomplete) {
@@ -334,11 +409,6 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
   ShowAndVerifyUi();
 }
 
-IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest, InvokeUi_CreditCard) {
-  PrepareSuggestions(CreateCreditCardSuggestions());
-  ShowAndVerifyUi();
-}
-
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest, InvokeUi_Passwords) {
   PrepareSuggestions(CreatePasswordSuggestions());
   ShowAndVerifyUi();
@@ -365,42 +435,22 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
 }
 
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
-                       InvokeUi_CreditCard_MultipleLabels) {
-  Suggestion suggestion1(
-      "Visa",
-      {{Suggestion::Text(u"Filling credit card - your card for payments"),
-        Suggestion::Text(u"Alexander Joseph Ricardo Park")},
-       {Suggestion::Text(u"Full credit card"), Suggestion::Text(u"Alex Park")}},
-      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
-
-  // Also create a 1 label line suggestion to make sure they work well together.
-  Suggestion suggestion2(
-      "Visa",
-      {{Suggestion::Text(u"Filling credit card - your card for payments")}},
-      Suggestion::Icon::kCardVisa, SuggestionType::kCreditCardEntry);
-  PrepareSuggestions({suggestion1, suggestion2});
-  ShowAndVerifyUi();
-}
-
-IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
                        InvokeUi_Passwords_PasswordField) {
   // An account store entry.
   std::vector<Suggestion> suggestions;
-  Suggestion entry1(u"User1");
+  Suggestion entry1(u"User1", SuggestionType::kAccountStoragePasswordEntry);
   entry1.main_text.is_primary = Suggestion::Text::IsPrimary(true);
   entry1.labels = {{Suggestion::Text(
       std::u16string(10, gfx::RenderText::kPasswordReplacementChar))}};
-  entry1.type = SuggestionType::kAccountStoragePasswordEntry;
   entry1.icon = Suggestion::Icon::kGlobe;
   entry1.trailing_icon = Suggestion::Icon::kGoogle;
   suggestions.push_back(std::move(entry1));
 
   // A profile store entry.
-  Suggestion entry2(u"User2");
+  Suggestion entry2(u"User2", SuggestionType::kPasswordEntry);
   entry2.main_text.is_primary = Suggestion::Text::IsPrimary(true);
   entry2.labels = {{Suggestion::Text(
       std::u16string(6, gfx::RenderText::kPasswordReplacementChar))}};
-  entry2.type = SuggestionType::kPasswordEntry;
   entry2.icon = Suggestion::Icon::kGlobe;
   entry2.trailing_icon = Suggestion::Icon::kNoIcon;
   suggestions.push_back(std::move(entry2));
@@ -409,8 +459,8 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
 
   // The entry to open settings.
   Suggestion settings(
-      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MANAGE_PASSWORDS));
-  settings.type = SuggestionType::kAllSavedPasswordsEntry;
+      l10n_util::GetStringUTF16(IDS_PASSWORD_MANAGER_MANAGE_PASSWORDS),
+      SuggestionType::kAllSavedPasswordsEntry);
   settings.icon = Suggestion::Icon::kSettings;
   settings.trailing_icon = Suggestion::Icon::kGooglePasswordManager;
   suggestions.push_back(std::move(settings));
@@ -422,8 +472,8 @@ IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
 IN_PROC_BROWSER_TEST_P(PopupViewViewsBrowsertest,
                        InvokeUi_InsecureContext_PaymentDisabled) {
   Suggestion warning(
-      l10n_util::GetStringUTF16(IDS_AUTOFILL_WARNING_INSECURE_CONNECTION));
-  warning.type = SuggestionType::kInsecureContextPaymentDisabledMessage;
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_WARNING_INSECURE_CONNECTION),
+      SuggestionType::kInsecureContextPaymentDisabledMessage);
   PrepareSuggestions({std::move(warning)});
   ShowAndVerifyUi();
 }

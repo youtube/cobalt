@@ -10,19 +10,6 @@
 
 #pragma warning(disable : 4995)  // name was marked as #pragma deprecated
 
-#if (_MSC_VER >= 1310) && (_MSC_VER < 1400)
-// Reports the major and minor versions of the compiler.
-// For example, 1310 for Microsoft Visual C++ .NET 2003. 1310 represents version
-// 13 and a 1.0 point release. The Visual C++ 2005 compiler version is 1400.
-// Type cl /? at the command line to see the major and minor versions of your
-// compiler along with the build number.
-#pragma message(">> INFO: Windows Core Audio is not supported in VS 2003")
-#endif
-
-#include "modules/audio_device/audio_device_config.h"  // IWYU pragma: keep
-
-#ifdef WEBRTC_WINDOWS_CORE_AUDIO_BUILD
-
 // clang-format off
 // To get Windows includes in the right order, this must come before the Windows
 // includes below.
@@ -4166,6 +4153,5 @@ bool AudioDeviceWindowsCore::KeyPressed() const {
   }
   return (key_down > 0);
 }
-}  // namespace webrtc
 
-#endif  // WEBRTC_WINDOWS_CORE_AUDIO_BUILD
+}  // namespace webrtc

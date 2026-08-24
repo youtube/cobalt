@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "chrome/browser/extensions/window_controller.h"
+#include "components/tabs/public/split_tab_id.h"
 
 // TODO(jamescook): Switch most of these guards to ENABLE_EXTENSIONS.
 #if !BUILDFLAG(IS_ANDROID)
@@ -67,9 +68,9 @@ class ExtensionTabUtil {
 #endif
   static constexpr char kNoCurrentWindowError[] = "No current window";
   static constexpr char kWindowNotFoundError[] = "No window with id: *.";
-#if !BUILDFLAG(IS_ANDROID)
   static constexpr char kTabStripNotEditableError[] =
       "Tabs cannot be edited right now (user may be dragging a tab).";
+#if !BUILDFLAG(IS_ANDROID)
   static constexpr char kTabStripDoesNotSupportTabGroupsError[] =
       "Grouping is not supported by tabs in this window.";
 #endif
@@ -248,6 +249,9 @@ class ExtensionTabUtil {
   // Gets the extensions-specific Group ID.
   static int GetGroupId(const tab_groups::TabGroupId& id);
 
+  // Gets the extensions-specific split view ID.
+  static int GetSplitId(const split_tabs::SplitTabId& id);
+
 #if !BUILDFLAG(IS_ANDROID)
   // Gets the window ID that the group belongs to.
   static int GetWindowIdOfGroup(const tab_groups::TabGroupId& id);
@@ -372,13 +376,20 @@ class ExtensionTabUtil {
   // contexts.
   static void ClearBackForwardCache();
 
-#if !BUILDFLAG(IS_ANDROID)
   // Check TabStripModel editability in every browser because a drag session
   // could be running in another browser that reverts to the current browser. Or
   // a drag could be mid-handoff if from one browser to another.
   static bool IsTabStripEditable();
 
+  // Retrieve the corresponding TabListInterface for the specified `browser` if
+  // and only if every browser's tab list is editable. See comments above
+  // IsTabStripEditable() for details.
+  static TabListInterface* GetEditableTabList(BrowserWindowInterface& browser);
+
+#if !BUILDFLAG(IS_ANDROID)
   // Retrieve a TabStripModel only if every browser is editable.
+  // TODO(https://crbug.com/430344931): Remove this in favor of
+  // GetEditableTabList().
   static TabStripModel* GetEditableTabStripModel(Browser* browser);
 
   static bool TabIsInSavedTabGroup(content::WebContents* contents,

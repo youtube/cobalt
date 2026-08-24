@@ -34,6 +34,9 @@ BASE_DECLARE_FEATURE(kAutofillAiIgnoreGeoIp);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAiIgnoreLocale);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(
+    kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph);
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAiNationalIdCard);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillAiNoTagTypes);
@@ -223,6 +226,11 @@ extern const base::FeatureParam<int>
     kAutofillMoreProminentPopupMaxOffsetToCenterParam;
 COMPONENT_EXPORT(AUTOFILL) BASE_DECLARE_FEATURE(kAutofillMoreProminentPopup);
 COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillLabelSensitiveAutocomplete);
+COMPONENT_EXPORT(AUTOFILL)
+extern const base::FeatureParam<int>
+    kAutofillLabelSensitiveAutocompleteMigrationGeneration;
+COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillLogUKMEventsWithSamplingOnSession);
 COMPONENT_EXPORT(AUTOFILL)
 extern const base::FeatureParam<int>
@@ -284,6 +292,8 @@ COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kUseSettingsAddressEditorInPaymentsRequest);
+COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary);
 
 // Identifies different strings that can be used in the CTA button for the
 // Autofill Iph.
@@ -295,6 +305,8 @@ enum class AutofillIphCTAVariationsStringVarations {
 };
 
 #if BUILDFLAG(IS_ANDROID)
+COMPONENT_EXPORT(AUTOFILL)
+BASE_DECLARE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty);
 COMPONENT_EXPORT(AUTOFILL)
 BASE_DECLARE_FEATURE(kAutofillDeepLinkAutofillOptions);
 COMPONENT_EXPORT(AUTOFILL)

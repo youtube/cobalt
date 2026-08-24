@@ -15,7 +15,9 @@
 #import "components/bookmarks/browser/bookmark_model.h"
 #import "components/omnibox/browser/autocomplete_classifier.h"
 #import "components/omnibox/browser/autocomplete_controller.h"
+#import "components/omnibox/browser/autocomplete_input.h"
 #import "components/omnibox/browser/autocomplete_match.h"
+#import "components/omnibox/browser/autocomplete_result.h"
 #import "components/omnibox/browser/clipboard_provider.h"
 #import "components/omnibox/browser/history_url_provider.h"
 #import "components/omnibox/browser/omnibox_client.h"
@@ -427,6 +429,46 @@ using base::UserMetricsAction;
   [self startAutocompleteWithInput:input];
 }
 
+- (void)resetSession {
+  if (_autocompleteController) {
+    _autocompleteController->ResetSession();
+  }
+}
+
+- (BOOL)findMatchForInput:(const AutocompleteInput&)input
+                     match:(AutocompleteMatch*)match
+    alternateNavigationURL:(GURL*)alternateNavigationURL {
+  // If there's a query in progress or the popup is open, pick out the default
+  // match or selected match, if there is one.
+  BOOL foundMatch = NO;
+  if (_autocompleteController &&
+      (!_autocompleteController->done() || self.hasSuggestions)) {
+    if (!_autocompleteController->done() &&
+        _autocompleteController->result().default_match()) {
+      // The user cannot have manually selected a match, or the query would have
+      // stopped. So the default match must be the desired selection.
+      *match = *_autocompleteController->result().default_match();
+      foundMatch = YES;
+      if (alternateNavigationURL) {
+        *alternateNavigationURL = [self computeAlternateNavURLForInput:input
+                                                                 match:*match];
+      }
+    }
+  }
+  return foundMatch;
+}
+
+- (GURL)computeAlternateNavURLForInput:(const AutocompleteInput&)input
+                                 match:(const AutocompleteMatch&)match {
+  if (!_autocompleteController) {
+    return GURL();
+  }
+  AutocompleteProviderClient* providerClient =
+      _autocompleteController->autocomplete_provider_client();
+  return AutocompleteResult::ComputeAlternateNavUrl(input, match,
+                                                    providerClient);
+}
+
 - (void)closeOmniboxPopup {
   [self stopAutocompleteWithClearSuggestions:YES];
 }
@@ -450,6 +492,10 @@ using base::UserMetricsAction;
             isFirstUpdate:(BOOL)isFirstUpdate {
   [self.omniboxTextController previewSuggestion:suggestion
                                   isFirstUpdate:isFirstUpdate];
+}
+
+- (const AutocompleteResult*)autocompleteResult {
+  return _autocompleteController ? &_autocompleteController->result() : nullptr;
 }
 
 #pragma mark - Prefetch events
@@ -802,8 +848,6 @@ using base::UserMetricsAction;
     // Update the autocomplete controller in the metrics recorder and the text
     // controller.
     [self.omniboxMetricsRecorder
-        setAutocompleteController:_autocompleteController.get()];
-    [self.omniboxTextController
         setAutocompleteController:_autocompleteController.get()];
   }
 }

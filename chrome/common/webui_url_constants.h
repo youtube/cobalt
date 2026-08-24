@@ -19,6 +19,7 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/common/buildflags.h"
+#include "components/enterprise/buildflags/buildflags.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "content/public/common/url_constants.h"
 #include "media/media_buildflags.h"
@@ -40,6 +41,8 @@ inline constexpr char kChromeUIAccessibilityHost[] = "accessibility";
 inline constexpr char kChromeUIActivateSafetyCheckSettingsURL[] =
     "chrome://settings/safetyCheck?activateSafetyCheck";
 inline constexpr char kChromeUIActorInternalsHost[] = "actor-internals";
+inline constexpr char kChromeUIActorOverlayHost[] = "actor-overlay";
+inline constexpr char kChromeUIActorOverlayURL[] = "chrome://actor-overlay";
 inline constexpr char kChromeUIAllSitesPath[] = "/content/all";
 inline constexpr char kChromeUIAppIconHost[] = "app-icon";
 inline constexpr char kChromeUIAppIconURL[] = "chrome://app-icon/";
@@ -73,6 +76,8 @@ inline constexpr char kChromeUIColorPipelineInternalsURL[] =
 inline constexpr char kChromeUIComponentsHost[] = "components";
 inline constexpr char kChromeUIComponentsUrl[] = "chrome://components";
 inline constexpr char kChromeUIConflictsHost[] = "conflicts";
+inline constexpr char kChromeUIConnectorsInternalsHost[] =
+    "connectors-internals";
 inline constexpr char kChromeUIConstrainedHTMLTestURL[] =
     "chrome://constrained-test/";
 inline constexpr char kChromeUIContentSettingsURL[] =
@@ -550,12 +555,6 @@ inline constexpr char kChromeUIOsUrlAppURL[] = "chrome://internal/";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
-inline constexpr char kChromeUIConnectorsInternalsHost[] =
-    "connectors-internals";
-#endif
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_DESKTOP_ANDROID)
 inline constexpr char kChromeUIDiscardsHost[] = "discards";
 inline constexpr char kChromeUIDiscardsURL[] = "chrome://discards/";
@@ -621,6 +620,17 @@ inline constexpr char kChromeUISessionServiceInternalsPath[] =
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 inline constexpr char kChromeUITabStripHost[] = "tab-strip.top-chrome";
 inline constexpr char kChromeUITabStripURL[] = "chrome://tab-strip.top-chrome";
+#endif
+
+#if BUILDFLAG(ENTERPRISE_WATERMARK)
+inline constexpr char kChromeUIWatermarkHost[] = "watermark";
+inline constexpr char kChromeUIWatermarkURL[] = "chrome://watermark/";
+#endif
+
+#if BUILDFLAG(ENABLE_SESSION_SERVICE)
+inline constexpr char kChromeUITabStripInternalsHost[] = "tab-strip-internals";
+inline constexpr char kChromeUITabStripInternalsURL[] =
+    "chrome://tab-strip-internals";
 #endif
 
 // Settings sub-pages.

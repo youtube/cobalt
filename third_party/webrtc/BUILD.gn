@@ -529,6 +529,7 @@ if (!build_with_chromium) {
     defines = []
 
     deps = [
+      "api:create_modular_peer_connection_factory",
       "api:create_peerconnection_factory",
       "api:enable_media",
       "api:libjingle_peerconnection_api",
@@ -539,7 +540,6 @@ if (!build_with_chromium) {
       "api/rtc_event_log:rtc_event_log_factory",
       "api/task_queue",
       "api/task_queue:default_task_queue_factory",
-      "api/test/metrics",
       "api/video_codecs:video_decoder_factory_template",
       "api/video_codecs:video_decoder_factory_template_dav1d_adapter",
       "api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",

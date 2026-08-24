@@ -29,7 +29,6 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/proto/web_app.equal.h"
 #include "chrome/browser/web_applications/proto/web_app.ostream.h"
@@ -56,6 +55,7 @@
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/sync/protocol/web_app_specifics.to_value.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
@@ -207,6 +207,24 @@ base::Value RelatedApplicationsToDebugValue(
     related_applications_json.Append(std::move(related_application_json));
   }
   return base::Value(std::move(related_applications_json));
+}
+
+void CheckValidPendingUpdateInfo(
+    const std::optional<proto::PendingUpdateInfo>& pending_update_info) {
+  if (pending_update_info.has_value()) {
+    CHECK(pending_update_info->has_name() ||
+          (!pending_update_info->trusted_icons().empty() &&
+           !pending_update_info->manifest_icons().empty()));
+    if (!pending_update_info->trusted_icons().empty() &&
+        !pending_update_info->manifest_icons().empty()) {
+      for (const auto& icon : pending_update_info->trusted_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+      for (const auto& icon : pending_update_info->manifest_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+    }
+  }
 }
 }  // namespace
 
@@ -609,6 +627,10 @@ void WebApp::SetSyncProto(sync_pb::WebAppSpecifics sync_proto) {
       !syncer::StringOrdinal(sync_proto.user_page_ordinal()).IsValid()) {
     sync_proto.clear_user_page_ordinal();
   }
+  if (!ParseAppIconInfos("SetSyncProtoTrustedIcons", sync_proto.trusted_icons())
+           .has_value()) {
+    sync_proto.clear_trusted_icons();
+  }
 
   sync_proto_ = std::move(sync_proto);
 }
@@ -798,17 +820,12 @@ void WebApp::SetGeneratedIconFix(
 
 void WebApp::SetPendingUpdateInfo(
     std::optional<proto::PendingUpdateInfo> pending_update_info) {
-  if (pending_update_info.has_value()) {
-    CHECK(pending_update_info->has_name() ||
-          pending_update_info->has_short_name() ||
-          !pending_update_info->manifest_icons().empty());
-    if (!pending_update_info->manifest_icons().empty()) {
-      for (const auto& icon : pending_update_info->manifest_icons()) {
-        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
-      }
-    }
-  }
+  CheckValidPendingUpdateInfo(pending_update_info);
   pending_update_info_ = std::move(pending_update_info);
+}
+
+void WebApp::SetTrustedIcons(std::vector<apps::IconInfo> trusted_icons) {
+  trusted_icons_ = std::move(trusted_icons);
 }
 
 WebApp::ClientData::ClientData() = default;
@@ -955,7 +972,8 @@ bool WebApp::operator==(const WebApp& other) const {
         app.was_shortcut_app_,
         app.related_applications_,
         app.diy_app_icons_masked_on_mac_,
-        app.pending_update_info_
+        app.pending_update_info_,
+        app.trusted_icons_
         // clang-format on
     );
   };
@@ -1156,11 +1174,7 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("latest_install_time", base::ToString(latest_install_time_));
 
-  if (generated_icon_fix_.has_value()) {
-    root.Set("generated_icon_fix", proto::Serialize(*generated_icon_fix_));
-  } else {
-    root.Set("generated_icon_fix", base::Value());
-  }
+  proto::MaybeSerialize(generated_icon_fix_, "generated_icon_fix", root);
 
   root.Set("supported_links_offer_ignore_count",
            supported_links_offer_ignore_count_);
@@ -1176,12 +1190,9 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
   root.Set("related_applications",
            RelatedApplicationsToDebugValue(related_applications_));
 
-  if (pending_update_info_.has_value()) {
-    root.Set("pending_update_info",
-             proto::Serialize(*pending_update_info_));
-  } else {
-    root.Set("pending_update_info", base::Value());
-  }
+  proto::MaybeSerialize(pending_update_info_, "pending_update_info", root);
+
+  root.Set("trusted_icons", ConvertDebugValueList(trusted_icons_));
 
   return base::Value(std::move(root));
 }

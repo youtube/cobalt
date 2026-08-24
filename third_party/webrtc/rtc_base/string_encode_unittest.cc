@@ -10,8 +10,7 @@
 
 #include "rtc_base/string_encode.h"
 
-#include <string.h>
-
+#include <cstring>
 #include <string>
 #include <vector>
 

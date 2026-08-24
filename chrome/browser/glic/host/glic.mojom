@@ -175,6 +175,17 @@ enum ActInFocusedTabErrorReason {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ActInFocusedTabErrorReason)
 
+// The state of an actor task. This MUST be kept in sync with the glic_api.ts
+// enum.
+[Stable, Extensible]
+enum ActorTaskState {
+  [Default] kUnknown = 0,
+  kIdle = 1,
+  kActing = 2,
+  kPaused = 3,
+  kStopped = 4,
+};
+
 // Reason why capturing desktop screenshot failed. This MUST be kept in sync
 // with the glic_api.ts enum.
 [Stable, Extensible]
@@ -235,7 +246,6 @@ struct WebClientInitialState {
   bool can_attach;
   // Whether the panel is active. See `NotifyPanelActiveChange`.
   bool panel_is_active;
-  WebClientSizingMode sizing_mode;
   bool browser_is_open;
   // Reflects the enabling state of always-detached mode.
   bool always_detached_mode;
@@ -253,6 +263,8 @@ struct WebClientInitialState {
   bool enable_maybe_refresh_user_status;
   // Whether multi tab is enabled.
   bool enable_multi_tab;
+  // Whether get context for actor from tab is enabled.
+  bool enable_get_context_actor;
   // The list of capabilities of the host.
   array<HostCapability> host_capabilities;
 };
@@ -299,8 +311,14 @@ struct ScrollToParams {
 
   // The document targeted by this operation. When specified, it verifies
   // that the document in the primary main frame of the currently focused tab
-  // matches the ID (and fails the operation if it doesn't).
+  // matches the ID (and fails the operation if it doesn't). The verification
+  // does not happen for PDFs.
   string? document_id;
+
+  // The URL of the document targeted by this operation. If the currently
+  // focused tab has a PDF loaded, this url is matched and verified against the
+  // tab's primary main frame's URL (and is ignored otherwise).
+  url.mojom.Url? url;
 };
 
 // Used to select content in a page to scroll to and highlight.
@@ -366,8 +384,8 @@ enum ScrollToErrorReason {
   // ScrollTo() call.
   [MinVersion=1] kFocusedTabChangedOrNavigated,
 
-  // The document_id provided doesn't match the active document in the primary
-  // main frame of the currently focused tab. The document may have been
+  // The document_id or url provided doesn't match the active document in the
+  // primary main frame of the currently focused tab. The document may have been
   // navigated away, may not currently be in focus, or may not be in a primary
   // main frame (we don't currently support iframes).
   [MinVersion=2] kNoMatchingDocument,
@@ -404,12 +422,27 @@ struct ZeroStateSuggestions {
 struct ZeroStateSuggestionsV2 {
   // The list of suggestions to present to the user.
   array<SuggestionContent> suggestions;
+  // Whether there is a current outstanding request to generate suggestions for
+  // the current tab context.
+  bool is_pending;
 };
 
 // The options associated with the current zero state suggestions.
 struct ZeroStateSuggestionsOptions {
   bool is_first_run;
   array<string> supported_tools;
+};
+
+// A candidate for pinning.
+struct PinCandidate {
+  // The tab that is a candidate for pinning.
+  TabData tab_data;
+};
+
+// Observes changes to pin candidates.
+interface PinCandidatesObserver {
+  // Called when the list of pin candidates has changed.
+  OnPinCandidatesChanged(array<PinCandidate> candidates);
 };
 
 // Access to the browser from the web client by proxy through the WebUI.
@@ -458,6 +491,10 @@ interface WebClientHandler {
   // favor of a new one.
   ShowProfilePicker();
 
+  // Returns the current model quality client id.
+  [RuntimeFeature=glic.mojom.features.kGlicAppendModelQualityClientId]
+  GetModelQualityClientId() => (string model_quality_client_id);
+
   // Returns the context from the currently active tab.
   // `tab_context_result` is null if tab content could not be captured.
   // This may fail if the tab is navigated while collecting data, or closed
@@ -471,6 +508,12 @@ interface WebClientHandler {
   // before data is collected.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   GetContextFromTab(int32 tab_id, GetTabContextOptions options)
+      => (GetContextResult result);
+
+  // Returns the context from the tab associated with `tab_id` for an actor.
+  // This skips the focus check.
+  [RuntimeFeature=glic.mojom.features.kGlicActorTabContext]
+  GetContextForActorFromTab(int32 tab_id, GetTabContextOptions options)
       => (GetContextResult result);
 
   // Sets the maximum number of supported pinned tabs. Negative means that the
@@ -496,10 +539,11 @@ interface WebClientHandler {
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   UnpinAllTabs();
 
-  // Requests candidates for pinning.
+  // Subscribes to receive updates on pin candidates.
   [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
-  GetPinCandidates(GetPinCandidatesOptions options)
-      => (array<TabData> candidates);
+  SubscribeToPinCandidates(
+      GetPinCandidatesOptions options,
+      pending_remote<PinCandidatesObserver> observer);
 
   // Creates a new task in the actor framework and returns the new task's ID.
   CreateTask() => result<int32, CreateTaskErrorReason>;
@@ -646,6 +690,11 @@ interface WebClientHandler {
   // Stop journal collection.
   JournalStop();
 
+  // Record the journal in a listnr feedback. The reason will be sent to listnr
+  // as the feedback description exactly as is without being parsed or processed
+  // in the browser process.
+  JournalRecordFeedback(bool positive, string reason);
+
   // Called when the user submits input.
   OnUserInputSubmitted(WebClientMode mode);
 
@@ -660,6 +709,9 @@ interface WebClientHandler {
 
   // Called when the session is terminated.
   OnSessionTerminated();
+
+  // Called when the web client completes a turn.
+  OnTurnCompleted(WebClientModel mode, mojo_base.mojom.TimeDelta duration);
 
   // Called when the user rates a response.
   OnResponseRated(bool positive);
@@ -695,7 +747,7 @@ interface WebClientHandler {
   [RuntimeFeature=glic.mojom.features.kZeroStateSuggestionsV2]
   GetZeroStateSuggestionsAndSubscribe(bool is_live,
                           ZeroStateSuggestionsOptions options) =>
-    (ZeroStateSuggestionsV2 zero_state_suggestions);
+    (ZeroStateSuggestionsV2? zero_state_suggestions);
 
   // Returns zero-state suggestions from the currently active tab.
   GetZeroStateSuggestionsForFocusedTab(bool? is_first_run)
@@ -790,6 +842,16 @@ enum WebClientMode {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebClientMode)
 
+// Web client's operation model.
+// WARNING: These enum values should match WebClientModel in
+// chrome/browser/resources/glic/glic_api/glic_api.ts
+[Stable, Extensible]
+enum WebClientModel {
+  [Default] kDefault = 0,
+  // Actor operation mode.
+  kActor = 1,
+};
+
 // Carries back to the browser information on how to configure the panel being
 // opened.
 struct OpenPanelInfo {
@@ -869,8 +931,12 @@ interface WebClient {
 
   // Informs the client that the zero state suggestions have changed.
   NotifyZeroStateSuggestionsChanged(
-    ZeroStateSuggestionsV2 suggestions,
+    ZeroStateSuggestionsV2? suggestions,
     ZeroStateSuggestionsOptions options);
+
+  // Notify that the actor task with the given id has changed to the indicated
+  // state.
+  NotifyActorTaskStateChanged(int32 task_id, ActorTaskState state);
 };
 
 // Information extracted from a tab.
@@ -895,6 +961,12 @@ struct TabContext {
 struct ActInFocusedTabResponse {
   // The context of the focused tab after the action was completed.
   TabContext tab_context;
+  // The outcome of the action.
+  // Note that this is an enum ActionResultCode from chrome/common/actor.mojom.
+  // It would be tedious to import the actual enum here and the renderer doesn't
+  // need the type, so we just use an int here. It is expected that the client
+  // has an equivalent enum definition. See http://shortn/_gLyPxrRm6p
+  int32 action_result;
 };
 
 // Information about a web page being rendered in a tab.
@@ -997,16 +1069,6 @@ struct Screenshot {
   string mime_type;
   // Image annotations for this screenshot.
   ImageOriginAnnotations origin_annotations;
-};
-
-// The sizing mode of web client.
-enum WebClientSizingMode {
-  // The web client uses natural (aka. intrinsic) sizing.
-  // This is the default mode.
-  kNatural,
-  // The web client resizes its content to fit the window size.
-  // This can be tested using "--glic-sizing-fit-window".
-  kFitWindow,
 };
 
 // Fields of interest from the Glic settings page.

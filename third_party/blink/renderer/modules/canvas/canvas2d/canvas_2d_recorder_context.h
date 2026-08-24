@@ -48,6 +48,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkM44.h"
+#include "third_party/skia/include/core/SkPathTypes.h"
 #include "third_party/skia/include/core/SkRect.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -55,7 +56,6 @@
 
 // IWYU pragma: no_include "third_party/blink/renderer/platform/heap/visitor.h"
 
-enum class SkPathFillType;
 struct SkSamplingOptions;
 
 namespace ui {
@@ -71,8 +71,6 @@ class String;
 }  // namespace v8
 
 namespace blink {
-
-MODULES_EXPORT BASE_DECLARE_FEATURE(kDisableCanvasOverdrawOptimization);
 
 class BeginLayerOptions;
 class CanvasGradient;
@@ -768,11 +766,6 @@ ALWAYS_INLINE void Canvas2DRecorderContext::CheckOverdraw(
     const cc::PaintFlags* flags,
     CanvasRenderingContext2DState::ImageType image_type,
     Canvas2DRecorderContext::OverdrawOp overdraw_op) {
-  if (base::FeatureList::IsEnabled(kDisableCanvasOverdrawOptimization))
-      [[unlikely]] {
-    return;
-  }
-
   // Note on performance: because this method is inlined, all conditional
   // branches on arguments that are static at the call site can be optimized-out
   // by the compiler.

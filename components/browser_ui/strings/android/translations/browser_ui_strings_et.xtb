@@ -63,6 +63,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="1704230497453185209">Ära luba saitidel esitada heli</translation>
 <translation id="1717218214683051432">Liikumisandurid</translation>
 <translation id="1717996979683942279">Kui see on sisse lülitatud, saavad saidid küsida luba akende haldamiseks kõikidel teie ekraanidel. Kui see on välja lülitatud, ei saa saidid kõikidel teie ekraanidel aknaid hallata.</translation>
+<translation id="1738912554587725807">Uue vahelehe välimuse teema kogude alumine leht</translation>
 <translation id="1743802530341753419">Küsi luba, kui saidid üritavad seadmega ühendust luua (soovitatav)</translation>
 <translation id="1777815584158991902">Avastamisvoo alumine leht</translation>
 <translation id="1779089405699405702">Pildi dekooder</translation>
@@ -120,6 +121,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja veel <ph name="NUM_MORE" /> on lubatud}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja veel <ph name="NUM_MORE" /> on lubatud}}</translation>
 <translation id="2410940059315936967">Sait, mida külastate, saab manustada sisu muudelt saitidelt (nt pilte, reklaame ja teksti). Muude saitide määratud küpsisefaile nimetatakse kolmanda osapoole küpsisefailideks.</translation>
+<translation id="2411116727035790889">Otseteede sisselülitamine</translation>
 <translation id="2433507940547922241">Välimus</translation>
 <translation id="2434158240863470628">Allalaadimine jõudis lõpule: <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Lubasite sellel saidil ajutiselt kasutada kolmanda osapoole küpsisefaile, mis tähendab väiksemat sirvimiskaitset, kuid saidi funktsioonid töötavad tõenäolisemalt ootuspäraselt. <ph name="BEGIN_LINK" />Tagasiside saatmine<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="3114012059975132928">Videopleier</translation>
 <translation id="3115898365077584848">Kuva teave</translation>
 <translation id="3123473560110926937">Blokeeritud teatud saitidel</translation>
+<translation id="3132996321662585180">Värskendatakse iga päev</translation>
 <translation id="3143754809889689516">Esita algusest</translation>
 <translation id="3162899666601560689">Saidid võivad kasutada küpsisefaile teie sirvimiskogemuse täiustamiseks, näiteks selleks, et hoida teid sisselogituna või jätta meelde teie ostukorvis olevad esemed</translation>
 <translation id="3165022941318558018">Saidil lubatakse kasutada kolmanda osapoole küpsisefaile</translation>
@@ -356,6 +359,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="5100237604440890931">Ahendatud – laiendamiseks klõpsake.</translation>
 <translation id="5116239826668864748">Saate kasutada Chrome'i iga kord, kui puudutate linke sõnumites, dokumentides ja muudes rakendustes</translation>
 <translation id="5123685120097942451">Inkognito vaheleht</translation>
+<translation id="512938610812707830">Uue vahelehe välimuse teema kogude alumine leht on avatud täiskõrguses</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Hinnalangus avatud vahelehtedel}other{Hinnalangused avatud vahelehtedel}}</translation>
 <translation id="5186036860380548585">Valik on saadaval ekraanikuva ülaosas</translation>
 <translation id="5197729504361054390">Teie valitud kontakte jagatakse saidiga <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -608,7 +612,6 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="8186479265534291036">Kas sait ei tööta? Kolmanda osapoole küpsisefailid on blokeeritud</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> on lubatud</translation>
 <translation id="8200772114523450471">Taasta</translation>
-<translation id="8206354486702514201">Selle seade jõustas teie administraator.</translation>
 <translation id="8211406090763984747">Ühendus on turvaline</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Teisalda kõige üles</translation>
@@ -619,6 +622,7 @@ Täiustatud kaitsega juhitage järgmisi Chrome’i seadeid:
 <translation id="8324158725704657629">Ära enam küsi</translation>
 <translation id="8362795839483915693">Saate külastatavatel saitidel sisse ja välja suumida</translation>
 <translation id="8372893542064058268">Konkreetse saidi jaoks taustal sünkroonimise lubamine.</translation>
+<translation id="8378714024927312812">Haldab teie organisatsioon</translation>
 <translation id="83792324527827022">Sait kasutab teie kaamerat ja mikrofoni</translation>
 <translation id="8380167699614421159">Sait kuvab sekkuvaid või eksitavaid reklaame.</translation>
 <translation id="8394832520002899662">Puudutage saidile naasmiseks</translation>

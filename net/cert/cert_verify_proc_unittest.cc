@@ -161,6 +161,18 @@ int MockCertVerifyProc::VerifyInternal(X509Certificate* cert,
                                        const NetLogWithSource& net_log) {
   *verify_result = result_;
   verify_result->verified_cert = cert;
+  if (error_ == OK && verify_result->public_key_hashes.empty()) {
+    net::SHA256HashValue spki_hash;
+    EXPECT_TRUE(net::x509_util::CalculateSha256SpkiHash(
+        verify_result->verified_cert->cert_buffer(), &spki_hash));
+    verify_result->public_key_hashes.push_back(spki_hash);
+    for (const auto& intermediate :
+         verify_result->verified_cert->intermediate_buffers()) {
+      EXPECT_TRUE(net::x509_util::CalculateSha256SpkiHash(intermediate.get(),
+                                                          &spki_hash));
+      verify_result->public_key_hashes.push_back(spki_hash);
+    }
+  }
   return error_;
 }
 
@@ -1389,8 +1401,9 @@ TEST_P(CertVerifyProcInternalTest, PublicKeyHashes) {
 
   // Convert |public_key_hashes| to strings for ease of comparison.
   std::vector<std::string> public_key_hash_strings;
-  for (const auto& public_key_hash : verify_result.public_key_hashes)
-    public_key_hash_strings.push_back(public_key_hash.ToString());
+  for (const auto& public_key_hash : verify_result.public_key_hashes) {
+    public_key_hash_strings.push_back(HashValue(public_key_hash).ToString());
+  }
 
   std::vector<std::string> expected_public_key_hashes = {
       // Target
@@ -1402,9 +1415,7 @@ TEST_P(CertVerifyProcInternalTest, PublicKeyHashes) {
       // Trust anchor
       "sha256/VypP3VWL7OaqTJ7mIBehWYlv8khPuFHpWiearZI2YjI="};
 
-  // |public_key_hashes| does not have an ordering guarantee.
-  EXPECT_THAT(expected_public_key_hashes,
-              testing::UnorderedElementsAreArray(public_key_hash_strings));
+  EXPECT_EQ(expected_public_key_hashes, public_key_hash_strings);
 }
 
 // Basic test for returning the chain in CertVerifyResult. Note that the
@@ -5654,9 +5665,8 @@ TEST_F(CertVerifyProcNameTest, DoesntMatchDnsSanTrailingDot) {
 // Test that trust anchors are appropriately recorded via UMA.
 TEST(CertVerifyProcTest, HasTrustAnchorVerifyUMA) {
   base::HistogramTester histograms;
-  scoped_refptr<X509Certificate> cert(
-      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem"));
-  ASSERT_TRUE(cert);
+  auto [leaf, intermediate, root] = CertBuilder::CreateSimpleChain3();
+  auto cert = leaf->GetX509CertificateFullChain();
 
   CertVerifyResult result;
 
@@ -5665,16 +5675,17 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyUMA) {
   // in 2017 and is not anticipated to be removed from all supported platforms
   // for a few decades.
   // Note: The actual cert in |cert| does not matter for this testing, so long
-  // as it's not violating any CertVerifyProc::Verify() policies.
+  // as it's not violating any CertVerifyProc::Verify() policies and the chain
+  // has the same length.
   SHA256HashValue leaf_hash = {{0}};
   SHA256HashValue intermediate_hash = {{1}};
   SHA256HashValue root_hash = {
       {0x98, 0x47, 0xe5, 0x65, 0x3e, 0x5e, 0x9e, 0x84, 0x75, 0x16, 0xe5,
        0xcb, 0x81, 0x86, 0x06, 0xaa, 0x75, 0x44, 0xa1, 0x9b, 0xe6, 0x7f,
        0xd7, 0x36, 0x6d, 0x50, 0x69, 0x88, 0xe8, 0xd8, 0x43, 0x47}};
-  result.public_key_hashes.push_back(HashValue(leaf_hash));
-  result.public_key_hashes.push_back(HashValue(intermediate_hash));
-  result.public_key_hashes.push_back(HashValue(root_hash));
+  result.public_key_hashes.push_back(leaf_hash);
+  result.public_key_hashes.push_back(intermediate_hash);
+  result.public_key_hashes.push_back(root_hash);
 
   const base::HistogramBase::Sample32 kGTSRootR4HistogramID = 486;
 
@@ -5685,7 +5696,7 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyUMA) {
   int flags = 0;
   CertVerifyResult verify_result;
   int error = verify_proc->Verify(
-      cert.get(), "127.0.0.1", /*ocsp_response=*/std::string(),
+      cert.get(), "www.example.com", /*ocsp_response=*/std::string(),
       /*sct_list=*/std::string(), flags, &verify_result, NetLogWithSource());
   EXPECT_EQ(OK, error);
   histograms.ExpectUniqueSample(kTrustAnchorVerifyHistogram,
@@ -5697,9 +5708,8 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyUMA) {
 // trust anchor.
 TEST(CertVerifyProcTest, LogsOnlyMostSpecificTrustAnchorUMA) {
   base::HistogramTester histograms;
-  scoped_refptr<X509Certificate> cert(
-      ImportCertFromFile(GetTestCertsDirectory(), "ok_cert.pem"));
-  ASSERT_TRUE(cert);
+  auto chain = CertBuilder::CreateSimpleChain(4);
+  auto cert = chain[0]->GetX509CertificateFullChain();
 
   CertVerifyResult result;
 
@@ -5707,7 +5717,8 @@ TEST(CertVerifyProcTest, LogsOnlyMostSpecificTrustAnchorUMA) {
   // signing "C=US, O=Google Trust Services LLC, CN=GTS Root R3" signing an
   // intermediate and a leaf.
   // Note: The actual cert in |cert| does not matter for this testing, so long
-  // as it's not violating any CertVerifyProc::Verify() policies.
+  // as it's not violating any CertVerifyProc::Verify() policies and the chain
+  // has the same length.
   SHA256HashValue leaf_hash = {{0}};
   SHA256HashValue intermediate_hash = {{1}};
   SHA256HashValue gts_root_r3_hash = {
@@ -5718,10 +5729,10 @@ TEST(CertVerifyProcTest, LogsOnlyMostSpecificTrustAnchorUMA) {
       {0x98, 0x47, 0xe5, 0x65, 0x3e, 0x5e, 0x9e, 0x84, 0x75, 0x16, 0xe5,
        0xcb, 0x81, 0x86, 0x06, 0xaa, 0x75, 0x44, 0xa1, 0x9b, 0xe6, 0x7f,
        0xd7, 0x36, 0x6d, 0x50, 0x69, 0x88, 0xe8, 0xd8, 0x43, 0x47}};
-  result.public_key_hashes.push_back(HashValue(leaf_hash));
-  result.public_key_hashes.push_back(HashValue(intermediate_hash));
-  result.public_key_hashes.push_back(HashValue(gts_root_r3_hash));
-  result.public_key_hashes.push_back(HashValue(gts_root_r4_hash));
+  result.public_key_hashes.push_back(leaf_hash);
+  result.public_key_hashes.push_back(intermediate_hash);
+  result.public_key_hashes.push_back(gts_root_r3_hash);
+  result.public_key_hashes.push_back(gts_root_r4_hash);
 
   const base::HistogramBase::Sample32 kGTSRootR3HistogramID = 485;
 
@@ -5732,7 +5743,7 @@ TEST(CertVerifyProcTest, LogsOnlyMostSpecificTrustAnchorUMA) {
   int flags = 0;
   CertVerifyResult verify_result;
   int error = verify_proc->Verify(
-      cert.get(), "127.0.0.1", /*ocsp_response=*/std::string(),
+      cert.get(), "www.example.com", /*ocsp_response=*/std::string(),
       /*sct_list=*/std::string(), flags, &verify_result, NetLogWithSource());
   EXPECT_EQ(OK, error);
 
@@ -5748,7 +5759,7 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyOutOfDateUMA) {
   // Since we are setting is_issued_by_known_root=true, the certificate to be
   // verified needs to have a validity period that satisfies
   // HasTooLongValidity.
-  auto [leaf, root] = CertBuilder::CreateSimpleChain2();
+  auto [leaf, intermediate, root] = CertBuilder::CreateSimpleChain3();
 
   CertVerifyResult result;
 
@@ -5758,9 +5769,9 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyOutOfDateUMA) {
   SHA256HashValue leaf_hash = {{0}};
   SHA256HashValue intermediate_hash = {{1}};
   SHA256HashValue root_hash = {{2}};
-  result.public_key_hashes.push_back(HashValue(leaf_hash));
-  result.public_key_hashes.push_back(HashValue(intermediate_hash));
-  result.public_key_hashes.push_back(HashValue(root_hash));
+  result.public_key_hashes.push_back(leaf_hash);
+  result.public_key_hashes.push_back(intermediate_hash);
+  result.public_key_hashes.push_back(root_hash);
   result.is_issued_by_known_root = true;
 
   auto verify_proc = base::MakeRefCounted<MockCertVerifyProc>(result);
@@ -5771,7 +5782,7 @@ TEST(CertVerifyProcTest, HasTrustAnchorVerifyOutOfDateUMA) {
   int flags = 0;
   CertVerifyResult verify_result;
   int error = verify_proc->Verify(
-      leaf->GetX509Certificate().get(), "www.example.com",
+      leaf->GetX509CertificateFullChain().get(), "www.example.com",
       /*ocsp_response=*/std::string(),
       /*sct_list=*/std::string(), flags, &verify_result, NetLogWithSource());
   EXPECT_EQ(OK, error);

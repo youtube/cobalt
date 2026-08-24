@@ -903,9 +903,6 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.always_turbofan || v8_flags.prepare_always_turbofan) {
-    status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
-  }
   if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
@@ -1332,11 +1329,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   SealHandleScope shs(isolate);
-  StdoutStream os;
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
 
+  StdoutStream os;
   Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
   if (!maybe_object.IsCleared()) {
     Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();

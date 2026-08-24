@@ -320,6 +320,7 @@
         "Win": "experimental",
         "Mac": "experimental",
         "Linux": "experimental",
+        "ChromeOS": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "AIPromptAPIMultimodalInput",
@@ -335,6 +336,7 @@
         "Win": "stable",
         "Mac": "stable",
         "Linux": "stable",
+        "ChromeOS": "stable",
         "default": "",
       },
     },
@@ -348,6 +350,7 @@
         "Win": "experimental",
         "Mac": "experimental",
         "Linux": "experimental",
+        "ChromeOS": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "AIPromptAPIMultimodalInput",
@@ -372,6 +375,7 @@
         "Win": "experimental",
         "Mac": "experimental",
         "Linux": "experimental",
+        "ChromeOS": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "AIRewriterAPI",
@@ -389,6 +393,7 @@
         "Win": "stable",
         "Mac": "stable",
         "Linux": "stable",
+        "ChromeOS": "stable",
         "default": "",
       },
     },
@@ -402,6 +407,7 @@
         "Win": "experimental",
         "Mac": "experimental",
         "Linux": "experimental",
+        "ChromeOS": "experimental",
         "default": "",
       },
       origin_trial_feature_name: "AIWriterAPI",
@@ -818,6 +824,11 @@
     },
     {
       // crbug.com/389726691.
+      name: "CanvasTextCacheLimit",
+      status: "stable",
+    },
+    {
+      // crbug.com/389726691.
       name: "CanvasTextNg",
       origin_trial_feature_name: "CanvasTextNg",
       status: "stable",
@@ -907,7 +918,8 @@
       // system clipboard
       // https://chromestatus.com/feature/5085102657503232
       name: "ClipboardChangeEvent",
-      base_feature: "none",
+      origin_trial_feature_name: "ClipboardChangeEvent",
+      status: "experimental",
     },
     // This ensures that clipboard event fires on a target node which is
     // focused in case no visible selection is present.
@@ -1091,6 +1103,10 @@
       name: "CorsRFC1918",
     },
     {
+      name: "CrashReportingStorageAPI",
+      status: "experimental",
+    },
+    {
       // Allow WebAuthn relying parties to report information about existing
       // credentials back to credential storage providers.
       // Enabled by default on M132. Remove flag on or after M135.
@@ -1124,7 +1140,7 @@
     {
       // Allows using counter() and counters() in alt text (after / in content property).
       name: "CSSAltCounter",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Support for the anchor-scope property.
@@ -1339,7 +1355,7 @@
       status: "experimental",
     },
     {
-      name: "CSSLetterSpacingPercentage",
+      name: "CSSLetterAndWordSpacingPercentage",
       status: "experimental",
     },
     {
@@ -1860,7 +1876,7 @@
     {
       name: "DocumentPatching",
       status: {
-        "default": "experimental",
+        "default": "test",
       },
     },
     {
@@ -1961,6 +1977,16 @@
       status: "stable",
     },
     {
+      // ElementInternals.type allows web authors to create autonomous
+      // custom elements that inherit specific behaviors from native
+      // HTML elements, while maintaining the ability to use shadow DOM
+      // and custom rendering.
+      // crbug.com/422947646
+      // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
+      name: "ElementInternalsDotType",
+      status: "experimental",
+    },
+    {
       // crbug.com/40118302
       name: "EmptyReferenceFilterInvalidation",
       status: "stable",
@@ -1972,6 +1998,13 @@
     {
       // See: crbug.com/40771555
       name: "EnterInOpenShadowRoots",
+      status: "stable",
+    },
+    {
+      // Escapes "<" and ">" in attribute values. This was launched
+      // in M139, and this flag can be removed in M141.
+      // See: crbug.com/1175016
+      name: "EscapeLtGtInAttributes",
       status: "stable",
     },
     {
@@ -2136,8 +2169,20 @@
       status: "stable",
     },
     {
+      // The retry ability for Fetch keepalive requests.
+      // https://chromestatus.com/feature/5181984581877760
       name: "FetchRetry",
+      origin_trial_feature_name: "FetchRetry",
+      origin_trial_allows_third_party: true,
       status: "experimental",
+      base_feature: "FetchRetry",
+      // base_feature is meant as kill-switch. This runtime-enabled feature
+      // should follow the Origin Trial unless explicitly overriden by Finch or
+      // commandline flags.
+      base_feature_status: "enabled",
+      // Enables the Blink feature only when the base::Feature is overridden by
+      // field trial or command line.
+      copied_from_base_feature_if: "overridden",
     },
     {
       name: "FetchUploadStreaming",
@@ -2195,6 +2240,10 @@
       // OPFS File System Access API.
       name: "FileSystemAccessOriginPrivate",
       status: "stable",
+    },
+    {
+      name: "FileSystemAccessWriteMode",
+      status: "test",
     },
     {
       // The FileSystemObserver interface for the File System Access API.
@@ -2372,6 +2421,11 @@
       // a Chromium level feature.
     },
     {
+      // crbug.com/393391746
+      name: "FontStyleObliqueZeroDegreeAsNormal",
+      status: "stable",
+    },
+    {
       name: "FontSystemFallbackNotoCjk",
       status: "stable",
     },
@@ -2420,6 +2474,12 @@
       public: true,
     },
     {
+      // Tracking bug for the implementation: https://crbug.com/430204832
+      name: "GeolocationElement",
+      status: "experimental",
+      public: true,
+    },
+    {
       name: "GetAllScreensMedia",
       depends_on: ["GetDisplayMedia"],
       public: true,
@@ -2456,6 +2516,10 @@
       name: "GetDisplayMediaWindowAudioCapture",
       status: "experimental",
       browser_process_read_write_access: true,
+    },
+    {
+      name: "GetUserMediaEchoCancellationModes",
+      status: "experimental",
     },
     {
       name: "GroupEffect",
@@ -2844,20 +2908,6 @@
       // This is enabled by features::kLazyInitializeMediaControls.
     },
     {
-      // If enabled, the lazy load image observer will use a scroll margin in
-      // its init dictionary instead of a root margin.
-      name: "LazyLoadScrollMargin",
-      public: true,
-      status: "stable",
-    },
-    {
-      // If enabled, the lazy load iframe observer will use a scroll margin in
-      // its init dictionary instead of a root margin.
-      name: "LazyLoadScrollMarginIframe",
-      public: true,
-      status: "stable",
-    },
-     {
       name: "LimitThirdPartyCookies",
       origin_trial_feature_name: "LimitThirdPartyCookies",
       status: "experimental",
@@ -2957,6 +3007,12 @@
     {
       name: "ManagedConfiguration",
       status: "stable",
+    },
+    {
+      // Enables mirroring for stretchy and large MathML operators when
+      // the text direction is right to left.
+      name: "MathMLOperatorRTLMirroring",
+      status: "experimental",
     },
     {
       name:"MeasureMemory",
@@ -3259,11 +3315,6 @@
       status: "stable",
     },
     {
-      name: "ObservableAPI",
-      status: "stable",
-      public: true,
-    },
-    {
       name: "OffMainThreadCSSPaint",
       status: "stable",
     },
@@ -3486,7 +3537,7 @@
     {
       // https://chromestatus.com/feature/5198846820352000
       name: "PaymentLinkDetection",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "PaymentMethodChangeEvent",
@@ -3539,6 +3590,7 @@
       public: true,
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
+      implied_by: ["GeolocationElement"],
     },
     {
       // Tracking bug for the implementation: crbug.com/352249547
@@ -3636,6 +3688,11 @@
       status: "stable",
     },
     {
+      name: "PrerenderUntilScript",
+      public: true,
+      status: "test",
+    },
+    {
       name: "Presentation",
       public: true,
       status: "stable",
@@ -3674,14 +3731,6 @@
     {
       name: "PrivateNetworkAccessNullIpAddress",
       status: "experimental",
-      base_feature: "none",
-    },
-    {
-      name: "PrivateNetworkAccessPermissionPrompt",
-      origin_trial_feature_name: "PrivateNetworkAccessPermissionPrompt",
-      origin_trial_os: ["win", "mac", "linux", "fuchsia", "chromeos"],
-      status: "stable",
-      public: true,
       base_feature: "none",
     },
     {
@@ -3774,8 +3823,18 @@
     {
       // crbug.com/427520278
       // Fix looking for next keyboard focusable radio button. This was added
-      // in M140 and can be removed after M143.
+      // in M140 and can be removed after M143. This flag is no longer needed
+      // after RadioKeyboardFocusableOptimize ships.
       name: "RadioInputNextKeyboardFocusable",
+      status: "stable",
+    },
+    {
+      // https://issues.chromium.org/issues/421837104
+      // Optimize keyboard focusable for the radio element. Making
+      // the focus navigation of the radio group more reasonable and
+      // consistent with Firefox.
+      // This was added in M140 and can be removed after M143.
+      name: "RadioKeyboardFocusableOptimize",
       status: "stable",
     },
     {
@@ -4121,8 +4180,13 @@
       base_feature: "none",
     },
     {
-      name: "ScriptRunIteratorCombiningMarks",
+      // crbug.com/378692756
+      name: "ScriptRunIteratorCombiningMarkAlways",
       status: "stable",
+    },
+    {
+      name: "ScriptTools",
+      status: "test",
     },
     {
       name: "ScrollAnchorPriorityCandidateSubtree",
@@ -4264,6 +4328,11 @@
       // https://w3c.github.io/selection-api/#dom-selection-direction
       // This should ship in M137, and it can be removed after M139.
       name: "SelectionAcrossShadowDOM",
+      status: "stable",
+    },
+    {
+      // See https://crbug.com/40664519
+      name: "SelectionAndFocusedVisiblePositionMatch",
       status: "stable",
     },
     {
@@ -4411,11 +4480,11 @@
       public: true,
       // Android does not yet support SharedWorker. crbug.com/154571
       status: {"Android": "", "default": "stable"},
-      base_feature: "none",
 
       // Allow Android to run the origin trial.
       origin_trial_feature_name: "SharedWorkerOnAndroid",
       origin_trial_os: ["android"],
+      origin_trial_allows_third_party: true,
     },
     {
       // If enabled, SharedWorker supports extendedLifetime
@@ -4528,6 +4597,14 @@
     {
       name: "SpecCompliantJsonMimeTypes",
       status: "stable",
+    },
+    // This is a flag that re-enables some deprecated/removed "special rules"
+    // that apply to the styles of an <h1> element nested within <article>,
+    // <aside>, <nav>, or <section>. It is disabled by default, and here as a
+    // Finch killswitch only. This was shipped (disabled) in M140, and the flag
+    // can be removed in M142.
+    {
+      name: "SpecialRulesForNestedH1Elements",
     },
     {
       name: "SpeculationRulesPrefetchWithSubresources",
@@ -4764,6 +4841,11 @@
       status: "stable",
     },
     {
+      // crbug.com/40098316
+      name: "TextDecorationShortSerialization",
+      status: "stable",
+    },
+    {
       name: "TextDetector",
       status: "experimental",
     },
@@ -4799,6 +4881,16 @@
     },
     {
       name: "TextMetricsBaselines",
+      status: "stable",
+    },
+    {
+      // https://crbug.com/41492459
+      name: "TextOverflowString",
+      status: "test",
+    },
+    {
+      // crbug.com/431660829
+      name: "TextSpacingTrimFallback",
       status: "stable",
     },
     // This feature is used to inform the renderer of a user bypass from the
@@ -4929,6 +5021,7 @@
         "Win": "stable",
         "Mac": "stable",
         "Linux": "stable",
+        "ChromeOS": "stable",
         "default": "",
       },
       origin_trial_feature_name: "TranslationAPI",
@@ -5070,7 +5163,7 @@
       // This flag uses the original DOM text for input when the password
       // echo is enabled to create the offset_map.
       name: "UseOriginalDomOffsetsForOffsetMap",
-      status: "stable",
+      status: "test",
     },
     {
       name: "UsePositionForPointInFlexibleBoxWithSingleChildElement",
@@ -5154,6 +5247,14 @@
     },
     {
       name: "ViewTransitionAnimationDelayInherit",
+      status: "stable",
+    },
+    {
+      name: "ViewTransitionAsyncFinished",
+      status: "stable",
+    },
+    {
+      name: "ViewTransitionInheritAnimationProperties",
       status: "experimental",
     },
     {
@@ -5169,7 +5270,7 @@
     },
     {
       // When enabled, makes links `:visited` even when the visit results in an
-      // HTTP error response code (4XX-5XX).
+      // HTTP error response code of 404.
       name: "VisitedLinksOnErrorNavigation",
     },
     {
@@ -5390,7 +5491,6 @@
     },
     {
       name: "WebFontResizeLCP",
-      status: "experimental",
     },
     {
       name: "WebGLDeveloperExtensions",
@@ -5472,11 +5572,6 @@
       public: true,
       status: "test",
       base_feature: "none",
-    },
-    {
-      // When enabled, the legacy format of the Digital Credentials request isn't
-      // supported anymore, and only the modern format is supported.
-      name: "WebIdentityDigitalCredentialsStopSupportingLegacyRequestFormat",
     },
     // Kill switch for making BigInt handling in WebIDL use ToBigInt.
     {
@@ -5615,13 +5710,6 @@
       depends_on: ["WebXR"],
       public: true,
       status: "experimental",
-      base_feature: "none",
-    },
-    {
-      name: "WebXRHandInput",
-      depends_on: ["WebXR"],
-      public: true,
-      status: "stable",
       base_feature: "none",
     },
     {

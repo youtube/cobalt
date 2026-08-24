@@ -81,11 +81,7 @@ int GetLayoutConstant(LayoutConstant constant) {
     case LOCATION_BAR_TRAILING_ICON_SIZE:
       return 20;
     case NEW_TAB_BUTTON_LEADING_MARGIN:
-      return features::IsTabSearchMoving() &&
-                     !features::HasTabstripComboButtonWithBackground() &&
-                     !features::HasTabSearchToolbarButton()
-                 ? 4
-                 : 0;
+      return 0;
     case STAR_RATING_ICON_SIZE:
       return 14;
     case TAB_AFTER_TITLE_PADDING:
@@ -189,7 +185,7 @@ gfx::Insets GetLayoutInsets(LayoutInset inset) {
       }
 
     case TOOLBAR_INTERIOR_MARGIN:
-      return touch_ui ? gfx::Insets() : gfx::Insets::VH(6, 5);
+      return touch_ui ? gfx::Insets::VH(4, 0) : gfx::Insets::VH(6, 5);
 
     case WEBUI_TAB_STRIP_TOOLBAR_INTERIOR_MARGIN:
       return gfx::Insets::VH(4, 0);

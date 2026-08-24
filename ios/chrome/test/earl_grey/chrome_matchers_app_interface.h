@@ -117,6 +117,12 @@
 // Returns matcher for a cancel button.
 + (id<GREYMatcher>)cancelButton;
 
+// Returns matcher for a cancel button in an action sheet.
++ (id<GREYMatcher>)actionSheetCancelButton;
+
+// Returns matcher for a close button.
++ (id<GREYMatcher>)closeButton;
+
 // Returns the matcher for an enabled cancel button in a navigation bar.
 + (id<GREYMatcher>)navigationBarCancelButton;
 
@@ -140,6 +146,10 @@
 
 // Matcher for the stop loading button.
 + (id<GREYMatcher>)stopButton;
+
+// Matcher for the search bar's clear text button, which is displayed when the
+// search bar is non-empty. Tapping it clears the search text.
++ (id<GREYMatcher>)searchBarClearTextButton;
 
 // Returns a matcher for the omnibox.
 + (id<GREYMatcher>)omnibox;
@@ -394,12 +404,6 @@
 // Returns matcher for the Safety Check cell on the main Settings screen.
 + (id<GREYMatcher>)settingsMenuSafetyCheckButton;
 
-// Returns matcher for the payment request collection view.
-+ (id<GREYMatcher>)paymentRequestView;
-
-// Returns matcher for the error confirmation view for payment request.
-+ (id<GREYMatcher>)paymentRequestErrorView;
-
 // Returns matcher for the voice search button on the main Settings screen.
 + (id<GREYMatcher>)voiceSearchButton;
 
@@ -451,17 +455,11 @@
 // Returns matcher for the NTP Feed menu button which disables the feed.
 + (id<GREYMatcher>)ntpFeedMenuDisableButton;
 
-// Returns matcher for the warning message while filling in payment requests.
-+ (id<GREYMatcher>)warningMessageView;
-
-// Returns matcher for the payment picker cell.
-+ (id<GREYMatcher>)paymentRequestPickerRow;
-
-// Returns matcher for the payment request search bar.
-+ (id<GREYMatcher>)paymentRequestPickerSearchBar;
-
 // Returns matcher for the New Window button on the Tools menu.
 + (id<GREYMatcher>)openNewWindowMenuButton;
+
+// Returns matcher for the search bar.
++ (id<GREYMatcher>)searchBar;
 
 // Matcher for a Copy button, such as the one in the Activity View. This matcher
 // is very broad and will look for any button with a matching string.
@@ -483,8 +481,11 @@
 // Matcher for the Mark as Unread option on the Reading List's context menus.
 + (id<GREYMatcher>)readingListMarkAsUnreadButton;
 
-// Matcher for the Share option on the updated context menus.
+// Matcher for the Delete option on the updated context menus.
 + (id<GREYMatcher>)deleteButton;
+
+// Matcher for the swipe action Delete button.
++ (id<GREYMatcher>)swipeActionDeleteButton;
 
 // Returns matcher for the Copy item on the old-style context menu.
 + (id<GREYMatcher>)contextMenuCopyButton;

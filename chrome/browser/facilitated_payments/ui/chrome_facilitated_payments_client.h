@@ -20,6 +20,10 @@
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "content/public/browser/web_contents_user_data.h"
 
+namespace url {
+class Origin;
+}  // namespace url
+
 namespace autofill {
 class BankAccount;
 class Ewallet;
@@ -66,6 +70,7 @@ class ChromeFacilitatedPaymentsClient
   friend class content::WebContentsUserData<ChromeFacilitatedPaymentsClient>;
 
   // FacilitatedPaymentsClient:
+  const url::Origin& GetLastCommittedOrigin() const final;
   // This returns nullptr if the `Profile` associated is null.
   autofill::PaymentsDataManager* GetPaymentsDataManager() final;
   // This returns nullptr if the `Profile` associated is null.
@@ -80,6 +85,7 @@ class ChromeFacilitatedPaymentsClient
   optimization_guide::OptimizationGuideDecider* GetOptimizationGuideDecider()
       final;
   payments::facilitated::DeviceDelegate* GetDeviceDelegate() final;
+  bool IsWebContentsVisibleOrOccluded() final;
   void ShowPixPaymentPrompt(
       base::span<const autofill::BankAccount> bank_account_suggestions,
       base::OnceCallback<void(int64_t)> on_payment_account_selected) final;
@@ -98,6 +104,7 @@ class ChromeFacilitatedPaymentsClient
   void ShowPixAccountLinkingPrompt(
       base::OnceCallback<void()> on_accepted,
       base::OnceCallback<void()> on_declined) final;
+  bool HasScreenlockOrBiometricSetup() final;
 
   // Register any allowlists with the OptimizationGuide framework, so that
   // individual features can later request to check whether the current main

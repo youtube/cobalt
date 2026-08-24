@@ -29,6 +29,7 @@ extern NSString* const kGeminiBrandedLogoImage;
 extern NSString* const kGoogleDriveSymbol;
 extern NSString* const kGoogleFullSymbol;
 extern NSString* const kGoogleIconSymbol;
+extern NSString* const kGoogleSearchEngineLogoImage;
 extern NSString* const kGoogleShieldSymbol;
 extern NSString* const kGoogleMapsSymbol;
 extern NSString* const kGooglePasswordManagerWidgetPromoImage;
@@ -295,6 +296,8 @@ extern NSString* const kReaderModeSymbolPreIOS18;
 extern NSString* const kReaderModeSymbolPostIOS18;
 extern NSString* const kCircleBadgeFill;
 extern NSString* const kTextSparkSymbol;
+extern NSString* const kBookSymbol;
+extern NSString* const kKeySymbol;
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

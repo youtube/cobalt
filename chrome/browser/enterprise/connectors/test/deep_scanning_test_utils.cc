@@ -11,6 +11,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/connectors/common.h"
@@ -20,6 +21,7 @@
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
 #include "chrome/browser/policy/dm_token_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/enterprise/common/proto/synced/browser_events.pb.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/policy/core/common/cloud/cloud_policy_client_registration_helper.h"
@@ -40,11 +42,37 @@ using ::testing::_;
 
 namespace enterprise_connectors::test {
 
+using base::test::EqualsProto;
+
 EventReportValidator::EventReportValidator(
     policy::MockCloudPolicyClient* client)
     : EventReportValidatorBase(client) {}
 
 EventReportValidator::~EventReportValidator() = default;
+
+void EventReportValidator::ExpectUnscannedFileEvent(
+    chrome::cros::reporting::proto::UnscannedFileEvent
+        expected_unscanned_file_event) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [this, expected_unscanned_file_event](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_unscanned_file_event());
+            auto unscanned_file_event =
+                request.events().Get(0).unscanned_file_event();
+            EXPECT_THAT(unscanned_file_event,
+                        EqualsProto(expected_unscanned_file_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
+}
 
 void EventReportValidator::ExpectUnscannedFileEvent(
     const std::string& expected_url,
@@ -61,7 +89,7 @@ void EventReportValidator::ExpectUnscannedFileEvent(
     const std::string& expected_profile_username,
     const std::string& expected_profile_identifier,
     const std::optional<std::string>& expected_content_transfer_method) {
-  event_key_ = enterprise_connectors::kKeyUnscannedFileEvent;
+  event_key_ = kKeyUnscannedFileEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -108,7 +136,7 @@ void EventReportValidator::ExpectUnscannedFileEvents(
     results_[expected_filenames[i]] = expected_result;
   }
 
-  event_key_ = enterprise_connectors::kKeyUnscannedFileEvent;
+  event_key_ = kKeyUnscannedFileEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -143,7 +171,7 @@ void EventReportValidator::ExpectDangerousDeepScanningResult(
     const std::string& expected_profile_username,
     const std::string& expected_profile_identifier,
     const std::optional<std::string>& expected_scan_id) {
-  event_key_ = enterprise_connectors::kKeyDangerousDownloadEvent;
+  event_key_ = kKeyDangerousDownloadEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -172,6 +200,30 @@ void EventReportValidator::ExpectDangerousDeepScanningResult(
 }
 
 void EventReportValidator::ExpectSensitiveDataEvent(
+    chrome::cros::reporting::proto::DlpSensitiveDataEvent
+        expected_sensitive_data_event) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [this, expected_sensitive_data_event](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_sensitive_data_event());
+            auto sensitive_data_event =
+                request.events().Get(0).sensitive_data_event();
+            EXPECT_THAT(sensitive_data_event,
+                        EqualsProto(expected_sensitive_data_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
+}
+
+void EventReportValidator::ExpectSensitiveDataEvent(
     const std::string& expected_url,
     const std::string& expected_tab_url,
     const std::string& expected_source,
@@ -188,7 +240,7 @@ void EventReportValidator::ExpectSensitiveDataEvent(
     const std::string& expected_scan_id,
     const std::optional<std::string>& expected_content_transfer_method,
     const std::optional<std::u16string>& expected_user_justification) {
-  event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+  event_key_ = kKeySensitiveDataEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -228,7 +280,7 @@ void EventReportValidator::ExpectDataControlsSensitiveDataEvent(
     const std::string& expected_profile_username,
     const std::string& expected_profile_identifier,
     int64_t expected_content_size) {
-  event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+  event_key_ = kKeySensitiveDataEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -258,7 +310,7 @@ void EventReportValidator::ExpectDataMaskingEvent(
     const std::string& expected_profile_identifier,
     extensions::api::enterprise_reporting_private::DataMaskingEvent
         expected_event) {
-  event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+  event_key_ = kKeySensitiveDataEvent;
   url_ = expected_event.url;
   tab_url_ = expected_event.url;
   username_ = expected_profile_username;
@@ -304,7 +356,7 @@ void EventReportValidator::ExpectSensitiveDataEvents(
     scan_ids_[expected_filenames[i]] = expected_scan_ids[i];
   }
 
-  event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+  event_key_ = kKeySensitiveDataEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -337,6 +389,58 @@ void EventReportValidator::ExpectSensitiveDataEvents(
           });
 }
 
+void EventReportValidator::ExpectSensitiveDataEventWarnThenBypass(
+    const std::string& expected_url,
+    const std::string& expected_tab_url,
+    const std::string& expected_source,
+    const std::string& expected_destination,
+    const std::string& expected_filename,
+    const std::string& expected_sha256,
+    const std::string& expected_trigger,
+    const ContentAnalysisResponse::Result& expected_dlp_verdict,
+    const std::set<std::string>* expected_mimetypes,
+    std::optional<int64_t> expected_content_size,
+    const std::string& expected_profile_username,
+    const std::string& expected_profile_identifier,
+    const std::string& expected_scan_id,
+    const std::optional<std::string>& expected_content_transfer_method,
+    const std::vector<std::optional<std::u16string>>&
+        expected_user_justifications) {
+  event_key_ = kKeySensitiveDataEvent;
+  url_ = expected_url;
+  tab_url_ = expected_tab_url;
+  source_ = expected_source;
+  destination_ = expected_destination;
+  dlp_verdicts_[expected_filename] = expected_dlp_verdict;
+  filenames_and_hashes_[expected_filename] = expected_sha256;
+  mimetypes_ = expected_mimetypes;
+  trigger_ = expected_trigger;
+  content_size_ = expected_content_size;
+  results_[expected_filename] = EventResultToString(EventResult::WARNED);
+  username_ = expected_profile_username;
+  profile_identifier_ = expected_profile_identifier;
+  scan_ids_[expected_filename] = expected_scan_id;
+  content_transfer_method_ = expected_content_transfer_method;
+  user_justification_ = expected_user_justifications[0];
+  EXPECT_CALL(*client_, UploadSecurityEventReport)
+      .WillOnce([this, expected_filename](
+                    bool include_device_info, base::Value::Dict report,
+                    base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                        callback) { ValidateReport(&report); })
+      .WillOnce([this, expected_filename, expected_user_justifications](
+                    bool include_device_info, base::Value::Dict report,
+                    base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                        callback) {
+        results_[expected_filename] =
+            EventResultToString(EventResult::BYPASSED);
+        user_justification_ = expected_user_justifications[1];
+        ValidateReport(&report);
+        if (!done_closure_.is_null()) {
+          done_closure_.Run();
+        }
+      });
+}
+
 void EventReportValidator::
     ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
         const std::string& expected_url,
@@ -355,7 +459,7 @@ void EventReportValidator::
         const std::string& expected_profile_identifier,
         const std::string& expected_scan_id,
         const std::optional<std::string>& expected_content_transfer_method) {
-  event_key_ = enterprise_connectors::kKeyDangerousDownloadEvent;
+  event_key_ = kKeyDangerousDownloadEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -379,7 +483,7 @@ void EventReportValidator::
                     bool include_device_info, base::Value::Dict report,
                     base::OnceCallback<void(policy::CloudPolicyClient::Result)>
                         callback) {
-        event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+        event_key_ = kKeySensitiveDataEvent;
         threat_type_ = std::nullopt;
         dlp_verdicts_[expected_filename] = expected_dlp_verdict;
         ValidateReport(&report);
@@ -406,7 +510,7 @@ void EventReportValidator::
         const std::string& expected_profile_username,
         const std::string& expected_profile_identifier,
         const std::string& expected_scan_id) {
-  event_key_ = enterprise_connectors::kKeySensitiveDataEvent;
+  event_key_ = kKeySensitiveDataEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   source_ = expected_source;
@@ -429,7 +533,7 @@ void EventReportValidator::
                     bool include_device_info, base::Value::Dict report,
                     base::OnceCallback<void(policy::CloudPolicyClient::Result)>
                         callback) {
-        event_key_ = enterprise_connectors::kKeyDangerousDownloadEvent;
+        event_key_ = kKeyDangerousDownloadEvent;
         threat_type_ = expected_threat_type;
         dlp_verdicts_.erase(expected_filename);
         ValidateReport(&report);
@@ -451,7 +555,7 @@ void EventReportValidator::ExpectDangerousDownloadEvent(
     const std::string& expected_result,
     const std::string& expected_profile_username,
     const std::string& expected_profile_identifier) {
-  event_key_ = enterprise_connectors::kKeyDangerousDownloadEvent;
+  event_key_ = kKeyDangerousDownloadEvent;
   url_ = expected_url;
   tab_url_ = expected_tab_url;
   filenames_and_hashes_[expected_filename] = expected_sha256;
@@ -527,11 +631,8 @@ void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
                 is_federated_);
   ValidateField(event, SafeBrowsingPrivateEventRouter::kKeyLoginUserName,
                 login_user_name_);
-  ValidateField(event,
-                SafeBrowsingPrivateEventRouter::kKeyWebAppSignedInAccount,
-                active_content_area_user_);
-  ValidateField(event,
-                SafeBrowsingPrivateEventRouter::kKeySourceWebAppSignedInAccount,
+  ValidateField(event, kKeyWebAppSignedInAccount, active_content_area_user_);
+  ValidateField(event, kKeySourceWebAppSignedInAccount,
                 source_active_content_area_user_);
   ValidateFederatedOrigin(event);
   ValidateIdentities(event);
@@ -757,7 +858,7 @@ EventReportValidatorHelper::EventReportValidatorHelper(Profile* profile,
     RealtimeReportingClientFactory::GetInstance()->SetTestingFactory(
         profile, base::BindRepeating([](content::BrowserContext* context) {
           return std::unique_ptr<KeyedService>(
-              new enterprise_connectors::RealtimeReportingClient(context));
+              new RealtimeReportingClient(context));
         }));
   }
 

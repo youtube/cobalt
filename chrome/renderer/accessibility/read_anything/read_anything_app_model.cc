@@ -479,13 +479,16 @@ void ReadAnythingAppModel::ClearPendingUpdates() {
 void ReadAnythingAppModel::UnserializePendingUpdates(
     const ui::AXTreeID& tree_id) {
   if (!pending_updates_.contains(tree_id)) {
+    VLOG(1) << "Returning early in UnserializePendingUpdates because it "
+               "doesn't contain tree id "
+            << tree_id;
     return;
   }
   // TODO(crbug.com/40802192): Ensure there are no crashes/unexpected behavior
   // if an accessibility event is received on the same tree after
   // unserialization has begun.
   std::vector<Updates> updates = pending_updates_.extract(tree_id).mapped();
-  for (Updates update : updates) {
+  for (const Updates& update : updates) {
     // Unserialize the updates in batches in the groupings in which they were
     // received by AccessibilityEventReceived.
     DCHECK(update.empty() || tree_id == active_tree_id_);
@@ -493,9 +496,12 @@ void ReadAnythingAppModel::UnserializePendingUpdates(
   }
 }
 
-void ReadAnythingAppModel::UnserializeUpdates(Updates& updates,
+void ReadAnythingAppModel::UnserializeUpdates(const Updates& updates,
                                               const ui::AXTreeID& tree_id) {
+  VLOG(1) << "Unserializing updates for " << tree_id;
   if (updates.empty()) {
+    VLOG(1) << "Unable to unserialize updates for " << tree_id
+            << " because the updates are empty";
     return;
   }
 
@@ -525,6 +531,9 @@ void ReadAnythingAppModel::UnserializeUpdates(Updates& updates,
     }
     if (update.tree_data.tree_id == ui::AXTreeIDUnknown()) {
       VLOG(1) << "unserializing an update with an unknown tree ID";
+    } else {
+      VLOG(1) << "Unserializing an update with a known tree ID: "
+              << update.tree_data.tree_id;
     }
     tree->Unserialize(update);
   }
@@ -541,6 +550,7 @@ void ReadAnythingAppModel::AccessibilityEventReceived(
     std::vector<ui::AXEvent>& events,
     bool speech_playing) {
   DCHECK_NE(tree_id, ui::AXTreeIDUnknown());
+  VLOG(1) << "AccessibilityEventReceived for " << tree_id;
   // Create a new tree if an event is received for a tree that is not yet in
   // the tree list.
   if (!ContainsTree(tree_id)) {
@@ -589,14 +599,18 @@ void ReadAnythingAppModel::AccessibilityEventReceived(
         CHECK(features::IsDataCollectionModeForScreen2xEnabled());
         timer_since_tree_changed_for_data_collection_.Reset();
       }
+      VLOG(1) << "Returning early in AccessibilityEventReceived because "
+                 "distillation is in progress";
       return;
     }
     // We need to unserialize old updates before we can unserialize the new
     // ones.
+    VLOG(1) << "AccessibilityEventReceived- tree ID is the active tree";
     UnserializePendingUpdates(tree_id);
     UnserializeUpdates(updates, tree_id);
     ProcessNonGeneratedEvents(events);
   } else {
+    VLOG(1) << "AccessibilityEventReceived- tree ID is not the active tree";
     UnserializeUpdates(updates, tree_id);
   }
 
@@ -614,6 +628,7 @@ void ReadAnythingAppModel::OnAXTreeDestroyed(const ui::AXTreeID& tree_id) {
   // browser learns that an `AXTree` was destroyed. This could be from any tab,
   // not just the active one; therefore many `tree_id`s will not be found in
   // `tree_infos_`.
+  VLOG(1) << "OnAXTreeDestroyed for " << tree_id;
   const auto it = tree_infos_.find(tree_id);
   if (it == tree_infos_.end()) {
     return;
@@ -1145,4 +1160,11 @@ void ReadAnythingAppModel::AllowChildTreeForActiveTree(bool use_child_tree) {
   // Store all the possible child tree ids that could be used as the active
   // tree if they have distillable content.
   child_tree_ids_.insert(child_ids.begin(), child_ids.end());
+}
+
+bool ReadAnythingAppModel::SelectionNodesContainedInDistilledContent() const {
+  std::vector<ui::AXNodeID> sorted_content_ids = content_node_ids_;
+  std::sort(sorted_content_ids.begin(), sorted_content_ids.end());
+  return std::includes(sorted_content_ids.begin(), sorted_content_ids.end(),
+                       selection_node_ids_.begin(), selection_node_ids_.end());
 }

@@ -35,7 +35,6 @@
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension_id.h"
 #include "ui/base/metadata/metadata_types.h"
-#include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
@@ -129,16 +128,6 @@ ExtensionsMenuSitePermissionsPageView* GetSitePermissionsPage(
   return views::AsViewClass<ExtensionsMenuSitePermissionsPageView>(page);
 }
 
-// Returns whether `extension` cannot have its site access modified by the user
-// because of policy.
-bool HasEnterpriseForcedAccess(const extensions::Extension& extension,
-                               Profile& profile) {
-  extensions::ManagementPolicy* policy =
-      extensions::ExtensionSystem::Get(&profile)->management_policy();
-  return !policy->UserMayModifySettings(&extension, nullptr) ||
-         policy->MustRemainInstalled(&extension, nullptr);
-}
-
 // Returns whether the site permissions button should be visible.
 bool IsSitePermissionsButtonVisible(const extensions::Extension& extension,
                                     Profile& profile,
@@ -161,7 +150,9 @@ bool IsSitePermissionsButtonVisible(const extensions::Extension& extension,
       // Extension should only display the button when it's an enterprise
       // extension and has granted access.
       bool enterprise_forced_access =
-          HasEnterpriseForcedAccess(extension, profile);
+          extensions::ExtensionSystem::Get(&profile)
+              ->management_policy()
+              ->HasEnterpriseForcedAccess(extension);
       SitePermissionsHelper::SiteInteraction site_interaction =
           SitePermissionsHelper(&profile).GetSiteInteraction(extension,
                                                              &web_contents);
@@ -194,7 +185,9 @@ bool CanUserCustomizeExtensionSiteAccess(
     return false;
   }
 
-  if (HasEnterpriseForcedAccess(extension, profile)) {
+  if (extensions::ExtensionSystem::Get(&profile)
+          ->management_policy()
+          ->HasEnterpriseForcedAccess(extension)) {
     // Users can't customize the site access of enterprise-installed extensions.
     return false;
   }
@@ -303,12 +296,10 @@ void LogSiteAccessUpdate(PermissionsManager::UserSiteAccess site_access) {
 ExtensionsMenuViewController::ExtensionsMenuViewController(
     Browser* browser,
     ExtensionsContainer* extensions_container,
-    views::View* bubble_contents,
-    views::BubbleDialogDelegate* bubble_delegate)
+    views::View* bubble_contents)
     : browser_(browser),
       extensions_container_(extensions_container),
       bubble_contents_(bubble_contents),
-      bubble_delegate_(bubble_delegate),
       toolbar_model_(ToolbarActionsModel::Get(browser_->profile())) {
   browser_->tab_strip_model()->AddObserver(this);
   toolbar_model_observation_.Observe(toolbar_model_.get());
@@ -580,7 +571,9 @@ void ExtensionsMenuViewController::UpdateMainPage(
         toolbar_model_->action_ids().end(),
         [this](const ToolbarActionsModel::ActionId extension_id) {
           auto* extension = GetExtension(browser_, extension_id);
-          return HasEnterpriseForcedAccess(*extension, *browser_->profile());
+          return extensions::ExtensionSystem::Get(browser_->profile())
+              ->management_policy()
+              ->HasEnterpriseForcedAccess(*extension);
         });
   };
   auto reload_required = [web_contents]() {
@@ -674,8 +667,9 @@ void ExtensionsMenuViewController::UpdateMainPage(
     ExtensionMenuItemView::SitePermissionsButtonAccess
         site_permissions_button_access = GetSitePermissionsButtonAccess(
             *extension, *browser_->profile(), *toolbar_model_, *web_contents);
-    bool is_enterprise =
-        HasEnterpriseForcedAccess(*extension, *browser_->profile());
+    bool is_enterprise = extensions::ExtensionSystem::Get(browser_->profile())
+                             ->management_policy()
+                             ->HasEnterpriseForcedAccess(*extension);
     menu_item->Update(site_access_toggle_state, site_permissions_button_state,
                       site_permissions_button_access, is_enterprise);
   }
@@ -1007,7 +1001,9 @@ void ExtensionsMenuViewController::InsertMenuItemMainPage(
   Profile* profile = browser_->profile();
   content::WebContents* web_contents = GetActiveWebContents();
 
-  bool is_enterprise = HasEnterpriseForcedAccess(*extension, *profile);
+  bool is_enterprise = extensions::ExtensionSystem::Get(profile)
+                           ->management_policy()
+                           ->HasEnterpriseForcedAccess(*extension);
   ExtensionMenuItemView::SiteAccessToggleState site_access_toggle_state =
       GetSiteAccessToggleState(*extension, *profile, *toolbar_model_,
                                *web_contents);

@@ -15,11 +15,13 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/candidate.h"
 
 namespace webrtc {
 
 size_t SessionDescriptionInterface::RemoveCandidates(
+    absl::string_view mid,
     const std::vector<Candidate>& /* candidates */) {
   return 0;
 }

@@ -10,8 +10,7 @@
 
 #include "modules/audio_processing/test/wav_based_simulator.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <utility>

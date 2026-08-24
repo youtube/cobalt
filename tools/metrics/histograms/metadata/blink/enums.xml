@@ -4663,7 +4663,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4188" label="Fledge"/>
   <int value="4189" label="ElementShowPopover"/>
   <int value="4190" label="ElementHidePopover"/>
-  <int value="4191" label="ValidPopoverAttribute"/>
+  <int value="4191" label="OBSOLETE_ValidPopoverAttribute"/>
   <int value="4192" label="DeprecationExample"/>
   <int value="4193" label="RTCLocalSdpModificationOpusStereo"/>
   <int value="4194" label="NavigatorUAData_Mobile"/>
@@ -4748,7 +4748,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4269" label="SharedStorageAPI_SelectURL_Method"/>
   <int value="4270" label="SharedStorageAPI_Run_Method"/>
   <int value="4271" label="ViewTimelineConstructor"/>
-  <int value="4272" label="H1UserAgentFontSizeInSectionApplied"/>
+  <int value="4272" label="OBSOLETE_H1UserAgentFontSizeInSectionApplied"/>
   <int value="4273" label="OBSOLETE_kV8PendingBeacon_Constructor"/>
   <int value="4274" label="OBSOLETE_kV8PendingBeacon_Url_AttributeGetter"/>
   <int value="4275" label="OBSOLETE_kV8PendingBeacon_Url_AttributeSetter"/>
@@ -4771,7 +4771,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4290" label="DeviceOrientationUsedWithoutPermissionRequest"/>
   <int value="4291" label="DeviceMotionPermissionRequested"/>
   <int value="4292" label="DeviceMotionUsedWithoutPermissionRequest"/>
-  <int value="4293" label="PrivateNetworkAccessPermissionPrompt"/>
+  <int value="4293" label="OBSOLETE_PrivateNetworkAccessPermissionPrompt"/>
   <int value="4294" label="PseudoBeforeAfterForDateTimeInputElement"/>
   <int value="4295"
       label="OBSOLETE_kV8PendingBeacon_IsPending_AttributeGetter"/>
@@ -5030,7 +5030,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4524" label="AsyncClipboardAPIUnsanitizedRead"/>
   <int value="4525" label="OBSOLETE_WindowOpenFullscreenRequested"/>
   <int value="4526" label="OBSOLETE_FullscreenAllowedByWindowOpen"/>
-  <int value="4527" label="OBSOLETE_AttributeValueContainsLtOrGt"/>
+  <int value="4527" label="AttributeValueContainsLtOrGt"/>
   <int value="4528" label="OBSOLETE_V8ImportAssertionDeprecatedSyntax"/>
   <int value="4529" label="ImageCaptureBackgroundBlur"/>
   <int value="4530" label="PrivateNetworkAccessPreflightError"/>
@@ -6237,6 +6237,16 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5604" label="HTMLCanvasElementLowLatency_WebGL_Discard"/>
   <int value="5605" label="AnimatedImageUsedMoreThanOnce"/>
   <int value="5606" label="ClipboardPlatformPermissionDenied"/>
+  <int value="5607" label="ValidPopoverAttribute"/>
+  <int value="5608" label="CanvasFallbackContent"/>
+  <int value="5609" label="CanvasFallbackElementContent"/>
+  <int value="5610" label="AutofillMaybeSyntheticSelect"/>
+  <int value="5611" label="AutofillSyntheticSelect"/>
+  <int value="5612" label="FetchRetry"/>
+  <int value="5613" label="MessageEventDataBeforeSameOrigin"/>
+  <int value="5614" label="MessageEventDataBeforeSameSiteOrigin"/>
+  <int value="5615" label="MessageEventDataBeforeCrossSiteOrigin"/>
+  <int value="5616" label="MessageEventDataBeforeOpaqueOrigin"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7789,11 +7799,11 @@ Called by update_use_counter_css.py.-->
   <int value="815" label="masonry-auto-tracks (obsolete)"/>
   <int value="816" label="result"/>
   <int value="817" label="animation-trigger-type (obsolete)"/>
-  <int value="818" label="animation-trigger-timeline"/>
-  <int value="819" label="animation-trigger-range-start"/>
-  <int value="820" label="animation-trigger-range-end"/>
-  <int value="821" label="animation-trigger-exit-range-start"/>
-  <int value="822" label="animation-trigger-exit-range-end"/>
+  <int value="818" label="animation-trigger-timeline (obsolete)"/>
+  <int value="819" label="animation-trigger-range-start (obsolete)"/>
+  <int value="820" label="animation-trigger-range-end (obsolete)"/>
+  <int value="821" label="animation-trigger-exit-range-start (obsolete)"/>
+  <int value="822" label="animation-trigger-exit-range-end (obsolete)"/>
   <int value="823" label="interest-show-delay"/>
   <int value="824" label="interest-hide-delay"/>
   <int value="825" label="animation-trigger-range"/>
@@ -7841,7 +7851,7 @@ Called by update_use_counter_css.py.-->
   <int value="867" label="corner-inline-end-shape"/>
   <int value="868" label="corners"/>
   <int value="869" label="border-shape"/>
-  <int value="870" label="animation-trigger-behavior"/>
+  <int value="870" label="animation-trigger-behavior (obsolete)"/>
   <int value="871" label="timeline-trigger-name"/>
   <int value="872" label="timeline-trigger-behavior"/>
   <int value="873" label="timeline-trigger-range-start"/>
@@ -7851,6 +7861,8 @@ Called by update_use_counter_css.py.-->
   <int value="877" label="timeline-trigger-timeline"/>
   <int value="878" label="timeline-trigger"/>
   <int value="879" label="masonry"/>
+  <int value="880" label="continue"/>
+  <int value="881" label="max-lines"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -7977,7 +7989,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="0" label="PageVisits"/>
   <int value="1" label="CompressionStreams"/>
   <int value="2" label="ViewTransitions"/>
-  <int value="3" label="Popover"/>
+  <int value="3" label="OBSOLETE_Popover"/>
   <int value="4" label="Subgrid"/>
   <int value="5" label="CascadeLayers"/>
   <int value="6" label="AccentColor"/>
@@ -8348,6 +8360,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="371" label="WasmNonTrappingFloatToInt"/>
   <int value="372" label="WasmSignExtensionOperators"/>
   <int value="373" label="DRAFT_IncomingCallNotifications"/>
+  <int value="374" label="Popover"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

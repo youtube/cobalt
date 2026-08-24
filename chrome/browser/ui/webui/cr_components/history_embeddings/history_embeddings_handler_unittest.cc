@@ -113,7 +113,6 @@ class HistoryEmbeddingsHandlerTest : public BrowserWithTestWindowTest {
 #endif  // BUILDFLAG(IS_CHROMEOS)
         },
         /*disabled_features=*/{});
-    MockOptimizationGuideKeyedService::InitializeWithExistingTestLocalState();
 
     TestingProfile* profile_ = profile_manager()->CreateTestingProfile(
         "History Embeddings Test User",
@@ -157,7 +156,6 @@ class HistoryEmbeddingsHandlerTest : public BrowserWithTestWindowTest {
     mock_hats_service_ = nullptr;
     web_contents_.reset();
     handler_.reset();
-    MockOptimizationGuideKeyedService::ResetForTesting();
     BrowserWithTestWindowTest::TearDown();
   }
 
@@ -314,7 +312,8 @@ TEST_F(HistoryEmbeddingsHandlerTest, RecordsMetrics) {
 TEST_F(HistoryEmbeddingsHandlerTest, ShowsPromo) {
   EXPECT_CALL(*mock_promo_controller(),
               MaybeShowPromo(user_education::test::MatchFeaturePromoParams(
-                  feature_engagement::kIPHHistorySearchFeature)))
+                                 feature_engagement::kIPHHistorySearchFeature),
+                             testing::_))
       .Times(1);
   handler_->MaybeShowFeaturePromo();
 }

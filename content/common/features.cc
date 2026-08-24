@@ -362,6 +362,12 @@ BASE_FEATURE(kNavigationThrottleRegistryAttributeCache,
              "NavigationThrottleRegistryAttributeCache",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, NavigationThrottleRunner2 is used instead of the original
+// NavigationThrottleRunner. See https://crbug.com/422003056.
+BASE_FEATURE(kNavigationThrottleRunner2,
+             "NavigationThrottleRunner2",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // This feature enables Permissions Policy verification in the Browser process
 // in content/. Additionally only for //chrome Permissions Policy verification
 // is enabled in components/permissions/permission_context_base.cc
@@ -535,13 +541,6 @@ BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
              "SkipEarlyCommitPendingForCrashedFrame",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_WIN)
-// Skip granting access to the data path if it has already been set.
-BASE_FEATURE(kSkipGrantAccessToDataPathIfAlreadySet,
-             "SkipGrantAccessToDataPathIfAlreadySet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, ensure high-rank processes are on the LRU list while app is in

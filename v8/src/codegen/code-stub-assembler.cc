@@ -3713,16 +3713,6 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   return var_result.value();
 }
 
-TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
-#ifdef V8_ENABLE_LEAPTIERING
-  TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
-      function, JSFunction::kDispatchHandleOffset);
-  return LoadCodeObjectFromJSDispatchTable(dispatch_handle);
-#else
-  return LoadCodePointerFromObject(function, JSFunction::kCodeOffset);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
     TNode<SharedFunctionInfo> sfi) {
 #ifdef V8_ENABLE_SANDBOX
@@ -14385,6 +14375,12 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
 TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
+  // The metadata entry consists of two system pointers.
+  static constexpr size_t kMemoryChunkMetadataTableEntrySizeLog2 =
+      base::bits::WhichPowerOfTwo(
+          sizeof(IsolateGroup::MemoryChunkMetadataTableEntry));
+  static_assert(kMemoryChunkMetadataTableEntrySizeLog2 ==
+                kSystemPointerSizeLog2 + 1);
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::memory_chunk_metadata_table_address());
   TNode<Uint32T> index = Load<Uint32T>(
@@ -14392,8 +14388,8 @@ TNode<IntPtrT> CodeStubAssembler::PageMetadataFromMemoryChunk(
   index = Word32And(index,
                     UniqueUint32Constant(
                         MemoryChunkConstants::kMetadataPointerTableSizeMask));
-  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
-      Word32Shl(index, UniqueUint32Constant(kSystemPointerSizeLog2)));
+  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(Word32Shl(
+      index, UniqueUint32Constant(kMemoryChunkMetadataTableEntrySizeLog2)));
   TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
@@ -17216,11 +17212,12 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
   return CAST(result);
 }
 
-TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
+TNode<JSArray> CodeStubAssembler::AllocateJSIteratorResultValueForEntry(
     TNode<Context> context, TNode<Object> key, TNode<Object> value) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Smi> length = SmiConstant(2);
   int const elements_size = FixedArray::SizeFor(2);
+
   TNode<FixedArray> elements =
       UncheckedCast<FixedArray>(Allocate(elements_size));
   StoreObjectFieldRoot(elements, offsetof(FixedArray, map_),
@@ -17229,6 +17226,7 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
                                  length);
   StoreFixedArrayElement(elements, 0, key);
   StoreFixedArrayElement(elements, 1, value);
+
   TNode<Map> array_map = CAST(LoadContextElementNoCell(
       native_context, Context::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX));
   TNode<HeapObject> array =
@@ -17238,6 +17236,14 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
                        RootIndex::kEmptyFixedArray);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+  return CAST(array);
+}
+
+TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
+    TNode<Context> context, TNode<Object> key, TNode<Object> value) {
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<JSArray> array =
+      AllocateJSIteratorResultValueForEntry(context, key, value);
   TNode<Map> iterator_map = CAST(LoadContextElementNoCell(
       native_context, Context::ITERATOR_RESULT_MAP_INDEX));
   TNode<HeapObject> result = Allocate(JSIteratorResult::kSize);

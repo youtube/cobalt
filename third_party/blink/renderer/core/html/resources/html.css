@@ -175,34 +175,36 @@ h1 {
     font-weight: bold
 }
 
-:-webkit-any(article,aside,nav,section) h1 {
-    font-size: 1.5em;
-    margin-block-start: 0.83__qem;
-    margin-block-end: 0.83em;
-}
+@supports blink-feature(SpecialRulesForNestedH1Elements) {
+  :-webkit-any(article,aside,nav,section) h1 {
+      font-size: 1.5em;
+      margin-block-start: 0.83__qem;
+      margin-block-end: 0.83em;
+  }
 
-:-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-    font-size: 1.17em;
-    margin-block-start: 1__qem;
-    margin-block-end: 1em;
-}
+  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
+      font-size: 1.17em;
+      margin-block-start: 1__qem;
+      margin-block-end: 1em;
+  }
 
-:-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-    font-size: 1.00em;
-    margin-block-start: 1.33__qem;
-    margin-block-end: 1.33em;
-}
+  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
+      font-size: 1.00em;
+      margin-block-start: 1.33__qem;
+      margin-block-end: 1.33em;
+  }
 
-:-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-    font-size: .83em;
-    margin-block-start: 1.67__qem;
-    margin-block-end: 1.67em;
-}
+  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
+      font-size: .83em;
+      margin-block-start: 1.67__qem;
+      margin-block-end: 1.67em;
+  }
 
-:-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
-    font-size: .67em;
-    margin-block-start: 2.33__qem;
-    margin-block-end: 2.33em;
+  :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) :-webkit-any(article,aside,nav,section) h1 {
+      font-size: .67em;
+      margin-block-start: 2.33__qem;
+      margin-block-end: 2.33em;
+  }
 }
 
 h2 {
@@ -2067,6 +2069,8 @@ dialog:where(:modal) {
 
   select:-internal-list-box {
     box-sizing: -internal-auto-base(border-box, initial);
+    overflow-inline: -internal-auto-base(hidden, auto);
+    overflow-block: -internal-auto-base(scroll, auto);
   }
 
   select:-internal-list-box::picker-icon {
@@ -2196,9 +2200,9 @@ dialog:where(:modal) {
      * if underlying performance issues with lh units are fixed. */
     min-block-size: -internal-auto-base(24px, max(24px, 1lh));
     font-weight: -internal-auto-base(normal, inherit);
-    padding-inline: -internal-auto-base(2px, 0.5em);
-    padding-block-end: -internal-auto-base(1px, 0);
-    display: -internal-auto-base(block, flex);
+    padding-inline: 0.5em;
+    padding-block-end: 0;
+    display: flex;
     align-items: center;
     gap: 0.5em;
   }

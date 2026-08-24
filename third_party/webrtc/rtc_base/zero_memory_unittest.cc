@@ -10,9 +10,8 @@
 
 #include "rtc_base/zero_memory.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "test/gtest.h"

@@ -34,6 +34,18 @@ bool IsInIncognito(bool from_tab_grid,
 }  // namespace
 
 const CGFloat kChromeAppBarPrototypeHeight = 58;
+const CGFloat kChromeAppBarPrototypeSymbolSize = 22;
+
+const CGFloat kDiamondBrowserCornerRadius = 18;
+
+const CGFloat kDiamondToolbarHeight = 62;
+const CGFloat kDiamondCollapsedToolbarHeight = 41;
+const CGFloat kDiamondLocationBarHeight = 46;
+
+NSString* kDiamondEnterTabGridNotification =
+    @"kDiamondEnterTabGridNotification";
+NSString* kDiamondLeaveTabGridNotification =
+    @"kDiamondLeaveTabGridNotification";
 
 void DiamondPrototypeStartGemini(bool from_tab_grid,
                                  bool incognito_grid,

@@ -10,9 +10,8 @@
 
 #include "api/jsep_session_description.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -499,20 +498,14 @@ TEST_F(JsepSessionDescriptionTest, RemoveCandidateAndSetConnectionAddress) {
                        SocketAddress("::1", 1234), kCandidatePriority, "", "",
                        IceCandidateType::kHost, kCandidateGeneration,
                        kCandidateFoundation);
-  candidate1.set_transport_name("audio");
-
   Candidate candidate2(ICE_CANDIDATE_COMPONENT_RTP, "tcp",
                        SocketAddress("::2", 1235), kCandidatePriority, "", "",
                        IceCandidateType::kHost, kCandidateGeneration,
                        kCandidateFoundation);
-  candidate2.set_transport_name("audio");
-
   Candidate candidate3(ICE_CANDIDATE_COMPONENT_RTP, "udp",
                        SocketAddress("192.168.1.1", 1236), kCandidatePriority,
                        "", "", IceCandidateType::kHost, kCandidateGeneration,
                        kCandidateFoundation);
-  candidate3.set_transport_name("audio");
-
   IceCandidate jice1("audio", 0, candidate1);
   IceCandidate jice2("audio", 0, candidate2);
   IceCandidate jice3("audio", 0, candidate3);
@@ -529,17 +522,17 @@ TEST_F(JsepSessionDescriptionTest, RemoveCandidateAndSetConnectionAddress) {
   EXPECT_EQ("192.168.1.1:1236", media_desc->connection_address().ToString());
 
   candidates.push_back(candidate3);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates(candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
   EXPECT_EQ("[::1]:1234", media_desc->connection_address().ToString());
 
   candidates.clear();
   candidates.push_back(candidate2);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates(candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
   EXPECT_EQ("[::1]:1234", media_desc->connection_address().ToString());
 
   candidates.clear();
   candidates.push_back(candidate1);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates(candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
   EXPECT_EQ("0.0.0.0:9", media_desc->connection_address().ToString());
 }
 

@@ -151,6 +151,7 @@ void MtlCaps::initCaps(const id<MTLDevice> device) {
         fRequiredTransferBufferAlignment = 1;
     }
 
+    fResourceBindingReqs.fBackendApi = BackendApi::kMetal;
     fResourceBindingReqs.fUniformBufferLayout = Layout::kMetal;
     fResourceBindingReqs.fStorageBufferLayout = Layout::kMetal;
 
@@ -175,6 +176,10 @@ void MtlCaps::initCaps(const id<MTLDevice> device) {
     fStorageBufferSupport = true;
 
     fComputeSupport = true;
+
+    // Currently no known regressions from clears in metal (including Intel, which does have
+    // poor performance in Vulkan with clears).
+    fAvoidClearLoadOps = false;
 
     // See https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf, and what Dawn does at
     // https://crsrc.org/c/third_party/dawn/src/dawn/native/metal/PhysicalDeviceMTL.mm?q=maxInterStageShaderVariables

@@ -40,7 +40,7 @@
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
 
-namespace WTF {
+namespace blink {
 
 template <typename T>
 class ThreadSpecific {
@@ -129,7 +129,7 @@ inline ThreadSpecific<T>::operator T*() {
     // Even if we didn't realize we're on the main thread, we might still be.
     // We need to double-check so that |main_thread_storage_| is populated.
     if (!kMainThreadAlwaysChecksTLS && ptr != &main_thread_storage_ &&
-        blink::IsMainThread()) [[unlikely]] {
+        IsMainThread()) [[unlikely]] {
       main_thread_storage_ = *ptr;
     }
 
@@ -149,8 +149,6 @@ inline T& ThreadSpecific<T>::operator*() {
   return *operator T*();
 }
 
-}  // namespace WTF
-
-using WTF::ThreadSpecific;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_THREAD_SPECIFIC_H_

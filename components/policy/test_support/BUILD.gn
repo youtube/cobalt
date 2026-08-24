@@ -81,6 +81,7 @@ static_library("test_support") {
     "//components/policy/core/common:test_support",
     "//components/policy/proto",
     "//crypto",
+    "//crypto:test_support",
     "//google_apis:google_apis",
     "//net",
     "//net:test_support",
@@ -100,6 +101,10 @@ static_library("test_support") {
       "//third_party/private_membership/src/internal/testing/regression_test_data/test_data.binarypb",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_chromeos) {
@@ -130,6 +135,10 @@ if (is_chromeos) {
       "//base",
       "//third_party/abseil-cpp:absl",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -177,9 +186,14 @@ source_set("unittests") {
     "//components/policy/core/common:common_constants",
     "//components/policy/core/common:test_support",
     "//components/policy/proto",
+    "//crypto:test_support",
     "//services/network:test_support",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
     "//third_party/abseil-cpp:absl",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

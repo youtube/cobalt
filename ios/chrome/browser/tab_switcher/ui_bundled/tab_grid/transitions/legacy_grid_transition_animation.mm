@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_transition_animation.h"
 
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/property_animator_group.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/legacy_grid_to_tab_transition_view.h"
@@ -220,7 +222,11 @@ CGFloat CalculateResizeDampingCorrection(LegacyGridTransitionLayout* layout) {
 
   // C: Round the corners of the active cell.
   UIView<LegacyGridToTabTransitionView>* cell = self.layout.activeItem.cell;
-  cell.cornerRadius = DeviceCornerRadius();
+  if (IsDiamondPrototypeEnabled()) {
+    cell.cornerRadius = kDiamondBrowserCornerRadius;
+  } else {
+    cell.cornerRadius = DeviceCornerRadius();
+  }
   auto roundCornersAnimation = ^{
     cell.cornerRadius = self.finalActiveCellCornerRadius;
   };
@@ -325,10 +331,9 @@ CGFloat CalculateResizeDampingCorrection(LegacyGridTransitionLayout* layout) {
       self.layout.activeItem.cell;
   // The top tab view starts at zero alpha but is crossfaded in.
   activeCell.topTabView.alpha = 0.0;
-  // If the active item is appearing, the main tab view is shown. If not, it's
-  // hidden, and may be faded in if it's expected to be different in content
-  // from the existing cell snapshot.
-  if (!self.layout.activeItem.isAppearing) {
+  // Hide the main tab view if a BVC snapshot isn't being used. It might be
+  // faded in later if its content differs from the existing cell snapshot.
+  if (!self.layout.activeItem.shouldUseBVCSnapshot) {
     activeCell.mainTabView.alpha = 0.0;
   }
 
@@ -358,7 +363,11 @@ CGFloat CalculateResizeDampingCorrection(LegacyGridTransitionLayout* layout) {
   // C: Square the active cell's corners.
   UIView<LegacyGridToTabTransitionView>* cell = self.layout.activeItem.cell;
   auto squareCornersAnimation = ^{
-    cell.cornerRadius = DeviceCornerRadius();
+    if (IsDiamondPrototypeEnabled()) {
+      cell.cornerRadius = kDiamondBrowserCornerRadius;
+    } else {
+      cell.cornerRadius = DeviceCornerRadius();
+    }
   };
   auto squareCornersKeyframeAnimation =
       [self keyframeAnimationWithRelativeStart:0.0

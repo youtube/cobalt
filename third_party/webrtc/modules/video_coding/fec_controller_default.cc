@@ -10,10 +10,9 @@
 
 #include "modules/video_coding/fec_controller_default.h"  // NOLINT
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <vector>
 

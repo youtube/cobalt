@@ -10,9 +10,8 @@
 
 #include "modules/remote_bitrate_estimator/overuse_estimator.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 #include "api/transport/bandwidth_usage.h"

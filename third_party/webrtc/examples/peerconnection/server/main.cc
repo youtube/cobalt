@@ -8,13 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#if defined(WEBRTC_POSIX)
-#include <sys/select.h>
-#endif
-#include <time.h>
-
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -24,6 +20,10 @@
 #include "examples/peerconnection/server/data_socket.h"
 #include "examples/peerconnection/server/peer_channel.h"
 #include "rtc_base/checks.h"
+
+#if defined(WEBRTC_POSIX)
+#include <sys/select.h>
+#endif
 
 // As of now, no components in peerconnection_server rely on WebRTC components
 // that change its behavior based on a field trial, so this flag is currently

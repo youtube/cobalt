@@ -28,6 +28,24 @@ namespace {
 constexpr char kWindowThreadName[] = "window_capture_utils_test_thread";
 const WCHAR kWindowTitle[] = L"Window Capture Utils Test";
 
+TEST(WindowCaptureUtilsTest, GetWindowList) {
+  WindowInfo info = CreateTestWindow(kWindowTitle);
+  DesktopCapturer::SourceList window_list;
+  ASSERT_TRUE(GetWindowList(GetWindowListFlags::kNone, &window_list));
+  EXPECT_GT(window_list.size(), 0ULL);
+  EXPECT_NE(std::find_if(window_list.begin(), window_list.end(),
+                         [&info](DesktopCapturer::Source window) {
+                           return reinterpret_cast<HWND>(window.id) ==
+                                  info.hwnd;
+                         }),
+            window_list.end());
+  DestroyTestWindow(info);
+}
+
+// Disable thread-safety-analysis in order to test unresponsive Windows.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wthread-safety-analysis"
+
 std::unique_ptr<Thread> SetUpUnresponsiveWindow(std::mutex& mtx,
                                                 WindowInfo& info) {
   std::unique_ptr<Thread> window_thread;
@@ -45,22 +63,6 @@ std::unique_ptr<Thread> SetUpUnresponsiveWindow(std::mutex& mtx,
   });
 
   return window_thread;
-}
-
-}  // namespace
-
-TEST(WindowCaptureUtilsTest, GetWindowList) {
-  WindowInfo info = CreateTestWindow(kWindowTitle);
-  DesktopCapturer::SourceList window_list;
-  ASSERT_TRUE(GetWindowList(GetWindowListFlags::kNone, &window_list));
-  EXPECT_GT(window_list.size(), 0ULL);
-  EXPECT_NE(std::find_if(window_list.begin(), window_list.end(),
-                         [&info](DesktopCapturer::Source window) {
-                           return reinterpret_cast<HWND>(window.id) ==
-                                  info.hwnd;
-                         }),
-            window_list.end());
-  DestroyTestWindow(info);
 }
 
 TEST(WindowCaptureUtilsTest, IncludeUnresponsiveWindows) {
@@ -107,6 +109,8 @@ TEST(WindowCaptureUtilsTest, IgnoreUnresponsiveWindows) {
   window_thread->Stop();
 }
 
+#pragma clang diagnostic pop
+
 TEST(WindowCaptureUtilsTest, IncludeUntitledWindows) {
   WindowInfo info = CreateTestWindow(L"");
   DesktopCapturer::SourceList window_list;
@@ -148,4 +152,5 @@ TEST(WindowCaptureUtilsTest, IgnoreCurrentProcessWindows) {
   DestroyTestWindow(info);
 }
 
+}  // namespace
 }  // namespace webrtc

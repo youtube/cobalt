@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/v8-json.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/module-decoder.h"
@@ -363,7 +362,7 @@ class TypeCanonicalizerTest
     zone_.Reset();
   }
 
-  v8::internal::AccountingAllocator allocator_;
+  AccountingAllocator allocator_;
   Zone zone_;
   const WasmEnabledFeatures enabled_features_ =
       WasmEnabledFeatures::FromFlags();

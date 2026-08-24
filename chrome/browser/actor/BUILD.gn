@@ -151,6 +151,7 @@ source_set("impl") {
 # This avoids dependency cycles.
 source_set("types") {
   sources = [
+    "shared_types.cc",
     "shared_types.h",
     "task_id.h",
   ]
@@ -159,6 +160,7 @@ source_set("types") {
     "//chrome/common:mojo_bindings",
     "//ui/gfx/geometry:geometry",
   ]
+  deps = [ "//third_party/abseil-cpp:absl" ]
 }
 
 source_set("variant_visitor") {
@@ -168,6 +170,8 @@ source_set("variant_visitor") {
 source_set("test_support") {
   testonly = true
   sources = [
+    "actor_keyed_service_fake.cc",
+    "actor_keyed_service_fake.h",
     "actor_test_util.cc",
     "actor_test_util.h",
   ]
@@ -176,6 +180,8 @@ source_set("test_support") {
 
   public_deps = [
     "//base",
+    "//chrome/browser/actor/ui:event_dispatcher",
+    "//chrome/browser/actor/ui:test_support",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//content/test:test_support",
   ]
@@ -186,6 +192,7 @@ source_set("unit_tests") {
   sources = [
     "actor_keyed_service_unittest.cc",
     "aggregated_journal_unittest.cc",
+    "shared_types_unittest.cc",
     "site_policy_unittest.cc",
   ]
   deps = [
@@ -213,6 +220,7 @@ source_set("browser_tests") {
     ":actor",
     ":impl",
     ":test_support",
+    "ui:event_dispatcher",
     "//base/test:test_support",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/safe_browsing",
@@ -231,8 +239,21 @@ source_set("browser_tests") {
   if (enable_glic) {
     sources += [
       "execution_engine_browsertest.cc",
+      "tools/attempt_login_tool_browsertest.cc",
+      "tools/click_tool_browsertest.cc",
+      "tools/drag_and_release_tool_browsertest.cc",
+      "tools/history_tool_browsertest.cc",
+      "tools/mouse_move_tool_browsertest.cc",
+      "tools/navigate_tool_browsertest.cc",
       "tools/page_stability_browsertest.cc",
-      "tools/tools_browsertest.cc",
+      "tools/scroll_tool_browsertest.cc",
+      "tools/select_tool_browsertest.cc",
+      "tools/tab_management_tool_browsertest.cc",
+      "tools/tool_agnostic_browsertest.cc",
+      "tools/tools_test_util.cc",
+      "tools/tools_test_util.h",
+      "tools/type_tool_browsertest.cc",
+      "tools/wait_tool_browsertest.cc",
     ]
     deps += [ "//chrome/browser/glic:glic" ]
   }

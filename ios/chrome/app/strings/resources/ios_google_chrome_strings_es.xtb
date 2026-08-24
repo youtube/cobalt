@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Buscar con Google Lens</translation>
 <translation id="1143896152279775643">Tu contraseña se guardará en el Gestor de contraseñas de Google de <ph name="EMAIL" />.</translation>
 <translation id="1146503048444965320">Abrir nueva pestaña en Chrome</translation>
+<translation id="1158134713295836892">Gemini en Chrome</translation>
 <translation id="1166460004393506534">Eliminar los datos de navegación en Chrome</translation>
 <translation id="1179527450541388808">Accede más rápido a Chrome desde el Dock de la pantalla de inicio de tu iPad.</translation>
 <translation id="1180362651362502943">Sigue usando los datos de Chrome en tu cuenta de Google.</translation>
@@ -117,6 +118,7 @@ Prueba a esperar unos minutos antes de cerrar sesión. Si cierras sesión ahora,
 <translation id="3863841106411295595">Añade las URLs introducidas a tu lista de lectura de Chrome.</translation>
 <translation id="3901001113120561395">Aprovecha Chrome al máximo.</translation>
 <translation id="3913386780052199712">Has iniciado sesión en Chrome</translation>
+<translation id="3932250749914183695">Nota de Chrome: Verifica que eres tú</translation>
 <translation id="3984746313391923992">Tu organización requiere que mantengas tu sesión cerrada en Chrome.</translation>
 <translation id="3988789688219830639">Google Chrome no puede acceder a tus fotos y vídeos (para permitirlo, ve a Ajustes de iOS &gt; Privacidad &gt; Fotos).</translation>
 <translation id="4064699917955374540">Para usar y guardar los datos de Chrome en tu cuenta de Google, debes verificar tu identidad.</translation>
@@ -143,7 +145,7 @@ Prueba a esperar unos minutos antes de cerrar sesión. Si cierras sesión ahora,
 <translation id="4840404732697892756">El Gestor de contraseñas de Google puede comprobar tus contraseñas si inicias sesión con tu cuenta de Google.</translation>
 <translation id="4903674399067644695">Esta tarjeta muestra sugerencias para aprovechar Chrome al máximo.</translation>
 <translation id="49200511069271369">Tu organización, <ph name="DOMAIN" />, gestiona la cuenta en la que has iniciado sesión y el modo en el que se puede usar Chrome. Tu administrador puede configurar o restringir ciertas funciones.</translation>
-<translation id="4925322001044117929">Usar Chrome en el iPad de forma predeterminada</translation>
+<translation id="4925322001044117929">Usar Chrome en iPad por defecto</translation>
 <translation id="498985224078955265">Para enviar esta pestaña a otro dispositivo, inicia sesión en Chrome en ambos dispositivos.</translation>
 <translation id="5030102366287574140">Chrome puede ayudarte a protegerte frente a brechas de seguridad de datos, sitios web no seguros y mucho más</translation>
 <translation id="5109169629909011627">Ver los marcadores de Chrome</translation>

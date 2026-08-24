@@ -482,6 +482,7 @@ if (is_ios || (is_mac && target_cpu != "x86")) {
       ]
 
       deps = [
+        "../api:create_modular_peer_connection_factory",
         "../api:enable_media",
         "../api:libjingle_peerconnection_api",
         "../api:scoped_refptr",
@@ -491,9 +492,6 @@ if (is_ios || (is_mac && target_cpu != "x86")) {
         "../api/audio_codecs:builtin_audio_decoder_factory",
         "../api/audio_codecs:builtin_audio_encoder_factory",
         "../api/rtc_event_log:rtc_event_log_factory",
-        "../api/task_queue:default_task_queue_factory",
-        "../modules/audio_processing",
-        "../pc:libjingle_peerconnection",
         "../rtc_base/synchronization:mutex",
         "../sdk:base_objc",
         "../sdk:default_codec_factory_objc",

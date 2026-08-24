@@ -10,8 +10,7 @@
 
 #include "pc/media_session.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>

@@ -107,12 +107,21 @@ features = ["unbounded_depth", "float_roundtrip"]
 version = "2.6.1"
 features = ["core_hint_black_box"]
 
+[dependencies.symphonia]
+version = "0.5.4"
+
+# Disable the default lists of codecs and supported containers, and only support
+# codecs specifically added in `features`. Enabling new codec support requires a
+# package configuration through gnrt vendor and gnrt gen.
+default-features = false
+features = ["flac"]
+
 [dependencies.syn]
 version = "2"
 features = ["full"]
 
 [dependencies.temporal_capi]
-version = "0.0.10"
+version = "0.0.11"
 features = ["compiled_data"]
 
 [dependencies.zip]

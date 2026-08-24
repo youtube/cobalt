@@ -10,8 +10,7 @@
 
 #include "pc/jsep_transport_controller.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -590,8 +589,6 @@ JsepTransportController::CreateDtlsTransport(const ContentInfo& content_info,
       });
   dtls->ice_transport()->SignalRoleConflict.connect(
       this, &JsepTransportController::OnTransportRoleConflict_n);
-  dtls->ice_transport()->SignalStateChanged.connect(
-      this, &JsepTransportController::OnTransportStateChanged_n);
   dtls->ice_transport()->SignalIceTransportStateChanged.connect(
       this, &JsepTransportController::OnTransportStateChanged_n);
   dtls->ice_transport()->SetCandidatePairChangeCallback(
@@ -1349,7 +1346,7 @@ void JsepTransportController::OnTransportCandidateError_n(
 void JsepTransportController::OnTransportCandidatesRemoved_n(
     IceTransportInternal* transport,
     const Candidates& candidates) {
-  signal_ice_candidates_removed_.Send(candidates);
+  signal_ice_candidates_removed_.Send(transport, candidates);
 }
 void JsepTransportController::OnTransportCandidatePairChanged_n(
     const CandidatePairChangeEvent& event) {

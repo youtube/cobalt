@@ -36,7 +36,6 @@ public class ReaderModeBottomSheetCoordinator {
     private final ReaderModeBottomSheetContent mBottomSheetContent;
     private final ReaderModeBottomSheetView mReaderModeBottomSheetView;
     private final DomDistillerService mDomDistillerService;
-    ;
 
     /**
      * @param context The {@link Context} associated with this coordinator.
@@ -74,14 +73,13 @@ public class ReaderModeBottomSheetCoordinator {
         mBottomSheetController.requestShowContent(mBottomSheetContent, /* animate= */ true);
     }
 
-    // Private methods.
-
-    private void destroy() {
+    /** Destroys the coordinator. */
+    public void destroy() {
         mDestroyChecker.destroy();
         mChangeProcessor.destroy();
     }
 
-    private class ReaderModeBottomSheetContent implements BottomSheetContent {
+    private static class ReaderModeBottomSheetContent implements BottomSheetContent {
         private final View mContentView;
 
         ReaderModeBottomSheetContent(View contentView) {
@@ -105,7 +103,7 @@ public class ReaderModeBottomSheetCoordinator {
 
         @Override
         public void destroy() {
-            ReaderModeBottomSheetCoordinator.this.destroy();
+            // Note: This bottom sheet can be hidden/shown multiple times without re-creation.
         }
 
         @Override
@@ -130,22 +128,33 @@ public class ReaderModeBottomSheetCoordinator {
 
         @Override
         public @StringRes int getSheetClosedAccessibilityStringId() {
-            return 0;
+            return R.string.reader_mode_bottom_sheet_closed_content_description;
         }
 
         @Override
         public @StringRes int getSheetHalfHeightAccessibilityStringId() {
-            return 0;
+            return R.string.reader_mode_bottom_sheet_half_height_content_description;
         }
 
         @Override
         public @StringRes int getSheetFullHeightAccessibilityStringId() {
-            return 0;
+            return R.string.reader_mode_bottom_sheet_full_height_content_description;
         }
 
         @Override
         public boolean hasCustomScrimLifecycle() {
             return false;
+        }
+
+        @Override
+        public int getPeekHeight() {
+            return mContentView.findViewById(R.id.drag_handle).getHeight()
+                    + mContentView.findViewById(R.id.title).getHeight();
+        }
+
+        @Override
+        public boolean hideOnScroll() {
+            return true;
         }
     }
 

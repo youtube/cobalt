@@ -27,6 +27,7 @@
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "url/origin.h"
 
 class GURL;
 
@@ -53,9 +54,11 @@ class PixManager {
   // `pix_code` before trigger the Pix payments flow. Note: If the Pix payment
   // flow has already been triggered by the other code detection methods like
   // DOM search then this method is a no-op.
-  virtual void OnPixCodeCopiedToClipboard(const GURL& render_frame_host_url,
-                                          const std::string& pix_code,
-                                          ukm::SourceId ukm_source_id);
+  virtual void OnPixCodeCopiedToClipboard(
+      const GURL& render_frame_host_url,
+      const url::Origin& render_frame_host_origin,
+      const std::string& pix_code,
+      ukm::SourceId ukm_source_id);
 
  private:
   friend class PixManagerTest;
@@ -321,6 +324,9 @@ class PixManager {
   // the latter case, the UI state is always updated to reflect the current
   // state via a callback.
   UiState ui_state_ = UiState::kHidden;
+
+  // The origin of the Pix payment page that triggered the payment flow.
+  url::Origin pix_payment_page_origin_;
 
   base::WeakPtrFactory<PixManager> weak_ptr_factory_{this};
 };

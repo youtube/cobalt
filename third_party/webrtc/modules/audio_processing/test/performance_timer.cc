@@ -10,8 +10,7 @@
 
 #include "modules/audio_processing/test/performance_timer.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>

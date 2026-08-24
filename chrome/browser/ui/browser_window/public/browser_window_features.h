@@ -19,6 +19,10 @@ class GlicIphController;
 }  // namespace glic
 #endif
 
+namespace actor::ui {
+class ActorOverlayWindowController;
+}  // namespace actor::ui
+
 class BookmarkBarController;
 class BookmarksSidePanelCoordinator;
 class BreadcrumbManagerBrowserAgent;
@@ -33,10 +37,10 @@ class BrowserView;
 class BrowserWindowInterface;
 class ChromeLabsCoordinator;
 class ColorProviderBrowserHelper;
+class CommentsSidePanelCoordinator;
 class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
-class DownloadToolbarUIController;
 class ExclusiveAccessManager;
 class FindBarController;
 class HistoryClustersSidePanelCoordinator;
@@ -73,6 +77,10 @@ class PdfInfoBarController;
 }  // namespace pdf::infobar
 #endif
 
+#if !BUILDFLAG(IS_CHROMEOS)
+class DownloadToolbarUIController;
+#endif
+
 #if defined(USE_AURA)
 class OverscrollPrefManager;
 #endif  // defined(USE_AURA)
@@ -96,7 +104,9 @@ class ProductSpecificationsEntryPointController;
 
 namespace tabs {
 class GlicNudgeController;
+#if BUILDFLAG(ENABLE_GLIC)
 class GlicActorTaskIconController;
+#endif
 }
 
 namespace tab_groups {
@@ -187,8 +197,8 @@ class BrowserWindowFeatures {
     return bookmarks_side_panel_coordinator_.get();
   }
 
-  BookmarkBarController* bookmark_bar_controller() {
-    return bookmark_bar_controller_.get();
+  CommentsSidePanelCoordinator* comments_side_panel_coordinator() {
+    return comments_side_panel_coordinator_.get();
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -219,6 +229,10 @@ class BrowserWindowFeatures {
     return lens_overlay_entry_point_controller_.get();
   }
 
+  actor::ui::ActorOverlayWindowController* actor_overlay_window_controller() {
+    return actor_overlay_window_controller_.get();
+  }
+
   lens::LensRegionSearchController* lens_region_search_controller() {
     return lens_region_search_controller_.get();
   }
@@ -231,9 +245,11 @@ class BrowserWindowFeatures {
     return glic_nudge_controller_.get();
   }
 
+#if BUILDFLAG(ENABLE_GLIC)
   tabs::GlicActorTaskIconController* glic_actor_task_icon_controller() {
     return glic_actor_task_icon_controller_.get();
   }
+#endif
 
   TabStripModel* tab_strip_model() { return tab_strip_model_; }
 
@@ -256,9 +272,11 @@ class BrowserWindowFeatures {
     return extension_side_panel_manager_.get();
   }
 
+#if !BUILDFLAG(IS_CHROMEOS)
   DownloadToolbarUIController* download_toolbar_ui_controller() {
     return download_toolbar_ui_controller_.get();
   }
+#endif
 
   tab_groups::MostRecentSharedTabUpdateStore*
   most_recent_shared_tab_update_store() {
@@ -433,6 +451,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<BookmarksSidePanelCoordinator>
       bookmarks_side_panel_coordinator_;
 
+  std::unique_ptr<CommentsSidePanelCoordinator>
+      comments_side_panel_coordinator_;
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   std::unique_ptr<pdf::infobar::PdfInfoBarController> pdf_infobar_controller_;
 #endif
@@ -457,14 +478,18 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<media_router::CastBrowserController> cast_browser_controller_;
 
+#if !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
+#endif
+
+  std::unique_ptr<actor::ui::ActorOverlayWindowController>
+      actor_overlay_window_controller_;
 
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
+#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorTaskIconController>
       glic_actor_task_icon_controller_;
-
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
 #endif
@@ -507,9 +532,6 @@ class BrowserWindowFeatures {
   std::unique_ptr<ReadingListSidePanelCoordinator>
       reading_list_side_panel_coordinator_;
 
-  std::unique_ptr<extensions::BrowserExtensionWindowController>
-      extension_window_controller_;
-
   std::unique_ptr<ProfileMenuCoordinator> profile_menu_coordinator_;
 
   std::unique_ptr<IncognitoClearBrowsingDataDialogCoordinator>
@@ -531,6 +553,10 @@ class BrowserWindowFeatures {
   std::unique_ptr<DataSharingBubbleController> data_sharing_bubble_controller_;
 
   std::unique_ptr<TabListBridge> tab_list_bridge_;
+
+  // Note: Depends on TabListBridge, so should come after it in the member list.
+  std::unique_ptr<extensions::BrowserExtensionWindowController>
+      extension_window_controller_;
 
   std::unique_ptr<HistoryClustersSidePanelCoordinator>
       history_clusters_side_panel_coordinator_;

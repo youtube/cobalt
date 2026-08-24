@@ -62,6 +62,7 @@ VulkanCaps::~VulkanCaps() {}
 
 namespace {
 void populate_resource_binding_reqs(ResourceBindingRequirements& reqs) {
+    reqs.fBackendApi = BackendApi::kVulkan;
     // We can enable std430 and ensure no array stride mismatch in functions because all bound
     // buffers will either be a UBO or SSBO, depending on if storage buffers are enabled or not.
     // Although intrinsic uniforms always use uniform buffers, they do not contain any arrays.
@@ -73,7 +74,7 @@ void populate_resource_binding_reqs(ResourceBindingRequirements& reqs) {
 
     // Vulkan uses push constants instead of an intrinsic UBO, so we do not need to assign
     // reqs.fIntrinsicBufferBinding.
-    reqs.fUseVulkanPushConstantsForIntrinsicConstants = true;
+    reqs.fUsePushConstantsForIntrinsicConstants = true;
 
     // Assign uniform buffer binding values for shader generation
     reqs.fRenderStepBufferBinding =
@@ -153,6 +154,11 @@ void VulkanCaps::init(const ContextOptions& contextOptions,
 
     // TODO(b/353983969): Enable storage buffers once perf regressions are addressed.
     fStorageBufferSupport = false;
+
+    // nVidia and Intel perform better with a discard op followed by a draw.
+    // This was measured on Quadro P400 and Intel Xe. Refine by device as needed.
+    fAvoidClearLoadOps = vendorID == skgpu::kNvidia_VkVendor ||
+                         vendorID == skgpu::kIntel_VkVendor;
 
     VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
     VULKAN_CALL(vkInterface, GetPhysicalDeviceMemoryProperties(physDev, &deviceMemoryProperties));
@@ -1555,13 +1561,19 @@ VkFormat VulkanCaps::getFormatFromColorType(SkColorType colorType) const {
 VulkanCaps::FormatInfo& VulkanCaps::getFormatInfo(VkFormat format) {
     static_assert(std::size(kVkFormats) == VulkanCaps::kNumVkFormats,
                   "Size of VkFormats array must match static value in header");
+
+    static FormatInfo kInvalidFormat;
+    if (format == VK_FORMAT_UNDEFINED) {
+        return kInvalidFormat;
+    }
+
     for (size_t i = 0; i < std::size(kVkFormats); ++i) {
         if (kVkFormats[i] == format) {
             return fFormatTable[i];
         }
     }
-    static FormatInfo kInvalidFormat;
-    return kInvalidFormat;
+
+   return kInvalidFormat;
 }
 
 const VulkanCaps::FormatInfo& VulkanCaps::getFormatInfo(VkFormat format) const {
@@ -1631,6 +1643,30 @@ bool VulkanCaps::onIsTexturable(const TextureInfo& texInfo) const {
            this->isTexturable(TextureInfoPriv::Get<VulkanTextureInfo>(texInfo));
 }
 
+bool VulkanCaps::isRenderable(const TextureInfo& texInfo) const {
+    return texInfo.isValid() &&
+           this->isRenderable(TextureInfoPriv::Get<VulkanTextureInfo>(texInfo));
+}
+
+bool VulkanCaps::isStorage(const TextureInfo& texInfo) const {
+    if (!texInfo.isValid()) {
+        return false;
+    }
+    const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(texInfo);
+
+    const FormatInfo& info = this->getFormatInfo(vkInfo.fFormat);
+    return info.isStorage(vkInfo.fImageTiling);
+}
+
+bool VulkanCaps::isFormatSupported(VkFormat format) const {
+    const FormatInfo& formatInfo = this->getFormatInfo(format);
+
+    // If Skia claims support for a VkFormat we should have a nonzero fColorTypeInfoCount and valid
+    // fColorTypeInfos ptr. Therefore, just checking these should be more than sufficient to confirm
+    // that the format is supported by Skia.
+    return formatInfo.fColorTypeInfoCount != 0 && formatInfo.fColorTypeInfos != nullptr;
+}
+
 bool VulkanCaps::isTexturable(const VulkanTextureInfo& vkInfo) const {
     // All images using external formats are required to be able to be sampled per Vulkan spec.
     // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkAndroidHardwareBufferFormatPropertiesANDROID.html#_description
@@ -1643,26 +1679,11 @@ bool VulkanCaps::isTexturable(const VulkanTextureInfo& vkInfo) const {
     return info.isTexturable(vkInfo.fImageTiling);
 }
 
-bool VulkanCaps::isRenderable(const TextureInfo& texInfo) const {
-    return texInfo.isValid() &&
-           this->isRenderable(TextureInfoPriv::Get<VulkanTextureInfo>(texInfo));
-}
-
 bool VulkanCaps::isRenderable(const VulkanTextureInfo& vkInfo) const {
     const FormatInfo& info = this->getFormatInfo(vkInfo.fFormat);
     // All renderable vulkan textures within graphite must also support input attachment usage
     return info.isRenderable(vkInfo.fImageTiling, vkInfo.fSampleCount) &&
            SkToBool(vkInfo.fImageUsageFlags & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-}
-
-bool VulkanCaps::isStorage(const TextureInfo& texInfo) const {
-    if (!texInfo.isValid()) {
-        return false;
-    }
-    const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(texInfo);
-
-    const FormatInfo& info = this->getFormatInfo(vkInfo.fFormat);
-    return info.isStorage(vkInfo.fImageTiling);
 }
 
 bool VulkanCaps::isTransferSrc(const VulkanTextureInfo& vkInfo) const {
@@ -1730,9 +1751,8 @@ std::pair<SkColorType, bool /*isRGBFormat*/> VulkanCaps::supportedWritePixelsCol
     }
     const auto& vkInfo = TextureInfoPriv::Get<VulkanTextureInfo>(dstTextureInfo);
 
-    // Can't write to YCbCr formats
-    // TODO: Can't write to external formats, either
-    if (VkFormatNeedsYcbcrSampler(vkInfo.fFormat)) {
+    // Can't write to external / YCbCr formats
+    if (vkInfo.fFormat == VK_FORMAT_UNDEFINED || VkFormatNeedsYcbcrSampler(vkInfo.fFormat)) {
         return {kUnknown_SkColorType, false};
     }
 

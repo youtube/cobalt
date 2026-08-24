@@ -73,36 +73,6 @@ EventRewriterDelegateImpl::GetKeyboardRemappedModifierValue(
     int device_id,
     ui::mojom::ModifierKey modifier_key,
     const std::string& pref_name) const {
-  // `modifier_key` and `device_id` are unused when the flag is disabled.
-  if (!ash::features::IsInputDeviceSettingsSplitEnabled()) {
-    if (pref_name.empty()) {
-      return std::nullopt;
-    }
-
-    // If we're at the login screen, try to get the pref from the global prefs
-    // dictionary.
-    int value;
-    if (LoginDisplayHost::default_host() &&
-        LoginDisplayHost::default_host()->GetKeyboardRemappedPrefValue(
-            pref_name, &value)) {
-      return static_cast<ui::mojom::ModifierKey>(value);
-    }
-    const PrefService* pref_service = GetPrefService();
-    if (!pref_service) {
-      return std::nullopt;
-    }
-    const PrefService::Preference* preference =
-        pref_service->FindPreference(pref_name);
-    if (!preference) {
-      return std::nullopt;
-    }
-
-    DCHECK_EQ(preference->GetType(), base::Value::Type::INTEGER);
-    return static_cast<ui::mojom::ModifierKey>(
-        preference->GetValue()->GetInt());
-  }
-
-  // `pref_name` is unused when the flag is enabled.
   const mojom::KeyboardSettings* settings =
       input_device_settings_controller_->GetKeyboardSettings(device_id);
   if (!settings) {
@@ -118,12 +88,10 @@ EventRewriterDelegateImpl::GetKeyboardRemappedModifierValue(
 }
 
 bool EventRewriterDelegateImpl::TopRowKeysAreFunctionKeys(int device_id) const {
-  if (ash::features::IsInputDeviceSettingsSplitEnabled()) {
-    const mojom::KeyboardSettings* settings =
-        input_device_settings_controller_->GetKeyboardSettings(device_id);
-    if (settings) {
-      return settings->top_row_are_fkeys;
-    }
+  const mojom::KeyboardSettings* settings =
+      input_device_settings_controller_->GetKeyboardSettings(device_id);
+  if (settings) {
+    return settings->top_row_are_fkeys;
   }
 
   if (ash::features::IsPeripheralCustomizationEnabled()) {
@@ -186,11 +154,6 @@ bool EventRewriterDelegateImpl::IsSearchKeyAcceleratorReserved() const {
 
 bool EventRewriterDelegateImpl::RewriteMetaTopRowKeyComboEvents(
     int device_id) const {
-  // When the flag is disabled, `device_id` is unused.
-  if (!ash::features::IsInputDeviceSettingsSplitEnabled()) {
-    return !suppress_meta_top_row_key_rewrites_;
-  }
-
   const mojom::KeyboardSettings* settings =
       input_device_settings_controller_->GetKeyboardSettings(device_id);
   if (settings) {
@@ -348,11 +311,14 @@ EventRewriterDelegateImpl::GetExtendedFkeySetting(int device_id,
     return std::nullopt;
   }
 
-  CHECK(settings->f11.has_value() && settings->f12.has_value());
-  if (key_code == ui::KeyboardCode::VKEY_F11) {
+  if (settings->f11.has_value() && key_code == ui::KeyboardCode::VKEY_F11) {
     return settings->f11;
+  } else if (settings->f12.has_value() &&
+             key_code == ui::KeyboardCode::VKEY_F12) {
+    return settings->f12;
   }
-  return settings->f12;
+
+  return std::nullopt;
 }
 
 void EventRewriterDelegateImpl::NotifySixPackRewriteBlockedByFnKey(

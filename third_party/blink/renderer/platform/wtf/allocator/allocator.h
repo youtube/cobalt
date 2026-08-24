@@ -81,7 +81,7 @@ class __thisIsHereToForceASemicolonAfterThisMacro;
 #if defined(OFFICIAL_BUILD)
 #define WTF_HEAP_PROFILER_TYPE_NAME(T) nullptr
 #else
-#define WTF_HEAP_PROFILER_TYPE_NAME(T) ::WTF::GetStringWithTypeName<T>()
+#define WTF_HEAP_PROFILER_TYPE_NAME(T) ::blink::GetStringWithTypeName<T>()
 #endif
 
 // Both of these macros enable fast malloc and provide type info to the heap
@@ -105,19 +105,19 @@ class __thisIsHereToForceASemicolonAfterThisMacro;
   }                                                              \
                                                                  \
   void* operator new(size_t size) {                              \
-    return ::WTF::Partitions::FastMalloc(size, typeName);        \
+    return ::blink::Partitions::FastMalloc(size, typeName);      \
   }                                                              \
                                                                  \
   void operator delete(void* p) {                                \
-    ::WTF::Partitions::FastFree(p);                              \
+    ::blink::Partitions::FastFree(p);                            \
   }                                                              \
                                                                  \
   void* operator new[](size_t size) {                            \
-    return ::WTF::Partitions::FastMalloc(size, typeName);        \
+    return ::blink::Partitions::FastMalloc(size, typeName);      \
   }                                                              \
                                                                  \
   void operator delete[](void* p) {                              \
-    ::WTF::Partitions::FastFree(p);                              \
+    ::blink::Partitions::FastFree(p);                            \
   }                                                              \
   void* operator new(size_t, base::NotNullTag, void* location) { \
     DCHECK(location);                                            \

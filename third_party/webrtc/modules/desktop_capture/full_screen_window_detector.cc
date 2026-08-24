@@ -71,7 +71,26 @@ void FullScreenWindowDetector::UpdateWindowListIfNeeded(
   DesktopCapturer::SourceList window_list;
   if (get_sources(&window_list)) {
     last_update_time_ms_ = TimeMillis();
-    window_list_.swap(window_list);
+
+    bool should_swap_windows = true;
+#if defined(WEBRTC_WIN)
+    bool is_original_source_window_alive =
+        ::IsWindow(reinterpret_cast<HWND>(original_source_id));
+    bool is_original_source_enumerated = false;
+    for (auto& source : window_list) {
+      if (source.id == original_source_id) {
+        is_original_source_enumerated = true;
+        break;
+      }
+    }
+    // Don't swap window list if there is a mismatch between original window's
+    // state and its enumerated state.
+    should_swap_windows =
+        (is_original_source_enumerated == is_original_source_window_alive);
+#endif
+    if (should_swap_windows) {
+      window_list_.swap(window_list);
+    }
   }
 }
 

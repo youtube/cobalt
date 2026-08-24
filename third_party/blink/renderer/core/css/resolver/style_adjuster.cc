@@ -448,7 +448,7 @@ void StyleAdjuster::AdjustStyleForCombinedText(ComputedStyleBuilder& builder) {
   builder.SetTextEmphasisMark(TextEmphasisMark::kNone);
   builder.SetVerticalAlign(EVerticalAlign::kMiddle);
   builder.SetWordBreak(EWordBreak::kKeepAll);
-  builder.SetWordSpacing(0.0f);
+  builder.SetWordSpacing(/* 'normal' */ Length::Fixed(0.0f));
   builder.SetWritingMode(WritingMode::kHorizontalTb);
 
   builder.SetBaseTextDecorationData(nullptr);
@@ -814,8 +814,9 @@ void StyleAdjuster::AdjustStyleForDisplay(
 
   // display: -webkit-box when used with (-webkit)-line-clamp
   if (builder.BoxOrient() == EBoxOrient::kVertical &&
-      (builder.WebkitLineClamp() != 0 || builder.StandardLineClamp() != 0 ||
-       builder.HasAutoStandardLineClamp())) {
+      (builder.WebkitLineClamp() != 0 ||
+       builder.Continue() == EContinue::kCollapse ||
+       builder.Continue() == EContinue::kWebkitLegacy)) {
     if (builder.Display() == EDisplay::kWebkitBox) {
       builder.SetDisplay(EDisplay::kFlowRoot);
       builder.SetIsSpecifiedDisplayWebkitBox();
@@ -1270,7 +1271,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
     builder.MutableBackgroundInternal().ClearImage();
   }
 
-  if (element && builder.TextOverflow() == ETextOverflow::kEllipsis) {
+  if (element && !builder.TextOverflow().IsClip()) {
     const AtomicString& pseudo_id = element->ShadowPseudoId();
     if (pseudo_id == shadow_element_names::kPseudoInputPlaceholder ||
         pseudo_id == shadow_element_names::kPseudoInternalInputSuggested) {

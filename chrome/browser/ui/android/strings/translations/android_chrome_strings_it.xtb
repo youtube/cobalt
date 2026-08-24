@@ -108,6 +108,7 @@ Per altre impostazioni che utilizzano i dati per migliorare la tua esperienza co
 <translation id="1419753403124156396">Vuoi riavviare Chrome?</translation>
 <translation id="1428770807407000502">Vuoi disattivare la sincronizzazione?</translation>
 <translation id="1430915738399379752">Stampa</translation>
+<translation id="1433478348197382180">Modalità Lettura</translation>
 <translation id="1435593198351412143">Apri automaticamente i PDF</translation>
 <translation id="1437543266176261764">Esecuzione in <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organizza i tuoi prodotti monitorati in Segnalibri</translation>
@@ -239,6 +240,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2088833076121753253">Per completare la configurazione della compilazione automatica, riavvia Chrome ora. Le schede verranno riaperte automaticamente.</translation>
 <translation id="2091863218454846791">Visualizzazione compatta selezionata</translation>
 <translation id="2093731487903423814">ultimi 15 minuti</translation>
+<translation id="2096577711562668473">Vuoi modificare il servizio di compilazione automatica?</translation>
 <translation id="2100273922101894616">Accesso automatico</translation>
 <translation id="2109384632594340939">immagine del profilo</translation>
 <translation id="2111511281910874386">Vai alla pagina</translation>
@@ -324,6 +326,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="2496180316473517155">Cronologia di navigazione</translation>
 <translation id="2497852260688568942">La sincronizzazione è stata disattivata dall'amministratore</translation>
 <translation id="250020030759455918">Troverai lo stato di accesso a <ph name="SITE_NAME" />, i dati di navigazione e i dati relativi al sito in Chrome</translation>
+<translation id="2502798195266898572">Riquadro inferiore della modalità Lettura aperto a schermo intero</translation>
 <translation id="2510106555128151389">Installazione di <ph name="WEBAPK_NAME" /> in corso…</translation>
 <translation id="2512234228327349533">Cerca opzioni di acquisto</translation>
 <translation id="2513403576141822879">Per altre impostazioni relative a privacy, sicurezza e raccolta dei dati, consulta la sezione <ph name="BEGIN_LINK" />Sincronizzazione e servizi Google<ph name="END_LINK" /></translation>
@@ -719,6 +722,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="4306489587293957491">Inserisci</translation>
 <translation id="4307992518367153382">Impostazioni di base</translation>
 <translation id="4311652497846705514">Aprire il PDF?</translation>
+<translation id="4313895677475587452">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Possibile spam}other{Possibile spam (#)}}</translation>
 <translation id="4320177379694898372">Nessuna connessione Internet</translation>
 <translation id="4326079409704643112">Verifica la tua identità per usare e salvare i dati di Chrome nel tuo Account Google</translation>
 <translation id="433213510553688132">In attesa di seguire…</translation>
@@ -932,6 +936,7 @@ Il tuo Account Google potrebbe avere altre forme di cronologia di navigazione, a
 <translation id="5206168361184759344">{FILE_COUNT,plural, =1{Download del file in corso…}other{Download di # file in corso…}}</translation>
 <translation id="5210286577605176222">Vai alla scheda precedente</translation>
 <translation id="5210365745912300556">Chiudi scheda</translation>
+<translation id="5212800876504289412">Riavvia Chrome per completare questa modifica. Le schede vengono riaperte automaticamente al riavvio.</translation>
 <translation id="5215957675041756913">Controlla i tuoi dati e il tuo account</translation>
 <translation id="5218324087477576825">Numero carta (obbligatorio)</translation>
 <translation id="5221437554987713282"><ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e altre <ph name="SEPARATOR" /> Chrome ha rimosso queste autorizzazioni perché non hai visitato il sito di recente</translation>
@@ -974,7 +979,6 @@ Il tuo Account Google potrebbe avere altre forme di cronologia di navigazione, a
 <translation id="5414836363063783498">Verifica in corso…</translation>
 <translation id="5415871492522952905">La cronologia e le schede saranno disponibili su tutti i tuoi dispositivi, così potrai continuare ciò che stavi facendo</translation>
 <translation id="542073632571549028"><ph name="MEMBER_FULL_NAME" /> (<ph name="EMAIL" />) perderà immediatamente l'accesso al gruppo di schede "<ph name="GROUP_NAME" />"</translation>
-<translation id="5423934151118863508">Le pagine che visiti più spesso verranno visualizzate qui</translation>
 <translation id="5424588387303617268"><ph name="GIGABYTES" /> GB disponibili</translation>
 <translation id="543338862236136125">Modifica password</translation>
 <translation id="5433691172869980887">Nome utente copiato</translation>
@@ -1057,8 +1061,10 @@ Il tuo Account Google potrebbe avere altre forme di cronologia di navigazione, a
 <translation id="580893287573699959">Gestisci gli argomenti e i siti che ti interessano</translation>
 <translation id="5809361687334836369">{HOURS,plural, =1{# ora fa}other{# ore fa}}</translation>
 <translation id="5810288467834065221">Copyright <ph name="YEAR" /> Google LLC. Tutti i diritti riservati.</translation>
+<translation id="581030587084991751">{NUM_SUSPICIOUS_NOTIFICATIONS,plural, =1{Mostra notifica}other{Mostra notifiche}}</translation>
 <translation id="5814749351757353073">Rimani al passo con i tuoi siti preferiti</translation>
 <translation id="5823093032261493462">Scaricare comunque "<ph name="FILE_NAME" />" da <ph name="DOWNLOAD_DOMAIN" />?</translation>
+<translation id="5825135637446025843">Dopo il riavvio di Chrome, le informazioni salvate dal nuovo fornitore verranno utilizzate per compilare automaticamente password, passkey, indirizzi, metodi di pagamento e altri dati.</translation>
 <translation id="5828921839638612740">Puoi eliminare i dati nelle Impostazioni di Chrome</translation>
 <translation id="5829586821381540080">Salvato in <ph name="FOLDER_NAME" /></translation>
 <translation id="583281660410589416">Sconosciuto</translation>
@@ -1167,6 +1173,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="6255809143828972562">Con gli strumenti di Chrome puoi navigare in sicurezza e tenere tutto sotto controllo</translation>
 <translation id="6264376385120300461">Scarica comunque</translation>
 <translation id="6264485186158353794">Torna nell'area protetta</translation>
+<translation id="6267063201726531683">Riquadro inferiore modalità Lettura</translation>
 <translation id="6277522088822131679">Si è verificato un problema durante la stampa della pagina. Riprova.</translation>
 <translation id="6278428485366576908">Tema</translation>
 <translation id="6284472661216707937">Pagina Password su tutti i tuoi dispositivi chiusa</translation>
@@ -1174,6 +1181,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="6295158916970320988">Tutti i siti</translation>
 <translation id="6296366034485697675">Esporta ed elimina</translation>
 <translation id="629730747756840877">Account</translation>
+<translation id="6300697579369314762">Riquadro inferiore della modalità Lettura aperto nella parte inferiore dello schermo</translation>
 <translation id="6301526076346731664">Apri gli Strumenti per sviluppatori</translation>
 <translation id="6303969859164067831">Esci e disattiva la sincronizzazione</translation>
 <translation id="6307241780749477694">Verifica la tua identità per accedere a tutte le tue password su questo dispositivo</translation>
@@ -1394,6 +1402,7 @@ Ad esempio, alcuni siti web potrebbero rispondere alla richiesta mostrando annun
 <translation id="71503698506017927">La crittografia delle passphrase non include metodi di pagamento e indirizzi di Google Pay.
 
 Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Chrome nel tuo account<ph name="END_LINK" />.</translation>
+<translation id="7151332203500147130">Riquadro inferiore modalità Lettura chiuso</translation>
 <translation id="7165972437814027679">Scopri di più sul motivo per cui Chrome blocca alcuni file</translation>
 <translation id="7168323970702333693">Accesso eseguito come <ph name="USER_NAME" />. Consente di aprire le impostazioni.</translation>
 <translation id="7173114856073700355">Apri Impostazioni</translation>
@@ -1727,7 +1736,6 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="8493948351860045254">Libera spazio</translation>
 <translation id="8497242791509864205">Apri opzioni di ordinamento</translation>
 <translation id="8497480609928300907">Spiegazione della Guida alla privacy</translation>
-<translation id="8497726226069778601">Qui non c'è ancora niente</translation>
 <translation id="8503813439785031346">Nome utente</translation>
 <translation id="8505766168025405649">Visualizza una notifica per lo stato del download</translation>
 <translation id="8506357771923193001">Qui troverai i tuoi download</translation>

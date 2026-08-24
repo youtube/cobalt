@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtp_rtcp_impl2.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <optional>

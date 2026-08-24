@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 
+#include "base/check_deref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -24,7 +25,13 @@
 #include "chrome/browser/ui/views/profiles/profile_menu_view.h"
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
-ProfileMenuCoordinator::~ProfileMenuCoordinator() = default;
+ProfileMenuCoordinator::~ProfileMenuCoordinator() {
+  // Ensure the ProfileMenuCoordinator does not outlive its associated bubble
+  // widget to mitigate the risk of dangling references.
+  if (bubble_tracker_ && bubble_tracker_.view()->GetWidget()) {
+    bubble_tracker_.view()->GetWidget()->CloseNow();
+  }
+}
 
 void ProfileMenuCoordinator::Show(
     bool is_source_accelerator,
@@ -42,19 +49,21 @@ void ProfileMenuCoordinator::Show(
     return;
   }
 
-  signin_ui_util::RecordProfileMenuViewShown(profile_);
+  signin_ui_util::RecordProfileMenuViewShown(GetProfile());
   // Close any existing IPH bubble for the profile menu.
-  BrowserUserEducationInterface::From(browser_)->NotifyFeaturePromoFeatureUsed(
-      feature_engagement::kIPHProfileSwitchFeature,
-      FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+  BrowserUserEducationInterface::From(GetBrowser())
+      ->NotifyFeaturePromoFeatureUsed(
+          feature_engagement::kIPHProfileSwitchFeature,
+          FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-  BrowserUserEducationInterface::From(browser_)->NotifyFeaturePromoFeatureUsed(
-      feature_engagement::kIPHSupervisedUserProfileSigninFeature,
-      FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+  BrowserUserEducationInterface::From(GetBrowser())
+      ->NotifyFeaturePromoFeatureUsed(
+          feature_engagement::kIPHSupervisedUserProfileSigninFeature,
+          FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
 #endif
 
   std::unique_ptr<ProfileMenuViewBase> bubble;
-  const bool is_incognito = profile_->IsIncognitoProfile();
+  const bool is_incognito = GetProfile()->IsIncognitoProfile();
   if (is_incognito) {
     bubble =
         std::make_unique<IncognitoMenuView>(avatar_toolbar_button, browser);
@@ -94,5 +103,14 @@ ProfileMenuCoordinator::GetProfileMenuViewBaseForTesting() {
              : nullptr;
 }
 
-ProfileMenuCoordinator::ProfileMenuCoordinator(BrowserWindowInterface* browser)
-    : browser_(browser), profile_(browser->GetProfile()) {}
+BrowserWindowInterface* ProfileMenuCoordinator::GetBrowser() {
+  return &browser_.get();
+}
+
+Profile* ProfileMenuCoordinator::GetProfile() {
+  return &profile_.get();
+}
+
+ProfileMenuCoordinator::ProfileMenuCoordinator(BrowserWindowInterface* browser,
+                                               Profile* profile)
+    : browser_(CHECK_DEREF(browser)), profile_(CHECK_DEREF(profile)) {}

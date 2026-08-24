@@ -11,9 +11,10 @@
 #include "modules/video_coding/codecs/vp8/screenshare_layers.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -534,7 +535,7 @@ TEST_F(ScreenshareLayerTest, UpdatesHistograms) {
   const int kTl0Qp = 35;
   const int kTl1Qp = 30;
   for (int64_t timestamp = 0;
-       timestamp < kTimestampDelta5Fps * 5 * metrics::kMinRunTimeInSeconds;
+       timestamp < kTimestampDelta5Fps * 5 * metrics::kMinRunTime.seconds();
        timestamp += kTimestampDelta5Fps) {
     tl_config_ = NextFrameConfig(0, timestamp);
     if (tl_config_.drop_frame) {

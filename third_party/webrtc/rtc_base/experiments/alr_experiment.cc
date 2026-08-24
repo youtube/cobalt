@@ -10,9 +10,8 @@
 
 #include "rtc_base/experiments/alr_experiment.h"
 
-#include <inttypes.h>
-#include <stdio.h>
-
+#include <cinttypes>
+#include <cstdio>
 #include <optional>
 #include <string>
 

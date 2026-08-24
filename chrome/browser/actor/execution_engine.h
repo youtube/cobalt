@@ -25,7 +25,6 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 
-class GURL;
 class Profile;
 
 namespace mojo_base {
@@ -51,24 +50,24 @@ class UiEventDispatcher;
 // Coordinates the execution of a multi-step task.
 class ExecutionEngine {
  public:
-  using ActionResultCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
-
   // State machine (success case)
   //
   //    Init
   //     |
   //     v
-  // StartAction -> UiPreTool -> ToolController -> UiPostTool -> Complete
-  //     ^                                            |                |
-  //     |____________________________________________|________________|
+  // StartAction -> ToolCreateAndVerify ->
+  //     ^          UiPreInvoke -> ToolInvoke -> UiPostInvoke -> Complete
+  //     |                                           |              |
+  //     |___________________________________________|______________|
   //
   // Complete may also be reached directly from other states in case of error.
   enum class State {
     kInit = 0,
     kStartAction,
-    kUiPreTool,
-    kToolController,
-    kUiPostTool,
+    kToolCreateAndVerify,
+    kUiPreInvoke,
+    kToolInvoke,
+    kUiPostInvoke,
     kComplete,
   };
 
@@ -98,11 +97,6 @@ class ExecutionEngine {
   // If there is an ongoing tool request, treat it as having failed with the
   // given reason.
   void FailCurrentTool(mojom::ActionResultCode reason);
-
-  // Performs the next action in the current task.
-  // TODO(crbug.com/411462297): Deprecated, this will be removed soon.
-  void Act(const optimization_guide::proto::BrowserAction& action,
-           ActionResultCallback callback);
 
   // Performs the given tool actions and invokes the callback when completed.
   void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
@@ -146,17 +140,13 @@ class ExecutionEngine {
   void ExecuteNextAction();
 
   // Called each time an action finishes.
-  void FinishedUiPreTool(mojom::ActionResultPtr result);
-  void FinishedToolController(mojom::ActionResultPtr result);
-  void FinishedUiPostTool(mojom::ActionResultPtr result);
+  void PostToolCreate(mojom::ActionResultPtr result);
+  void FinishedUiPreInvoke(mojom::ActionResultPtr result);
+  void FinishedToolInvoke(mojom::ActionResultPtr result);
+  void FinishedUiPostInvoke(mojom::ActionResultPtr result);
 
   void CompleteActions(mojom::ActionResultPtr result,
                        std::optional<size_t> action_index);
-
-  void OnTabWillDetach(tabs::TabInterface* tab,
-                       tabs::TabInterface::DetachReason reason);
-
-  const GURL& LastCommittedURLOfCurrentTask();
 
   // Returns the next action that will be started when ExecuteNextAction is
   // reached.
@@ -177,9 +167,6 @@ class ExecutionEngine {
   // Stores the last observed page content for TOCTOU check.
   std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
       last_observed_page_content_;
-
-  raw_ptr<tabs::TabInterface> tab_;
-  base::CallbackListSubscription tab_will_detach_subscription_;
 
   // Owns `this`.
   raw_ptr<ActorTask> task_;

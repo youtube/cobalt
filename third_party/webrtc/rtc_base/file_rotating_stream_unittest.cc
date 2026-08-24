@@ -10,10 +10,9 @@
 
 #include "rtc_base/file_rotating_stream.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 

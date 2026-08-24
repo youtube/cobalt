@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
+#include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/glic/glic_keyed_service.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -70,13 +72,15 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(embedded_test_server()->Start());
     ASSERT_TRUE(embedded_https_test_server().Start());
 
-    auto execution_engine = InitializeExecutionEngine();
+    auto execution_engine =
+        std::make_unique<ExecutionEngine>(browser()->profile());
     ExecutionEngine* raw_execution_engine = execution_engine.get();
-    auto task =
-        std::make_unique<ActorTask>(GetProfile(), std::move(execution_engine));
+    auto event_dispatcher = ui::NewUiEventDispatcher(
+        actor_keyed_service()->GetActorUiStateManager());
+    auto task = std::make_unique<ActorTask>(
+        GetProfile(), std::move(execution_engine), std::move(event_dispatcher));
     raw_execution_engine->SetOwner(task.get());
-    task_id_ = ActorKeyedService::Get(browser()->profile())
-                   ->AddActiveTask(std::move(task));
+    task_id_ = actor_keyed_service()->AddActiveTask(std::move(task));
 
     // Optimization guide uses this histogram to signal initialization in tests.
     optimization_guide::RetryForHistogramUntilCountReached(
@@ -85,11 +89,6 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
-  virtual std::unique_ptr<ExecutionEngine> InitializeExecutionEngine() {
-    return std::make_unique<ExecutionEngine>(
-        browser()->profile(), browser()->GetActiveTabInterface());
-  }
-
   tabs::TabInterface* active_tab() {
     return browser()->tab_strip_model()->GetActiveTab();
   }
@@ -100,9 +99,11 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     return web_contents()->GetPrimaryMainFrame();
   }
 
-  ActorTask& actor_task() {
-    return *ActorKeyedService::Get(browser()->profile())->GetTask(task_id_);
+  ActorKeyedService* actor_keyed_service() {
+    return ActorKeyedService::Get(browser()->profile());
   }
+
+  ActorTask& actor_task() { return *actor_keyed_service()->GetTask(task_id_); }
 
   void ClickTarget(
       std::string_view query_selector,
@@ -187,25 +188,7 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, TwoClicks) {
   EXPECT_EQ("green", EvalJs(web_contents(), "document.body.bgColor"));
 }
 
-// ActorToolsTest but using the V2 ExecutionEngine API.
-// TODO(crbug.com/411462297): All tests should eventually use the V2 API and the
-// original test harness should be migrated to the new API. New tests should use
-// this harness.
-class ExecutionEngineBrowserTestV2 : public ExecutionEngineBrowserTest {
- public:
-  ExecutionEngineBrowserTestV2() = default;
-  ~ExecutionEngineBrowserTestV2() override = default;
-  explicit ExecutionEngineBrowserTestV2(const ExecutionEngineBrowserTestV2&) =
-      delete;
-  ExecutionEngineBrowserTestV2& operator=(const ExecutionEngineBrowserTestV2&) =
-      delete;
-
-  std::unique_ptr<ExecutionEngine> InitializeExecutionEngine() override {
-    return std::make_unique<ExecutionEngine>(browser()->profile());
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTestV2, TwoClicksInBackgroundTab) {
+IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, TwoClicksInBackgroundTab) {
   const GURL url = embedded_test_server()->GetURL("/actor/two_clicks.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
@@ -282,7 +265,14 @@ IN_PROC_BROWSER_TEST_F(ExecutionEngineBrowserTest, PrerenderBlockedSite) {
   EXPECT_TRUE(content::ExecJs(
       web_contents(), content::JsReplace("setBlockedSite($1);", blocked_url)));
 
-  actor_task().AddToTabSet(active_tab()->GetHandle());
+  base::RunLoop loop;
+  actor_task().AddTab(
+      active_tab()->GetHandle(),
+      base::BindLambdaForTesting([&](mojom::ActionResultPtr result) {
+        EXPECT_TRUE(IsOk(*result));
+        loop.Quit();
+      }));
+  loop.Run();
 
   // While we have an active task, cancel any prerenders which would be to a
   // blocked site.

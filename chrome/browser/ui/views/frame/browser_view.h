@@ -82,6 +82,7 @@ class LocationBarView;
 class MultiContentsView;
 class ScrimView;
 class SidePanel;
+class TabDragDelegate;
 class TabSearchBubbleHost;
 class TabStrip;
 class TabStripRegionView;
@@ -120,10 +121,6 @@ namespace enterprise_watermark {
 class WatermarkView;
 }
 
-namespace glic {
-class GlicBorderView;
-}  // namespace glic
-
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView
 //
@@ -147,6 +144,9 @@ class BrowserView : public BrowserWindow,
   METADATA_HEADER(BrowserView, views::ClientView)
 
  public:
+  // The width of the vertical tab strip.
+  static constexpr int kVerticalTabStripWidth = 240;
+
   explicit BrowserView(std::unique_ptr<Browser> browser);
   BrowserView(const BrowserView&) = delete;
   BrowserView& operator=(const BrowserView&) = delete;
@@ -185,8 +185,6 @@ class BrowserView : public BrowserWindow,
   const TopControlsSlideController* top_controls_slide_controller() const {
     return top_controls_slide_controller_.get();
   }
-
-  void SetDownloadShelfForTest(DownloadShelf* download_shelf);
 
   // Returns the constraining bounding box that should be used to lay out the
   // FindBar within. This is _not_ the size of the find bar, just the bounding
@@ -307,10 +305,6 @@ class BrowserView : public BrowserWindow,
   }
 
   ScrimView* devtools_scrim_view() { return devtools_scrim_view_; }
-
-#if BUILDFLAG(ENABLE_GLIC)
-  glic::GlicBorderView* glic_border() const { return glic_border_; }
-#endif
 
   ScrimView* window_scrim_view() { return window_scrim_view_; }
 
@@ -478,6 +472,9 @@ class BrowserView : public BrowserWindow,
   // Returns true if the browser is currently showing tabs in a split view.
   bool IsInSplitView() const;
 
+  // Returns the actor overlay view
+  views::View* GetActorOverlayView();
+
   // BrowserWindow:
   void Show() override;
   void ShowInactive() override;
@@ -622,10 +619,6 @@ class BrowserView : public BrowserWindow,
   void ShowOneClickSigninConfirmation(
       const std::u16string& email,
       base::OnceCallback<void(bool)> confirmed_callback) override;
-  // TODO(beng): Not an override, move somewhere else.
-  void SetDownloadShelfVisible(bool visible);
-  bool IsDownloadShelfVisible() const override;
-  DownloadShelf* GetDownloadShelf() override;
   views::View* GetTopContainer() override;
   views::View* GetLensOverlayView() override;
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
@@ -659,8 +652,6 @@ class BrowserView : public BrowserWindow,
   ExclusiveAccessContext* GetExclusiveAccessContext() override;
   std::string GetWorkspace() const override;
   bool IsVisibleOnAllWorkspaces() const override;
-  void HideDownloadShelf();
-  void UnhideDownloadShelf();
 
   void ShowEmojiPanel() override;
   void ShowCaretBrowsingDialog() override;
@@ -834,8 +825,7 @@ class BrowserView : public BrowserWindow,
   // gestures. These NativeViewHosts include the one hosting the active tab's\
   // WebContents, and the one hosting the webui tabstrip contents (if the
   // feature is enabled).
-  std::vector<views::NativeViewHost*> GetNativeViewHostsForTopControlsSlide()
-      const;
+  std::vector<views::NativeViewHost*> GetNativeViewHostsForTopControlsSlide();
 
   using BrowserWindow::CreateTabSearchBubble;
   void CreateTabSearchBubble(
@@ -849,6 +839,8 @@ class BrowserView : public BrowserWindow,
   }
 #endif
 
+  // Returns the list of tab content's web views that is visible.
+  // It returns > 1 elements when there is a split view that is active.
   std::vector<ContentsWebView*> GetAllVisibleContentsWebViews();
 
   bool should_show_window_controls_overlay_toggle() const {
@@ -883,6 +875,9 @@ class BrowserView : public BrowserWindow,
   void Cut();
   void Copy();
   void Paste();
+
+  // Returns a `TabDragHandler`, if any available, to handle a tab drag.
+  TabDragDelegate* GetTabDragDelegate(const gfx::Point& point_in_screen);
 
  protected:
   // Enumerates where the devtools are docked relative to the browser's main
@@ -1006,8 +1001,8 @@ class BrowserView : public BrowserWindow,
   void UpdateDevToolsForContents(content::WebContents* web_contents,
                                  bool update_devtools_web_contents);
 
-  // Updates various optional child Views, e.g. Bookmarks Bar, Info Bar or the
-  // Download Shelf in response to a change notification from the specified
+  // Updates various optional child Views, e.g. Bookmarks Bar, Info Bar
+  // in response to a change notification from the specified
   // |contents|. |contents| can be null. In this case, all optional UI will be
   // removed.
   void UpdateUIForContents(content::WebContents* contents);
@@ -1166,8 +1161,6 @@ class BrowserView : public BrowserWindow,
   // |  |------------------------------------------------------------|  |
   // |  |  contents_web_view_ (or multi_contents_view_ if defined)   |  |
   // |  --------------------------------------------------------------  |
-  // |------------------------------------------------------------------|
-  // | Active downloads (download_shelf_)                               |
   // --------------------------------------------------------------------
 
   // The view that manages the tab strip, toolbar, and sometimes the bookmark
@@ -1241,28 +1234,11 @@ class BrowserView : public BrowserWindow,
   // NativeView.
   raw_ptr<View> find_bar_host_view_ = nullptr;
 
-  // The download shelf.
-  raw_ptr<DownloadShelf> download_shelf_ = nullptr;
-
   // The InfoBarContainerView that contains InfoBars for the current tab.
   raw_ptr<InfoBarContainerView> infobar_container_ = nullptr;
 
-  // The view that contains the active WebContents. Will be nullptr if the
-  // side-by-side feature is enabled; use multi_contents_view_ and its nested
-  // contents views instead.
-  raw_ptr<ContentsWebView> contents_web_view_ = nullptr;
-
   // The view that contains all visible WebContents.
   raw_ptr<MultiContentsView> multi_contents_view_ = nullptr;
-
-  // The scrim view that covers the content area when a tab-modal dialog is
-  // open.
-  raw_ptr<ScrimView> contents_scrim_view_ = nullptr;
-
-  // It draws a border around the web contents area, on top of the
-  // WebContents. Null if the feature isn't enabled, or the platform
-  // isn't supported.
-  raw_ptr<glic::GlicBorderView> glic_border_ = nullptr;
 
   // The view that contains devtools window for the selected WebContents.
   raw_ptr<views::WebView> devtools_web_view_ = nullptr;
@@ -1277,6 +1253,12 @@ class BrowserView : public BrowserWindow,
   // contents_web_view_.
   raw_ptr<views::View> lens_overlay_view_ = nullptr;
 
+  // The view that contains the Glic Actor Overlay. The Actor Overlay is a UI
+  // overlay that is shown on top of the web contents. It therefore must always
+  // have the same bounds as the contents_web_view_, but also be above the
+  // contents_web_view_.
+  raw_ptr<views::View> actor_overlay_view_ = nullptr;
+
   // The view that overlays a watermark on the contents container.
   raw_ptr<enterprise_watermark::WatermarkView> watermark_view_ = nullptr;
 
@@ -1289,6 +1271,9 @@ class BrowserView : public BrowserWindow,
   // scrim, ntp footer, etc). contents_container_view_ only exists if the split
   // view feature is disabled.
   raw_ptr<ContentsContainerView> contents_container_view_ = nullptr;
+
+  // The view responsible for housing the contents of the vertical tab strip.
+  raw_ptr<views::View> vertical_tab_strip_container_ = nullptr;
 
   // The side panel aligned to the left or the right side of the browser window
   // depending on the kSidePanelHorizontalAlignment pref's value.

@@ -230,8 +230,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
     contents_container_->SetLayoutManager(
         std::make_unique<ContentsLayoutManager>(
             devtools_web_view_, devtools_scrim_view_, contents_web_view_,
-            lens_overlay_view_,
-            /*contents_border_view=*/nullptr, /*watermark_view=*/nullptr));
+            lens_overlay_view_, /*watermark_view=*/nullptr));
 
     auto delegate = std::make_unique<MockBrowserViewLayoutDelegate>(
         immersive_mode_controller_.get());
@@ -243,6 +242,7 @@ class BrowserViewLayoutTest : public ChromeViewsTestBase {
         /*web_app_window_title=*/nullptr, tab_strip_region_view, tab_strip_,
         toolbar_, infobar_container_, contents_container_,
         /*multi_contents_view=*/nullptr,
+        /*vertical_tab_strip_container=*/nullptr,
         /*left_aligned_side_panel_separator=*/nullptr,
         /*unified_side_panel=*/nullptr,
         /*right_aligned_side_panel_separator=*/nullptr,
@@ -356,27 +356,6 @@ TEST_F(BrowserViewLayoutTest, Layout) {
   EXPECT_EQ(gfx::Rect(0, 29, kBaseWidth, 571), contents_container()->bounds());
 
   // TODO(jamescook): Tab strip and bookmark bar.
-}
-
-TEST_F(BrowserViewLayoutTest, LayoutDownloadShelf) {
-  constexpr int kHeight = 50;
-  std::unique_ptr<views::View> download_shelf =
-      CreateFixedSizeView(gfx::Size(kBaseWidth, kHeight));
-  layout()->set_download_shelf(download_shelf.get());
-
-  // If the download shelf isn't visible, it doesn't move the bottom edge.
-  download_shelf->SetVisible(false);
-  constexpr int kBottom = 500;
-  EXPECT_EQ(kBottom, layout()->LayoutDownloadShelf(kBottom));
-
-  // A visible download shelf moves the bottom edge up.
-  download_shelf->SetVisible(true);
-  constexpr int kTop = kBottom - kHeight;
-  EXPECT_EQ(kTop, layout()->LayoutDownloadShelf(kBottom));
-  EXPECT_EQ(gfx::Rect(0, kTop, 0, kHeight), download_shelf->bounds());
-
-  // avoid dangling pointer.
-  layout()->set_download_shelf(nullptr);
 }
 
 TEST_F(BrowserViewLayoutTest, LayoutContentsWithTopControlsSlideBehavior) {

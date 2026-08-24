@@ -6,6 +6,7 @@
 
 #include "base/android/application_status_listener.h"
 #include "base/functional/callback_helpers.h"
+#include "base/run_loop.h"
 #include "base/test/mock_callback.h"
 #include "components/facilitated_payments/android/device_delegate_android_test_api.h"
 #include "content/public/test/test_renderer_host.h"
@@ -40,85 +41,92 @@ class DeviceDelegateAndroidTest : public content::RenderViewHostTestHarness {
   std::unique_ptr<DeviceDelegateAndroid> delegate_;
 };
 
+TEST_F(DeviceDelegateAndroidTest, AppStatusListenerNullByDefault) {
+  EXPECT_FALSE(test_api().app_status_listener());
+}
+
 TEST_F(DeviceDelegateAndroidTest,
-       ChromeGoesToBackgroundThenForeground_CallbackRun) {
+       SetOnReturnToChromeCallbackAndObserveAppState_AppStatusListenerNotNull) {
+  delegate()->SetOnReturnToChromeCallbackAndObserveAppState(base::DoNothing());
+
+  EXPECT_TRUE(test_api().app_status_listener());
+}
+
+TEST_F(DeviceDelegateAndroidTest, ChromeMovedToForeground_CallbackNotRun) {
   base::MockCallback<base::OnceClosure> mock_callback;
-  delegate()->SetOnReturnToChromeCallback(mock_callback.Get());
+  delegate()->SetOnReturnToChromeCallbackAndObserveAppState(
+      mock_callback.Get());
+
+  EXPECT_CALL(mock_callback, Run).Times(0);
+
+  base::RunLoop run_loop;
+  test_api().SetOnApplicationStateChangedCallbackForTesting(
+      run_loop.QuitClosure());
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
+      base::android::ApplicationState::
+          APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
+  run_loop.Run();
+}
+
+// The current activity can be paused by actions like opening the Settings page.
+// Activity resumes on going back to the original page. This should not trigger
+// the callback as the user has not left Chrome.
+TEST_F(DeviceDelegateAndroidTest,
+       ChromeActivityPausedAndResumed_CallbackNotRun) {
+  base::MockCallback<base::OnceClosure> mock_callback;
+  delegate()->SetOnReturnToChromeCallbackAndObserveAppState(
+      mock_callback.Get());
+
+  EXPECT_CALL(mock_callback, Run).Times(0);
+
+  base::RunLoop run_loop;
+  test_api().SetOnApplicationStateChangedCallbackForTesting(
+      run_loop.QuitWhenIdleClosure());
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
+      base::android::ApplicationState::APPLICATION_STATE_HAS_PAUSED_ACTIVITIES);
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
+      base::android::ApplicationState::
+          APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
+  run_loop.Run();
+}
+
+TEST_F(DeviceDelegateAndroidTest,
+       ChromeMovedToBackgroundThenForeground_CallbackRun) {
+  base::MockCallback<base::OnceClosure> mock_callback;
+  delegate()->SetOnReturnToChromeCallbackAndObserveAppState(
+      mock_callback.Get());
 
   EXPECT_CALL(mock_callback, Run);
 
-  test_api().OnApplicationStateChanged(
+  base::RunLoop run_loop;
+  test_api().SetOnApplicationStateChangedCallbackForTesting(
+      run_loop.QuitWhenIdleClosure());
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
       base::android::ApplicationState::
           APPLICATION_STATE_HAS_STOPPED_ACTIVITIES);
-  test_api().OnApplicationStateChanged(
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
       base::android::ApplicationState::
           APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
+  run_loop.Run();
 }
 
 TEST_F(DeviceDelegateAndroidTest,
-       ChromeGoesToForegroundWithoutGoingToBackground_CallbackNotRun) {
-  base::MockCallback<base::OnceClosure> mock_callback;
-  delegate()->SetOnReturnToChromeCallback(mock_callback.Get());
+       ChromeMovedToBackgroundThenForeground_AppStatusListenerReset) {
+  delegate()->SetOnReturnToChromeCallbackAndObserveAppState(base::DoNothing());
+  ASSERT_TRUE(test_api().app_status_listener());
 
-  EXPECT_CALL(mock_callback, Run).Times(0);
-
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
-}
-
-TEST_F(DeviceDelegateAndroidTest, ChromeGoesToBackground_CallbackNotRun) {
-  base::MockCallback<base::OnceClosure> mock_callback;
-  delegate()->SetOnReturnToChromeCallback(mock_callback.Get());
-
-  EXPECT_CALL(mock_callback, Run).Times(0);
-
-  test_api().OnApplicationStateChanged(
+  base::RunLoop run_loop;
+  test_api().SetOnApplicationStateChangedCallbackForTesting(
+      run_loop.QuitWhenIdleClosure());
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
       base::android::ApplicationState::
           APPLICATION_STATE_HAS_STOPPED_ACTIVITIES);
-}
-
-TEST_F(DeviceDelegateAndroidTest,
-       MultipleBackgroundForegroundCycles_CallbackRunOnlyOnce) {
-  base::MockCallback<base::OnceClosure> mock_callback;
-  delegate()->SetOnReturnToChromeCallback(mock_callback.Get());
-
-  EXPECT_CALL(mock_callback, Run).Times(1);
-
-  // First cycle: Background -> Foreground
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_STOPPED_ACTIVITIES);
-  test_api().OnApplicationStateChanged(
+  base::android::ApplicationStatusListener::NotifyApplicationStateChange(
       base::android::ApplicationState::
           APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
-  testing::Mock::VerifyAndClearExpectations(&mock_callback);
+  run_loop.Run();
 
-  // Second cycle: Background -> Foreground
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_STOPPED_ACTIVITIES);
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
-}
-
-TEST_F(
-    DeviceDelegateAndroidTest,
-    CallbackSetAfterChromeAlreadyInBackground_ThenForeground_CallbackNotRun) {
-  base::MockCallback<base::OnceClosure> mock_callback;
-  // App goes to background first, then callback is set.
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_STOPPED_ACTIVITIES);
-  delegate()->SetOnReturnToChromeCallback(mock_callback.Get());
-
-  EXPECT_CALL(mock_callback, Run).Times(0);
-
-  // Then app comes to foreground.
-  test_api().OnApplicationStateChanged(
-      base::android::ApplicationState::
-          APPLICATION_STATE_HAS_RUNNING_ACTIVITIES);
+  EXPECT_FALSE(test_api().app_status_listener());
 }
 
 }  // namespace payments::facilitated

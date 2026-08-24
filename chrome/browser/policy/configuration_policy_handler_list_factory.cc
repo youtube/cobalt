@@ -384,6 +384,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kPartitionedBlobUrlUsage,
     prefs::kPartitionedBlobUrlUsage,
     base::Value::Type::BOOLEAN },
+  { key::kLegacyCookieScopeEnabled,
+    prefs::kManagedDefaultLegacyCookieScope,
+    base::Value::Type::INTEGER },
+  { key::kLegacyCookieScopeEnabledForDomainList,
+    prefs::kManagedLegacyCookieScopeForDomains,
+    base::Value::Type::LIST },
   { key::kPolicyTestPageEnabled,
     policy_prefs::kPolicyTestPageEnabled,
     base::Value::Type::BOOLEAN},
@@ -862,6 +868,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kWebRtcLocalIpsAllowedUrls,
     prefs::kWebRtcLocalIpsAllowedUrls,
     base::Value::Type::LIST },
+  { key::kWebRtcPostQuantumKeyAgreement,
+    prefs::kWebRTCPostQuantumKeyAgreement,
+    base::Value::Type::BOOLEAN },
   { key::kWebRtcTextLogCollectionAllowed,
     prefs::kWebRtcTextLogCollectionAllowed,
     base::Value::Type::BOOLEAN },
@@ -1360,6 +1369,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDeviceLoginScreenKeyboardFocusHighlightEnabled,
     nullptr,
     base::Value::Type::BOOLEAN },
+  { key::kDeviceLoginScreenSecurityKeyPermitAttestation,
+    nullptr,
+    base::Value::Type::LIST },
   // Note that this pref exists in both user PrefStore and local_state
   // PrefStore, and it is intended that the device policy is mapped to
   // both. See the comment at the definition of
@@ -1890,6 +1902,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN },
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+  { key::kProtectedContentIdentifiersAllowed,
+    policy_prefs::kProtectedContentIdentifiersAllowed,
+    base::Value::Type::BOOLEAN },
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   { key::kNetworkServiceSandboxEnabled,
     prefs::kNetworkServiceSandboxEnabled,
@@ -1922,9 +1940,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kProfileSeparationDomainExceptionList,
     prefs::kProfileSeparationDomainExceptionList,
     base::Value::Type::LIST },
-  { key::kProfileSeparationSettings,
-    prefs::kProfileSeparationSettings,
-    base::Value::Type::INTEGER },
   { key::kLiveCaptionEnabled,
     prefs::kLiveCaptionEnabled,
     base::Value::Type::BOOLEAN },
@@ -2257,6 +2272,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::INTEGER },
   { key::kUiAutomationProviderEnabled,
     prefs::kUiAutomationProviderEnabled,
+    base::Value::Type::BOOLEAN },
+  { key::kRestrictCoreSharingOnRenderer,
+    prefs::kRestrictCoreSharingOnRenderer,
     base::Value::Type::BOOLEAN },
 #endif  // BUILDFLAG(IS_WIN)
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
@@ -2820,6 +2838,11 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
               key::kProfileSeparationSettings,
               key::kProfileSeparationDataMigrationSettings,
               key::kProfileSeparationDomainExceptionList}));
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(key::kProfileSeparationSettings,
+                                            prefs::kProfileSeparationSettings,
+                                            base::Value::Type::INTEGER)));
+
 
   handlers->AddHandler(std::make_unique<SimpleDeprecatingPolicyHandler>(
       std::make_unique<SimplePolicyHandler>(
@@ -2858,17 +2881,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
           policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
 
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
-      std::make_unique<SimplePolicyHandler>(
-          key::kUserSecuritySignalsReporting,
-          enterprise_reporting::kUserSecuritySignalsReporting,
-          base::Value::Type::BOOLEAN)));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
-      std::make_unique<SimplePolicyHandler>(
-          key::kUserSecurityAuthenticatedReporting,
-          enterprise_reporting::kUserSecurityAuthenticatedReporting,
-          base::Value::Type::BOOLEAN)));
-
 #elif BUILDFLAG(IS_CHROMEOS)
   handlers->AddHandler(
       std::make_unique<ManagedAccountRestrictionsPolicyHandler>(chrome_schema));
@@ -2906,6 +2918,18 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   signin_legacy_policies.push_back(std::make_unique<SimplePolicyHandler>(
       key::kForceBrowserSignin, prefs::kForceBrowserSignin,
       base::Value::Type::BOOLEAN));
+
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(
+          key::kUserSecuritySignalsReporting,
+          enterprise_reporting::kUserSecuritySignalsReporting,
+          base::Value::Type::BOOLEAN)));
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyHandler>(
+      std::make_unique<SimplePolicyHandler>(
+          key::kUserSecurityAuthenticatedReporting,
+          enterprise_reporting::kUserSecurityAuthenticatedReporting,
+          base::Value::Type::BOOLEAN)));
+
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) ||
         // BUILDFLAG(IS_LINUX)
   signin_legacy_policies.push_back(std::make_unique<SimplePolicyHandler>(

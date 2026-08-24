@@ -5,6 +5,7 @@
 #include "components/regional_capabilities/regional_capabilities_service.h"
 
 #include <optional>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -23,6 +24,7 @@
 #include "components/regional_capabilities/regional_capabilities_prefs.h"
 #include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/regional_capabilities/regional_capabilities_utils.h"
+#include "regional_capabilities_metrics.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 
@@ -44,9 +46,11 @@ constexpr char kUnknownCountryIdStored[] =
 // LINT.IfChange(UnknownCountryIdStored)
 enum class UnknownCountryIdStored {
   kValidCountryId = 0,
-  kDontClearInvalidCountry = 1,
+  // kDontClearInvalidCountry = 1, // Deprecated.
   kClearedPref = 2,
-  kMaxValue = kClearedPref,
+  kValidDynamicCountryId = 3,
+  kClearedDynamicPref = 4,
+  kMaxValue = kClearedDynamicPref,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/search/enums.xml:UnknownCountryIdStored)
 
@@ -93,39 +97,81 @@ RegionalCapabilitiesService::Client::CountryIdCallback DispatchCountryId(
       std::move(callback1), std::move(callback2));
 }
 
-CountryId SelectCountryId(std::optional<CountryId> persisted_country,
-                          CountryId current_country) {
-  if (!persisted_country.has_value() && !current_country.IsValid()) {
-    RecordLoadedCountrySource(LoadedCountrySource::kNoneAvailable);
-    return CountryId();
+// Selects CountryID and corresponding source based on the following rules:
+//
+// If kDynamicProfileCountry feature is disabled, then
+//   1. return persisted CountryID if valid, otherwise
+//   2. return fetched current CountryID if valid, otherwise
+//   3. return fallback current CountryID if valid, otherwise
+//   4. return invalid CountryID
+// in other words, persisted > fetched > fallback.
+//
+// If kDynamicProfileCountry feature is enabled, then
+//   1. return fetched current CountryID if valid, otherwise
+//   2. return persisted CountryID if valid, otherwise
+//   3. return fallback current CountryID if valid, otherwise
+//   4. return invalid CountryID
+// in other words, fetched > persisted > fallback.
+std::pair<CountryId, LoadedCountrySource> SelectCountryId(
+    CountryId persisted_country,
+    CountryId current_country,
+    bool is_current_country_from_fallback) {
+  // Let's check first all possible combinations when `persisted_country`
+  // and/or `current_country` might be invalid.
+
+  if (!persisted_country.IsValid() && !current_country.IsValid()) {
+    return {CountryId(), LoadedCountrySource::kNoneAvailable};
   }
 
-  if (!persisted_country.has_value()) {
-    // We deliberately don't check `persisted_country` validity here. This
-    // means it's still possible below that we might end up returning an
-    // invalid country in the case where we obtained that invalid value
-    // from the preferences. crbug.com/399878483 and crbug.com/399879272
-    // should contribute to getting rid of that issue.
-    CHECK(current_country.IsValid());
-    RecordLoadedCountrySource(LoadedCountrySource::kCurrentOnly);
-    return current_country;
+  // At this point either `persisted_country` or `current_country` might be
+  // invalid.
+  if (!persisted_country.IsValid()) {
+    DCHECK(current_country.IsValid());
+    return {current_country, LoadedCountrySource::kCurrentOnly};
   }
-
-  LoadedCountrySource loaded_country_source;
   if (!current_country.IsValid()) {
-    CHECK(persisted_country.has_value());
-    loaded_country_source = LoadedCountrySource::kPersistedOnly;
-  } else if (current_country == persisted_country.value()) {
-    loaded_country_source = LoadedCountrySource::kBothMatch;
-  } else {
-    loaded_country_source = LoadedCountrySource::kPersistedPreferred;
+    DCHECK(persisted_country.IsValid());
+    return {persisted_country, LoadedCountrySource::kPersistedOnly};
   }
 
-  RecordLoadedCountrySource(loaded_country_source);
-  return persisted_country.value();
+  // At this point both `persisted_country` and `current_country` should be
+  // valid.
+  DCHECK(persisted_country.IsValid());
+  DCHECK(current_country.IsValid());
+
+  if (persisted_country == current_country) {
+    return {persisted_country, LoadedCountrySource::kBothMatch};
+  }
+
+  // If the dynamic profile country feature is disabled, it's preferred
+  // to return persisted country ID first.
+  if (!base::FeatureList::IsEnabled(switches::kDynamicProfileCountry)) {
+    return {persisted_country, LoadedCountrySource::kPersistedPreferred};
+  }
+
+  // At this point the `kDynamicProfileCountry` feature is enabled.
+  DCHECK(base::FeatureList::IsEnabled(switches::kDynamicProfileCountry));
+
+  // Fetched current CountryID is preferred over persisted CountryID.
+  if (!is_current_country_from_fallback) {
+    return {current_country, LoadedCountrySource::kCurrentPreferred};
+  }
+
+  // Persisted CountryID is preferred over fallback current CountryID.
+  return {persisted_country,
+          LoadedCountrySource::kPersistedPreferredOverFallback};
 }
 
 const ProgramSettings* CountryIdToProgram(CountryId country_id) {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  if (base::FeatureList::IsEnabled(switches::kTaiyaki)) {
+    // Not final logic.
+    // TODO(crbug.com/423882950): Update logic for iOS.
+    // TODO(crbug.com/423883216): Update logic for Android.
+    return &kTaiyakiSettings;
+  }
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
   if (regional_capabilities::IsEeaCountry(country_id)) {
     return &kWaffleSettings;
   }
@@ -176,10 +222,6 @@ RegionalCapabilitiesService::~RegionalCapabilitiesService() {
 #endif
 }
 
-CountryIdHolder RegionalCapabilitiesService::GetCountryId() {
-  return CountryIdHolder(GetCountryIdInternal());
-}
-
 std::vector<const TemplateURLPrepopulateData::PrepopulatedEngine*>
 RegionalCapabilitiesService::GetRegionalPrepopulatedEngines() {
   if (HasSearchEngineCountryListOverride()) {
@@ -199,6 +241,10 @@ RegionalCapabilitiesService::GetRegionalPrepopulatedEngines() {
       GetActiveProgramSettings().search_engine_list_type);
 }
 
+bool RegionalCapabilitiesService::IsInSearchEngineChoiceScreenRegion() {
+  return GetActiveProgramSettings().can_show_search_engine_choice_screen;
+}
+
 bool RegionalCapabilitiesService::IsInEeaCountry() {
   // Feature behaviour was directly based on the current country, as a
   // decentralised way to express a concept we are now framing as "program
@@ -208,6 +254,10 @@ bool RegionalCapabilitiesService::IsInEeaCountry() {
   // TODO(crbug.com/328040066): Introduce granular program settings APIs and
   // deprecate `IsInEeaCountry()` in favour of these.
   return &GetActiveProgramSettings() == &kWaffleSettings;
+}
+
+CountryIdHolder RegionalCapabilitiesService::GetCountryId() {
+  return CountryIdHolder(GetCountryIdInternal());
 }
 
 const ProgramSettings& RegionalCapabilitiesService::GetActiveProgramSettings() {
@@ -241,7 +291,7 @@ void RegionalCapabilitiesService::EnsureRegionalScopeCacheInitialized() {
     return;
   }
 
-  std::optional<CountryId> persisted_country_id = GetPersistedCountryId();
+  CountryId persisted_country_id = GetPersistedCountryId();
 
   // Fetches the device country using `Client::FetchCountryId()`. Upon
   // completion, makes it available through `country_id_receiver` and also
@@ -255,26 +305,30 @@ void RegionalCapabilitiesService::EnsureRegionalScopeCacheInitialized() {
       base::BindOnce(&RegionalCapabilitiesService::TrySetPersistedCountryId,
                      weak_ptr_factory_.GetWeakPtr())));
 
-  CountryId current_device_country =
+  CountryId current_country =
       country_id_receiver.received_country().value_or(CountryId());
-  bool is_device_country_from_fallback = false;
-  if (!current_device_country.IsValid()) {
+  bool is_current_country_from_fallback = false;
+  if (!current_country.IsValid()) {
     // The initialization failed or did not complete synchronously. Use the
     // fallback value and don't persist it. If the fetch completes later, the
     // persisted country will be picked up at the next startup.
-    current_device_country = client_->GetFallbackCountryId();
-    is_device_country_from_fallback = true;
+    current_country = client_->GetFallbackCountryId();
+    is_current_country_from_fallback = true;
   }
 
   RecordVariationsCountryMatching(client_->GetVariationsLatestCountryId(),
-                                  persisted_country_id.value_or(CountryId()),
-                                  current_device_country,
-                                  is_device_country_from_fallback);
+                                  persisted_country_id, current_country,
+                                  is_current_country_from_fallback);
 
-  country_id_cache_ =
-      SelectCountryId(persisted_country_id, current_device_country);
+  const std::pair<CountryId, LoadedCountrySource> selected_country_and_source =
+      SelectCountryId(persisted_country_id, current_country,
+                      is_current_country_from_fallback);
+
+  country_id_cache_ = selected_country_and_source.first;
   program_settings_cache_ =
       CHECK_DEREF(CountryIdToProgram(country_id_cache_.value()));
+
+  RecordLoadedCountrySource(selected_country_and_source.second);
 }
 
 void RegionalCapabilitiesService::ClearCountryIdCacheForTesting() {
@@ -282,9 +336,32 @@ void RegionalCapabilitiesService::ClearCountryIdCacheForTesting() {
   country_id_cache_.reset();
 }
 
-std::optional<CountryId> RegionalCapabilitiesService::GetPersistedCountryId() {
+CountryId RegionalCapabilitiesService::GetPersistedCountryId() {
+  // Prefer `prefs::kCountryID` if available and valid, otherwise fallback to
+  // `prefs::kCountryIDAtInstall`.
+  if (base::FeatureList::IsEnabled(switches::kDynamicProfileCountry) &&
+      profile_prefs_->HasPrefPath(prefs::kCountryID)) {
+    const CountryId persisted_dynamic_country_id =
+        CountryId::Deserialize(profile_prefs_->GetInteger(prefs::kCountryID));
+    // Even though invalid country ID should not be stored in prefs, it's safer
+    // to double check it.
+    //
+    // For example, there might be changes in country ID validator.
+    if (persisted_dynamic_country_id.IsValid()) {
+      base::UmaHistogramEnumeration(
+          kUnknownCountryIdStored,
+          UnknownCountryIdStored::kValidDynamicCountryId);
+      return persisted_dynamic_country_id;
+    }
+
+    // Clear dynamic pref CountryID as it is invalid.
+    base::UmaHistogramEnumeration(kUnknownCountryIdStored,
+                                  UnknownCountryIdStored::kClearedDynamicPref);
+    profile_prefs_->ClearPref(prefs::kCountryID);
+  }
+
   if (!profile_prefs_->HasPrefPath(prefs::kCountryIDAtInstall)) {
-    return std::nullopt;
+    return CountryId();
   }
 
   CountryId persisted_country_id = CountryId::Deserialize(
@@ -297,19 +374,11 @@ std::optional<CountryId> RegionalCapabilitiesService::GetPersistedCountryId() {
     return persisted_country_id;
   }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
-  if (base::FeatureList::IsEnabled(switches::kClearPrefForUnknownCountry)) {
-    profile_prefs_->ClearPref(prefs::kCountryIDAtInstall);
-    base::UmaHistogramEnumeration(kUnknownCountryIdStored,
-                                  UnknownCountryIdStored::kClearedPref);
-    return std::nullopt;
-  }
-#endif
-
-  base::UmaHistogramEnumeration(
-      kUnknownCountryIdStored,
-      UnknownCountryIdStored::kDontClearInvalidCountry);
-  return persisted_country_id;
+  // Clear static pref CountryID as it is invalid.
+  profile_prefs_->ClearPref(prefs::kCountryIDAtInstall);
+  base::UmaHistogramEnumeration(kUnknownCountryIdStored,
+                                UnknownCountryIdStored::kClearedPref);
+  return CountryId();
 }
 
 void RegionalCapabilitiesService::TrySetPersistedCountryId(
@@ -317,6 +386,11 @@ void RegionalCapabilitiesService::TrySetPersistedCountryId(
   if (!country_id.IsValid()) {
     return;
   }
+
+  if (base::FeatureList::IsEnabled(switches::kDynamicProfileCountry)) {
+    profile_prefs_->SetInteger(prefs::kCountryID, country_id.Serialize());
+  }
+
   if (profile_prefs_->HasPrefPath(prefs::kCountryIDAtInstall)) {
     // Deliberately do not override the current value. This would be a
     // dedicated feature like `kDynamicProfileCountryMetrics` for example.

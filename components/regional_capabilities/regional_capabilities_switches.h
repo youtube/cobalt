@@ -33,13 +33,6 @@ inline constexpr char kEeaListCountryOverride[] = "EEA_ALL";
 BASE_DECLARE_FEATURE(kMitigateLegacySearchEnginePromoOverlap);
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
-// When an invalid `country_codes::CountryId` is stored in prefs and this
-// feature is enabled the pref will be cleared allowing a valid country to be
-// set again.
-BASE_DECLARE_FEATURE(kClearPrefForUnknownCountry);
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // Use finch permanent country instead of finch latest country for fetching
 // country ID.
@@ -50,6 +43,10 @@ BASE_DECLARE_FEATURE(kUseFinchPermanentCountryForFetchCountryId);
 COMPONENT_EXPORT(REGIONAL_CAPABILITIES_SWITCHES)
 BASE_DECLARE_FEATURE(kTaiyaki);
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+
+// Updates profile country preference stored in preferences
+// dynamically when the current country does not match the stored value.
+BASE_DECLARE_FEATURE(kDynamicProfileCountry);
 
 }  // namespace switches
 

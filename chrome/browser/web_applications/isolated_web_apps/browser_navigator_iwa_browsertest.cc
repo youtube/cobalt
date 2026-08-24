@@ -15,6 +15,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/types/expected.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -48,6 +49,10 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/constants/chromeos_features.h"
+#endif
 
 namespace {
 
@@ -97,7 +102,12 @@ class ExternalProtocolHandlerDelegate
 class BrowserNavigatorIwaTest : public BrowserNavigatorTest {
  public:
   BrowserNavigatorIwaTest() {
-    scoped_feature_list_.InitAndEnableFeature(features::kIsolatedWebApps);
+    std::vector<base::test::FeatureRef> features = {features::kIsolatedWebApps};
+#if BUILDFLAG(IS_CHROMEOS)
+    features.emplace_back(
+        chromeos::features::kWebAppManifestProtocolHandlerSupport);
+#endif
+    scoped_feature_list_.InitWithFeatures(features, {});
   }
 
   void SetUpOnMainThread() override {
@@ -136,6 +146,10 @@ class BrowserNavigatorIwaTest : public BrowserNavigatorTest {
   std::unique_ptr<web_app::ScopedBundledIsolatedWebApp> app2_;
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::test::ScopedFeatureList scoped_feature_list_;
   web_app::OsIntegrationManager::ScopedSuppressForTesting os_hooks_suppress_;
 };

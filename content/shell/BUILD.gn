@@ -11,11 +11,11 @@ import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
 import("//content/browser/devtools/features.gni")
+import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//third_party/inspector_protocol/inspector_protocol.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
@@ -330,7 +330,7 @@ static_library("content_shell_lib") {
     "//components/metrics",
     "//components/metrics:net",
     "//components/metrics:test_support",
-    "//components/network_hints/browser:browser",
+    "//components/network_hints/browser",
     "//components/network_hints/renderer",
     "//components/network_session_configurator/common",
     "//components/origin_trials:browser",
@@ -354,7 +354,6 @@ static_library("content_shell_lib") {
     "//media/mojo/services",
     "//net",
     "//net:net_resources",
-    "//ppapi/buildflags",
     "//services/device/public/cpp:test_support",
     "//services/network/public/cpp",
     "//services/test/echo:lib",
@@ -420,7 +419,7 @@ static_library("content_shell_lib") {
       "//components/permissions",
       "//components/strings:components_strings",
       "//services/tracing/public/cpp",
-      "//services/tracing/public/mojom:mojom",
+      "//services/tracing/public/mojom",
       "//ui/shell_dialogs",
     ]
   }
@@ -489,6 +488,10 @@ static_library("content_shell_lib") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   if (is_cobalt && use_starboard_media) {
     deps += [
@@ -568,7 +571,7 @@ repack("pak") {
     "//base/tracing/protos:chrome_track_event_resources",
     "//components/ukm/debug:resources",
     "//content:content_resources",
-    "//content/browser/resources:resources",
+    "//content/browser/resources",
     "//content/browser/resources/media:resources",
     "//content/browser/webrtc/resources",
     "//content/test:web_ui_mojo_test_resources",
@@ -776,7 +779,7 @@ if (is_android) {
 
     data_deps = [
       ":pak",
-      "//tools/v8_context_snapshot:v8_context_snapshot",
+      "//tools/v8_context_snapshot",
     ]
 
     if (is_win) {

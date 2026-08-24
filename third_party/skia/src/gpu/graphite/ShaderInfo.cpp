@@ -193,8 +193,12 @@ std::string emit_intrinsic_constants(const ResourceBindingRequirements& bindingR
     std::string result;
     auto offsetter = UniformOffsetCalculator::ForTopLevel(bindingReqs.fUniformBufferLayout);
 
-    if (bindingReqs.fUseVulkanPushConstantsForIntrinsicConstants) {
-        result = "layout (vulkan, push_constant) uniform IntrinsicUniforms {\n";
+    if (bindingReqs.fUsePushConstantsForIntrinsicConstants) {
+        SkASSERT(bindingReqs.fBackendApi == BackendApi::kVulkan ||
+                 bindingReqs.fBackendApi == BackendApi::kDawn);
+        result = SkSL::String::printf(
+                "layout (%s, push_constant) uniform IntrinsicUniforms {\n",
+                bindingReqs.fBackendApi == BackendApi::kVulkan ? "vulkan" : "webgpu");
     } else {
         result = get_uniform_header(bindingReqs.fUniformsSetIdx,
                                     bindingReqs.fIntrinsicBufferBinding,
@@ -202,7 +206,7 @@ std::string emit_intrinsic_constants(const ResourceBindingRequirements& bindingR
     }
     result += get_uniforms(&offsetter, kIntrinsicUniforms, -1, /* wrotePaintColor= */ nullptr);
     result.append("};\n\n");
-    SkASSERTF(bindingReqs.fUseVulkanPushConstantsForIntrinsicConstants ||
+    SkASSERTF(bindingReqs.fUsePushConstantsForIntrinsicConstants ||
               result.find('[') == std::string::npos,
               "Arrays are not supported in intrinsic uniforms");
     return result;
@@ -1143,7 +1147,9 @@ void ShaderInfo::generateFragmentSkSL(const Caps* caps,
         }
 
         mainBody += "half4 outputCoverage = half4(1);";
-        mainBody += step->fragmentCoverageSkSL();
+        if (step->coverage() != Coverage::kNone) {
+            mainBody += step->fragmentCoverageSkSL();
+        }
 
         if (clipRoot) {
             // The clip block node is invoked with device coords, not local coords like the main

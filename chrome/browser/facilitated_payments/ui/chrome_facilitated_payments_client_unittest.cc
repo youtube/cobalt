@@ -13,6 +13,7 @@
 #include "components/optimization_guide/core/hints/mock_optimization_guide_decider.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/origin.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -55,7 +56,10 @@ class MockPixAccountLinkingManager
       : PixAccountLinkingManager(client) {}
   ~MockPixAccountLinkingManager() override = default;
 
-  MOCK_METHOD(void, MaybeShowPixAccountLinkingPrompt, (), (override));
+  MOCK_METHOD(void,
+              MaybeShowPixAccountLinkingPrompt,
+              (const url::Origin& pix_payment_page_origin),
+              (override));
 };
 
 class ChromeFacilitatedPaymentsClientTest
@@ -202,6 +206,18 @@ TEST_F(ChromeFacilitatedPaymentsClientTest, IsInLandscapeMode) {
   base_client().IsInLandscapeMode();
 }
 
+// Test the client correctly returns whether or not the tab is active.
+TEST_F(ChromeFacilitatedPaymentsClientTest, IsWebContentsVisibleOrOccluded) {
+  web_contents()->UpdateWebContentsVisibility(content::Visibility::VISIBLE);
+  EXPECT_TRUE(base_client().IsWebContentsVisibleOrOccluded());
+
+  web_contents()->UpdateWebContentsVisibility(content::Visibility::OCCLUDED);
+  EXPECT_TRUE(base_client().IsWebContentsVisibleOrOccluded());
+
+  web_contents()->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
+  EXPECT_FALSE(base_client().IsWebContentsVisibleOrOccluded());
+}
+
 // Test that the client forwards call to show payment link FOP selector to the
 // controller.
 TEST_F(ChromeFacilitatedPaymentsClientTest,
@@ -213,9 +229,12 @@ TEST_F(ChromeFacilitatedPaymentsClientTest,
 // Test that the client forwards call to initiate Pix account linking flow to
 // the Pix account linking manager.
 TEST_F(ChromeFacilitatedPaymentsClientTest, InitPixAccountLinkingFlow) {
-  EXPECT_CALL(pix_account_linking_manager(), MaybeShowPixAccountLinkingPrompt);
+  const url::Origin kPageOrigin =
+      url::Origin::Create(GURL("https://example.com"));
+  EXPECT_CALL(pix_account_linking_manager(),
+              MaybeShowPixAccountLinkingPrompt(kPageOrigin));
 
-  base_client().InitPixAccountLinkingFlow();
+  base_client().InitPixAccountLinkingFlow(kPageOrigin);
 }
 
 // Test that the client forwards call to show Pix account linking prompt to the

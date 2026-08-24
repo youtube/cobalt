@@ -10,8 +10,7 @@
 
 #include "pc/codec_vendor.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <string>
 #include <vector>
 

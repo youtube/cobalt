@@ -10,8 +10,7 @@
 
 #include "api/audio_codecs/g711/audio_encoder_g711.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <initializer_list>
 #include <map>
 #include <memory>

@@ -10,8 +10,7 @@
 
 #include "api/fec_controller.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <vector>
 
 #include "api/environment/environment_factory.h"

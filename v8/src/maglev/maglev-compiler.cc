@@ -37,6 +37,12 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/js-function.h"
 
+#ifdef ALWAYS_MAGLEV_GRAPH_LABELLER
+#define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL true
+#else
+#define ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL false
+#endif
+
 namespace v8 {
 namespace internal {
 namespace maglev {
@@ -47,7 +53,7 @@ void PrintGraph(Graph* graph, bool condition, const char* message) {
                   graph->compilation_info()->is_tracing_enabled())) {
     UnparkedScopeIfOnBackground unparked_scope(
         graph->broker()->local_isolate()->heap());
-    std::cout << "\nAfter graph building" << std::endl;
+    std::cout << "\n" << message << std::endl;
     PrintGraph(std::cout, graph);
   }
 }
@@ -68,7 +74,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
   Graph* graph = Graph::New(compilation_info);
 
-  if (V8_UNLIKELY(compilation_info->is_tracing_enabled())) {
+  if (V8_UNLIKELY(ALWAYS_MAGLEV_GRAPH_LABELLER_BOOL ||
+                  compilation_info->is_tracing_enabled())) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
     graph_labeller_scope.emplace(compilation_info->graph_labeller());
   }
@@ -113,13 +120,19 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       VerifyGraph(graph);
     }
 
-    // TODO(victorgomes): Add a enable/disable feature to graph processors, so
-    // that we can compile passes that can be disabled by flags.
-    if (v8_flags.maglev_truncation) {
+    if (v8_flags.maglev_truncation && graph->may_have_truncation()) {
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.Maglev.Truncation");
-      GraphProcessor<MaglevTruncationProcessor> truncate(graph);
+      GraphBackwardProcessor<PropagateTruncationProcessor> propagate;
+      propagate.ProcessGraph(graph);
+      PrintGraph(graph, v8_flags.print_maglev_graphs,
+                 "After propagating truncation");
+
+      // TODO(victorgomes): Support identities to flow to next passes?
+      GraphMultiProcessor<TruncationProcessor, SweepIdentityNodes> truncate(
+          TruncationProcessor{graph});
       truncate.ProcessGraph(graph);
+
       PrintGraph(graph, v8_flags.print_maglev_graphs, "After truncation");
       VerifyGraph(graph);
     }
@@ -244,6 +257,8 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.CommittingDependencies");
     if (!compilation_info->broker()->dependencies()->Commit(code)) {
+      compilation_info->toplevel_function()->SetTieringInProgress(isolate,
+                                                                  false);
       // Don't `set_maglev_compilation_failed` s.t. we may reattempt
       // compilation.
       // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly.

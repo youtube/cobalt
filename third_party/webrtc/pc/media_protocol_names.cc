@@ -10,10 +10,11 @@
 
 #include "pc/media_protocol_names.h"
 
-#include <ctype.h>
-#include <stddef.h>
-
+#include <cctype>
+#include <cstddef>
 #include <string>
+
+#include "absl/strings/string_view.h"
 
 namespace webrtc {
 

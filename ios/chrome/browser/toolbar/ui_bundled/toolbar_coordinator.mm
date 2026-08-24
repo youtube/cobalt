@@ -13,6 +13,7 @@
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
+#import "ios/chrome/browser/omnibox/ui/omnibox_drs_view_controller.h"
 #import "ios/chrome/browser/orchestrator/ui_bundled/omnibox_focus_orchestrator.h"
 #import "ios/chrome/browser/orchestrator/ui_bundled/omnibox_focus_orchestrator_parity.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
@@ -31,6 +32,7 @@
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/adaptive_toolbar_view_controller.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/primary_toolbar_coordinator.h"
@@ -69,6 +71,9 @@
 @property(nonatomic, strong) OmniboxFocusOrchestrator* orchestrator;
 /// Whether the omnibox is currently focused.
 @property(nonatomic, assign) BOOL locationBarFocused;
+/// Dynamic response system view controller is an omnibox presenter. Only
+/// defined  when kOmniboxDRSPrototype is set.
+@property(nonatomic, strong) OmniboxDRSViewController* drsViewController;
 
 @end
 
@@ -130,6 +135,13 @@
     [self.browser->GetCommandDispatcher()
         startDispatchingToTarget:self
                      forProtocol:@protocol(GuidedTourCommands)];
+  }
+
+  if (base::FeatureList::IsEnabled(kOmniboxDRSPrototype)) {
+    self.drsViewController = [[OmniboxDRSViewController alloc] init];
+    self.drsViewController.proxiedPresenterDelegate =
+        self.popupPresenterDelegate;
+    self.popupPresenterDelegate = self.drsViewController;
   }
 
   segmentation_platform::DeviceSwitcherResultDispatcher* deviceSwitcherResult =
@@ -284,7 +296,7 @@
   NewTabPageTabHelper* NTPHelper = NewTabPageTabHelper::FromWebState(webState);
   BOOL isNTP = NTPHelper && NTPHelper->IsActive();
   BOOL isOffTheRecord = self.isOffTheRecord;
-  BOOL canShowTabStrip = IsRegularXRegularSizeClass(self.traitEnvironment);
+  BOOL canShowTabStrip = CanShowTabStrip(self.traitEnvironment);
 
   // Hide the toolbar when displaying content suggestions without the tab
   // strip, without the focused omnibox, only when in split toolbar mode.
@@ -326,18 +338,25 @@
                            _steadyStateOmniboxPosition == ToolbarType::kPrimary;
 
   __weak __typeof(self) weakSelf = self;
-  BOOL toolbarExpanded =
-      focused && !IsRegularXRegularSizeClass(self.traitEnvironment);
-  [self.orchestrator
-      transitionToStateOmniboxFocused:focused
-                      toolbarExpanded:toolbarExpanded
-                              trigger:[self omniboxFocusTrigger]
-                             animated:animateTransition
-                           completion:^{
-                             [weakSelf focusTransitionDidComplete:focused
-                                                       completion:completion];
-                           }];
+  BOOL toolbarExpanded = focused && !CanShowTabStrip(self.traitEnvironment);
+  if (base::FeatureList::IsEnabled(kOmniboxDRSPrototype) && focused) {
+    [self.baseViewController presentViewController:self.drsViewController
+                                          animated:YES
+                                        completion:nil];
 
+    return;
+
+  } else {
+    [self.orchestrator
+        transitionToStateOmniboxFocused:focused
+                        toolbarExpanded:toolbarExpanded
+                                trigger:[self omniboxFocusTrigger]
+                               animated:animateTransition
+                             completion:^{
+                               [weakSelf focusTransitionDidComplete:focused
+                                                         completion:completion];
+                             }];
+  }
   self.locationBarFocused = focused;
 }
 
@@ -358,15 +377,25 @@
     return 1.0;
   }
 
+  if (IsDiamondPrototypeEnabled()) {
+    return kDiamondCollapsedToolbarHeight;
+  }
+
   return ToolbarCollapsedHeight(
       self.traitEnvironment.traitCollection.preferredContentSizeCategory);
 }
 
 - (CGFloat)expandedPrimaryToolbarHeight {
+  if (IsDiamondPrototypeEnabled() &&
+      _omniboxPosition != ToolbarType::kSecondary) {
+    return kDiamondToolbarHeight;
+  }
+
   CGFloat height =
       self.primaryToolbarViewController.view.intrinsicContentSize.height;
-  if (!IsSplitToolbarMode(self.traitEnvironment)) {
-    // When the adaptive toolbar is unsplit, add a margin.
+  if (CanShowTabStrip(self.traitEnvironment)) {
+    // When the adaptive toolbar is unsplit or the tab strip is visible, add a
+    // margin.
     height += kTopToolbarUnsplitMargin;
   }
   return height;
@@ -650,8 +679,7 @@
   [self.orchestrator
       transitionToStateOmniboxFocused:omniboxFocused
                       toolbarExpanded:omniboxFocused &&
-                                      !IsRegularXRegularSizeClass(
-                                          self.traitEnvironment)
+                                      !CanShowTabStrip(self.traitEnvironment)
                               trigger:[self omniboxFocusTrigger]
                              animated:NO
                            completion:nil];

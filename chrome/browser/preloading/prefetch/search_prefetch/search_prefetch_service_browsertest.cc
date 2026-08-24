@@ -29,6 +29,7 @@
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/streaming_search_prefetch_url_loader.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
@@ -484,6 +485,10 @@ class SearchPrefetchServiceEnabledBrowserTest
   }
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::ScopedMockElapsedTimersForTest scoped_test_timer_;
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
@@ -1295,8 +1300,6 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   CheckCorrectForwardingResultMetric(
       histogram_tester,
       StreamingSearchPrefetchURLLoader::ForwardingResult::kCompleted, 1);
-  histogram_tester.ExpectUniqueSample(
-      "Omnibox.SearchPrefetch.ServedToOnlyFromCacheRequest", false, 1);
 
   content::RenderFrameHost* frame = GetWebContents()->GetPrimaryMainFrame();
   EXPECT_EQ(
@@ -1807,6 +1810,8 @@ IN_PROC_BROWSER_TEST_P(SearchPrefetchServiceEnabledWithNVSBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "Omnibox.SearchPrefetch.CacheAliasFallbackReason",
       CacheAliasSearchPrefetchURLLoader::FallbackReason::kErrorOnComplete, 1);
+  histogram_tester.ExpectTotalCount(
+      "Omnibox.SearchPrefetch.CacheAliasOnCompleteNetError", 1);
   histogram_tester.ExpectTotalCount(
       "Omnibox.SearchPrefetch.CacheAliasElapsedTimeToFallback", 1);
 }

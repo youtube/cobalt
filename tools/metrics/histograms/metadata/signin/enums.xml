@@ -292,7 +292,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Failed to attach the signature to an assertion token"/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/signin/bound_session_credentials/registration_token_helper.h:Error) -->
+<!-- LINT.ThenChange(//chrome/browser/signin/binding_key_registration_token_helper.h:Error) -->
 
 <enum name="BoundSessionCredentialsSessionRegistrationResult">
   <int value="0" label="Success"/>
@@ -666,6 +666,18 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Token binding challenge success"/>
 </enum>
 
+<!-- LINT.IfChange(OAuthConsumerId) -->
+
+<enum name="OAuthConsumerId">
+  <int value="0" label="Sync"/>
+  <int value="1" label="Wallpaper Google Photos fetcher"/>
+  <int value="2" label="Wallpaper fetcher delegate"/>
+  <int value="3" label="Ip Protection Service"/>
+  <int value="4" label="Sanitized image source"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/public/identity_manager/oauth_consumer_ids.h:OAuthConsumerId) -->
+
 <!-- LINT.IfChange(OAuthMultiloginResponseStatus) -->
 
 <enum name="OAuthMultiloginResponseStatus">
@@ -844,6 +856,7 @@ chromium-metrics-reviews@google.com.
   <int value="86" label="Enterprise management disclaimer at startup"/>
   <int value="87" label="Enterprise management disclaimer after browser focus"/>
   <int value="88" label="Enterprise management disclaimer after signin"/>
+  <int value="89" label="New Tab Page sign-in feature promo"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

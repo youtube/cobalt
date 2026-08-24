@@ -19,9 +19,9 @@ namespace webrtc {
 namespace pcc {
 namespace test {
 namespace {
-const TimeDelta kInitialRtt = TimeDelta::Micros(10);
+constexpr TimeDelta kInitialRtt = TimeDelta::Micros(10);
 constexpr double kAlpha = 0.9;
-const Timestamp kStartTime = Timestamp::Seconds(0);
+constexpr Timestamp kStartTime = Timestamp::Seconds(0);
 
 PacketResult GetPacketWithRtt(TimeDelta rtt) {
   SentPacket packet;

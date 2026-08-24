@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/blink/renderer/platform/text/icu_error.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/threading.h"
@@ -325,7 +326,7 @@ void ScriptRunIterator::CloseBracket(UChar32 ch) {
         // And pop stack to this point.
         int num_popped =
             static_cast<int>(std::distance(brackets_.rbegin(), it));
-        // TODO: No resize operation in WTF::Deque?
+        // TODO: No resize operation in blink::Deque?
         for (int i = 0; i < num_popped; ++i)
           brackets_.pop_back();
         brackets_fixup_depth_ = static_cast<wtf_size_t>(
@@ -470,18 +471,21 @@ bool ScriptRunIterator::Fetch(wtf_size_t* pos, UChar32* ch) {
 
   UNSAFE_TODO(U16_NEXT(text_, ahead_pos_, length_, ahead_character_));
 
-  if (!next_set_->empty() && next_set_->front() != USCRIPT_COMMON &&
-      U_GET_GC_MASK(ahead_character_) & U_GC_M_MASK &&
-      RuntimeEnabledFeatures::ScriptRunIteratorCombiningMarksEnabled())
-      [[unlikely]] {
+  if (Character::IsGcMark(ahead_character_)) [[unlikely]] {
     // A combining mark--whatever its Script property value--should inherit the
     // script property value of its base character.
     // https://www.unicode.org/reports/tr24/#Nonspacing_Marks
-    // `USCRIPT_COMMON` could try looking for more context, but the script of
-    // the combining mark may be still useful, and is backward compatible.
-    // https://www.unicode.org/reports/tr24/#Common
-    *ahead_set_ = *next_set_;
-    return true;
+    if (RuntimeEnabledFeatures::ScriptRunIteratorCombiningMarkAlwaysEnabled()) {
+      ahead_set_->resize(1);
+      ahead_set_->front() = USCRIPT_INHERITED;
+      return true;
+    } else if (!next_set_->empty() && next_set_->front() != USCRIPT_COMMON) {
+      // `USCRIPT_COMMON` could try looking for more context, but the script of
+      // the combining mark may be still useful, and is backward compatible.
+      // https://www.unicode.org/reports/tr24/#Common
+      *ahead_set_ = *next_set_;
+      return true;
+    }
   }
 
   script_data_->GetScripts(ahead_character_, *ahead_set_);

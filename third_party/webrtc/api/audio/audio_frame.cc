@@ -10,9 +10,8 @@
 
 #include "api/audio/audio_frame.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <optional>
 
 #include "api/array_view.h"

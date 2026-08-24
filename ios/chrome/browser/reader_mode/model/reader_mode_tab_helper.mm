@@ -94,13 +94,14 @@ void ReaderModeTabHelper::RemoveObserver(Observer* observer) {
 }
 
 bool ReaderModeTabHelper::IsActive() const {
-  return !!reader_mode_web_state_;
+  return active_;
 }
 
 void ReaderModeTabHelper::SetActive(bool active) {
-  if (active == IsActive()) {
+  if (active_ == active) {
     return;
   }
+  active_ = active;
   if (active) {
     // If Reader mode is being activated, create the secondary WebState where
     // the content will be rendered and start distillation.
@@ -112,15 +113,10 @@ void ReaderModeTabHelper::SetActive(bool active) {
   }
 }
 
-bool ReaderModeTabHelper::IsReaderModeWebStateAvailable() const {
-  // TODO(crbug.com/417685203): Try to remove this parameter once decoupling is
-  // completed e.g. instead check whether there is a ReaderModeContentTabHelper
-  // attached and displaying content.
-  return reader_mode_web_state_available_;
-}
-
 web::WebState* ReaderModeTabHelper::GetReaderModeWebState() {
-  CHECK(IsReaderModeWebStateAvailable());
+  if (!reader_mode_web_state_content_loaded_) {
+    return nullptr;
+  }
   return reader_mode_web_state_.get();
 }
 
@@ -163,7 +159,7 @@ void ReaderModeTabHelper::TriggerReaderModeHeuristicAsync(const GURL& url) {
   ResetUrlEligibility(url);
 
   trigger_reader_mode_timer_.Start(
-      FROM_HERE, ReaderModeDistillerPageLoadDelay(),
+      FROM_HERE, ReaderModeHeuristicPageLoadDelay(),
       base::BindOnce(&ReaderModeTabHelper::TriggerReaderModeHeuristic,
                      weak_ptr_factory_.GetWeakPtr(), url));
 }
@@ -202,7 +198,7 @@ void ReaderModeTabHelper::ResetUrlEligibility(const GURL& url) {
   // Ensure that only one asynchronous eligibility check is running at a time.
   if (trigger_reader_mode_timer_.IsRunning()) {
     trigger_reader_mode_timer_.Stop();
-    metrics_helper_.CancelReaderHeuristicRecording();
+    metrics_helper_.RecordReaderHeuristicCanceled();
   } else {
     // If there is no trigger in progress ensure any metrics related to a
     // past navigation have been recorded.
@@ -217,8 +213,17 @@ void ReaderModeTabHelper::ResetUrlEligibility(const GURL& url) {
 
 void ReaderModeTabHelper::ReaderModeContentDidLoadData(
     ReaderModeContentTabHelper* reader_mode_content_tab_helper) {
+  reader_mode_web_state_content_loaded_ = true;
+  for (auto& observer : observers_) {
+    observer.ReaderModeWebStateDidLoadContent(this);
+  }
+  WebViewProxyTabHelper* tab_helper =
+      WebViewProxyTabHelper::FromWebState(web_state_);
+  if (tab_helper) {
+    tab_helper->SetOverridingWebViewProxy(
+        reader_mode_web_state_->GetWebViewProxy());
+  }
   metrics_helper_.RecordReaderShown();
-
   // Generic snapshot image generation on side-swipe has a long tail latency.
   // Force update the snapshot storage to ensure that the latest snapshot is
   // presented before a transition.
@@ -266,8 +271,7 @@ void ReaderModeTabHelper::HandleReaderModeHeuristicResult(
   }
   reader_mode_eligible_url_ =
       result == ReaderModeHeuristicResult::kReaderModeEligible ? url : GURL();
-  if (last_committed_url_without_ref_.EqualsIgnoringRef(
-          reader_mode_eligible_url_)) {
+  if (last_committed_url_without_ref_.EqualsIgnoringRef(url)) {
     last_committed_url_eligibility_ready_ = true;
     CallLastCommittedUrlEligibilityCallbacks(CurrentPageSupportsReaderMode());
   }
@@ -314,6 +318,9 @@ void ReaderModeTabHelper::PageDistillationCompleted(
     const std::vector<DistillerViewerInterface::ImageInfo>& images,
     const std::string& title,
     const std::string& csp_nonce) {
+  // Cancel the distillation timeout request if page distillation completes.
+  reader_mode_distillation_timer_.Stop();
+
   // If ExecuteJavaScript completion is run after WebState is destroyed, do
   // not continue metrics collection.
   if (!web_state_ || web_state_->IsBeingDestroyed()) {
@@ -341,19 +348,12 @@ void ReaderModeTabHelper::PageDistillationCompleted(
                                             length:html.length()];
       ReaderModeContentTabHelper::FromWebState(reader_mode_web_state_.get())
           ->LoadContent(page_url, content_data);
-      reader_mode_web_state_available_ = true;
-      for (auto& observer : observers_) {
-        observer.ReaderModeWebStateDidBecomeAvailable(this);
-      }
-      WebViewProxyTabHelper* tab_helper =
-          WebViewProxyTabHelper::FromWebState(web_state_);
-      if (tab_helper) {
-        tab_helper->SetOverridingWebViewProxy(
-            reader_mode_web_state_->GetWebViewProxy());
-      }
     } else {
       // If the page could not be distilled, deactivate Reader mode in this tab.
       SetActive(false);
+      for (auto& observer : observers_) {
+        observer.ReaderModeDistillationFailed(this);
+      }
     }
   }
 }
@@ -379,9 +379,16 @@ void ReaderModeTabHelper::CreateReaderModeWebState() {
       std::move(distiller_page), web_state_->GetLastCommittedURL(),
       base::BindRepeating(&ReaderModeTabHelper::PageDistillationCompleted,
                           weak_ptr_factory_.GetWeakPtr())));
+
+  reader_mode_distillation_timer_.Start(
+      FROM_HERE, ReaderModeDistillationTimeout(),
+      base::BindOnce(&ReaderModeTabHelper::CancelDistillation,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void ReaderModeTabHelper::DestroyReaderModeWebState() {
+  metrics_helper_.Flush();
+
   WebViewProxyTabHelper* tab_helper =
       WebViewProxyTabHelper::FromWebState(web_state_);
   if (tab_helper) {
@@ -390,7 +397,7 @@ void ReaderModeTabHelper::DestroyReaderModeWebState() {
   for (auto& observer : observers_) {
     observer.ReaderModeWebStateWillBecomeUnavailable(this);
   }
-  reader_mode_web_state_available_ = false;
+  reader_mode_web_state_content_loaded_ = false;
   reader_mode_web_state_.reset();
   // Cancel any ongoing distillation task.
   distiller_viewer_.reset();
@@ -420,4 +427,9 @@ void ReaderModeTabHelper::CallLastCommittedUrlEligibilityCallbacks(
     std::move(callback).Run(result);
   }
   last_committed_url_eligibility_callbacks_.clear();
+}
+
+void ReaderModeTabHelper::CancelDistillation() {
+  metrics_helper_.RecordReaderDistillerTimedOut();
+  SetActive(false);
 }

@@ -276,7 +276,9 @@ Handle<JSObject> CreateImportObjectInternal(
         const WasmGlobal& global =
             module_object->native_module()->module()->globals[import.index];
         DirectHandle<WasmTrustedInstanceData> trusted_data =
-            WasmTrustedInstanceData::New(isolate, module_object, false);
+            WasmTrustedInstanceData::New(isolate, module_object,
+                                         module_object->shared_native_module(),
+                                         false);
         MaybeDirectHandle<WasmGlobalObject> maybe_global_obj =
             WasmGlobalObject::New(isolate, trusted_data,
                                   MaybeHandle<JSArrayBuffer>(),
@@ -575,7 +577,6 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  testing::SetupIsolateForWasmModule(i_isolate);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -583,7 +584,7 @@ int LLVMFuzzerTestOneInputCommon(const uint8_t* data, size_t size,
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   wasm::ZoneBuffer buffer(&zone);
 
@@ -645,7 +646,6 @@ int LLVMFuzzerTestTwoModulesCommon(
   // wasm::fuzzing::EnableExperimentalWasmFeatures(isolate);
 
   v8::TryCatch try_catch(isolate);
-  wasm::testing::SetupIsolateForWasmModule(i_isolate);
 
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -653,7 +653,7 @@ int LLVMFuzzerTestTwoModulesCommon(
   // Clear recursive groups: The fuzzer creates random types in every run. These
   // are saved as recursive groups as part of the type canonicalizer, but types
   // from previous runs just waste memory.
-  ResetTypeCanonicalizer(isolate, &zone);
+  ResetTypeCanonicalizer(isolate);
 
   wasm::ZoneBuffer buffer(&zone);
 

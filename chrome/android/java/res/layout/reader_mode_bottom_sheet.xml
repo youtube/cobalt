@@ -14,9 +14,10 @@ found in the LICENSE file.
     android:orientation="vertical"
     android:paddingHorizontal="24dp"
     android:paddingBottom="24dp"
-    android:background="@macro/default_bg_color">
+    android:background="@drawable/bottom_sheet_background">
 
     <ImageView
+            android:id="@+id/drag_handle"
             android:layout_width="32dp"
             android:layout_height="4dp"
             android:layout_marginTop="12dp"

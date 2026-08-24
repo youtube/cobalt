@@ -23,7 +23,6 @@
 #import "ios/chrome/browser/side_swipe/ui_bundled/side_swipe_mediator+Testing.h"
 #import "ios/chrome/browser/side_swipe/ui_bundled/side_swipe_util.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
-#import "ios/chrome/browser/web/model/page_placeholder_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/web_state_observer_bridge.h"
@@ -139,7 +138,7 @@ constexpr base::TimeDelta kUpdateSnapshotTimeout = base::Milliseconds(100);
   ReaderModeTabHelper* readerModeTabHelper =
       ReaderModeTabHelper::FromWebState(webState);
   if (readerModeTabHelper &&
-      readerModeTabHelper->IsReaderModeWebStateAvailable()) {
+      readerModeTabHelper->GetReaderModeWebState() != nullptr) {
     [self.consumer setTrailingEdgeNavigationEnabled:YES];
     [self.consumer setLeadingEdgeNavigationEnabled:YES];
   }
@@ -211,21 +210,11 @@ constexpr base::TimeDelta kUpdateSnapshotTimeout = base::Milliseconds(100);
   if (!self.activeWebState || newTabIndex == WebStateList::kInvalidIndex) {
     return;
   }
-  // Disable overlay preview mode for last selected tab.
-  PagePlaceholderTabHelper::FromWebState(self.activeWebState)
-      ->CancelPlaceholderForNextNavigation();
-
-  web::WebState* webState = _webStateList->GetWebStateAt(newTabIndex);
-  // Enable overlay preview mode for selected tab.
-  PagePlaceholderTabHelper::FromWebState(webState)
-      ->AddPlaceholderForNextNavigation();
 
   _webStateList->ActivateWebStateAt(newTabIndex);
 }
 
 - (void)didCompleteTabSwitchWithSwipe {
-  PagePlaceholderTabHelper::FromWebState(self.activeWebState)
-      ->CancelPlaceholderForNextNavigation();
 }
 
 - (int)activeTabIndex {

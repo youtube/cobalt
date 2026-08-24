@@ -331,6 +331,9 @@ if (_is_default_toolchain) {
       base_module_target = ":trichrome_webview_64_32_base_bundle_module"
       bundle_name = "TrichromeWebView6432"
       static_library_provider = "//chrome/android:trichrome_library_64_32_apk"
+      if (enable_manifest_verification) {
+        expected_proguard_config = "expectations/trichrome_webview_64_32_public_bundle.proguard_flags.expected"
+      }
       if (enable_libs_and_assets_verification) {
         expected_libs_and_assets =
             "expectations/$target_name.$target_cpu.libs_and_assets.expected"
@@ -423,6 +426,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/android_webview/AndroidProtocolHandler.java",
       "java/src/org/chromium/android_webview/AppDefinedDomains.java",
       "java/src/org/chromium/android_webview/AwActionModeCallback.java",
+      "java/src/org/chromium/android_webview/AwBackForwardCacheSettings.java",
       "java/src/org/chromium/android_webview/AwBrowserContext.java",
       "java/src/org/chromium/android_webview/AwBrowserContextStore.java",
       "java/src/org/chromium/android_webview/AwBrowserMainParts.java",
@@ -1151,6 +1155,7 @@ generate_jni("browser_jni_headers") {
   sources = [
     "java/src/org/chromium/android_webview/AndroidProtocolHandler.java",
     "java/src/org/chromium/android_webview/AppDefinedDomains.java",
+    "java/src/org/chromium/android_webview/AwBackForwardCacheSettings.java",
     "java/src/org/chromium/android_webview/AwBrowserContext.java",
     "java/src/org/chromium/android_webview/AwBrowserContextStore.java",
     "java/src/org/chromium/android_webview/AwBrowserMainParts.java",

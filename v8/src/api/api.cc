@@ -3087,6 +3087,12 @@ Local<String> StackTrace::CurrentScriptNameOrSourceURL(Isolate* v8_isolate) {
   return Utils::ToLocal(name_or_source_url);
 }
 
+int StackTrace::CurrentScriptId(Isolate* v8_isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(i_isolate);
+  return i_isolate->CurrentScriptId();
+}
+
 // --- S t a c k F r a m e ---
 
 Location StackFrame::GetLocation() const {
@@ -5988,7 +5994,7 @@ void v8::String::VerifyExternalStringResource(
     v8::String::ExternalStringResource* value) const {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::String> str = *Utils::OpenDirectHandle(this);
-  const v8::String::ExternalStringResource* expected;
+  const v8::String::ExternalStringResource* expected = nullptr;
 
   if (i::IsThinString(str)) {
     str = i::Cast<i::ThinString>(str)->actual();
@@ -6006,8 +6012,6 @@ void v8::String::VerifyExternalStringResource(
       if (!is_one_byte) {
         expected = reinterpret_cast<const ExternalStringResource*>(resource);
       }
-    } else {
-      expected = nullptr;
     }
   }
   CHECK_EQ(expected, value);
@@ -10102,11 +10106,6 @@ void Isolate::Initialize(Isolate* v8_isolate,
     }
   }
 
-  i_isolate->set_embedder_wrapper_type_index(
-      params.embedder_wrapper_type_index);
-  i_isolate->set_embedder_wrapper_object_index(
-      params.embedder_wrapper_object_index);
-
   if (!i::V8::GetCurrentPlatform()
            ->GetForegroundTaskRunner(v8_isolate)
            ->NonNestableTasksEnabled()) {
@@ -10335,6 +10334,10 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();
 
+  // Embedder may call GetHeapStatistics() from any thread. Make sure to set the
+  // TLS variable to *this.
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   heap->FreeMainThreadLinearAllocationAreas();
 
   // The order of acquiring memory statistics is important here. We query in
@@ -10394,10 +10397,15 @@ size_t Isolate::NumberOfHeapSpaces() {
 bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
                                      size_t index) {
   if (!space_statistics) return false;
+
+  // Embedder may call GetHeapSpaceStatistics() from any thread. Make sure to
+  // set the TLS variable to *this.
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   if (!i::Heap::IsValidAllocationSpace(static_cast<i::AllocationSpace>(index)))
     return false;
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = i_isolate->heap();
 
   heap->FreeMainThreadLinearAllocationAreas();
@@ -10435,6 +10443,10 @@ bool Isolate::GetHeapObjectStatisticsAtLastGC(
   if (V8_LIKELY(!i::TracingFlags::is_gc_stats_enabled())) return false;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  // Embedder may call GetHeapObjectStatisticsAtLastGC() from any thread. Make
+  // sure to set the TLS variable to *this.
+  i::SetCurrentIsolateScope set_current_isolate(i_isolate);
+
   i::Heap* heap = i_isolate->heap();
   if (type_index >= heap->NumberOfTrackedHeapObjectTypes()) return false;
 
@@ -11019,7 +11031,7 @@ Maybe<std::string> Isolate::ValidateAndCanonicalizeUnicodeLocaleId(
 
 uint64_t Isolate::GetHashSeed() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return HashSeed(i_isolate);
+  return i::HashSeed(i_isolate).seed();
 }
 
 #if defined(V8_ENABLE_ETW_STACK_WALKING)

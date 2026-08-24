@@ -93,9 +93,10 @@ std::optional<UnencodedDigest> UnencodedDigest::Create(
       continue;
     }
 
-    // Store the byte sequence as a base64-encoded digest, matching CSP and
-    // SRI's existing `IntegrityMetadata` implementation.
-    parsed_digest.digest = Base64Encode(base::as_byte_span(digest));
+    // Store the byte sequence as an array<uint8_t>.
+    parsed_digest.value.reserve(digest.size());
+    parsed_digest.value.Append(reinterpret_cast<const uint8_t*>(digest.data()),
+                               digest.size());
     integrity_metadata.Insert(std::move(parsed_digest));
   }
 
@@ -105,7 +106,7 @@ std::optional<UnencodedDigest> UnencodedDigest::Create(
   return UnencodedDigest(integrity_metadata);
 }
 
-bool UnencodedDigest::DoesMatch(WTF::SegmentedBuffer* data) {
+bool UnencodedDigest::DoesMatch(SegmentedBuffer* data) {
   for (const IntegrityMetadata& digest : integrity_metadata_.hashes) {
     HashAlgorithm algorithm = GetHashAlgorithm(digest.algorithm);
     DigestValue computed_digest;
@@ -114,13 +115,9 @@ bool UnencodedDigest::DoesMatch(WTF::SegmentedBuffer* data) {
       return false;
     }
 
-    // Convert the stored digest into a `DigestValue`
-    Vector<uint8_t> digest_bytes;
-    Base64Decode(digest.digest, digest_bytes);
-    DigestValue expected_digest(base::as_byte_span(digest_bytes));
-
     // If any specified digest doesn't match the digest computed over |data|,
     // matching fails.
+    DigestValue expected_digest(base::as_byte_span(digest.value));
     if (computed_digest != expected_digest) {
       // TODO(https://crbug.com/381044049): Emit errors.
       return false;

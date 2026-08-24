@@ -36,7 +36,7 @@
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 static int InitAndRunAllTests(int argc, char** argv) {
-  WTF::Partitions::Initialize();
+  blink::Partitions::Initialize();
   blink::InitializeWtf();
   return base::RunUnitTestsUsingBaseTestSuite(argc, argv);
 }

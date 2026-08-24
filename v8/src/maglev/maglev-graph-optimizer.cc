@@ -64,9 +64,7 @@ ValueNode* MaglevGraphOptimizer::GetInputAt(int index) const {
   CHECK_NOT_NULL(current_node_);
   DCHECK_LT(index, current_node()->input_count());
   ValueNode* input = current_node()->input(index).node();
-  while (input->Is<Identity>()) {
-    input = input->input(0).node();
-  }
+  input = input->UnwrapIdentities();
   return input;
 }
 
@@ -1306,7 +1304,8 @@ ProcessResult MaglevGraphOptimizer::VisitInt32AddWithOverflow() {
                                                                 GetInputAt(1));
       result.IsDone()) {
     DCHECK(result.IsDoneWithValue());
-    return ReplaceWith(result.value());
+    // TODO(victorgomes): Should GetInt32 style function support identities?
+    return ReplaceWith(reducer_.GetInt32(result.value()->UnwrapIdentities()));
   }
   return ProcessResult::kContinue;
 }
@@ -1598,6 +1597,11 @@ ProcessResult MaglevGraphOptimizer::VisitBuiltinSeqOneByteStringCharCodeAt() {
 }
 
 ProcessResult MaglevGraphOptimizer::VisitCreateFastArrayElements() {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitNewConsString() {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }

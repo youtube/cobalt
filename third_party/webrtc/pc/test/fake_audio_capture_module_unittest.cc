@@ -10,10 +10,9 @@
 
 #include "pc/test/fake_audio_capture_module.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 
 #include "api/audio/audio_device_defines.h"
 #include "api/scoped_refptr.h"

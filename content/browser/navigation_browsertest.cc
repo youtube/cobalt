@@ -95,7 +95,6 @@
 #include "content/test/render_document_feature.h"
 #include "content/test/task_runner_deferring_throttle.h"
 #include "content/test/test_render_frame_host_factory.h"
-#include "ipc/ipc_security_test_util.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/base/features.h"
@@ -1856,7 +1855,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Failing to do so causes the browser to become unresponsive.
 // See https://crbug.com/882238
 // TODO(crbug.com/379844650): Disabled on Linux sanitizer bots due to flakiness.
-#if BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+// TODO(crbug.com/346960510): Disabled on ChromeOS sanitizer bots due to
+// flakiness.
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
+    defined(ADDRESS_SANITIZER)
 #define MAYBE_IPCFlood_GoToEntryAtOffset DISABLED_IPCFlood_GoToEntryAtOffset
 #else
 #define MAYBE_IPCFlood_GoToEntryAtOffset IPCFlood_GoToEntryAtOffset

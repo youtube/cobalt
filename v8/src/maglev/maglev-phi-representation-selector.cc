@@ -22,24 +22,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-static std::ostream& operator<<(std::ostream& os,
-                                const UseRepresentation& repr) {
-  switch (repr) {
-    case UseRepresentation::kTagged:
-      return os << "Tagged";
-    case UseRepresentation::kInt32:
-      return os << "Int32";
-    case UseRepresentation::kTruncatedInt32:
-      return os << "TruncatedInt32";
-    case UseRepresentation::kUint32:
-      return os << "Uint32";
-    case UseRepresentation::kFloat64:
-      return os << "Float64";
-    case UseRepresentation::kHoleyFloat64:
-      return os << "HoleyFloat64";
-  }
-}
-
 #define TRACE_UNTAGGING(...)                                \
   do {                                                      \
     if (V8_UNLIKELY(v8_flags.trace_maglev_phi_untagging)) { \
@@ -401,6 +383,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kInt32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
     case ValueRepresentation::kUint32:
@@ -415,6 +398,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
     case ValueRepresentation::kFloat64:
@@ -442,6 +426,7 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
     case ValueRepresentation::kHoleyFloat64:
@@ -462,11 +447,13 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
         case ValueRepresentation::kHoleyFloat64:
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
 
     case ValueRepresentation::kTagged:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -609,6 +596,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
           case ValueRepresentation::kTagged:
           case ValueRepresentation::kIntPtr:
           case ValueRepresentation::kUint32:
+          case ValueRepresentation::kNone:
             UNREACHABLE();
         }
         TRACE_UNTAGGING(TRACE_INPUT_LABEL
@@ -702,6 +690,7 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
         case ValueRepresentation::kTagged:
         case ValueRepresentation::kUint32:
         case ValueRepresentation::kIntPtr:
+        case ValueRepresentation::kNone:
           UNREACHABLE();
       }
       phi->change_input(input_index, untagged);
@@ -845,6 +834,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 }
@@ -867,6 +857,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
       return ProcessResult::kContinue;
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 }
@@ -964,6 +955,7 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateNodePhiInput(
 
     case ValueRepresentation::kUint32:
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 }
@@ -1039,6 +1031,7 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     case ValueRepresentation::kTagged:
       // Already handled at the begining of this function.
     case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
 

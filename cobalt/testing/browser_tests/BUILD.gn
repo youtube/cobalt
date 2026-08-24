@@ -27,7 +27,6 @@ import("//device/vr/buildflags/buildflags.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//net/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//testing/test.gni")
 import("//third_party/blink/public/public_features.gni")
@@ -327,7 +326,6 @@ test("cobalt_browsertests") {
     "//gin",
     "//gpu/ipc/host",
     "//ipc",
-    "//ipc:test_sink",
     "//media:media_buildflags",
     "//media:test_support",
     "//media/webrtc",
@@ -338,7 +336,6 @@ test("cobalt_browsertests") {
     "//net:simple_quic_tools",
     "//net:test_support",
     "//pdf:buildflags",
-    "//ppapi/buildflags",
     "//services/audio/public/cpp",
     "//services/cert_verifier/public/mojom",
     "//services/data_decoder/public/cpp",

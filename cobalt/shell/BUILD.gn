@@ -101,7 +101,6 @@ group("cobalt_shell_lib_deps") {
     "//media/mojo:buildflags",
     "//net",
     "//net:net_resources",
-    "//ppapi/buildflags",
     "//services/network:network_service",
     "//services/network/public/cpp",
     "//starboard/common",

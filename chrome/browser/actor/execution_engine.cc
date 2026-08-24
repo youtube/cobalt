@@ -21,6 +21,7 @@
 #include "base/state_transitions.h"
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/task_id.h"
@@ -59,14 +60,6 @@ namespace actor {
 
 namespace {
 
-void PostTaskForActCallback(ExecutionEngine::ActionResultCallback callback,
-                            mojom::ActionResultPtr result) {
-  UMA_HISTOGRAM_ENUMERATION("Actor.ExecutionEngine.Action.ResultCode",
-                            result->code);
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
-}
-
 void PostTaskForActCallback(ActorTask::ActCallback callback,
                             mojom::ActionResultPtr result,
                             std::optional<size_t> index_of_failed_action) {
@@ -82,24 +75,11 @@ void PostTaskForActCallback(ActorTask::ActCallback callback,
 ExecutionEngine::ExecutionEngine(Profile* profile)
     : profile_(profile),
       journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
-      ui_event_dispatcher_(ui::NewUiEventDispatcher(profile)) {
+      ui_event_dispatcher_(ui::NewUiEventDispatcher(
+          ActorKeyedService::Get(profile)->GetActorUiStateManager())) {
   CHECK(profile_);
   // Idempotent. Enables the action blocklist if it isn't already enabled.
   InitActionBlocklist(profile_.get());
-}
-
-ExecutionEngine::ExecutionEngine(Profile* profile, tabs::TabInterface* tab)
-    : profile_(profile),
-      journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
-      tab_(tab),
-      ui_event_dispatcher_(ui::NewUiEventDispatcher(profile)) {
-  CHECK(profile_);
-  // Idempotent. Enables the action blocklist if it isn't already enabled.
-  InitActionBlocklist(profile_.get());
-
-  CHECK(tab_);
-  tab_will_detach_subscription_ = tab_->RegisterWillDetach(base::BindRepeating(
-      &ExecutionEngine::OnTabWillDetach, base::Unretained(this)));
 }
 
 ExecutionEngine::ExecutionEngine(
@@ -130,16 +110,21 @@ void ExecutionEngine::SetOwner(ActorTask* task) {
 }
 
 void ExecutionEngine::SetState(State state) {
-  VLOG(1) << "ExecutionEngine state change: " << StateToString(state_) << " -> "
-          << StateToString(state);
+  journal_->Log(GURL(), task_->id(), "ExecutionEngine::StateChange",
+                absl::StrFormat("State %s -> %s", StateToString(state_),
+                                StateToString(state)));
+
 #if DCHECK_IS_ON()
   static const base::NoDestructor<base::StateTransitions<State>> transitions(
       base::StateTransitions<State>({
           {State::kInit, {State::kStartAction, State::kComplete}},
-          {State::kStartAction, {State::kUiPreTool, State::kComplete}},
-          {State::kUiPreTool, {State::kToolController, State::kComplete}},
-          {State::kToolController, {State::kUiPostTool, State::kComplete}},
-          {State::kUiPostTool, {State::kComplete, State::kStartAction}},
+          {State::kStartAction,
+           {State::kToolCreateAndVerify, State::kComplete}},
+          {State::kToolCreateAndVerify,
+           {State::kUiPreInvoke, State::kComplete}},
+          {State::kUiPreInvoke, {State::kToolInvoke, State::kComplete}},
+          {State::kToolInvoke, {State::kUiPostInvoke, State::kComplete}},
+          {State::kUiPostInvoke, {State::kComplete, State::kStartAction}},
           {State::kComplete, {State::kStartAction}},
       }));
   DCHECK_STATE_TRANSITION(transitions, state_, state);
@@ -153,12 +138,14 @@ std::string ExecutionEngine::StateToString(State state) {
       return "INIT";
     case State::kStartAction:
       return "START_ACTION";
-    case State::kUiPreTool:
-      return "UI_PRE_TOOL";
-    case State::kToolController:
-      return "TOOL_CONTROLLER";
-    case State::kUiPostTool:
-      return "UI_POST_TOOL";
+    case State::kToolCreateAndVerify:
+      return "CREATE_AND_VERIFY";
+    case State::kUiPreInvoke:
+      return "UI_PRE_INVOKE";
+    case State::kToolInvoke:
+      return "TOOL_INVOKE";
+    case State::kUiPostInvoke:
+      return "UI_POST_INVOKE";
     case State::kComplete:
       return "COMPLETE";
   }
@@ -177,101 +164,11 @@ void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
 void ExecutionEngine::FailCurrentTool(mojom::ActionResultCode reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_NE(reason, mojom::ActionResultCode::kOk);
-  if (state_ != State::kToolController) {
+  if (state_ != State::kToolInvoke) {
     return;
   }
 
   external_tool_failure_reason_ = reason;
-}
-
-void ExecutionEngine::Act(const BrowserAction& action,
-                          ActionResultCallback callback) {
-  CHECK(base::FeatureList::IsEnabled(features::kGlicActor));
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK_EQ(action.task_id(), task_->id().value());
-
-  if (task_->IsPaused()) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                  "Unable to perform action: task is paused");
-    PostTaskForActCallback(std::move(callback),
-                           MakeResult(mojom::ActionResultCode::kTaskPaused));
-    return;
-  }
-
-  // NOTE: Improve this API by queuing the action instead.
-  if (!action_sequence_.empty()) {
-    journal_->Log(
-        LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-        "Unable to perform action: task already has action in progress");
-    PostTaskForActCallback(std::move(callback),
-                           MakeResult(mojom::ActionResultCode::kError,
-                                      "Task already has action in progress"));
-    return;
-  }
-
-  if (action.actions_size() <= 0) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                  "Unable to perform action: proto contains no actions");
-    PostTaskForActCallback(
-        std::move(callback),
-        MakeResult(mojom::ActionResultCode::kEmptyActionSequence,
-                   "The BrowserAction proto had no actions"));
-    return;
-  }
-
-  BuildToolRequestResult result = BuildToolRequest(action, tab_);
-  if (!result.has_value()) {
-    journal_->Log(GURL::EmptyGURL(), task_->id(), "Act Failed",
-                  "Failed to convert BrowserAction proto to ToolRequest");
-    PostTaskForActCallback(
-        std::move(callback),
-        MakeResult(mojom::ActionResultCode::kArgumentsInvalid,
-                   "Failed to convert BrowserAction proto to ToolRequest"));
-    return;
-  }
-
-  next_action_index_ = 0;
-  action_sequence_ = std::move(result.value());
-
-  // Adapt the callback in this path to the one used by the ToolRequest taking
-  // Act.
-  act_callback_ = base::BindOnce(
-      [](ActionResultCallback callback, mojom::ActionResultPtr result,
-         std::optional<size_t>) { std::move(callback).Run(std::move(result)); },
-      std::move(callback));
-
-  if (state_ == State::kInit) {
-    // This is the first Act() by this ExecutionEngine, so we should notify
-    // the UI, then kickoff the first action.
-    //
-    // TODO(crbug.com/411462297): Make sure we're property dispatching
-    // StartingToActOnTab UiEvents when tasks aren't scoped to a single tab.
-    // This won't work if the first action sequence is creating the tab on which
-    // following sequences will act.
-    // TODO(crbug.com/420669167): This needs to support taking multiple tabs. Is
-    // it even the right interface? Different sets of tabs might be acted on in
-    // followup sequences...
-    absl::flat_hash_set<int32_t> acting_tab_handles;
-    for (const std::unique_ptr<ToolRequest>& request : action_sequence_) {
-      if (request->GetTabHandle() != tabs::TabHandle::Null()) {
-        acting_tab_handles.insert(request->GetTabHandle().raw_value());
-      }
-    }
-
-    ui_event_dispatcher_->OnPreFirstAct(
-        ui::UiEventDispatcher::FirstActInfo{
-            .task_id = task_->id(),
-            .tab_handle = acting_tab_handles.empty()
-                              ? std::nullopt
-                              : std::make_optional(tabs::TabHandle(
-                                    *acting_tab_handles.begin()))},
-        base::BindOnce(&ExecutionEngine::KickOffNextAction, GetWeakPtr()));
-  } else {
-    // We previously notified the UI, so just kickoff the first action.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&ExecutionEngine::KickOffNextAction,
-                                  GetWeakPtr(), MakeOkResult()));
-  }
 }
 
 void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
@@ -279,19 +176,11 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   CHECK(base::FeatureList::IsEnabled(features::kGlicActor));
   CHECK(!actions.empty());
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  if (task_->IsPaused()) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                  "Unable to perform action: task is paused");
-    PostTaskForActCallback(std::move(callback),
-                           MakeResult(mojom::ActionResultCode::kTaskPaused),
-                           std::nullopt);
-    return;
-  }
+  CHECK_EQ(task_->GetState(), ActorTask::State::kActing);
 
   if (!action_sequence_.empty()) {
     journal_->Log(
-        LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
+        actions[0]->GetURLForJournal(), task_->id(), "Act Failed",
         "Unable to perform action: task already has action in progress");
     PostTaskForActCallback(std::move(callback),
                            MakeResult(mojom::ActionResultCode::kError,
@@ -342,7 +231,7 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
 
 void ExecutionEngine::KickOffNextAction(
     mojom::ActionResultPtr init_hooks_result) {
-  DCHECK(state_ == State::kInit || state_ == State::kUiPostTool ||
+  DCHECK(state_ == State::kInit || state_ == State::kUiPostInvoke ||
          state_ == State::kComplete)
       << "Current state is " << StateToString(state_);
   CHECK_LT(next_action_index_, action_sequence_.size());
@@ -409,7 +298,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
     // A cross-origin navigation occurred before we got permission. The result
     // is no longer applicable. For now just fail.
     // TODO(mcnee): Handle this gracefully.
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_id, "Act Failed",
+    journal_->Log(GetNextAction().GetURLForJournal(), task_id, "Act Failed",
                   "Acting after cross-origin navigation occurred");
     CompleteActions(MakeResult(mojom::ActionResultCode::kCrossOriginNavigation,
                                "Acting after cross-origin navigation occurred"),
@@ -418,7 +307,7 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
   }
 
   if (!may_act) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_id, "Act Failed",
+    journal_->Log(GetNextAction().GetURLForJournal(), task_id, "Act Failed",
                   "URL blocked for actions");
     CompleteActions(MakeResult(mojom::ActionResultCode::kUrlBlocked,
                                "URL blocked for actions"),
@@ -436,27 +325,37 @@ void ExecutionEngine::ExecuteNextAction() {
 
   ++next_action_index_;
 
-  SetState(State::kUiPreTool);
-  ui_event_dispatcher_->OnPreTool(
-      GetInProgressAction(),
-      base::BindOnce(&ExecutionEngine::FinishedUiPreTool, GetWeakPtr()));
+  SetState(State::kToolCreateAndVerify);
+  tool_controller_->CreateToolAndValidate(
+      GetInProgressAction(), last_observed_page_content_.get(),
+      base::BindOnce(&ExecutionEngine::PostToolCreate, GetWeakPtr()));
 }
 
-void ExecutionEngine::FinishedUiPreTool(mojom::ActionResultPtr result) {
-  DCHECK_EQ(state_, State::kUiPreTool);
+void ExecutionEngine::PostToolCreate(mojom::ActionResultPtr result) {
+  if (!IsOk(*result)) {
+    CompleteActions(std::move(result), InProgressActionIndex());
+    return;
+  }
+  SetState(State::kUiPreInvoke);
+  ui_event_dispatcher_->OnPreTool(
+      GetInProgressAction(),
+      base::BindOnce(&ExecutionEngine::FinishedUiPreInvoke, GetWeakPtr()));
+}
+
+void ExecutionEngine::FinishedUiPreInvoke(mojom::ActionResultPtr result) {
+  DCHECK_EQ(state_, State::kUiPreInvoke);
   if (!IsOk(*result)) {
     CompleteActions(std::move(result), InProgressActionIndex());
     return;
   }
 
-  SetState(State::kToolController);
+  SetState(State::kToolInvoke);
   tool_controller_->Invoke(
-      GetInProgressAction(), last_observed_page_content_.get(),
-      base::BindOnce(&ExecutionEngine::FinishedToolController, GetWeakPtr()));
+      base::BindOnce(&ExecutionEngine::FinishedToolInvoke, GetWeakPtr()));
 }
 
-void ExecutionEngine::FinishedToolController(mojom::ActionResultPtr result) {
-  DCHECK_EQ(state_, State::kToolController);
+void ExecutionEngine::FinishedToolInvoke(mojom::ActionResultPtr result) {
+  DCHECK_EQ(state_, State::kToolInvoke);
   // The current action errored out. Stop the chain.
   std::optional<mojom::ActionResultCode> external_tool_failure_reason;
   std::swap(external_tool_failure_reason, external_tool_failure_reason_);
@@ -470,14 +369,14 @@ void ExecutionEngine::FinishedToolController(mojom::ActionResultPtr result) {
     return;
   }
 
-  SetState(State::kUiPostTool);
+  SetState(State::kUiPostInvoke);
   ui_event_dispatcher_->OnPostTool(
       GetInProgressAction(),
-      base::BindOnce(&ExecutionEngine::FinishedUiPostTool, GetWeakPtr()));
+      base::BindOnce(&ExecutionEngine::FinishedUiPostInvoke, GetWeakPtr()));
 }
 
-void ExecutionEngine::FinishedUiPostTool(mojom::ActionResultPtr result) {
-  DCHECK_EQ(state_, State::kUiPostTool);
+void ExecutionEngine::FinishedUiPostInvoke(mojom::ActionResultPtr result) {
+  DCHECK_EQ(state_, State::kUiPostInvoke);
   CHECK(!action_sequence_.empty());
 
   if (!IsOk(*result)) {
@@ -501,8 +400,11 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
   SetState(State::kComplete);
 
   if (!IsOk(*result)) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                  ToDebugString(*result));
+    GURL url;
+    if (action_index) {
+      url = action_sequence_[*action_index]->GetURLForJournal();
+    }
+    journal_->Log(url, task_->id(), "Act Failed", ToDebugString(*result));
   }
 
   // TODO(crbug.com/411462297): Populate observation.
@@ -514,26 +416,6 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
   actions_weak_ptr_factory_.InvalidateWeakPtrs();
   // TODO(crbug.com/409559623): Conceptually this should also reset
   // `last_observed_page_content_`.
-}
-
-void ExecutionEngine::OnTabWillDetach(tabs::TabInterface* tab,
-                                      tabs::TabInterface::DetachReason reason) {
-  if (reason != tabs::TabInterface::DetachReason::kDelete) {
-    return;
-  }
-  if (!tab_) {
-    return;
-  }
-  CHECK_EQ(tab, tab_);
-  tab_ = nullptr;
-
-  if (!action_sequence_.empty()) {
-    journal_->Log(LastCommittedURLOfCurrentTask(), task_->id(), "Act Failed",
-                  "The tab is no longer present");
-    CompleteActions(MakeResult(mojom::ActionResultCode::kTabWentAway,
-                               "The tab is no longer present."),
-                    std::nullopt);
-  }
 }
 
 void ExecutionEngine::DidObserveContext(
@@ -550,21 +432,14 @@ base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
   return actions_weak_ptr_factory_.GetWeakPtr();
 }
 
-const GURL& ExecutionEngine::LastCommittedURLOfCurrentTask() {
-  if (!tab_) {
-    return GURL::EmptyGURL();
-  }
-  return tab_->GetContents()->GetLastCommittedURL();
-}
-
 const ToolRequest& ExecutionEngine::GetNextAction() const {
   CHECK_LT(next_action_index_, action_sequence_.size());
   return *action_sequence_.at(next_action_index_).get();
 }
 
 size_t ExecutionEngine::InProgressActionIndex() const {
-  CHECK(state_ == State::kUiPreTool || state_ == State::kToolController ||
-        state_ == State::kUiPostTool)
+  CHECK(state_ == State::kUiPreInvoke || state_ == State::kToolInvoke ||
+        state_ == State::kUiPostInvoke || state_ == State::kToolCreateAndVerify)
       << "Current state is " << StateToString(state_);
   CHECK_GT(next_action_index_, 0ul);
   return next_action_index_ - 1;

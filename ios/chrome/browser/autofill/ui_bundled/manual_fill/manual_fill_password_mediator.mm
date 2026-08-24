@@ -302,8 +302,12 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
             ? NO
             : AreCredentialsAtIndicesConnected(credentials, i, i + 1);
 
+    ManualFillCredential* manualFillCredential =
+        credentials[i].manual_fill_credential;
+
     NSArray<UIAction*>* menuActions =
-        IsKeyboardAccessoryUpgradeEnabled()
+        IsKeyboardAccessoryUpgradeEnabled() &&
+                !manualFillCredential.isBackupCredential
             ? @[ [self createMenuEditActionForPassword:credentials[i]
                                                            .password_form] ]
             : @[];
@@ -312,11 +316,11 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
         base::i18n::MessageFormatter::FormatWithNamedArgs(
             l10n_util::GetStringUTF16(
                 IDS_IOS_MANUAL_FALLBACK_PASSWORD_CELL_INDEX),
-            "count", base::NumberToString(credentialCount), "position",
-            base::NumberToString(i + 1)));
+            "count", base::checked_cast<int>(credentialCount), "position",
+            base::checked_cast<int>(i + 1)));
 
     ManualFillCredentialItem* item = [[ManualFillCredentialItem alloc]
-                 initWithCredential:credentials[i].manual_fill_credential
+                 initWithCredential:manualFillCredential
           isConnectedToPreviousItem:isConnectedToPreviousItem
               isConnectedToNextItem:isConnectedToNextItem
                     contentInjector:self
@@ -439,8 +443,11 @@ std::vector<ManualFillCredentialAndPasswordForm> GetFilteredCredentials(
 
     // Create an additional ManualFillCredential for the backup password if
     // existing.
-    if (std::optional<std::u16string> backupPassword =
-            passwordForm.GetPasswordBackup()) {
+    std::optional<std::u16string> backupPassword =
+        passwordForm.GetPasswordBackup();
+    if (backupPassword &&
+        base::FeatureList::IsEnabled(
+            password_manager::features::kIOSFillRecoveryPassword)) {
       PasswordForm tempPasswordForm = passwordForm;
       tempPasswordForm.password_value = backupPassword.value();
       ManualFillCredential* backupManualFillCredential =

@@ -97,8 +97,8 @@ constexpr char kVideoContextParamKey[] = "vidcip";
 // Query parameter for the query submission time.
 inline constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
 
-// Query parameter for the perceived query submission time.
-inline constexpr char kUserPerceivedStateTimeQueryParameter[] = "pqsubts";
+// Query parameter for the client upload processing duration.
+inline constexpr char kClientUploadDurationQueryParameter[] = "cud";
 
 // The visual search interaction log data param.
 constexpr char kVisualSearchInteractionDataQueryParameterKey[] = "vsint";
@@ -695,7 +695,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -825,7 +826,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -890,7 +892,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -940,10 +943,10 @@ TEST_F(LensOverlayQueryControllerTest,
   WaitForSuggestInputsWithEncodedImageSignals();
   query_controller.EndQuery();
 
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1001,7 +1004,7 @@ TEST_F(LensOverlayQueryControllerTest,
       0.50);
   ASSERT_FALSE(sent_interaction_request.interaction_request_metadata()
                    .has_query_metadata());
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_EQ(query_controller.latency_gen_204_counter(
                 LatencyType::kFullPageObjectsRequestFetchLatency),
@@ -1031,7 +1034,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1101,7 +1105,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1153,10 +1158,10 @@ TEST_F(LensOverlayQueryControllerTest,
   WaitForSuggestInputsWithEncodedImageSignals();
   query_controller.EndQuery();
 
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1220,7 +1225,7 @@ TEST_F(LensOverlayQueryControllerTest,
             sent_interaction_request.image_crop().image().image_content());
   ASSERT_FALSE(sent_interaction_request.interaction_request_metadata()
                    .has_query_metadata());
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_EQ(query_controller.latency_gen_204_counter(
                 LatencyType::kFullPageObjectsRequestFetchLatency),
@@ -1237,7 +1242,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1285,10 +1291,10 @@ TEST_F(LensOverlayQueryControllerTest,
   WaitForSuggestInputsWithEncodedImageSignals();
   query_controller.EndQuery();
 
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1353,7 +1359,7 @@ TEST_F(LensOverlayQueryControllerTest,
                 .text_query()
                 .query(),
             kTestQueryText);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_EQ(query_controller.latency_gen_204_counter(
                 LatencyType::kFullPageObjectsRequestFetchLatency),
@@ -1369,7 +1375,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1403,10 +1410,10 @@ TEST_F(LensOverlayQueryControllerTest,
                              kVideoContextParamKey,
                              &actual_encoded_video_context);
 
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1424,7 +1431,7 @@ TEST_F(LensOverlayQueryControllerTest,
   ASSERT_EQ(vsint.log_data().user_selection_data().selection_type(),
             lens::SELECT_TEXT_HIGHLIGHT);
   ASSERT_FALSE(latest_suggest_inputs_.has_contextual_visual_input_type());
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_EQ(query_controller.latency_gen_204_counter(
                 LatencyType::kFullPageObjectsRequestFetchLatency),
@@ -1439,7 +1446,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1530,10 +1538,10 @@ TEST_F(LensOverlayQueryControllerTest,
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1556,7 +1564,7 @@ TEST_F(LensOverlayQueryControllerTest,
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "pdf");
@@ -1590,7 +1598,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1680,10 +1689,10 @@ TEST_F(LensOverlayQueryControllerTest,
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1706,7 +1715,7 @@ TEST_F(LensOverlayQueryControllerTest,
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "wp");
@@ -1740,7 +1749,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1830,10 +1840,10 @@ TEST_F(LensOverlayQueryControllerTest,
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -1856,7 +1866,7 @@ TEST_F(LensOverlayQueryControllerTest,
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "wp");
@@ -1890,7 +1900,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -1958,7 +1969,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2030,7 +2042,8 @@ TEST_F(
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2089,7 +2102,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2153,7 +2167,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2281,8 +2296,7 @@ TEST_F(LensOverlayQueryControllerTest,
             5);
 }
 
-TEST_F(LensOverlayQueryControllerTest,
-       FullCsbRequestFlow) {
+TEST_F(LensOverlayQueryControllerTest, FullCsbRequestFlow) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       lens::features::kLensOverlayContextualSearchbox);
@@ -2292,7 +2306,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2446,7 +2461,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2605,7 +2621,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2677,7 +2694,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -2976,7 +2994,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3041,7 +3060,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3204,7 +3224,8 @@ TEST_F(LensOverlayQueryControllerTest, GetVsridForNewTab) {
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3290,7 +3311,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3358,7 +3380,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3428,7 +3451,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3496,7 +3520,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3558,7 +3583,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3622,8 +3648,11 @@ TEST_F(LensOverlayQueryControllerTest,
        FetchInteraction_SimplifiedSelectionWithDetectedText) {
   // Enable simplified selection.
   feature_list_.Reset();
-  feature_list_.InitAndEnableFeature(
-      lens::features::kLensOverlaySimplifiedSelection);
+  feature_list_.InitWithFeaturesAndParameters(
+      {{lens::features::kLensOverlayLatencyOptimizations,
+        {{"enable-cluster-info-optimization", "true"}}},
+       {lens::features::kLensOverlaySimplifiedSelection, {}}},
+      {});
 
   base::test::TestFuture<lens::mojom::TextPtr> interaction_response_future;
   base::test::TestFuture<std::vector<lens::mojom::OverlayObjectPtr>,
@@ -3631,7 +3660,8 @@ TEST_F(LensOverlayQueryControllerTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(),
@@ -3687,7 +3717,8 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF) {
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3800,10 +3831,10 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF) {
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -3826,7 +3857,7 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF) {
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "pdf");
@@ -3859,7 +3890,8 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF_SmallPdf) {
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -3958,10 +3990,10 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF_SmallPdf) {
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -3984,7 +4016,7 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingPDF_SmallPdf) {
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "pdf");
@@ -4017,7 +4049,8 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingHTML) {
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),
@@ -4127,10 +4160,10 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingHTML) {
 
   // Check search URL is correct.
   ASSERT_TRUE(url_response_future.IsReady());
-  std::string unused_start_time;
-  bool has_start_time = net::GetValueForKeyInQuery(
+  std::string unused_client_upload_duration;
+  bool has_client_upload_duration = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()),
-      kUserPerceivedStateTimeQueryParameter, &unused_start_time);
+      kClientUploadDurationQueryParameter, &unused_client_upload_duration);
   std::string unused_query_submission_time;
   bool has_query_submission_time = net::GetValueForKeyInQuery(
       GURL(url_response_future.Get().url()), kQuerySubmissionTimeQueryParameter,
@@ -4153,7 +4186,7 @@ TEST_F(LensOverlayQueryControllerTest, UploadChunkingHTML) {
                 .user_selection_data()
                 .selection_type(),
             lens::MULTIMODAL_SEARCH);
-  ASSERT_TRUE(has_start_time);
+  ASSERT_TRUE(has_client_upload_duration);
   ASSERT_TRUE(has_query_submission_time);
   ASSERT_TRUE(has_visual_input_type);
   ASSERT_EQ(visual_input_type, "wp");
@@ -4197,7 +4230,8 @@ TEST_F(LensOverlayQueryControllerMockTimeTest,
       full_image_response_future;
   base::test::TestFuture<lens::proto::LensOverlayUrlResponse>
       url_response_future;
-  base::test::TestFuture<const std::string&, const SkBitmap&> thumbnail_created_future;
+  base::test::TestFuture<const std::string&, const SkBitmap&>
+      thumbnail_created_future;
   TestLensOverlayQueryController query_controller(
       full_image_response_future.GetRepeatingCallback(),
       url_response_future.GetRepeatingCallback(), base::NullCallback(),

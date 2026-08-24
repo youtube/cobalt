@@ -29,7 +29,7 @@ void InspectorPageAgent::DomContentLoadedEventFired(LocalFrame*) {}
 void InspectorPageAgent::LoadEventFired(LocalFrame*) {}
 void InspectorPageAgent::FrameAttachedToParent(
     LocalFrame*,
-    const Vector<AdScriptIdentifier, 0u, WTF::PartitionAllocator>&) {}
+    const AdTracker::AdScriptAncestry&) {}
 void InspectorPageAgent::FrameDetachedFromParent(LocalFrame*, FrameDetachType) {
 }
 void InspectorPageAgent::FrameSubtreeWillBeDetached(Frame*) {}

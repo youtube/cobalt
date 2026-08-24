@@ -5929,9 +5929,6 @@ IN_PROC_BROWSER_TEST_F(SSLUITest, GoBackFromInsecureFormWarning) {
 
 // Checks mixed form warnings work correctly for non-redirects.
 IN_PROC_BROWSER_TEST_F(SSLUITest, TestDisplaysInsecureFormSubmissionWarning) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(https_server_.Start());
 
@@ -5952,22 +5949,12 @@ IN_PROC_BROWSER_TEST_F(SSLUITest, TestDisplaysInsecureFormSubmissionWarning) {
   EXPECT_EQ(helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting()
                 ->GetTypeForTesting(),
             security_interstitials::InsecureFormBlockingPage::kTypeForTesting);
-
-  // Check this was logged correctly as a non-redirect interstitial.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(interstitial_histogram,
-                               InsecureFormNavigationThrottle::
-                                   InterstitialTriggeredState::kMixedFormDirect,
-                               1);
 }
 
 // Checks interstitial is shown for mixed forms caused by a 307 POST http
 // redirect, and that metrics are logged.
 IN_PROC_BROWSER_TEST_F(SSLUITest,
                        TestDisplaysInsecureFormSubmissionWarningRedirect) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(https_server_.Start());
 
@@ -5988,24 +5975,12 @@ IN_PROC_BROWSER_TEST_F(SSLUITest,
   EXPECT_EQ(helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting()
                 ->GetTypeForTesting(),
             security_interstitials::InsecureFormBlockingPage::kTypeForTesting);
-
-  // Check this was logged correctly as a redirect mixed form that may expose
-  // form data.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(
-      interstitial_histogram,
-      InsecureFormNavigationThrottle::InterstitialTriggeredState::
-          kMixedFormRedirectWithFormData,
-      1);
 }
 
 // Checks interstitial is shown for mixed forms caused by a 308 POST http
 // redirect, and that metrics are logged.
 IN_PROC_BROWSER_TEST_F(SSLUITest,
                        TestDisplaysInsecureFormSubmissionWarningRedirect308) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(https_server_.Start());
 
@@ -6026,24 +6001,12 @@ IN_PROC_BROWSER_TEST_F(SSLUITest,
   EXPECT_EQ(helper->GetBlockingPageForCurrentlyCommittedNavigationForTesting()
                 ->GetTypeForTesting(),
             security_interstitials::InsecureFormBlockingPage::kTypeForTesting);
-
-  // Check this was logged correctly as a redirect mixed form that may expose
-  // form data.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(
-      interstitial_histogram,
-      InsecureFormNavigationThrottle::InterstitialTriggeredState::
-          kMixedFormRedirectWithFormData,
-      1);
 }
 
 // Checks no interstitial is shown for mixed forms caused for a POST form with a
 // 301 redirect, and that metrics are logged correctly.
 IN_PROC_BROWSER_TEST_F(SSLUITest,
                        TestDisplaysInsecureFormSubmissionWarningRedirect301) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(https_server_.Start());
 
@@ -6070,24 +6033,12 @@ IN_PROC_BROWSER_TEST_F(SSLUITest,
           tab);
   // There should have been no interstitial triggered.
   EXPECT_FALSE(helper);
-
-  // Check this was logged correctly as a redirect mixed form that would not
-  // expose form data.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(
-      interstitial_histogram,
-      InsecureFormNavigationThrottle::InterstitialTriggeredState::
-          kMixedFormRedirectNoFormData,
-      1);
 }
 
 // Checks no interstitial is shown for mixed forms caused for a POST form with a
 // 302 redirect, and that metrics are logged correctly.
 IN_PROC_BROWSER_TEST_F(SSLUITest,
                        TestDisplaysInsecureFormSubmissionWarningRedirect302) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   ASSERT_TRUE(https_server_.Start());
 
@@ -6112,15 +6063,6 @@ IN_PROC_BROWSER_TEST_F(SSLUITest,
           tab);
   // There should have been no interstitial triggered.
   EXPECT_FALSE(helper);
-
-  // Check this was logged correctly as a redirect mixed form that would not
-  // expose form data.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(
-      interstitial_histogram,
-      InsecureFormNavigationThrottle::InterstitialTriggeredState::
-          kMixedFormRedirectNoFormData,
-      1);
 }
 
 namespace {
@@ -6153,9 +6095,6 @@ std::unique_ptr<net::test_server::HttpResponse> FormActionHTTPRedirectHandler(
 // a 307 redirect to http, and that metrics are logged correctly.
 IN_PROC_BROWSER_TEST_F(SSLUITest,
                        TestDisplaysInsecureFormSubmissionWarningRedirectGet) {
-  base::HistogramTester histograms;
-  const std::string interstitial_histogram =
-      "Security.MixedForm.InterstitialTriggerState";
   ASSERT_TRUE(embedded_test_server()->Start());
   https_server_.RegisterRequestHandler(
       base::BindRepeating(&FormActionHTTPRedirectHandler, &https_server_));
@@ -6182,15 +6121,6 @@ IN_PROC_BROWSER_TEST_F(SSLUITest,
           tab);
   // There should have been no interstitial triggered.
   EXPECT_FALSE(helper);
-
-  // Check this was logged correctly as a redirect mixed form that would not
-  // expose form data.
-  histograms.ExpectTotalCount(interstitial_histogram, 1);
-  histograms.ExpectBucketCount(
-      interstitial_histogram,
-      InsecureFormNavigationThrottle::InterstitialTriggeredState::
-          kMixedFormRedirectNoFormData,
-      1);
 }
 
 class MixedFormsPolicyTest : public policy::PolicyTest {};
@@ -6778,7 +6708,7 @@ class SSLUIDynamicInterstitialTest : public CertVerifierBrowserTest {
 
     net::HashValue hash;
     ASSERT_TRUE(hash.FromString(kMatchingDynamicInterstitialCert));
-    verify_result.public_key_hashes.push_back(hash);
+    verify_result.public_key_hashes.push_back(hash.sha256hashvalue());
 
     mock_cert_verifier()->AddResultForCert(cert, verify_result,
                                            net::ERR_CERT_COMMON_NAME_INVALID);
@@ -6795,6 +6725,14 @@ class SSLUIDynamicInterstitialTest : public CertVerifierBrowserTest {
     return config_proto;
   }
 
+  // Returns a valid sha256 hashvalue string which does not match
+  // kMatchingDynamicInterstitialCert.
+  static std::string MakeSha256String(uint8_t i) {
+    net::SHA256HashValue value;
+    value.fill(i);
+    return net::HashValue(value).ToString();
+  }
+
   // Adds a dynamic interstitial to |config_proto|. All of the dynamic
   // interstitial's fields mismatch with |https_server_|'s SSL info.
   void AddMismatchDynamicInterstitial(
@@ -6806,8 +6744,8 @@ class SSLUIDynamicInterstitialTest : public CertVerifierBrowserTest {
     filter->set_cert_error(
         chrome_browser_ssl::DynamicInterstitial::ERR_CERT_DATE_INVALID);
 
-    filter->add_sha256_hash("sha256/killdeer");
-    filter->add_sha256_hash("sha256/thickkne");
+    filter->add_sha256_hash(MakeSha256String(1));
+    filter->add_sha256_hash(MakeSha256String(2));
 
     filter->set_issuer_common_name_regex("beeeater");
     filter->set_issuer_organization_regex("honeycreeper");
@@ -6828,9 +6766,9 @@ class SSLUIDynamicInterstitialTest : public CertVerifierBrowserTest {
     filter->set_cert_error(
         chrome_browser_ssl::DynamicInterstitial::ERR_CERT_COMMON_NAME_INVALID);
 
-    filter->add_sha256_hash("sha256/kingfisher");
+    filter->add_sha256_hash(MakeSha256String(3));
     filter->add_sha256_hash(kMatchingDynamicInterstitialCert);
-    filter->add_sha256_hash("sha256/flycatcher");
+    filter->add_sha256_hash(MakeSha256String(4));
 
     scoped_refptr<net::X509Certificate> cert = https_server_.GetCertificate();
     filter->set_issuer_common_name_regex(cert.get()->issuer().common_name);
@@ -7023,8 +6961,8 @@ IN_PROC_BROWSER_TEST_F(SSLUIDynamicInterstitialTest, MismatchHash) {
     chrome_browser_ssl::DynamicInterstitial* match =
         AddMatchingDynamicInterstitial(config_proto.get());
     match->clear_sha256_hash();
-    match->add_sha256_hash("sha256/sapsucker");
-    match->add_sha256_hash("sha256/flowerpiercer");
+    match->add_sha256_hash(MakeSha256String(5));
+    match->add_sha256_hash(MakeSha256String(6));
 
     SSLErrorHandler::SetErrorAssistantProto(std::move(config_proto));
     ASSERT_EQ(SSLErrorHandler::GetErrorAssistantProtoVersionIdForTesting(),

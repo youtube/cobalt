@@ -1000,7 +1000,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileFre.FromLaunch.{Target}" units="ms"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>skym@chromium.org</owner>
   <owner>wenyufu@chromium.org</owner>
   <summary>
@@ -1039,7 +1039,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileFre.Progress.{MobileFreEntryType}"
-    enum="MobileFreProgress" expires_after="2025-11-16">
+    enum="MobileFreProgress" expires_after="2026-01-18">
   <owner>bsazonov@chromium.org</owner>
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1098,7 +1098,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileOmnibox.PressedClipboardSuggestionAge" units="ms"
-    expires_after="2026-01-04">
+    expires_after="2026-07-01">
   <owner>gangwu@chromium.org</owner>
   <owner>ender@google.com</owner>
   <owner>jdonnelly@chromium.org</owner>
@@ -1218,7 +1218,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MobileStartup.IntentToCreationTime{ActivityType}" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>tedchoc@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>

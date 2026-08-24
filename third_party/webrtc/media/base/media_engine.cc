@@ -10,8 +10,7 @@
 
 #include "media/base/media_engine.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>

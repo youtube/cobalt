@@ -10,9 +10,8 @@
 
 #include "rtc_base/copy_on_write_buffer.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <utility>
 

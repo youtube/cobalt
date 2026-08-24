@@ -39,12 +39,13 @@
 namespace {
 
 constexpr char kSearchSessionIdParameterKey[] = "gsessionid";
+constexpr char kLnsSurfaceParameterKey[] = "lns_surface";
 constexpr char kVisualRequestIdQueryParameter[] = "vsrid";
 constexpr char kVisualInputTypeQueryParameter[] = "vit";
 constexpr char kVisualInputTypeQueryParameterPdfValue[] = "pdf";
 constexpr char kVisualInputTypeQueryParameterImageValue[] = "img";
 constexpr char kQuerySubmissionTimeQueryParameter[] = "qsubts";
-constexpr char kUserPerceivedQuerySubmissionTimeQueryParameter[] = "pqsubts";
+constexpr char kClientUploadDurationQueryParameter[] = "cud";
 
 // Computes whether updates to the search engines database are needed.
 //
@@ -612,12 +613,15 @@ GURL GetUrlForAim(TemplateURLService* turl_service,
   result_url = net::AppendOrReplaceQueryParameter(result_url, "udm", "50");
   result_url =
       net::AppendOrReplaceQueryParameter(result_url, "aep", aim_entrypoint);
+  base::Time query_submission_time = base::Time::Now();
+  result_url = net::AppendOrReplaceQueryParameter(
+      result_url, kClientUploadDurationQueryParameter,
+      base::NumberToString(
+          (query_submission_time - query_start_time).InMilliseconds()));
   result_url = net::AppendOrReplaceQueryParameter(
       result_url, kQuerySubmissionTimeQueryParameter,
-      base::NumberToString(base::Time::Now().InMillisecondsSinceUnixEpoch()));
-  result_url = net::AppendOrReplaceQueryParameter(
-      result_url, kUserPerceivedQuerySubmissionTimeQueryParameter,
-      base::NumberToString(query_start_time.InMillisecondsSinceUnixEpoch()));
+      base::NumberToString(
+          query_submission_time.InMillisecondsSinceUnixEpoch()));
   return result_url;
 }
 
@@ -628,8 +632,10 @@ GURL GetUrlForMultimodalAim(
     const std::string& search_session_id,
     const std::unique_ptr<lens::LensOverlayRequestId> request_id,
     const lens::MimeType mime_type,
+    const std::string& lns_surface,
     const std::u16string& query_text) {
-  GURL result_url = GetUrlForAim(turl_service, aim_entrypoint, query_start_time, query_text);
+  GURL result_url =
+      GetUrlForAim(turl_service, aim_entrypoint, query_start_time, query_text);
   std::string serialized_request_id;
   CHECK(request_id->SerializeToString(&serialized_request_id));
   std::string encoded_request_id;
@@ -643,5 +649,7 @@ GURL GetUrlForMultimodalAim(
       GetMimeTypeParamValue(mime_type));
   result_url = net::AppendOrReplaceQueryParameter(
       result_url, kSearchSessionIdParameterKey, search_session_id);
+  result_url = net::AppendOrReplaceQueryParameter(
+      result_url, kLnsSurfaceParameterKey, lns_surface);
   return result_url;
 }

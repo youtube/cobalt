@@ -75,6 +75,7 @@ rtc_library("metrics") {
     defines = [ "WEBRTC_EXCLUDE_METRICS_DEFAULT" ]
   }
   deps = [
+    "../api/units:time_delta",
     "../rtc_base:checks",
     "../rtc_base:macromagic",
     "../rtc_base:stringutils",

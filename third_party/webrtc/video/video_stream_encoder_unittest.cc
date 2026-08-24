@@ -150,10 +150,10 @@ constexpr int kMinFramerateFps = 2;
 constexpr int kMinBalancedFramerateFps = 7;
 constexpr TimeDelta kFrameTimeout = TimeDelta::Millis(100);
 constexpr size_t kMaxPayloadLength = 1440;
-const DataRate kTargetBitrate = DataRate::KilobitsPerSec(1000);
-const DataRate kLowTargetBitrate = DataRate::KilobitsPerSec(100);
-const DataRate kStartBitrate = DataRate::KilobitsPerSec(600);
-const DataRate kSimulcastTargetBitrate = DataRate::KilobitsPerSec(3150);
+constexpr DataRate kTargetBitrate = DataRate::KilobitsPerSec(1000);
+constexpr DataRate kLowTargetBitrate = DataRate::KilobitsPerSec(100);
+constexpr DataRate kStartBitrate = DataRate::KilobitsPerSec(600);
+constexpr DataRate kSimulcastTargetBitrate = DataRate::KilobitsPerSec(3150);
 constexpr int kMaxInitialFramedrop = 4;
 constexpr int kDefaultFramerate = 30;
 constexpr int64_t kFrameIntervalMs = kNumMillisecsPerSec / kDefaultFramerate;
@@ -175,7 +175,7 @@ constexpr uint8_t kCodedFrameVp8Qp25[] = {
 
 #ifdef RTC_ENABLE_H265
 // Default value from encoder_info_settings.cc
-const DataRate kDefaultH265Bitrate180p = DataRate::KilobitsPerSec(150);
+constexpr DataRate kDefaultH265Bitrate180p = DataRate::KilobitsPerSec(150);
 #endif
 
 VideoFrame CreateSimpleNV12Frame() {
@@ -8234,6 +8234,9 @@ TEST_F(VideoStreamEncoderTest, SwitchEncoderOnInitFailureWithEncoderSelector) {
 
 TEST_F(VideoStreamEncoderTest,
        SwitchEncoderOnInitFailureWithoutEncoderSelector) {
+  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
+                    "Disabled");
+
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
   video_send_config_.encoder_settings.encoder_switch_request_callback =
@@ -8328,9 +8331,6 @@ TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Disabled) {
   constexpr int kSufficientBitrateToNotDrop = 1000;
   constexpr int kDontCare = 100;
   constexpr int kNumFrames = 8;
-
-  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
-                    "Enabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;
@@ -8461,6 +8461,9 @@ TEST_F(VideoStreamEncoderTest,
 TEST_F(VideoStreamEncoderTest, NoPreferenceDefaultFallbackToVP8Enabled) {
   constexpr int kSufficientBitrateToNotDrop = 1000;
   constexpr int kDontCare = 100;
+
+  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
+                    "Disabled");
 
   NiceMock<MockVideoEncoder> video_encoder;
   StrictMock<MockEncoderSwitchRequestCallback> switch_callback;

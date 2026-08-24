@@ -758,12 +758,13 @@ TEST_P(AnimatedPNGTests, IdatSizeMismatch) {
   decoder->SetData(modified_data.get(), true);
 
   if (skia::IsRustyPngEnabled()) {
-    // `SkiaImageDecoderBase` doesn't report an overall failure, unless *all*
-    // frames fail.  If some animated frames have an error, then other animated
-    // frames may continue to work.  This is by design - see
-    // https://crbug.com/371592786#comment3.
-    EXPECT_FALSE(decoder->Failed());
-    EXPECT_EQ(decoder->FrameCount(), 4u);
+    // We expect lower layers (either Skia or `png` crate) to report a hard
+    // error when `fcTL` chunk applies to `IDAT` chunk and has dimensions that
+    // don't match the `IHDR` chunk.  We don't fall back to the static image
+    // (like the legacy, `libpng`-based decoder does) to avoid the risk of using
+    // different dimensions at different layers of the stack (as happened in
+    // https://crbug.com/428205250).
+    EXPECT_TRUE(decoder->Failed());
   } else {
     ExpectStatic(decoder.get());
   }
@@ -1758,10 +1759,17 @@ TEST_P(PNGTests, VerifyFrameCompleteBehavior) {
 }
 
 TEST_P(PNGTests, sizeMayOverflow) {
-  auto decoder =
-      CreatePNGDecoderWithPngData("/images/resources/crbug702934.png");
-  EXPECT_FALSE(decoder->IsSizeAvailable());
-  EXPECT_TRUE(decoder->Failed());
+  const char* kTests[] = {
+      "/images/resources/crbug702934.png",
+      "/images/resources/crbug432516335-big-height.png",
+      "/images/resources/crbug432516335-i32-overflow.png",
+  };
+  for (const char* test : kTests) {
+    SCOPED_TRACE(testing::Message() << "Testing: " << test);
+    auto decoder = CreatePNGDecoderWithPngData(test);
+    EXPECT_FALSE(decoder->IsSizeAvailable());
+    EXPECT_TRUE(decoder->Failed());
+  }
 }
 
 TEST_P(PNGTests, truncated) {

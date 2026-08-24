@@ -130,6 +130,7 @@ source_set("impl") {
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
     "//chrome/browser/optimization_guide",
+    "//chrome/browser/password_manager/factories",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin",
@@ -164,6 +165,7 @@ source_set("impl") {
 
   if (is_android) {
     sources += [
+      "autofill_keyboard_accessory_controller.cc",
       "autofill_keyboard_accessory_controller_impl.cc",
       "autofill_snackbar_controller_impl.cc",
     ]
@@ -171,7 +173,6 @@ source_set("impl") {
       "//chrome/browser/autofill/android:jni_headers",
       "//chrome/browser/fast_checkout",
       "//chrome/browser/keyboard_accessory/android:public",
-      "//chrome/browser/password_manager/android/access_loss:public",
       "//components/android_autofill/browser:android",
       "//components/messages/android:feature_flags",
       "//components/password_manager/core/browser/features:password_features",
@@ -203,6 +204,7 @@ source_set("impl") {
       "//chrome/browser/ui/toasts:toasts",
       "//chrome/browser/ui/toasts/api:toasts",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/webauthn",
       "//chrome/browser/ui/webui/signin:login",
       "//components/autofill/core/browser",
       "//components/password_manager/core/browser/features:password_features",
@@ -307,6 +309,10 @@ source_set("unit_tests") {
       "//chrome/browser/ui/user_education",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {
@@ -320,8 +326,6 @@ source_set("test_support") {
 
   if (is_android) {
     sources += [ "autofill_keyboard_accessory_controller_impl_test_api.h" ]
-    public_deps +=
-        [ "//chrome/browser/password_manager/android/access_loss:public" ]
   } else {
     sources += [
       "autofill_ai/mock_save_or_update_ai_data_controller.cc",
@@ -428,13 +432,14 @@ source_set("test_support_unit") {
       "mock_autofill_keyboard_accessory_view.h",
       "test_autofill_keyboard_accessory_controller_autofill_client.h",
     ]
-    public_deps += [
-      "//chrome/browser/keyboard_accessory/test_utils/android",
-      "//chrome/browser/password_manager/android/access_loss:test_support",
-    ]
+    public_deps += [ "//chrome/browser/keyboard_accessory/test_utils/android" ]
   } else {
     sources += [ "test_autofill_popup_controller_autofill_client.h" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android) {
@@ -460,6 +465,7 @@ if (!is_android) {
       "//chrome/browser",
       "//chrome/browser/autofill",
       "//chrome/browser/autofill:test_support",
+      "//chrome/browser/password_manager/factories:password_factory_headers",
       "//chrome/browser/plus_addresses",
       "//chrome/browser/signin",
       "//chrome/browser/sync",
@@ -498,5 +504,9 @@ if (!is_android) {
       "//ui/base",
       "//url",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

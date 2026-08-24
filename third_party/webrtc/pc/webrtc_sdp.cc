@@ -10,10 +10,9 @@
 
 #include "pc/webrtc_sdp.h"
 
-#include <ctype.h>
-#include <limits.h>
-
 #include <algorithm>
+#include <cctype>
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <map>

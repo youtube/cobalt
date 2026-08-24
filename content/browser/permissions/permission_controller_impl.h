@@ -11,9 +11,9 @@
 
 #include "base/containers/id_map.h"
 #include "base/memory/raw_ptr.h"
+#include "content/browser/permissions/permission_overrides.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/permission_controller.h"
-#include "content/public/browser/permission_overrides.h"
 #include "content/public/browser/permission_request_description.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
@@ -54,6 +54,8 @@ class CONTENT_EXPORT PermissionControllerImpl : public PermissionController {
   // For the given |origin|, grant permissions in |overrides| and reject all
   // others. If no |origin| is specified, grant permissions to all origins in
   // the browser context.
+  // TODO(crbug.com/427175363): Update SetOverrideForDevTools and
+  // GrantOverridesForDevTools to accept a requesting and embedding origin.
   OverrideStatus GrantOverridesForDevTools(
       const std::optional<url::Origin>& origin,
       const std::vector<PermissionType>& permissions);

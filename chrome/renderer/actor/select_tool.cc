@@ -44,10 +44,11 @@ SelectTool::SelectTool(content::RenderFrame& frame,
 
 SelectTool::~SelectTool() = default;
 
-mojom::ActionResultPtr SelectTool::Execute() {
+void SelectTool::Execute(ToolFinishedCallback callback) {
   ValidatedResult validated_result = Validate();
   if (!validated_result.has_value()) {
-    return std::move(validated_result.error());
+    std::move(callback).Run(std::move(validated_result.error()));
+    return;
   }
 
   WebSelectElement select = validated_result.value().select;
@@ -56,12 +57,13 @@ mojom::ActionResultPtr SelectTool::Execute() {
 
   // Check if the set value is now the current value in the <select>
   if (select.Value() != value) {
-    return MakeResult(
-        mojom::ActionResultCode::kSelectUnexpectedValue,
-        absl::StrFormat("ValueAfter [%s]", select.Value().Utf8()));
+    std::move(callback).Run(
+        MakeResult(mojom::ActionResultCode::kSelectUnexpectedValue,
+                   absl::StrFormat("ValueAfter [%s]", select.Value().Utf8())));
+    return;
   }
 
-  return MakeOkResult();
+  std::move(callback).Run(MakeOkResult());
 }
 
 std::string SelectTool::DebugString() const {
@@ -78,14 +80,13 @@ SelectTool::ValidatedResult SelectTool::Validate() const {
     return base::unexpected(MakeErrorResult());
   }
 
-  int32_t dom_node_id = target_->get_dom_node_id();
-
-  WebNode node = GetNodeFromId(frame_.get(), dom_node_id);
-  if (node.IsNull()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
+  auto resolved_target = ValidateAndResolveTarget();
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target.error()));
   }
 
+  // Perform select validation on the resolved node.
+  const WebNode& node = resolved_target->node;
   WebSelectElement select = node.DynamicTo<WebSelectElement>();
   if (!select) {
     return base::unexpected(

@@ -423,8 +423,9 @@ class WaiterQueueNode;
     }                                                \
   } while (false)
 
+// "..." is the loop body; this way of writing it allows commas to occur in it.
 #define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
-                              limit_check, increment, body)                \
+                              limit_check, increment, ...)                 \
   do {                                                                     \
     loop_var_type init;                                                    \
     loop_var_type for_with_handle_limit = loop_var;                        \
@@ -433,21 +434,23 @@ class WaiterQueueNode;
       for_with_handle_limit += 1024;                                       \
       HandleScope loop_scope(for_with_handle_isolate);                     \
       for (; limit_check && loop_var < for_with_handle_limit; increment) { \
-        body                                                               \
+        __VA_ARGS__                                                        \
       }                                                                    \
     }                                                                      \
   } while (false)
 
-#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, body)                  \
-  do {                                                                       \
-    Isolate* for_with_handle_isolate = isolate;                              \
-    while (limit_check) {                                                    \
-      HandleScope loop_scope(for_with_handle_isolate);                       \
-      for (int for_with_handle_it = 0;                                       \
-           limit_check && for_with_handle_it < 1024; ++for_with_handle_it) { \
-        body                                                                 \
-      }                                                                      \
-    }                                                                        \
+// "..." is the loop body; this way of writing it allows commas to occur in it.
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, ...) \
+  do {                                                     \
+    Isolate* while_with_handle_isolate = isolate;          \
+    while (limit_check) {                                  \
+      HandleScope loop_scope(while_with_handle_isolate);   \
+      for (int while_with_handle_it = 0;                   \
+           limit_check && while_with_handle_it < 1024;     \
+           ++while_with_handle_it) {                       \
+        __VA_ARGS__                                        \
+      }                                                    \
+    }                                                      \
   } while (false)
 
 #define FIELD_ACCESSOR(type, name)                \
@@ -522,8 +525,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, disable_bytecode_flushing, false)                                 \
   V(int, last_console_context_id, 0)                                        \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                         \
-  V(int, embedder_wrapper_type_index, -1)                                   \
-  V(int, embedder_wrapper_object_index, -1)                                 \
   V(compiler::NodeObserver*, node_observer, nullptr)                        \
   V(bool, javascript_execution_assert, true)                                \
   V(bool, javascript_execution_throws, true)                                \
@@ -985,6 +986,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
   DirectHandle<String> CurrentScriptNameOrSourceURL();
+  // Walks the JS stack to find the first frame with a valid script id. The
+  // inspected frames are the same as for the detailed stack trace.
+  int CurrentScriptId();
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
@@ -2272,7 +2276,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   // Returns true when this isolate contains the shared spaces.
-  bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+  bool is_shared_space_isolate() const {
+    DCHECK(is_shared_space_isolate_initialized_);
+    return is_shared_space_isolate_;
+  }
 
   // Returns the isolate that owns the shared spaces.
   Isolate* shared_space_isolate() const {
@@ -2521,6 +2528,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Set to true if this isolate is used as main isolate with a shared space.
   bool is_shared_space_isolate_{false};
+
+#if DEBUG
+  bool is_shared_space_isolate_initialized_{false};
+#endif  // DEBUG
 
   IsolateGroup* isolate_group_;
   Heap heap_;

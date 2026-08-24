@@ -11,7 +11,7 @@
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/trace_event/typed_macros.h"
 #include "content/browser/bad_message.h"
@@ -24,6 +24,7 @@
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_or_resource_context.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/site_isolation_policy.h"
@@ -84,10 +85,8 @@ const GURL& SiteInstanceImpl::GetDefaultSiteURL() {
   struct DefaultSiteURL {
     const GURL url = GURL("http://unisolated.invalid");
   };
-  static base::LazyInstance<DefaultSiteURL>::Leaky default_site_url =
-      LAZY_INSTANCE_INITIALIZER;
-
-  return default_site_url.Get().url;
+  static base::NoDestructor<DefaultSiteURL> default_site_url;
+  return default_site_url->url;
 }
 
 class SiteInstanceImpl::DefaultSiteInstanceState {

@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "api/test/videocodec_test_fixture.h"
 #include "api/video/video_codec_type.h"

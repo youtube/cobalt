@@ -27,6 +27,8 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
+#include "gpu/command_buffer/client/shared_image_interface.h"
+#include "gpu/ipc/common/surface_handle.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/format_utils.h"
 #include "media/base/media_switches.h"
@@ -419,24 +421,23 @@ scoped_refptr<VideoFrame> CreateVideoFrameFromGpuMemoryBufferHandle(
   const bool supports_zero_copy_webgpu_import =
       gmb_handle.native_pixmap_handle().supports_zero_copy_webgpu_import;
 
-  auto buffer_format = VideoPixelFormatToGfxBufferFormat(pixel_format);
-  DCHECK(buffer_format);
+  auto si_format = VideoPixelFormatToSharedImageFormat(pixel_format);
+  DCHECK(si_format);
 
-    const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
-                          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-    auto shared_image = sii->CreateSharedImage(
-        {viz::GetSharedImageFormat(*buffer_format), coded_size,
-         gfx::ColorSpace(), gpu::SharedImageUsageSet(si_usage),
-         "PlatformVideoFrameUtils"},
-        gpu::kNullSurfaceHandle, buffer_usage, std::move(gmb_handle));
+  const auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
+                        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
+  auto shared_image = sii->CreateSharedImage(
+      {*si_format, coded_size, gfx::ColorSpace(),
+       gpu::SharedImageUsageSet(si_usage), "PlatformVideoFrameUtils"},
+      gpu::kNullSurfaceHandle, buffer_usage, std::move(gmb_handle));
 
-    auto video_frame = media::VideoFrame::WrapMappableSharedImage(
-        std::move(shared_image), sii->GenVerifiedSyncToken(),
-        base::NullCallback(), visible_rect, natural_size, timestamp);
+  auto video_frame = media::VideoFrame::WrapMappableSharedImage(
+      std::move(shared_image), sii->GenVerifiedSyncToken(),
+      base::NullCallback(), visible_rect, natural_size, timestamp);
 
-    if (!video_frame) {
-      return nullptr;
-    }
+  if (!video_frame) {
+    return nullptr;
+  }
 
   // We only support importing non-DISJOINT multi-planar GbmBuffer right now.
   // TODO(crbug.com/40201271): Add DISJOINT support.
@@ -588,34 +589,6 @@ scoped_refptr<gfx::NativePixmapDmaBuf> CreateNativePixmapDmaBuf(
 
   DCHECK(native_pixmap->AreDmaBufFdsValid());
   return native_pixmap;
-}
-
-bool CanImportGpuMemoryBufferHandle(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    const gfx::GpuMemoryBufferHandle& gmb_handle) {
-  if (gmb_handle.type != gfx::GpuMemoryBufferType::NATIVE_PIXMAP) {
-    VLOGF(1) << "The handle type (" << gmb_handle.type << ") is unsupported";
-    return false;
-  }
-  const auto pixel_format = GfxBufferFormatToVideoPixelFormat(format);
-  if (!pixel_format) {
-    VLOGF(1) << "Unsupported buffer format: "
-             << gfx::BufferFormatToString(format);
-    return false;
-  }
-  if (!VerifyGpuMemoryBufferHandle(*pixel_format, size, gmb_handle)) {
-    VLOGF(1) << "Invalid GpuMemoryBufferHandle provided";
-    return false;
-  }
-  gfx::NativePixmapHandle native_pixmap_handle =
-      gfx::CloneHandleForIPC(gmb_handle.native_pixmap_handle());
-  if (native_pixmap_handle.planes.empty()) {
-    VLOGF(1) << "Could not duplicate the NativePixmapHandle";
-    return false;
-  }
-  return !!GbmDeviceWrapper::Get()->ImportGpuMemoryBuffer(
-      format, size, std::move(native_pixmap_handle));
 }
 
 }  // namespace media

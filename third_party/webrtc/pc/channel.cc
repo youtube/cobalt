@@ -1035,6 +1035,7 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
   RtpHeaderExtensions header_extensions =
       GetDeduplicatedRtpHeaderExtensions(content->rtp_header_extensions());
   bool update_header_extensions = true;
+  // TODO: issues.webrtc.org/396640 - remove if pushdown on answer is enough.
   media_send_channel()->SetExtmapAllowMixed(content->extmap_allow_mixed());
 
   VideoReceiverParameters recv_params = last_recv_params_;
@@ -1044,13 +1045,13 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
       RtpTransceiverDirectionHasRecv(content->direction()), &recv_params);
 
   VideoSenderParameters send_params = last_send_params_;
+  send_params.extmap_allow_mixed = content->extmap_allow_mixed();
 
   // Ensure that there is a matching packetization for each send codec. If the
   // other peer offered to exclusively send non-standard packetization but we
   // only accept to receive standard packetization we effectively amend their
   // offer by ignoring the packetiztion and fall back to standard packetization
   // instead.
-  bool needs_send_params_update = false;
   if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     flat_set<const Codec*> matched_codecs;
     for (Codec& send_codec : send_params.codecs) {
@@ -1080,7 +1081,6 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
 
       if (may_ignore_packetization) {
         send_codec.packetization = std::nullopt;
-        needs_send_params_update = true;
       } else if (!has_matching_packetization) {
         error_desc = StringFormat(
             "Failed to set local answer due to incompatible codec "
@@ -1113,7 +1113,7 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
 
   last_recv_params_ = recv_params;
 
-  if (needs_send_params_update) {
+  if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
     if (!media_send_channel()->SetSenderParameters(send_params)) {
       error_desc = StringFormat(
           "Failed to set send parameters for m-section with mid='%s'.",

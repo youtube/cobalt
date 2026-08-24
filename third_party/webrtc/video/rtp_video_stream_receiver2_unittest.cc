@@ -1733,8 +1733,7 @@ TEST_P(RtpVideoStreamReceiver2TestPlayoutDelay, PlayoutDelay) {
   // Set playout delay on outgoing packet.
   EXPECT_TRUE(packet_to_send.SetExtension<PlayoutDelayLimits>(
       TransmittedPlayoutDelay()));
-  uint8_t* payload = packet_to_send.AllocatePayload(payload_data.size());
-  memcpy(payload, payload_data.data(), payload_data.size());
+  packet_to_send.SetPayload(payload_data);
 
   RtpPacketReceived received_packet(&extension_map);
   received_packet.Parse(packet_to_send.data(), packet_to_send.size());

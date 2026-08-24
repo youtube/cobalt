@@ -23,7 +23,7 @@ struct ContextualPanelItemConfiguration {
   static const int low_relevance;
 
   explicit ContextualPanelItemConfiguration(ContextualPanelItemType item_type);
-  ~ContextualPanelItemConfiguration();
+  virtual ~ContextualPanelItemConfiguration();
   ContextualPanelItemConfiguration(
       const ContextualPanelItemConfiguration& other) = delete;
   ContextualPanelItemConfiguration& operator=(
@@ -36,6 +36,10 @@ struct ContextualPanelItemConfiguration {
 
   // Returns the duration of the large entrypoint for this item.
   base::TimeDelta GetLargeEntrypointDisplayedDuration();
+
+  // Notify the configuration that it transitioned to a small entrypoint so it
+  // can react accordingly depending on the type of configuration.
+  virtual void DidTransitionToSmallEntrypoint();
 
   // The different supported image types.
   enum class EntrypointImageType {

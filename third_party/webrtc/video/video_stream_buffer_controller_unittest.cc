@@ -10,9 +10,8 @@
 
 #include "video/video_stream_buffer_controller.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>

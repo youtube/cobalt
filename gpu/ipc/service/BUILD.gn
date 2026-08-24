@@ -114,9 +114,6 @@ component("service") {
       "image_transport_surface_overlay_mac.mm",
     ]
     deps += [ "//ui/accelerated_widget_mac" ]
-    if (skia_use_metal) {
-      deps += [ "//components/viz/common:metal_context_provider" ]
-    }
     if (is_mac) {
       sources += [ "image_transport_surface_mac.mm" ]
       deps += [
@@ -187,4 +184,8 @@ source_set("test_support") {
     "//gpu/ipc/common",
     "//ui/gl:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

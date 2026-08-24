@@ -10,10 +10,9 @@
 
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 
-#include <stdio.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <numeric>
 #include <tuple>
 #include <vector>

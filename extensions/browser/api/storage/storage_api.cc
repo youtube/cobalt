@@ -10,9 +10,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/trace_event/memory_usage_estimator.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
 #include "content/public/browser/browser_context.h"
@@ -27,6 +30,7 @@
 #include "extensions/common/features/feature_channel.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 
+using base::trace_event::EstimateMemoryUsage;
 using value_store::ValueStore;
 
 namespace extensions {
@@ -34,6 +38,10 @@ namespace extensions {
 // Concrete settings functions
 
 namespace {
+
+BASE_FEATURE(kEnforceStorageGetSizeLimit,
+             "EnforceStorageGetSizeLimit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Returns a vector of any strings within the given list.
 std::vector<std::string> GetKeysFromList(const base::Value::List& list) {
@@ -112,10 +120,7 @@ bool SettingsFunction::PreRunValidation(std::string* error) {
   storage_area_ = StorageAreaFromString(storage_area_string);
   EXTENSION_FUNCTION_PRERUN_VALIDATE(storage_area_ !=
                                      StorageAreaNamespace::kInvalid);
-
-  if (storage_area_ == StorageAreaNamespace::kSession ||
-      storage_area_ == StorageAreaNamespace::kLocal ||
-      storage_area_ == StorageAreaNamespace::kSync) {
+  if (storage_area_ != StorageAreaNamespace::kInvalid) {
     if (!IsAccessToStorageAllowed(storage_area_)) {
       *error = "Access to storage is not allowed from this context.";
       return false;
@@ -238,6 +243,10 @@ ExtensionFunction::ResponseAction StorageStorageAreaGetFunction::Run() {
   return RespondLater();
 }
 
+// Setting a reasonable size limit for a single 'get' operation (e.g., 512 MB)
+// to prevent OOM crash which occurs around 2GB.
+constexpr size_t kMaxSingleGetSizeBytes = 512 * 1024 * 1024;
+
 void StorageStorageAreaGetFunction::OnGetOperationFinished(
     std::optional<base::Value::Dict> defaults,
     StorageFrontend::GetResult result) {
@@ -256,6 +265,26 @@ void StorageStorageAreaGetFunction::OnGetOperationFinished(
   }
 
   CHECK(result.data.has_value());
+
+  // Estimate the size of the result data before attempting to send it over IPC.
+  size_t data_size = EstimateMemoryUsage(*result.data);
+
+  // Log the size of the data to understand the distribution of `get` operation
+  // sizes and assess the impact of enforcing a size limit.
+  // See crbug.com/427600178 for more details.
+  UMA_HISTOGRAM_MEMORY_LARGE_MB(
+      "Extensions.Storage.GetOperation.AllocationSize",
+      data_size / (1024 * 1024));
+
+  if (base::FeatureList::IsEnabled(kEnforceStorageGetSizeLimit) &&
+      data_size > kMaxSingleGetSizeBytes) {
+    Respond(Error(base::StringPrintf(
+        "The total data size of %zu bytes exceeds the maximum limit of %zu "
+        "bytes for a single get() operation. Please use getKeys() and "
+        "retrieve items in smaller batches.",
+        data_size, kMaxSingleGetSizeBytes)));
+    return;
+  }
 
   base::Value::Dict values =
       defaults ? std::move(*defaults) : base::Value::Dict();
@@ -424,8 +453,7 @@ void StorageStorageAreaClearFunction::GetQuotaLimitHeuristics(
 
 ExtensionFunction::ResponseAction
 StorageStorageAreaSetAccessLevelFunction::Run() {
-  if (storage_area() == StorageAreaNamespace::kManaged ||
-      storage_area() == StorageAreaNamespace::kInvalid) {
+  if (storage_area() == StorageAreaNamespace::kInvalid) {
     return RespondNow(
         Error("This StorageArea is not available for setting access level"));
   }

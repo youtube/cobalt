@@ -39,9 +39,6 @@
 #include "ui/views/win/hwnd_util.h"
 #endif
 
-// static
-constexpr int BrowserNonClientFrameView::kMinimumDragHeight;
-
 BrowserNonClientFrameView::BrowserNonClientFrameView(BrowserFrame* frame,
                                                      BrowserView* browser_view)
     : frame_(frame), browser_view_(browser_view) {
@@ -55,13 +52,7 @@ void BrowserNonClientFrameView::OnBrowserViewInitViewsComplete() {
   UpdateMinimumSize();
 }
 
-void BrowserNonClientFrameView::OnFullscreenStateChanged() {
-  if (frame_->IsFullscreen()) {
-    browser_view_->HideDownloadShelf();
-  } else {
-    browser_view_->UnhideDownloadShelf();
-  }
-}
+void BrowserNonClientFrameView::OnFullscreenStateChanged() {}
 
 bool BrowserNonClientFrameView::CaptionButtonsOnLeadingEdge() const {
   return false;

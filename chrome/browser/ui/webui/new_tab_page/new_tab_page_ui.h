@@ -18,6 +18,7 @@
 #include "chrome/browser/new_tab_page/modules/v2/calendar/google_calendar.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar.mojom.h"
 #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom.h"
+#include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo_handler.h"
 #include "components/user_education/webui/help_bubble_handler.h"
@@ -87,6 +88,7 @@ class PrefRegistrySimple;
 class PrefService;
 class Profile;
 class RealboxHandler;
+class TabGroupsPageHandler;
 class NewTabPageUI;
 
 class NewTabPageUIConfig : public content::DefaultWebUIConfig<NewTabPageUI> {
@@ -106,6 +108,7 @@ class NewTabPageUI
       public new_tab_page::mojom::PageHandlerFactory,
       public customize_buttons::mojom::CustomizeButtonsHandlerFactory,
       public most_visited::mojom::MostVisitedPageHandlerFactory,
+      public composebox::mojom::PageHandlerFactory,
       public browser_command::mojom::CommandHandlerFactory,
       public help_bubble::mojom::HelpBubbleHandlerFactory,
       public ntp_promo::mojom::NtpPromoHandlerFactory,
@@ -200,10 +203,10 @@ class NewTabPageUI
       mojo::PendingReceiver<file_suggestion::mojom::MicrosoftFilesPageHandler>
           pending_receiver);
 
-  // Instantiates the implementor of composebox::mojom::ComposeboxPageHandler
+  // Instantiates the implementor of the composebox::mojom::PageHandlerFactory
   // mojo interface passing the pending receiver that will be internally bound.
   void BindInterface(
-      mojo::PendingReceiver<composebox::mojom::ComposeboxPageHandler>
+      mojo::PendingReceiver<composebox::mojom::PageHandlerFactory>
           pending_receiver);
 
 #if !defined(OFFICIAL_BUILD)
@@ -212,6 +215,9 @@ class NewTabPageUI
   void BindInterface(
       mojo::PendingReceiver<foo::mojom::FooHandler> pending_receiver);
 #endif
+
+  void BindInterface(mojo::PendingReceiver<ntp::tab_groups::mojom::PageHandler>
+                         pending_page_handler);
 
   void BindInterface(mojo::PendingReceiver<
                      ntp::most_relevant_tab_resumption::mojom::PageHandler>
@@ -261,6 +267,12 @@ class NewTabPageUI
       mojo::PendingReceiver<most_visited::mojom::MostVisitedPageHandler>
           pending_page_handler) override;
 
+  // composebox::mojom::PageHandlerFactory:
+  void CreatePageHandler(
+      mojo::PendingRemote<composebox::mojom::Page> pending_page,
+      mojo::PendingReceiver<composebox::mojom::PageHandler>
+          pending_page_handler) override;
+
   // help_bubble::mojom::HelpBubbleHandlerFactory:
   void CreateHelpBubbleHandler(
       mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
@@ -292,17 +304,22 @@ class NewTabPageUI
   // Called when the NTP (re)loads. Sets mutable load time data.
   void OnLoad();
 
+  // The counter for NewTabPage.Count UMA metrics.
+  static int instance_count_;
+
   std::unique_ptr<NewTabPageHandler> page_handler_;
   mojo::Receiver<new_tab_page::mojom::PageHandlerFactory>
       page_factory_receiver_;
   std::unique_ptr<ui::ColorChangeHandler> color_provider_handler_;
-  std::unique_ptr<composebox::mojom::ComposeboxPageHandler> composebox_handler_;
   std::unique_ptr<CustomizeButtonsHandler> customize_buttons_handler_;
   mojo::Receiver<customize_buttons::mojom::CustomizeButtonsHandlerFactory>
       customize_buttons_factory_receiver_;
   std::unique_ptr<MostVisitedHandler> most_visited_page_handler_;
   mojo::Receiver<most_visited::mojom::MostVisitedPageHandlerFactory>
       most_visited_page_factory_receiver_;
+  std::unique_ptr<composebox::mojom::PageHandler> composebox_handler_;
+  mojo::Receiver<composebox::mojom::PageHandlerFactory>
+      composebox_page_factory_receiver_;
   std::unique_ptr<BrowserCommandHandler> promo_browser_command_handler_;
   mojo::Receiver<browser_command::mojom::CommandHandlerFactory>
       browser_command_factory_receiver_;
@@ -337,6 +354,7 @@ class NewTabPageUI
   std::unique_ptr<MicrosoftAuthPageHandler> microsoft_auth_handler_;
   std::unique_ptr<MicrosoftFilesPageHandler> microsoft_files_handler_;
   std::unique_ptr<OutlookCalendarPageHandler> outlook_calendar_handler_;
+  std::unique_ptr<TabGroupsPageHandler> tab_groups_handler_;
   PrefChangeRegistrar pref_change_registrar_;
 
   base::WeakPtrFactory<NewTabPageUI> weak_ptr_factory_{this};

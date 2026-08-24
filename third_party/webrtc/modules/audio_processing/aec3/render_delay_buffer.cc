@@ -10,13 +10,12 @@
 
 #include "modules/audio_processing/aec3/render_delay_buffer.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <numeric>
 #include <optional>

@@ -371,12 +371,8 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrameForMappableSIInternal(
     ReleaseMailboxCB mailbox_holder_release_cb,
     base::TimeDelta timestamp) {
   CHECK(shared_image);
-
-  const gfx::BufferFormat buffer_format =
-      viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-          shared_image->format());
   const std::optional<VideoPixelFormat> format =
-      GfxBufferFormatToVideoPixelFormat(buffer_format);
+      SharedImageFormatToVideoPixelFormat(shared_image->format());
   if (!format) {
     return nullptr;
   }
@@ -390,7 +386,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrameForMappableSIInternal(
     return nullptr;
   }
 
-  const size_t num_planes = NumberOfPlanesForLinearBufferFormat(buffer_format);
+  const size_t num_planes = shared_image->format().NumberOfPlanes();
   std::vector<ColorPlaneLayout> planes(num_planes);
   for (size_t plane = 0; plane < num_planes; ++plane) {
     planes[plane].stride = shared_image->GetStrideForVideoFrame(plane);
@@ -916,7 +912,8 @@ scoped_refptr<VideoFrame> VideoFrame::WrapUnacceleratedIOSurface(
     DLOG(ERROR) << "Non-IOSurface handle.";
     return nullptr;
   }
-  gfx::ScopedIOSurface io_surface = handle.io_surface;
+
+  gfx::ScopedIOSurface io_surface = handle.io_surface();
   if (!io_surface) {
     return nullptr;
   }

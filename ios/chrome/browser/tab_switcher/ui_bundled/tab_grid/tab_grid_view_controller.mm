@@ -26,6 +26,7 @@
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/chrome_app_bar_prototype.h"
 #import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
@@ -33,6 +34,7 @@
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/suggested_actions/suggested_actions_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_drag_drop_handler.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/disabled_grid_view_controller.h"
@@ -44,7 +46,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/regular/regular_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_tabs_constants.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/pinned_tabs_view_controller.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/suggested_actions/suggested_actions_delegate.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_context_menu/tab_context_menu_provider.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_activity_observer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_constants.h"
@@ -198,7 +199,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   // Current mode of the TabGrid.
   TabGridMode _mode;
   // The app bar, for diamond prototype.
-  UIView* _appBar;
+  ChromeAppBarPrototype* _appBar;
 }
 
 - (instancetype)initWithPageConfiguration:
@@ -258,11 +259,9 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
     [self hideToolbars];
   }
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = TraitCollectionSetForTraits(nil);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(updateConstraitsOnTraitChange)];
-  }
+  NSArray<UITrait>* traits = TraitCollectionSetForTraits(nil);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(updateConstraintsOnTraitChange)];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -296,17 +295,6 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 - (UIStatusBarStyle)preferredStatusBarStyle {
   return UIStatusBarStyleLightContent;
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  [self updateConstraitsOnTraitChange];
-}
-#endif
 
 #pragma mark - UIScrollViewDelegate
 
@@ -554,7 +542,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   self.activePage = newActivePage;
 }
 
-- (void)setAppBar:(UIView*)appBar {
+- (void)setAppBar:(ChromeAppBarPrototype*)appBar {
   CHECK(IsDiamondPrototypeEnabled());
   _appBar = appBar;
 }
@@ -736,6 +724,10 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 }
 
 - (void)setCurrentPage:(TabGridPage)currentPage {
+  if (IsDiamondPrototypeEnabled()) {
+    _appBar.currentPage =
+        (currentPage == TabGridPageTabGroups) ? self.activePage : currentPage;
+  }
   // Record the idle metric if the previous page was the third panel.
   if (_currentPage != currentPage) {
     [self tabGridDidPerformAction:TabGridActionType::kChangePage];
@@ -1533,7 +1525,7 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
   self.topToolbar.pageControl.userInteractionEnabled = NO;
 }
 
-- (void)updateConstraitsOnTraitChange {
+- (void)updateConstraintsOnTraitChange {
   if (IsPinnedTabsEnabled()) {
     [self updatePinnedTabsViewControllerConstraints];
   }
@@ -2136,21 +2128,27 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 }
 
 - (void)validateCommand:(UICommand*)command {
+  NSString* newTitle;
   if (command.action == @selector(keyCommand_find)) {
-    command.discoverabilityTitle =
-        l10n_util::GetNSStringWithFixup(IDS_IOS_KEYBOARD_SEARCH_TABS);
+    newTitle = l10n_util::GetNSStringWithFixup(IDS_IOS_KEYBOARD_SEARCH_TABS);
   }
   if (command.action == @selector(keyCommand_select1)) {
-    command.discoverabilityTitle = l10n_util::GetNSStringWithFixup(
+    newTitle = l10n_util::GetNSStringWithFixup(
         IDS_IOS_KEYBOARD_GO_TO_INCOGNITO_TAB_GRID);
   }
   if (command.action == @selector(keyCommand_select2)) {
-    command.discoverabilityTitle = l10n_util::GetNSStringWithFixup(
+    newTitle = l10n_util::GetNSStringWithFixup(
         IDS_IOS_KEYBOARD_GO_TO_REGULAR_TAB_GRID);
   }
   if (command.action == @selector(keyCommand_select3)) {
-    command.discoverabilityTitle =
-        l10n_util::GetNSStringWithFixup(IDS_IOS_KEYBOARD_GO_TO_REMOTE_TAB_GRID);
+    newTitle =
+        l10n_util::GetNSStringWithFixup(IDS_IOS_KEYBOARD_GO_TO_TAB_GROUPS_GRID);
+  }
+  // If a new title was determined, set it on the command.
+  if (newTitle.length > 0) {
+    command.title = newTitle;
+    // Keep the discoverability title in sync.
+    command.discoverabilityTitle = newTitle;
   }
   [super validateCommand:command];
 }

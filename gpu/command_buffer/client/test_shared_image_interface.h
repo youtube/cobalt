@@ -45,10 +45,13 @@ class TestSharedImageInterface : public SharedImageInterface {
       gfx::BufferFormat format);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
+  // for default-args overloads
+  using SharedImageInterface::CreateSharedImage;
+
   scoped_refptr<ClientSharedImage> CreateSharedImage(
       const SharedImageInfo& si_info,
       SurfaceHandle surface_handle,
-      std::optional<SharedImagePoolId> pool_id = std::nullopt) override;
+      std::optional<SharedImagePoolId> pool_id) override;
 
   scoped_refptr<ClientSharedImage> CreateSharedImage(
       const SharedImageInfo& si_info,
@@ -58,7 +61,7 @@ class TestSharedImageInterface : public SharedImageInterface {
       const SharedImageInfo& si_info,
       SurfaceHandle surface_handle,
       gfx::BufferUsage buffer_usage,
-      std::optional<SharedImagePoolId> pool_id = std::nullopt) override;
+      std::optional<SharedImagePoolId> pool_id) override;
 
   MOCK_METHOD4(DoCreateSharedImage,
                void(const gfx::Size& size,
@@ -173,6 +176,10 @@ class TestSharedImageInterface : public SharedImageInterface {
   const SyncToken& MostRecentDestroyToken() const {
     return most_recent_destroy_token_;
   }
+  ClientSharedImage* MostRecentMappableSharedImage() const {
+    return most_recent_mappable_shared_image_;
+  }
+
   bool CheckSharedImageExists(const Mailbox& mailbox) const;
 
   const SharedImageCapabilities& GetCapabilities() override;
@@ -211,6 +218,7 @@ class TestSharedImageInterface : public SharedImageInterface {
   gfx::Size most_recent_size_;
   SyncToken most_recent_generated_token_;
   SyncToken most_recent_destroy_token_;
+  raw_ptr<ClientSharedImage> most_recent_mappable_shared_image_;
   absl::flat_hash_set<Mailbox> shared_images_;
   bool emulate_client_provided_native_buffer_ = false;
 

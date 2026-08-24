@@ -8,9 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdint.h>
-
 #include <atomic>
+#include <cstdint>
 #include <cstdlib>
 #include <iterator>
 #include <memory>

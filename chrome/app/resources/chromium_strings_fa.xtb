@@ -66,6 +66,7 @@
 <translation id="1880677175115548835">انتخاب نوشتار</translation>
 <translation id="1881322772814446296">‏شما با حساب مدیریت‌شده وارد سیستم می‌شوید و به سرپرست آن اجازه کنترل بر نمایه Chromium خود را می‌دهید. داده‌های Chromium شما شامل برنامه‌ها، نشانک‌ها، سابقه، گذرواژه‌ها و سایر تنظیمات برای همیشه به <ph name="USER_NAME" /> مرتبط خواهد شد. می‌توانید این داده‌ها را از طریق داشبورد حساب‌های Google حذف کنید اما نمی‌توانید این داده‌ها را به حساب دیگری مرتبط سازید. در صورت تمایل برای ذخیره داده‌های Chromium موجود به صورت جداگانه می‌توانید نمایه جدیدی ایجاد کنید. <ph name="LEARN_MORE" /></translation>
 <translation id="1896836275755235458">‏‫Chromium با محدود کردن فعالیت پس‌زمینه و جلوه‌های دیداری، مثل پیمایش روان و نرخ فریم ویدیو، در مصرف باتری صرفه‌جویی می‌کند. <ph name="BEGIN_LINK" />درباره «بهینه‌سازی انرژی» بیشتر بدانید<ph name="END_LINK" /></translation>
+<translation id="1898804291554630487">سؤال درباره این صفحه</translation>
 <translation id="1900969832270057921">‏سرویس به‌روزرسان Chromium</translation>
 <translation id="1911763535808217981">‏با خاموش کردن این گزینه، می‌توانید بدون ورود به سیستم Chromium به سیستم سایت‌های Google مانند Gmail وارد شوید</translation>
 <translation id="1916451563296275579">‏برداشتن این داده‌های برنامه از Chromium</translation>
@@ -133,6 +134,7 @@
 <translation id="2711502716910134313">‏برگه Chromium</translation>
 <translation id="2718390899429598676">‏برای امنیت بیشتر، Chromium داده‌های شما را رمزگذاری می‌کند.</translation>
 <translation id="2721354645805494590">‏برای برداشتن «حساب Google» خود از Chromium، از سیستم خارج شوید</translation>
+<translation id="2722636413143664436">‏برای دریافت گذرواژه‌ها، نشانک‌ها، و موارد دیگر در همه دستگاه‌هایتان، به سیستم Chromium وارد شوید</translation>
 <translation id="2738871930057338499">‏اتصال به اینترنت برقرار نشد. HTTP ۴۰۳ ممنوع است. لطفاً پیکربندی پروکسی‌تان را بررسی کنید.</translation>
 <translation id="2753623023919742414">برای جستجو، کلیک کنید</translation>
 <translation id="2768103863314748511">‏تنظیم Chromium به‌عنوان نمایشگر PDF پیش‌فرض</translation>
@@ -160,6 +162,7 @@
 <translation id="3032787606318309379">‏افزودن به Chromium…</translation>
 <translation id="3038232873781883849">درانتظار نصب…</translation>
 <translation id="3045032126857188731">زبان ترجمه‌شده: <ph name="LANGUAGE" /></translation>
+<translation id="3047590466164881923">بستن کادر گفتگوی بازخورد</translation>
 <translation id="3068187312562070417">‏دیگر نمایه‌های Chromium</translation>
 <translation id="3068515742935458733">‏با ارسال گزارش‌های خرابی و <ph name="UMA_LINK" /> به Google، به بهبود Google کمک کنید</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{‏یک یا چند افزونه Chromium به یک دستگاه USB دسترسی داشتند}=1{‏یک یا چند افزونه Chromium به یک دستگاه USB دسترسی دارند}one{‏یک یا چند افزونه Chromium به # دستگاه USB دسترسی دارند}other{‏یک یا چند افزونه Chromium به # دستگاه USB دسترسی دارند}}</translation>
@@ -402,6 +405,7 @@
 <translation id="6366160072964553914">‏‫Chromium این بارگیری را مسدود کرد زیرا این فایل معمولاً بارگیری نمی‌شود و ممکن است خطرناک باشد</translation>
 <translation id="6373523479360886564">‏آیا مطمئن هستید که می‌خواهید Chromium را حذف نصب کنید؟</translation>
 <translation id="6375219077595103062">میان‌بری به «مدیر گذرواژه» اضافه کنید</translation>
+<translation id="6388799252195623474">در این مورد به من کمک کنید</translation>
 <translation id="6390800440335263989">‏برای ادامه دادن، با حساب <ph name="EMAIL" /> به سیستم Chromium وارد شوید. با این کار مطمئن می‌شوید که خط‌مشی‌های سازمانتان اعمال شده‌اند.</translation>
 <translation id="6400112897226594999">‏نشان‌واره Chromium درون صفحه‌نمایش رایانه.</translation>
 <translation id="6403826409255603130">‏‫Chromium یک مرورگر وب است که صفحات وب و برنامه‌ها را با سرعت بسیار زیاد اجرا می‌کند. این مرورگر خیلی سریع و پایدار است کار کردن با آن آسان است. با محافظت دربرابر بدافزار و رمزگیری تعبیه‌شده در Chromium، با امنیت بیشتری وب را مرور کنید.</translation>
@@ -499,6 +503,7 @@ Chromium قادر به بازیابی تنظیمات شما نیست.</translati
 <translation id="7585391435984513350">‏اخیراً بازدیدی نداشته‌اید. ‫Chromium ‏<ph name="PERMISSION" /> را برداشت</translation>
 <translation id="761356813943268536">‏Chromium درحال استفاده از دوربین و میکروفون شما است.</translation>
 <translation id="7617377681829253106">‏Chromium اکنون بهتر شده است</translation>
+<translation id="7622753900276619808">‏اکنون ویژگی‌های بیشتری در Chromium دردسترس شما قرار دارد</translation>
 <translation id="7649070708921625228">راهنما</translation>
 <translation id="7658239707568436148">لغو</translation>
 <translation id="7686590090926151193">‏Chromium مرورگر پیش‌فرض شما نیست</translation>

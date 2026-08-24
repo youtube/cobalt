@@ -10,11 +10,10 @@
 
 #include "modules/audio_processing/aec3/filter_analyzer.h"
 
-#include <math.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <numeric>
 #include <vector>

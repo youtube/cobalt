@@ -10,10 +10,9 @@
 
 #include "api/peer_connection_interface.h"
 
-#include <limits.h>
-#include <stdint.h>
-
+#include <climits>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -100,6 +99,7 @@ namespace {
 
 using ::testing::Eq;
 using ::testing::Exactly;
+using ::testing::IsTrue;
 using ::testing::NotNull;
 using ::testing::SizeIs;
 using ::testing::Values;
@@ -851,10 +851,9 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       pc_->CreateAnswer(observer.get(),
                         options ? *options : RTCOfferAnswerOptions());
     }
-    EXPECT_THAT(
-        WaitUntil([&] { return observer->called(); }, ::testing::IsTrue(),
-                  {.timeout = TimeDelta::Millis(kTimeout)}),
-        IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
+                          {.timeout = TimeDelta::Millis(kTimeout)}),
+                IsRtcOk());
     *desc = observer->MoveDescription();
     return observer->result();
   }
@@ -879,10 +878,9 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
       pc_->SetRemoteDescription(observer.get(), desc.release());
     }
     if (pc_->signaling_state() != PeerConnectionInterface::kClosed) {
-      EXPECT_THAT(
-          WaitUntil([&] { return observer->called(); }, ::testing::IsTrue(),
-                    {.timeout = TimeDelta::Millis(kTimeout)}),
-          IsRtcOk());
+      EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
+                            {.timeout = TimeDelta::Millis(kTimeout)}),
+                  IsRtcOk());
     }
     return observer->result();
   }
@@ -905,10 +903,9 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     if (!pc_->GetStats(observer.get(), track,
                        PeerConnectionInterface::kStatsOutputLevelStandard))
       return false;
-    EXPECT_THAT(
-        WaitUntil([&] { return observer->called(); }, ::testing::IsTrue(),
-                  {.timeout = TimeDelta::Millis(kTimeout)}),
-        IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
+                          {.timeout = TimeDelta::Millis(kTimeout)}),
+                IsRtcOk());
     return observer->called();
   }
 
@@ -916,10 +913,9 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   bool DoGetRTCStats() {
     auto callback = make_ref_counted<MockRTCStatsCollectorCallback>();
     pc_->GetStats(callback.get());
-    EXPECT_THAT(
-        WaitUntil([&] { return callback->called(); }, ::testing::IsTrue(),
-                  {.timeout = TimeDelta::Millis(kTimeout)}),
-        IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return callback->called(); }, IsTrue(),
+                          {.timeout = TimeDelta::Millis(kTimeout)}),
+                IsRtcOk());
     return callback->called();
   }
 
@@ -1025,8 +1021,7 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     EXPECT_EQ(PeerConnectionInterface::kHaveLocalOffer, observer_.state_);
     // Wait for the ice_complete message, so that SDP will have candidates.
     EXPECT_THAT(WaitUntil([&] { return observer_.ice_gathering_complete_; },
-                          ::testing::IsTrue(),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
+                          IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
                 IsRtcOk());
   }
 
@@ -1057,15 +1052,14 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
   void WaitAndVerifyOnAddStream(const std::string& stream_id,
                                 int expected_num_tracks) {
     // Verify that both OnAddStream and OnAddTrack are called.
-    EXPECT_THAT(WaitUntil([&] { return observer_.GetLastAddedStreamId(); },
-                          ::testing::Eq(stream_id),
-                          {.timeout = TimeDelta::Millis(kTimeout)}),
-                IsRtcOk());
+    EXPECT_THAT(
+        WaitUntil([&] { return observer_.GetLastAddedStreamId(); },
+                  Eq(stream_id), {.timeout = TimeDelta::Millis(kTimeout)}),
+        IsRtcOk());
     EXPECT_THAT(
         WaitUntil(
             [&] { return observer_.CountAddTrackEventsForStream(stream_id); },
-            ::testing::Eq(expected_num_tracks),
-            {.timeout = TimeDelta::Millis(kTimeout)}),
+            Eq(expected_num_tracks), {.timeout = TimeDelta::Millis(kTimeout)}),
         IsRtcOk());
   }
 
@@ -1181,10 +1175,9 @@ class PeerConnectionInterfaceBaseTest : public ::testing::Test {
     RTC_DCHECK(pc_);
     auto observer = make_ref_counted<MockCreateSessionDescriptionObserver>();
     pc_->CreateOffer(observer.get(), offer_answer_options);
-    EXPECT_THAT(
-        WaitUntil([&] { return observer->called(); }, ::testing::IsTrue(),
-                  {.timeout = TimeDelta::Millis(kTimeout)}),
-        IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return observer->called(); }, IsTrue(),
+                          {.timeout = TimeDelta::Millis(kTimeout)}),
+                IsRtcOk());
     return observer->MoveDescription();
   }
 
@@ -1766,10 +1759,9 @@ TEST_P(PeerConnectionInterfaceTest, IceCandidates) {
                         ::testing::Ne(nullptr),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
-  EXPECT_THAT(
-      WaitUntil([&] { return observer_.ice_gathering_complete_; },
-                ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return observer_.ice_gathering_complete_; },
+                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
+              IsRtcOk());
 
   EXPECT_TRUE(pc_->AddIceCandidate(observer_.last_candidate()));
 }
@@ -2445,11 +2437,11 @@ TEST_P(PeerConnectionInterfaceTest, CloseAndTestStreamsAndStates) {
     ASSERT_TRUE(video_receiver);
     // Track state may be updated asynchronously.
     EXPECT_THAT(WaitUntil([&] { return audio_receiver->track()->state(); },
-                          ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                          Eq(MediaStreamTrackInterface::kEnded),
                           {.timeout = TimeDelta::Millis(kTimeout)}),
                 IsRtcOk());
     EXPECT_THAT(WaitUntil([&] { return video_receiver->track()->state(); },
-                          ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                          Eq(MediaStreamTrackInterface::kEnded),
                           {.timeout = TimeDelta::Millis(kTimeout)}),
                 IsRtcOk());
   } else {
@@ -2571,11 +2563,11 @@ TEST_F(PeerConnectionInterfaceTestPlanB,
                                        reference_collection_.get()));
   // Track state may be updated asynchronously.
   EXPECT_THAT(WaitUntil([&] { return audio_track2->state(); },
-                        ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                        Eq(MediaStreamTrackInterface::kEnded),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
   EXPECT_THAT(WaitUntil([&] { return video_track2->state(); },
-                        ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                        Eq(MediaStreamTrackInterface::kEnded),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
 }
@@ -2622,11 +2614,11 @@ TEST_P(PeerConnectionInterfaceTest, RejectMediaContent) {
   EXPECT_TRUE(DoSetLocalDescription(std::move(local_offer)));
   // Track state may be updated asynchronously.
   EXPECT_THAT(WaitUntil([&] { return remote_audio->state(); },
-                        ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                        Eq(MediaStreamTrackInterface::kEnded),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
   EXPECT_THAT(WaitUntil([&] { return remote_video->state(); },
-                        ::testing::Eq(MediaStreamTrackInterface::kEnded),
+                        Eq(MediaStreamTrackInterface::kEnded),
                         {.timeout = TimeDelta::Millis(kTimeout)}),
               IsRtcOk());
 }
@@ -3614,34 +3606,30 @@ TEST_F(PeerConnectionInterfaceTestPlanB,
   scoped_refptr<VideoTrackInterface> video_track(
       CreateVideoTrack("video_track"));
   stream->AddTrack(audio_track);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer_.renegotiation_needed_; },
-                ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
+              IsRtcOk());
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->AddTrack(video_track);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer_.renegotiation_needed_; },
-                ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
+              IsRtcOk());
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->RemoveTrack(audio_track);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer_.renegotiation_needed_; },
-                ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
+              IsRtcOk());
   observer_.renegotiation_needed_ = false;
 
   CreateOfferReceiveAnswer();
   stream->RemoveTrack(video_track);
-  EXPECT_THAT(
-      WaitUntil([&] { return observer_.renegotiation_needed_; },
-                ::testing::IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
-      IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return observer_.renegotiation_needed_; },
+                        IsTrue(), {.timeout = TimeDelta::Millis(kTimeout)}),
+              IsRtcOk());
   observer_.renegotiation_needed_ = false;
 }
 

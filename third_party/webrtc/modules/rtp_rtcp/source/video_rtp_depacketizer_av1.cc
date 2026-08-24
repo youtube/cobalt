@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer_av1.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <optional>

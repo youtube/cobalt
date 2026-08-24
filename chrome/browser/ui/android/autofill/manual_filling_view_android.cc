@@ -225,11 +225,15 @@ void ManualFillingViewAndroid::SwapSheetWithKeyboard() {
   }
 }
 
-void ManualFillingViewAndroid::Show(WaitForKeyboard wait_for_keyboard) {
+void ManualFillingViewAndroid::Show(
+    WaitForKeyboard wait_for_keyboard,
+    IsCredentialFieldOrHasAutofillSuggestions
+        is_credential_field_or_has_autofill_suggestions) {
   TRACE_EVENT0("passwords", "ManualFillingViewAndroid::Show");
   if (auto obj = GetOrCreateJavaObject()) {
-    Java_ManualFillingComponentBridge_show(base::android::AttachCurrentThread(),
-                                           obj, wait_for_keyboard.value());
+    Java_ManualFillingComponentBridge_show(
+        base::android::AttachCurrentThread(), obj, wait_for_keyboard.value(),
+        is_credential_field_or_has_autofill_suggestions.value());
   }
 }
 
@@ -262,7 +266,6 @@ void ManualFillingViewAndroid::OnAccessoryActionAvailabilityChanged(
 
 void ManualFillingViewAndroid::OnFillingTriggered(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     jint tab_type,
     const base::android::JavaParamRef<jobject>& j_user_info_field) {
   controller_->OnFillingTriggered(
@@ -272,34 +275,27 @@ void ManualFillingViewAndroid::OnFillingTriggered(
 
 void ManualFillingViewAndroid::OnPasskeySelected(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     jint tab_type,
     std::vector<uint8_t>& passkey) {
   controller_->OnPasskeySelected(
       static_cast<autofill::AccessoryTabType>(tab_type), passkey);
 }
 
-void ManualFillingViewAndroid::OnOptionSelected(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
-    jint selected_action) {
+void ManualFillingViewAndroid::OnOptionSelected(JNIEnv* env,
+                                                jint selected_action) {
   controller_->OnOptionSelected(
       static_cast<autofill::AccessoryAction>(selected_action));
 }
 
-void ManualFillingViewAndroid::OnToggleChanged(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
-    jint selected_action,
-    jboolean enabled) {
+void ManualFillingViewAndroid::OnToggleChanged(JNIEnv* env,
+                                               jint selected_action,
+                                               jboolean enabled) {
   controller_->OnToggleChanged(
       static_cast<autofill::AccessoryAction>(selected_action), enabled);
 }
 
-void ManualFillingViewAndroid::RequestAccessorySheet(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
-    jint tab_type) {
+void ManualFillingViewAndroid::RequestAccessorySheet(JNIEnv* env,
+                                                     jint tab_type) {
   // controller_ owns this class. Therefore, the callback can't outlive the view
   // and base::Unretained is always a valid reference.
   controller_->RequestAccessorySheet(
@@ -308,9 +304,7 @@ void ManualFillingViewAndroid::RequestAccessorySheet(
                      base::Unretained(this)));
 }
 
-void ManualFillingViewAndroid::OnViewDestroyed(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj) {
+void ManualFillingViewAndroid::OnViewDestroyed(JNIEnv* env) {
   java_object_internal_.Reset(nullptr);
 }
 

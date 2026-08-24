@@ -10,8 +10,8 @@
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
-#include <string.h>
 
+#include <cstring>
 #include <memory>
 
 #include "api/scoped_refptr.h"

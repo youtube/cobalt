@@ -1668,14 +1668,6 @@
                  'chrome/browser/ui/ash/clipboard.*|'\
                  'chromeos/ui/clipboard_history/',
     },
-    'nacl': {
-      'filepath': 'chrome/nacl/|chrome/test/nacl/|'\
-        'chrome/browser/nacl_host/|chrome/common/nacl|'\
-        'native_client_sdk/src/doc/',
-    },
-    'native_client_sdk': {
-      'filepath': '^native_client_sdk/',
-    },
     'navigation': {
       'filepath': 'content/browser/renderer_host|'\
                   'content/browser/renderer_host/render_process_host|'\
@@ -2505,7 +2497,6 @@
                       'dtseng+watch@chromium.org',
                       'je_julie.kim@chromium.org',
                       'josiahk+watch@chromium.org',
-                      'kbabbitt@microsoft.com',
                       'kyungjunlee+watcha11y@google.com',
                       'nektar+watch@chromium.org',
                       'yuzo+watch@chromium.org',
@@ -2517,6 +2508,7 @@
     'accessibility_features_ash': ['hirokisato+watch@chromium.org',
                                    'katie+watch@chromium.org'],
       'accessibility_minimal_core': ['aleventhal+watcha11y@chromium.org',
+        'kbabbitt@microsoft.com',
         'lucasradaelli+watch@google.com'],
     'accessibility_reading': ['lwinston+watch-readinga11y@google.com',
                               'trewin+watch@google.com'],
@@ -2639,7 +2631,6 @@
     'binary_size': ['agrieve+watch@chromium.org'],
     'blink': ['blink-reviews@chromium.org'],
     'blink_accessibility': ['je_julie.kim@chromium.org',
-                            'kbabbitt@microsoft.com',
                             'nektar@chromium.org',
                             'blink-reviews-a11y@chromium.org'],
     'blink_animation': ['alexis.menard@intel.com',
@@ -3116,9 +3107,6 @@
     'multipaste': ['andrewxu+watch-multipaste@google.com',
                    'dmblack+watch-multipaste@google.com',
                    'multipaste-eng+reviews@google.com'],
-    'nacl': ['native-client-reviews@googlegroups.com'],
-    'native_client_sdk': ['binji+watch@chromium.org',
-                          'sbc@chromium.org'],
     'navigation': ['alexmos+watch@chromium.org',
                    'creis+watch@chromium.org',
                    'navigation-cc+reviews@chromium.org'],

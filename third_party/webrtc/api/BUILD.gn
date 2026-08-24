@@ -1393,6 +1393,7 @@ if (rtc_include_tests) {
       ":candidate",
       ":libjingle_peerconnection_api",
       "../test:test_support",
+      "//third_party/abseil-cpp/absl/strings:string_view",
     ]
   }
 

@@ -10,11 +10,10 @@
 
 #include "rtc_base/firewall_socket_server.h"
 
-#include <errno.h>
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "absl/algorithm/container.h"

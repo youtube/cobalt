@@ -27,23 +27,24 @@ class MockActorUiStateManager : public ActorUiStateManagerInterface {
   ~MockActorUiStateManager() override;
 
   MOCK_METHOD(void,
-              OnActorTaskStateChange,
-              (TaskId task_id, ActorTask::State task_state),
-              (override));
-  MOCK_METHOD(void,
               OnUiEvent,
               (AsyncUiEvent event, UiCompleteCallback callback),
               (override));
   MOCK_METHOD(void, OnUiEvent, (SyncUiEvent event), (override));
-  MOCK_METHOD(void,
-              RunOnUiTabController,
-              (tabs::TabInterface * tab, ActorUiTabControllerCallback callback),
+  MOCK_METHOD(ActorUiTabControllerInterface*,
+              GetUiTabController,
+              (tabs::TabInterface * tab),
               (override));
 
 #if BUILDFLAG(ENABLE_GLIC)
   MOCK_METHOD(void,
               OnGlicUpdateFloatyState,
-              (glic::GlicWindowController::State floaty_state),
+              (glic::GlicWindowController::State floaty_state,
+               BrowserWindowInterface* interface),
+              (override));
+  MOCK_METHOD(base::CallbackListSubscription,
+              RegisterFloatyTaskStateChange,
+              (FloatyTaskStateChangeCallback callback),
               (override));
 #endif
 };

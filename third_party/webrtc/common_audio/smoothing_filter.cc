@@ -10,8 +10,6 @@
 
 #include "common_audio/smoothing_filter.h"
 
-#include <math.h>
-
 #include <cmath>
 #include <cstdint>
 #include <optional>

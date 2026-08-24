@@ -68,7 +68,8 @@ concept IsPrimitive = std::is_arithmetic<T>::value;
 
 template <typename T>
 concept HasSpecificSpecialization = requires(T t) {
-  requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> || IsPrimitive<T>;
+  requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
+               IsPrimitive<T> || IsJavaRef<T>;
 };
 
 // Used to allow for the c++ type to be non-primitive even if the java type is
@@ -123,6 +124,14 @@ inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, T obj) {
   static_assert(sizeof(T) == 0, JNI_ZERO_CONVERSION_FAILED_MSG("ToJniType"));
 }
 #endif
+
+template <typename T>
+  requires(internal::IsJavaRef<T>)
+inline ScopedJavaLocalRef<jobject> ToJniType(JNIEnv* env, const T& val) {
+  // Might want to change this to an identity function, but maybe it's useful
+  // for catching coding errors?
+  static_assert(sizeof(T) == 0, "Type does not require conversion.");
+}
 
 // Allow conversions using pointers by wrapping non-pointer conversions.
 // Cannot live in default_conversions.h because we want code to be able to

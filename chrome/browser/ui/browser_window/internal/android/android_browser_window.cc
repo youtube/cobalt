@@ -1,0 +1,71 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/ui/browser_window/internal/android/android_browser_window.h"
+
+#include <jni.h>
+
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
+#include "base/notreached.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/internal/jni/AndroidBrowserWindow_jni.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
+
+namespace {
+using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
+}  // namespace
+
+// Implements Java |AndroidBrowserWindow.Natives#create|.
+static jlong JNI_AndroidBrowserWindow_Create(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& caller) {
+  return reinterpret_cast<intptr_t>(new AndroidBrowserWindow(env, caller));
+}
+
+AndroidBrowserWindow::AndroidBrowserWindow(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& java_android_browser_window) {
+  java_android_browser_window_.Reset(env, java_android_browser_window);
+}
+
+AndroidBrowserWindow::~AndroidBrowserWindow() {
+  Java_AndroidBrowserWindow_clearNativePtr(AttachCurrentThread(),
+                                           java_android_browser_window_);
+}
+
+void AndroidBrowserWindow::Destroy(JNIEnv* env) {
+  delete this;
+}
+
+ui::UnownedUserDataHost& AndroidBrowserWindow::GetUnownedUserDataHost() {
+  NOTREACHED();
+}
+
+const ui::UnownedUserDataHost& AndroidBrowserWindow::GetUnownedUserDataHost()
+    const {
+  NOTREACHED();
+}
+
+ui::BaseWindow* AndroidBrowserWindow::GetWindow() {
+  return reinterpret_cast<ui::BaseWindow*>(
+      Java_AndroidBrowserWindow_getOrCreateNativeBaseWindowPtr(
+          AttachCurrentThread(), java_android_browser_window_));
+}
+
+Profile* AndroidBrowserWindow::GetProfile() {
+  NOTREACHED();
+}
+
+const SessionID& AndroidBrowserWindow::GetSessionID() const {
+  NOTREACHED();
+}
+
+content::WebContents* AndroidBrowserWindow::OpenURL(
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
+  NOTREACHED();
+}

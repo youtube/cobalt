@@ -256,6 +256,7 @@ class CORE_EXPORT CSSMathExpressionNode
 
   virtual bool IsComputationallyIndependent() const = 0;
   virtual bool IsElementDependent() const { return false; }
+  virtual bool MayHaveRelativeUnit() const = 0;
 
   CalculationResultCategory Category() const { return category_; }
 
@@ -403,6 +404,7 @@ class CORE_EXPORT CSSMathExpressionNumericLiteral final
   void AccumulateLengthUnitTypes(
       CSSPrimitiveValue::LengthTypeFlags& types) const final;
   bool IsComputationallyIndependent() const final;
+  bool MayHaveRelativeUnit() const final;
   bool operator==(const CSSMathExpressionNode& other) const final;
   CSSPrimitiveValue::UnitType ResolvedUnitType() const final;
   void Trace(Visitor* visitor) const final;
@@ -490,6 +492,7 @@ class CORE_EXPORT CSSMathExpressionIdentifierLiteral final
   void AccumulateLengthUnitTypes(
       CSSPrimitiveValue::LengthTypeFlags& types) const final {}
   bool IsComputationallyIndependent() const final { return true; }
+  bool MayHaveRelativeUnit() const final { return false; }
   bool operator==(const CSSMathExpressionNode& other) const final {
     return other.IsIdentifierLiteral() &&
            DynamicTo<CSSMathExpressionIdentifierLiteral>(other)->GetValue() ==
@@ -592,6 +595,7 @@ class CORE_EXPORT CSSMathExpressionKeywordLiteral final
   void AccumulateLengthUnitTypes(
       CSSPrimitiveValue::LengthTypeFlags& types) const final {}
   bool IsComputationallyIndependent() const final { return true; }
+  bool MayHaveRelativeUnit() const final { return false; }
   bool operator==(const CSSMathExpressionNode& other) const final {
     auto* other_keyword = DynamicTo<CSSMathExpressionKeywordLiteral>(other);
     return other_keyword && other_keyword->GetValue() == GetValue() &&
@@ -758,6 +762,10 @@ class CORE_EXPORT CSSMathExpressionOperation final
   bool HasPercentage() const final;
   bool InvolvesLayout() const final;
 
+  bool HasNestedIntermediateResult() const {
+    return has_nested_intermediate_result_;
+  }
+
   String CSSTextAsClamp() const;
 
   const CSSMathType& Type() const { return type_; }
@@ -779,6 +787,7 @@ class CORE_EXPORT CSSMathExpressionOperation final
       CSSPrimitiveValue::LengthTypeFlags& types) const final;
   bool IsComputationallyIndependent() const final;
   bool IsElementDependent() const final;
+  bool MayHaveRelativeUnit() const final;
   String CustomCSSText() const final;
   bool operator==(const CSSMathExpressionNode& exp) const final;
   CSSPrimitiveValue::UnitType ResolvedUnitType() const final;
@@ -819,6 +828,10 @@ class CORE_EXPORT CSSMathExpressionOperation final
     return base::span(operands_).subspan<1>();
   }
 
+  // If operation has some nested operand which is of an intermediate type,
+  // e.g. 10px * 20px or 1px / 1px. Used to ban simplifications on such
+  // operations.
+  bool has_nested_intermediate_result_ = false;
   Operands operands_;
   const CSSMathOperator operator_;
   const CSSMathType type_;
@@ -892,6 +905,7 @@ class CORE_EXPORT CSSMathExpressionContainerFeature final
   void AccumulateLengthUnitTypes(
       CSSPrimitiveValue::LengthTypeFlags& types) const final {}
   bool IsComputationallyIndependent() const final { return true; }
+  bool MayHaveRelativeUnit() const final { return false; }
   bool operator==(const CSSMathExpressionNode& other) const final {
     auto* other_progress = DynamicTo<CSSMathExpressionContainerFeature>(other);
     return other_progress &&
@@ -976,6 +990,7 @@ class CORE_EXPORT CSSMathExpressionAnchorQuery final
     return false;
   }
   bool IsComputationallyIndependent() const final { return false; }
+  bool MayHaveRelativeUnit() const final { return false; }
   double DoubleValue() const final;
   double ComputeLengthPx(const CSSLengthResolver& length_resolver) const final;
   void AccumulateLengthUnitTypes(
@@ -1071,6 +1086,7 @@ class CORE_EXPORT CSSMathExpressionSiblingFunction final
   }
   bool IsComputationallyIndependent() const final { return false; }
   bool IsElementDependent() const final { return true; }
+  bool MayHaveRelativeUnit() const final { return false; }
   double DoubleValue() const final { NOTREACHED(); }
   double ComputeLengthPx(const CSSLengthResolver& length_resolver) const final {
     NOTREACHED();

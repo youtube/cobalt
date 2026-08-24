@@ -34,7 +34,7 @@
       jobject jcaller) {                                                                           \
     auto _ret = JNI_SampleBidirectionalNonProxy_Init(                                              \
         env,                                                                                       \
-        jni_zero::JavaParamRef<jobject>(env, jcaller));                                            \
+        jni_zero::JavaRef<jobject>::CreateLeaky(env, jcaller));                                    \
     return _ret;                                                                                   \
   }                                                                                                \
                                                                                                    \
@@ -43,7 +43,7 @@
       jobject jcaller) {                                                                           \
     auto _ret = JNI_SampleBidirectionalNonProxy_Init(                                              \
         env,                                                                                       \
-        jni_zero::JavaParamRef<jobject>(env, jcaller));                                            \
+        jni_zero::JavaRef<jobject>::CreateLeaky(env, jcaller));                                    \
     return _ret;                                                                                   \
   }                                                                                                \
                                                                                                    \
@@ -54,7 +54,7 @@
       jint arg1) {                                                                                 \
     auto _ret = reinterpret_cast<Test*>(nativeTest)->Method(                                       \
         env,                                                                                       \
-        jni_zero::JavaParamRef<jobject>(env, jcaller),                                             \
+        jni_zero::JavaRef<jobject>::CreateLeaky(env, jcaller),                                     \
         arg1);                                                                                     \
     return _ret;                                                                                   \
   }                                                                                                \
@@ -187,7 +187,7 @@ static jni_zero::ScopedJavaLocalRef<jstring> Java_SampleBidirectionalNonProxy_te
       &cached_method_id);
   auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), as_jint(iParam));
   jstring _ret2 = static_cast<jstring>(_ret);
-  return jni_zero::ScopedJavaLocalRef<jstring>(env, _ret2);
+  return jni_zero::ScopedJavaLocalRef<jstring>::Adopt(env, _ret2);
 }
 
 static jni_zero::ScopedJavaLocalRef<jstring> Java_SampleBidirectionalNonProxy_testStaticMethodWithNoParam(
@@ -204,7 +204,7 @@ static jni_zero::ScopedJavaLocalRef<jstring> Java_SampleBidirectionalNonProxy_te
       &cached_method_id);
   auto _ret = env->CallStaticObjectMethod(clazz, call_context.method_id());
   jstring _ret2 = static_cast<jstring>(_ret);
-  return jni_zero::ScopedJavaLocalRef<jstring>(env, _ret2);
+  return jni_zero::ScopedJavaLocalRef<jstring>::Adopt(env, _ret2);
 }
 
 static jint Java_SampleBidirectionalNonProxy_testStaticMethodWithParam(

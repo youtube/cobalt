@@ -244,7 +244,7 @@ void BestEffortCheckOCSP(const std::string& raw_response,
 // |spki_hashes| - that is, situations in which the OS methods of detecting
 // a known root flag a certificate as known, but its hash is not known as part
 // of the built-in list.
-void RecordTrustAnchorHistogram(const HashValueVector& spki_hashes,
+void RecordTrustAnchorHistogram(const std::vector<SHA256HashValue>& spki_hashes,
                                 bool is_issued_by_known_root) {
   int32_t id = 0;
   for (const auto& hash : spki_hashes) {
@@ -480,6 +480,10 @@ int CertVerifyProc::Verify(X509Certificate* cert,
                           verify_result, net_log);
 
   CHECK(verify_result->verified_cert);
+  if (rv == OK) {
+    CHECK_EQ(verify_result->verified_cert->intermediate_buffers().size() + 1,
+             verify_result->public_key_hashes.size());
+  }
 
   // Check for mismatched signature algorithms and unknown signature algorithms
   // in the chain. Also fills in the has_* booleans for the digest algorithms
@@ -504,10 +508,7 @@ int CertVerifyProc::Verify(X509Certificate* cert,
 
   // Check to see if the connection is being intercepted.
   for (const auto& hash : verify_result->public_key_hashes) {
-    if (hash.tag() != HASH_VALUE_SHA256) {
-      continue;
-    }
-    if (!crl_set()->IsKnownInterceptionKey(hash.span())) {
+    if (!crl_set()->IsKnownInterceptionKey(hash)) {
       continue;
     }
 
@@ -725,7 +726,7 @@ static bool CheckNameConstraints(const std::vector<std::string>& dns_names,
 
 // static
 bool CertVerifyProc::HasNameConstraintsViolation(
-    const HashValueVector& public_key_hashes,
+    const std::vector<SHA256HashValue>& public_key_hashes,
     const std::string& common_name,
     const std::vector<std::string>& dns_names,
     const std::vector<std::string>& ip_addrs) {
@@ -783,9 +784,7 @@ bool CertVerifyProc::HasNameConstraintsViolation(
 
   for (const auto& limit : kLimits) {
     for (const auto& hash : public_key_hashes) {
-      if (hash.tag() != HASH_VALUE_SHA256)
-        continue;
-      if (hash.span() != limit.public_key_hash) {
+      if (hash != limit.public_key_hash) {
         continue;
       }
       if (dns_names.empty() && ip_addrs.empty()) {

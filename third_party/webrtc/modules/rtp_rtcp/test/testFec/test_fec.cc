@@ -13,11 +13,10 @@
  * functions in ForwardErrorCorrection directly.
  */
 
-#include <string.h>
-#include <time.h>
-
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <list>
 #include <memory>
 #include <string>

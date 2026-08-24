@@ -174,10 +174,11 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
   return MoqtError::kNoError;
 }
 
-const std::array<MoqtMessageType, 5> kAllowsAuthorization = {
-    MoqtMessageType::kSubscribe, MoqtMessageType::kTrackStatusRequest,
-    MoqtMessageType::kFetch, MoqtMessageType::kSubscribeAnnounces,
-    MoqtMessageType::kAnnounce};
+const std::array<MoqtMessageType, 7> kAllowsAuthorization = {
+    MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
+    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeAnnounces,
+    MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatusRequest,
+    MoqtMessageType::kFetch};
 const std::array<MoqtMessageType, 4> kAllowsDeliveryTimeout = {
     MoqtMessageType::kSubscribe, MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus};
@@ -255,6 +256,12 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:
       return "MAX_REQUEST_ID";
+    case MoqtMessageType::kPublish:
+      return "PUBLISH";
+    case MoqtMessageType::kPublishOk:
+      return "PUBLISH_OK";
+    case MoqtMessageType::kPublishError:
+      return "PUBLISH_ERROR";
     case MoqtMessageType::kFetch:
       return "FETCH";
     case MoqtMessageType::kFetchCancel:
@@ -272,25 +279,17 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
 }
 
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
-  switch (type) {
-    case MoqtDataStreamType::kStreamHeaderSubgroup:
-      return "STREAM_HEADER_SUBGROUP";
-    case MoqtDataStreamType::kStreamHeaderFetch:
-      return "STREAM_HEADER_FETCH";
-    case MoqtDataStreamType::kPadding:
-      return "PADDING";
+  if (type.IsPadding()) {
+    return "PADDING";
+  } else if (type.IsFetch()) {
+    return "STREAM_HEADER_FETCH";
   }
-  return "Unknown stream type " + absl::StrCat(static_cast<int>(type));
+  return absl::StrCat("STREAM_HEADER_SUBGROUP_", type.value());
 }
 
 std::string MoqtDatagramTypeToString(MoqtDatagramType type) {
-  switch (type) {
-    case MoqtDatagramType::kObject:
-      return "OBJECT_DATAGRAM";
-    case MoqtDatagramType::kObjectStatus:
-      return "OBJECT_STATUS_DATAGRAM";
-  }
-  return "Unknown datagram type " + absl::StrCat(static_cast<int>(type));
+  return absl::StrCat("DATAGRAM", type.has_status() ? "_STATUS" : "",
+                      type.has_extension() ? "_EXTENSION" : "");
 }
 
 std::string MoqtForwardingPreferenceToString(
@@ -356,17 +355,6 @@ std::string TrackNamespace::ToString() const {
   return absl::StrCat("{", absl::StrJoin(bits, "::"), "}");
 }
 
-bool TrackNamespace::operator==(const TrackNamespace& other) const {
-  if (number_of_elements() != other.number_of_elements()) {
-    return false;
-  }
-  return absl::c_equal(tuple_, other.tuple_);
-}
-
-bool TrackNamespace::operator<(const TrackNamespace& other) const {
-  return absl::c_lexicographical_compare(tuple_, other.tuple_);
-}
-
 void FullTrackName::set_name(absl::string_view name) {
   QUIC_BUG_IF(Moqt_name_too_large_03, !CanAddName(name))
       << "Setting a name that is too large.";
@@ -376,12 +364,14 @@ void FullTrackName::set_name(absl::string_view name) {
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase) {
   switch (error_code) {
-    case kResetCodeCancelled:
+    case kResetCodeCanceled:
       return absl::CancelledError(reason_phrase);
     case kResetCodeDeliveryTimeout:
       return absl::DeadlineExceededError(reason_phrase);
     case kResetCodeSessionClosed:
       return absl::AbortedError(reason_phrase);
+    case kResetCodeMalformedTrack:
+      return absl::InvalidArgumentError(reason_phrase);
     default:
       return absl::UnknownError(reason_phrase);
   }

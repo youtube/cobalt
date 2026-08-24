@@ -126,6 +126,8 @@
 #import "ios/chrome/browser/infobars/model/infobar_ios.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_coordinator.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/coordinator/enhanced_calendar_coordinator.h"
 #import "ios/chrome/browser/intelligence/enhanced_calendar/model/enhanced_calendar_configuration.h"
@@ -259,6 +261,7 @@
 #import "ios/chrome/browser/shared/public/commands/shared_tab_group_last_tab_closed_alert_command.h"
 #import "ios/chrome/browser/shared/public/commands/shared_tab_group_last_tab_closed_alert_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/text_zoom_commands.h"
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/commands/unit_conversion_commands.h"
@@ -311,7 +314,6 @@
 #import "ios/chrome/browser/voice/ui_bundled/text_to_speech_playback_controller_factory.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_tab_helper.h"
 #import "ios/chrome/browser/web/model/font_size/font_size_tab_helper.h"
-#import "ios/chrome/browser/web/model/page_placeholder_browser_agent.h"
 #import "ios/chrome/browser/web/model/page_placeholder_tab_helper.h"
 #import "ios/chrome/browser/web/model/print/print_tab_helper.h"
 #import "ios/chrome/browser/web/model/repost_form_tab_helper.h"
@@ -394,6 +396,7 @@ enum class ToolbarKind {
     PolicyChangeCommands,
     PreloadControllerDelegate,
     QuickDeleteCommands,
+    ReaderModeCommands,
     ReadingListCoordinatorDelegate,
     RecentTabsCoordinatorDelegate,
     ReminderNotificationsCommands,
@@ -1305,8 +1308,6 @@ enum class ToolbarKind {
       self.browser->GetWebStateList()->AsWeakPtr();
   _viewControllerDependencies.voiceSearchController = _voiceSearchController;
   _viewControllerDependencies.safeAreaProvider = _safeAreaProvider;
-  _viewControllerDependencies.pagePlaceholderBrowserAgent =
-      PagePlaceholderBrowserAgent::FromBrowser(self.browser);
 }
 
 - (void)updateViewControllerDependencies {
@@ -1374,7 +1375,6 @@ enum class ToolbarKind {
   _viewControllerDependencies.layoutGuideCenter = nil;
   _viewControllerDependencies.voiceSearchController = nil;
   _viewControllerDependencies.safeAreaProvider = nil;
-  _viewControllerDependencies.pagePlaceholderBrowserAgent = nil;
 
   [_voiceSearchController dismissMicPermissionHelp];
   [_voiceSearchController disconnect];
@@ -2369,7 +2369,7 @@ enum class ToolbarKind {
     return;
   }
 
-  BOOL canShowTabStrip = IsRegularXRegularSizeClass(self.viewController);
+  BOOL canShowTabStrip = CanShowTabStrip(self.viewController);
 
   UIView* contentArea = self.browserContainerCoordinator.viewController.view;
   UIView* snapshotView = nil;
@@ -2507,12 +2507,10 @@ enum class ToolbarKind {
 }
 
 - (void)showAddAccountWithAccessPoint:(signin_metrics::AccessPoint)accessPoint {
-  if (_signinCoordinator) {
-    // The browser agent may trigger the add account any time in case of network
-    // delay. Early return ensure we don’t interrupt the sign-in operation the
-    // user is currently doing.
-    return;
-  }
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_signinCoordinator stop];
   SigninContextStyle contextStyle = SigninContextStyle::kDefault;
   _signinCoordinator = [SigninCoordinator
       addAccountCoordinatorWithBaseViewController:self.viewController
@@ -2527,6 +2525,11 @@ enum class ToolbarKind {
         [weakSelf stopSigninCoordinator];
       };
   [_signinCoordinator start];
+}
+
+- (void)performReauthToRetrieveTrustedVaultKey:
+    (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
+  [self showTrustedVaultReauthForFetchKeysWithTrigger:trigger];
 }
 
 #pragma mark - ContextualPanelEntrypointIPHCommands
@@ -2727,6 +2730,17 @@ enum class ToolbarKind {
 #pragma mark - ReaderModeCommands
 
 - (void)showReaderMode {
+  web::WebState* activeWebState = self.activeWebState;
+  if (!activeWebState) {
+    return;
+  }
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(activeWebState);
+  if (!readerModeTabHelper->IsActive()) {
+    readerModeTabHelper->SetActive(true);
+    return;
+  }
+
   if (_readerModeCoordinator) {
     // If the Reader mode UI is already presented then there is nothing to do.
     return;
@@ -2738,6 +2752,17 @@ enum class ToolbarKind {
 }
 
 - (void)hideReaderMode {
+  web::WebState* activeWebState = self.activeWebState;
+  if (!activeWebState) {
+    return;
+  }
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(activeWebState);
+  if (readerModeTabHelper->IsActive()) {
+    readerModeTabHelper->SetActive(false);
+    return;
+  }
+
   if (!_readerModeCoordinator) {
     // If the Reader mode UI is already dismissed then there is nothing to do.
     return;
@@ -2971,6 +2996,13 @@ enum class ToolbarKind {
   _BWGCoordinator = nil;
 }
 
+- (void)showBWGPromoIfPageIsEligible {
+  BwgService* BWGService = BwgServiceFactory::GetForProfile(self.profile);
+  if (BWGService->IsBwgAvailableForWebState(self.activeWebState)) {
+    [self startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
+  }
+}
+
 #pragma mark - PromosManagerCommands
 
 - (void)showPromo {
@@ -3058,20 +3090,6 @@ enum class ToolbarKind {
                                              id<SystemIdentity>) {
         [self.promosManagerCoordinator promoWasDismissed];
       }];
-}
-
-- (void)showBWGPromo {
-  if (IsPageActionMenuEnabled()) {
-    web::WebState* activeWebState = self.activeWebState;
-    DCHECK(activeWebState);
-    NewTabPageTabHelper* NTPHelper =
-        NewTabPageTabHelper::FromWebState(activeWebState);
-    BOOL isNTP = NTPHelper && NTPHelper->IsActive();
-
-    if (!isNTP) {
-      [self startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
-    }
-  }
 }
 
 - (void)showWelcomeBackPromo {
@@ -3311,8 +3329,9 @@ enum class ToolbarKind {
   AccountConsistencyBrowserAgent::CreateForBrowser(self.browser,
                                                    self.viewController);
 
+  CommandDispatcher* commandDispatcher = self.browser->GetCommandDispatcher();
+
   if (FollowBrowserAgent::FromBrowser(self.browser)) {
-    CommandDispatcher* commandDispatcher = self.browser->GetCommandDispatcher();
     FollowBrowserAgent::FromBrowser(self.browser)
         ->SetUIProviders(
             HandlerForProtocol(commandDispatcher, NewTabPageCommands),
@@ -3327,6 +3346,8 @@ enum class ToolbarKind {
         self.browser->GetCommandDispatcher(), ReaderModeCommands));
     readerModeBrowserAgent->SetReaderModeChipHandler(HandlerForProtocol(
         self.browser->GetCommandDispatcher(), ReaderModeChipCommands));
+    readerModeBrowserAgent->SetSnackbarHandler(
+        static_cast<id<SnackbarCommands>>(commandDispatcher));
   }
 }
 
@@ -3369,6 +3390,7 @@ enum class ToolbarKind {
   if (readerModeBrowserAgent) {
     readerModeBrowserAgent->SetReaderModeHandler(nil);
     readerModeBrowserAgent->SetReaderModeChipHandler(nil);
+    readerModeBrowserAgent->SetSnackbarHandler(nil);
   }
 }
 
@@ -3785,6 +3807,10 @@ enum class ToolbarKind {
 #pragma mark - SyncPresenter (Public)
 
 - (void)showPrimaryAccountReauth {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_signinCoordinator stop];
   signin_metrics::PromoAction promoAction =
       signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO;
   signin_metrics::AccessPoint accessPoint =
@@ -3825,24 +3851,28 @@ enum class ToolbarKind {
 
 - (void)showTrustedVaultReauthForFetchKeysWithTrigger:
     (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
-  CHECK(!_trustedVaultReauthenticationCoordinator, base::NotFatalUntil::M145);
-  _trustedVaultReauthenticationCoordinator =
-      [[TrustedVaultReauthenticationCoordinator alloc]
-          initWithBaseViewController:self.viewController
-                             browser:self.browser
-                              intent:SigninTrustedVaultDialogIntentFetchKeys
-                    securityDomainID:trusted_vault::SecurityDomainId::
-                                         kChromeSync
-                             trigger:trigger];
-  _trustedVaultReauthenticationCoordinator.delegate = self;
-  [_trustedVaultReauthenticationCoordinator start];
+  [self showTrustedVaultReauthWithTrigger:trigger
+                                   intent:
+                                       SigninTrustedVaultDialogIntentFetchKeys];
 }
 
 - (void)showTrustedVaultReauthForDegradedRecoverabilityWithTrigger:
     (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
   SigninTrustedVaultDialogIntent intent =
       SigninTrustedVaultDialogIntentDegradedRecoverability;
-  CHECK(!_trustedVaultReauthenticationCoordinator, base::NotFatalUntil::M145);
+  [self showTrustedVaultReauthWithTrigger:trigger intent:intent];
+}
+
+#pragma mark - SyncPresenter helper
+
+- (void)showTrustedVaultReauthWithTrigger:
+            (syncer::TrustedVaultUserActionTriggerForUMA)trigger
+                                   intent:
+                                       (SigninTrustedVaultDialogIntent)intent {
+  if (_trustedVaultReauthenticationCoordinator) {
+    // This can occur in case of double-tap.
+    return;
+  }
   _trustedVaultReauthenticationCoordinator =
       [[TrustedVaultReauthenticationCoordinator alloc]
           initWithBaseViewController:self.viewController
@@ -3858,6 +3888,10 @@ enum class ToolbarKind {
 #pragma mark - ReSigninPresenter
 
 - (void)showReSignin {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_signinCoordinator stop];
   signin_metrics::AccessPoint accessPoint =
       signin_metrics::AccessPoint::kResigninInfobar;
   signin_metrics::PromoAction promoAction =
@@ -3883,6 +3917,10 @@ enum class ToolbarKind {
 #pragma mark - SigninPresenter
 
 - (void)showSignin:(ShowSigninCommand*)command {
+  // The sign-in coordinator may be a resignin, in which case, up to iOS18, the
+  // view may be dismissed without the signinCompletion being called. See
+  // crbug.com/395959814.
+  [_signinCoordinator stop];
   _signinCoordinator =
       [SigninCoordinator signinCoordinatorWithCommand:command
                                               browser:self.browser
@@ -3907,7 +3945,7 @@ enum class ToolbarKind {
 - (BOOL)canTakeSnapshotWithWebStateInfo:(WebStateSnapshotInfo*)webStateInfo {
   DCHECK(webStateInfo);
   web::WebState* webState = webStateInfo.webState;
-  if (!webState) {
+  if (!webState || !webState->IsRealized()) {
     return NO;
   }
   PagePlaceholderTabHelper* pagePlaceholderTabHelper =
@@ -3960,8 +3998,7 @@ enum class ToolbarKind {
 
   NewTabPageTabHelper* NTPHelper = NewTabPageTabHelper::FromWebState(webState);
   if (NTPHelper && NTPHelper->IsActive()) {
-    const BOOL canShowTabStrip =
-        IsRegularXRegularSizeClass(self.viewController);
+    const BOOL canShowTabStrip = CanShowTabStrip(self.viewController);
     const BOOL isSplitToolbarMode = IsSplitToolbarMode(self.viewController);
     // If the NTP is active, then it's used as the base view for snapshotting.
     // When the tab strip is visible, the toolbars are not splitted or for the

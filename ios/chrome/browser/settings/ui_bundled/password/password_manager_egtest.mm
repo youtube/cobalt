@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_app_interface.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/credential_provider/model/features.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/passwords/model/metrics/ios_password_manager_metrics.h"
 #import "ios/chrome/browser/passwords/model/password_manager_app_interface.h"
@@ -67,6 +68,7 @@ using chrome_test_util::PasswordsTableViewMatcher;
 using chrome_test_util::SettingsCollectionView;
 using chrome_test_util::SettingsDoneButton;
 using chrome_test_util::SettingsNavigationBar;
+using chrome_test_util::SwipeActionDeleteButton;
 using chrome_test_util::TextFieldForCellWithLabelId;
 using chrome_test_util::TurnTableViewSwitchOn;
 using password_manager::kPasswordManagerSurfaceVisitHistogramName;
@@ -177,11 +179,6 @@ id<GREYMatcher> SavedPasswordsPasskeysHeaderMatcher() {
                         IDS_IOS_SETTINGS_PASSWORDS_PASSKEYS_SAVED_HEADING)),
                     grey_accessibilityTrait(UIAccessibilityTraitHeader),
                     nullptr);
-}
-
-// Matcher for a UITextField inside a SettingsSearchCell.
-id<GREYMatcher> SearchTextField() {
-  return grey_accessibilityID(kPasswordsSearchBarID);
 }
 
 GREYLayoutConstraint* Below() {
@@ -741,6 +738,11 @@ void OpenPasswordManagerWidgetPromoInstructions() {
           (testOpeningPasswordManagerWidgetPromoInstructionsWithFailedAuth)] ||
       [self isRunningTest:@selector(testDeletingLastAffiliatedGroup)]) {
     config.iph_feature_enabled = "IPH_iOSPromoPasswordManagerWidget";
+  }
+
+  if ([self isRunningTest:@selector(testAutomaticPasskeyUpgradesPrefToggle)]) {
+    config.features_enabled.push_back(
+        kCredentialProviderAutomaticPasskeyUpgrade);
   }
 
   return config;
@@ -1648,6 +1650,41 @@ void OpenPasswordManagerWidgetPromoInstructions() {
       performAction:grey_tap()];
 }
 
+// Check that toggling the switch for the "automatic passkey upgrades" changes
+// the preference value.
+- (void)testAutomaticPasskeyUpgradesPrefToggle {
+  OpenPasswordManager();
+  OpenSettingsSubmenu();
+
+  // Toggle the "Automatic passkey upgrades" control off and back on and check
+  // the preferences.
+  constexpr BOOL kExpectedState[] = {YES, NO};
+  for (BOOL expected_initial_state : kExpectedState) {
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::TableViewSwitchCell(
+                       kPasswordSettingsAutomaticPasskeyUpgradeToggleId,
+                       expected_initial_state)]
+        performAction:TurnTableViewSwitchOn(!expected_initial_state)];
+    const bool expected_final_state = !expected_initial_state;
+    GREYAssertEqual(
+        expected_final_state,
+        [PasswordSettingsAppInterface isAutomaticPasskeyUpgradesEnabled],
+        @"State of the UI toggle differs from real preferences.");
+  }
+
+  // "Done" to close settings submenu.
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(SettingsDoneButton(),
+                                          grey_sufficientlyVisible(), nil)]
+      performAction:grey_tap()];
+  // "Back" to go to root settings menu.
+  [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
+      performAction:grey_tap()];
+  // "Done" to close out.
+  [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
+      performAction:grey_tap()];
+}
+
 // Checks that deleting a password from the list view works.
 - (void)testDeletionInListView {
   // Save a password to be deleted later.
@@ -1896,9 +1933,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [GetInteractionForPasswordEntry(@"exclude2.com")
       assertWithMatcher:grey_notNil()];
 
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
       performAction:grey_tap()];
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
       performAction:grey_replaceText(@"2")];
 
   [[self interactionForSinglePasswordEntryWithDomain:@"example11.com"]
@@ -1910,9 +1947,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [GetInteractionForPasswordEntry(@"exclude2.com")
       assertWithMatcher:grey_notNil()];
 
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(IDS_CANCEL)]
-      performAction:grey_tap()];
+  [ChromeEarlGreyUI clearAndDismissSearchBar];
   [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
       performAction:grey_tap()];
   [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
@@ -1926,7 +1961,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
   OpenPasswordManager();
 
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
       performAction:grey_replaceText(@"ex")];
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\n" flags:0];
 
@@ -1974,9 +2009,12 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   OpenPasswordManager();
   TapNavigationBarEditButton();
 
-  // Verify search bar is disabled.
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
-      assertWithMatcher:grey_not(grey_userInteractionEnabled())];
+  // Try to tap the search field and verify it doesn't get focus.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      assertWithMatcher:grey_not(grey_firstResponder())];
+
   [[EarlGrey selectElementWithMatcher:EditDoneButton()]
       performAction:grey_tap()];
   [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
@@ -1988,7 +2026,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   SaveExamplePasswordForms();
   OpenPasswordManager();
 
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
       performAction:grey_replaceText(@"2")];
 
   TapNavigationBarEditButton();
@@ -2013,9 +2051,9 @@ void OpenPasswordManagerWidgetPromoInstructions() {
       performAction:grey_tap()];
 
   // Remove filter search term.
-  // TODO(crbug.com/40916973): Revert to grey_clearText when fixed in EG.
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
-      performAction:grey_replaceText(@"")];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      performAction:grey_tap()];
+  [ChromeEarlGreyUI clearAndDismissSearchBar];
 
   // Only password 1 should show.
   [GetInteractionForPasswordEntry(@"example11.com")
@@ -3648,19 +3686,18 @@ void OpenPasswordManagerWidgetPromoInstructions() {
       sceneOpenURL:
           GURL("chromewidgetkit://search-passwords-widget/search-passwords")];
 
-  // The Password Manager should be visible behind the keyboard.
-  [ChromeEarlGrey waitForKeyboardToAppear];
+  // The Password Manager should be visible.
   [[EarlGrey selectElementWithMatcher:PasswordsTableViewMatcher()]
       assertWithMatcher:grey_minimumVisiblePercent(0.5)];
 
   // The search bar should be enabled.
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
-      assertWithMatcher:grey_userInteractionEnabled()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      assertWithMatcher:grey_firstResponder()];
 
   // Dismiss the search controller and the Password Manager.
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(IDS_CANCEL)]
-      performAction:grey_tap()];
+  [ChromeEarlGreyUI clearAndDismissSearchBar];
   [[EarlGrey selectElementWithMatcher:SettingsDoneButton()]
       performAction:grey_tap()];
 }
@@ -3676,19 +3713,19 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [PasswordSettingsAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kSuccess];
 
-  // Open the Password Manager in search mode with the  Search Passwords widget.
+  // Open the Password Manager in search mode with the Search Passwords widget.
   [ChromeEarlGrey
       sceneOpenURL:
           GURL("chromewidgetkit://search-passwords-widget/search-passwords")];
 
   // The search bar should be enabled.
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
-      assertWithMatcher:grey_userInteractionEnabled()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      assertWithMatcher:grey_firstResponder()];
 
   // Dismiss the search controller.
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(IDS_CANCEL)]
-      performAction:grey_tap()];
+  [ChromeEarlGreyUI clearAndDismissSearchBar];
 
   // Open password details.
   [[self interactionForSinglePasswordEntryWithDomain:@"example.com"]
@@ -3698,8 +3735,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   // enabled.
   [[EarlGrey selectElementWithMatcher:NavigationBarBackButton()]
       performAction:grey_tap()];
-  [[EarlGrey selectElementWithMatcher:SearchTextField()]
-      assertWithMatcher:grey_userInteractionEnabled()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::SearchBar()]
+      assertWithMatcher:grey_not(grey_firstResponder())];
 }
 
 // Tests that tapping the close button of the Password Manager widget promo
@@ -4031,8 +4068,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [ChromeEarlGreyUI waitForAppToIdle];
 
   // Assert that "Delete" button is displayed.
-  [[EarlGrey selectElementWithMatcher:grey_kindOfClassName(
-                                          @"UISwipeActionStandardButton")]
+  [[EarlGrey selectElementWithMatcher:SwipeActionDeleteButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Swipe the next affiliated group until the "Delete" button is revealed.
@@ -4044,8 +4080,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [ChromeEarlGreyUI waitForAppToIdle];
 
   // Assert that "Delete" button is displayed for the second affiliated group.
-  [[EarlGrey selectElementWithMatcher:grey_kindOfClassName(
-                                          @"UISwipeActionStandardButton")]
+  [[EarlGrey selectElementWithMatcher:SwipeActionDeleteButton()]
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 

@@ -10,7 +10,7 @@
 
 #include "rtc_base/event_tracer.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "api/units/time_delta.h"
 #include "rtc_base/trace_event.h"
@@ -19,11 +19,10 @@
 #include "rtc_base/trace_categories.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #else
-#include <inttypes.h>
-#include <stdint.h>
-#include <string.h>
-
 #include <atomic>
+#include <cinttypes>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 

@@ -34,8 +34,8 @@ namespace webrtc {
 namespace test {
 namespace {
 
-const DataRate kInitialBitrate = DataRate::KilobitsPerSec(60);
-const Timestamp kDefaultStartTime = Timestamp::Millis(10000000);
+constexpr DataRate kInitialBitrate = DataRate::KilobitsPerSec(60);
+constexpr Timestamp kDefaultStartTime = Timestamp::Millis(10000000);
 
 constexpr double kDataRateMargin = 0.20;
 constexpr double kMinDataRateFactor = 1 - kDataRateMargin;

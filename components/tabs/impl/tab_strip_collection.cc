@@ -276,6 +276,17 @@ TabGroupTabCollection* TabStripCollection::GetTabGroupCollection(
   return group_mapping_.at(group_id);
 }
 
+std::vector<tab_groups::TabGroupId> TabStripCollection::GetAllTabGroupIds()
+    const {
+  std::vector<tab_groups::TabGroupId> group_ids;
+  group_ids.reserve(group_mapping_.size());
+  for (const auto& pair : group_mapping_) {
+    group_ids.push_back(pair.first);
+  }
+
+  return group_ids;
+}
+
 void TabStripCollection::MoveTabGroupTo(const tab_groups::TabGroupId& group,
                                         int to_index) {
   tabs::TabGroupTabCollection* group_collection = GetTabGroupCollection(group);
@@ -340,6 +351,19 @@ void TabStripCollection::CreateTabGroup(
 void TabStripCollection::CloseDetachedTabGroup(
     const tab_groups::TabGroupId& group_id) {
   PopDetachedGroupCollection(group_id).reset();
+}
+
+TabGroupTabCollection* TabStripCollection::GetDetachedTabGroup(
+    const tab_groups::TabGroupId& group_id) {
+  auto it = std::find_if(
+      detached_group_collections_.begin(), detached_group_collections_.end(),
+      [group_id](const std::unique_ptr<TabGroupTabCollection>& collection) {
+        return collection->GetTabGroupId() == group_id;
+      });
+  if (it == detached_group_collections_.end()) {
+    return nullptr;
+  }
+  return it->get();
 }
 
 SplitTabCollection* TabStripCollection::GetSplitTabCollection(

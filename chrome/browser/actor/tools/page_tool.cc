@@ -267,6 +267,9 @@ mojom::ActionResultPtr PageTool::TimeOfUseValidation(
     return MakeResult(mojom::ActionResultCode::kTabWentAway);
   }
 
+  journal().Log(JournalURL(), task_id(), "TimeOfUseValidation",
+                "TabHandle:" + base::ToString(tab->GetHandle()));
+
   RenderFrameHost* frame =
       FindTargetLocalRootFrame(request_->GetTabHandle(), request_->GetTarget());
   if (!frame) {
@@ -277,6 +280,11 @@ mojom::ActionResultPtr PageTool::TimeOfUseValidation(
   // unnecessarily.
   observed_target_node_info_ = FindLastObservedNodeForActionTarget(
       last_observation, request_->GetTarget());
+
+  if (!observed_target_node_info_) {
+    journal().Log(JournalURL(), task_id(), "TimeOfUseValidation",
+                  "No observed target found in APC.");
+  }
 
   // Perform validation for coordinate based target only.
   // TODO(bokan): We can't perform a TOCTOU check If there's no last
@@ -384,8 +392,9 @@ std::unique_ptr<ObservationDelayController> PageTool::GetObservationDelayer()
   return std::make_unique<ObservationDelayController>(*frame);
 }
 
-void PageTool::UpdateTaskBeforeInvoke(ActorTask& task) const {
-  task.AddToTabSet(request_->GetTabHandle());
+void PageTool::UpdateTaskBeforeInvoke(ActorTask& task,
+                                      InvokeCallback callback) const {
+  task.AddTab(request_->GetTabHandle(), std::move(callback));
 }
 
 void PageTool::FinishInvoke(mojom::ActionResultPtr result) {

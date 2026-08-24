@@ -10,9 +10,8 @@
 
 #include "pc/peer_connection.h"
 
-#include <limits.h>
-#include <stddef.h>
-
+#include <climits>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -298,6 +297,7 @@ RTCErrorOr<PeerConnectionInterface::RTCConfiguration> ApplyConfiguration(
       existing_configuration;
   modified_config.servers = configuration.servers;
   modified_config.type = configuration.type;
+  modified_config.crypto_options = configuration.crypto_options;
   modified_config.ice_candidate_pool_size =
       configuration.ice_candidate_pool_size;
   modified_config.prune_turn_ports = configuration.prune_turn_ports;
@@ -687,11 +687,9 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.disable_encryption = options_.disable_encryption;
   config.bundle_policy = configuration.bundle_policy;
   config.rtcp_mux_policy = configuration.rtcp_mux_policy;
-  // TODO(bugs.webrtc.org/9891) - Remove options_.crypto_options then remove
-  // this stub.
   config.crypto_options = configuration.crypto_options.has_value()
                               ? *configuration.crypto_options
-                              : options_.crypto_options;
+                              : CryptoOptions();
 
   // Maybe enable PQC from FieldTrials
   config.crypto_options.ephemeral_key_exchange_cipher_groups.Update(
@@ -780,12 +778,13 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
             }));
       });
   transport_controller_->SubscribeIceCandidatesRemoved(
-      [this](const std::vector<Candidate>& c) {
+      [this](IceTransportInternal* transport, const std::vector<Candidate>& c) {
         RTC_DCHECK_RUN_ON(network_thread());
-        signaling_thread()->PostTask(
-            SafeTask(signaling_thread_safety_.flag(), [this, c = c]() {
+        std::string mid = transport->transport_name();
+        signaling_thread()->PostTask(SafeTask(
+            signaling_thread_safety_.flag(), [this, mid = mid, c = c]() {
               RTC_DCHECK_RUN_ON(signaling_thread());
-              OnTransportControllerCandidatesRemoved(c);
+              OnTransportControllerCandidatesRemoved(mid, c);
             }));
       });
   transport_controller_->SubscribeIceCandidatePairChanged(
@@ -2078,12 +2077,24 @@ void PeerConnection::OnIceCandidateError(const std::string& address,
 }
 
 void PeerConnection::OnIceCandidatesRemoved(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
   if (IsClosed()) {
     return;
   }
-  RunWithObserver(
-      [&](auto observer) { observer->OnIceCandidatesRemoved(candidates); });
+  // Since this callback is based on the Candidate type, and not IceCandidate,
+  // all candidate instances should have the transport_name() property set to
+  // `mid`. See BasicPortAllocatorSession::PrunePortsAndRemoveCandidates for
+  // where the list of candidates is initially gathered.
+  std::vector<Candidate> candidates_for_notification;
+  candidates_for_notification.reserve(candidates.size());
+  for (Candidate candidate : candidates) {  // Create a copy.
+    candidate.set_transport_name(mid);
+    candidates_for_notification.push_back(candidate);
+  }
+  RunWithObserver([&](auto observer) {
+    observer->OnIceCandidatesRemoved(candidates_for_notification);
+  });
 }
 
 void PeerConnection::OnSelectedCandidatePairChanged(
@@ -2457,18 +2468,11 @@ void PeerConnection::OnTransportControllerCandidateError(
 }
 
 void PeerConnection::OnTransportControllerCandidatesRemoved(
+    absl::string_view mid,
     const std::vector<Candidate>& candidates) {
-  // Sanity check.
-  for (const Candidate& candidate : candidates) {
-    if (candidate.transport_name().empty()) {
-      RTC_LOG(LS_ERROR) << "OnTransportControllerCandidatesRemoved: "
-                           "empty content name in candidate "
-                        << candidate.ToString();
-      return;
-    }
-  }
-  sdp_handler_->RemoveLocalIceCandidates(candidates);
-  OnIceCandidatesRemoved(candidates);
+  RTC_DCHECK(!mid.empty());
+  sdp_handler_->RemoveLocalIceCandidates(mid, candidates);
+  OnIceCandidatesRemoved(mid, candidates);
 }
 
 void PeerConnection::OnTransportControllerCandidateChanged(
@@ -2968,11 +2972,10 @@ RTCError PeerConnection::StartSctpTransport(const SctpOptions& options) {
 
 CryptoOptions PeerConnection::GetCryptoOptions() {
   RTC_DCHECK_RUN_ON(signaling_thread());
-  // TODO(bugs.webrtc.org/9891) - Remove PeerConnectionFactory::CryptoOptions
-  // after it has been removed.
-  return configuration_.crypto_options.has_value()
-             ? *configuration_.crypto_options
-             : options_.crypto_options;
+  if (!configuration_.crypto_options) {
+    configuration_.crypto_options = CryptoOptions();
+  }
+  return *configuration_.crypto_options;
 }
 
 void PeerConnection::ClearStatsCache() {

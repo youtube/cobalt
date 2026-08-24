@@ -9,8 +9,7 @@
  */
 #include "rtc_base/experiments/quality_scaling_experiment.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <optional>
 #include <string>
 

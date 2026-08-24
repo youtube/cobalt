@@ -57,7 +57,6 @@
 #include "gpu/vulkan/buildflags.h"
 #include "ipc/ipc_channel_handle.h"
 #include "ipc/ipc_sync_channel.h"
-#include "ipc/ipc_sync_message_filter.h"
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
@@ -117,7 +116,7 @@
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
-#include "components/viz/common/gpu/metal_context_provider.h"
+#include "gpu/command_buffer/service/metal_context_provider.h"
 #endif
 
 #if BUILDFLAG(CLANG_PROFILING_INSIDE_SANDBOX)
@@ -497,6 +496,8 @@ void GpuServiceImpl::InitializeWithHostInternal(
   scheduler_ = scheduler;
   shutdown_event_ = shutdown_event;
 
+  use_shader_cache_shm_count_ = std::move(use_shader_cache_shm_count);
+
   mojo::Remote<mojom::GpuHost> gpu_host(std::move(pending_gpu_host));
 
 #if BUILDFLAG(IS_LINUX)
@@ -515,8 +516,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
       gpu_preferences_, this, watchdog_thread_.get(), main_runner_, io_runner_,
       scheduler_, sync_point_manager, shared_image_manager,
       gpu_memory_buffer_factory_.get(), gpu_feature_info_,
-      std::move(use_shader_cache_shm_count),
-      std::move(default_offscreen_surface),
+      &use_shader_cache_shm_count_, std::move(default_offscreen_surface),
       image_decode_accelerator_worker_.get(), vulkan_context_provider(),
       metal_context_provider(), dawn_context_provider(),
       dawn_caching_interface_factory(), gr_context_options_provider_);
@@ -526,6 +526,11 @@ void GpuServiceImpl::InitializeWithHostInternal(
 
   // Create and Initialize compositor gpu thread.
   if (features::IsDrDcEnabled(gpu_feature_info_)) {
+    // Add a crash key for DrDC.
+    static auto* drdc_crash_key = base::debug::AllocateCrashKeyString(
+        "is-drdc-enabled", base::debug::CrashKeySize::Size32);
+    base::debug::SetCrashKeyString(drdc_crash_key, "1");
+
     CompositorGpuThread::CreateParams params;
     params.gpu_channel_manager = gpu_channel_manager_.get();
     params.display =
@@ -541,11 +546,21 @@ void GpuServiceImpl::InitializeWithHostInternal(
                               : nullptr;
 #endif
 #if BUILDFLAG(SKIA_USE_DAWN)
+    // Initialize the thread-safe GraphiteSharedContext before starting the DrDC
+    // thread to prevent a race on accessing it via SharedContextState.
+    if (dawn_context_provider_ &&
+        dawn_context_provider_->use_thread_safe_shared_context()) {
+      dawn_context_provider_->InitializeThreadSafeGraphiteContext(
+          gpu::GetDefaultGraphiteContextOptions(gpu_driver_bug_workarounds_),
+          &use_shader_cache_shm_count_);
+    }
     params.dawn_context_provider = dawn_context_provider_.get();
 #endif
 
     compositor_gpu_thread_ = CompositorGpuThread::Create(params);
   }
+
+  UMA_HISTOGRAM_BOOLEAN("GPU.DrDcEnabled", !!compositor_gpu_thread_);
 
 #if BUILDFLAG(IS_WIN)
   // Add GpuServiceImpl to DirectCompositionOverlayCapsMonitor observer list for
@@ -1332,13 +1347,6 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   // corresponding to a mailbox.
   const bool display_context_on_another_thread =
       features::IsDrDcEnabled(gpu_feature_info_);
-
-  // Record the crash key for DrDC.
-  if (display_context_on_another_thread) {
-    static auto* drdc_crash_key = base::debug::AllocateCrashKeyString(
-        "is-drdc-enabled", base::debug::CrashKeySize::Size32);
-    base::debug::SetCrashKeyString(drdc_crash_key, "1");
-  }
 
   // |display_context_on_another_thread|, features::IsUsingRawDraw(),
   // kAlwaysUseRealBufferTestingOnOzone, and kSharedBitmapToSharedImage

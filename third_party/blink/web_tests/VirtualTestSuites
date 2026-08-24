@@ -233,9 +233,9 @@
       "--force-color-profile=color-spin-gamma24"
     ],
     "owners": [
-      "fserb@chromium.org"
+      "ccameron@chromium.org"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "composite-clip-path-animation",
@@ -339,7 +339,7 @@
     "owners": [
       "johannhof@chromium.org"
     ],
-    "expires": "Jul 1, 2024"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "cors-non-wildcard-request-headers",
@@ -647,8 +647,8 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions",
-      "--disable-features=DeviceBoundSessionsRefreshQuota"
+      "--enable-features=EnableBoundSessionCredentialsSoftwareKeysForManualTesting,DeviceBoundSessions,DeviceBoundSessionsOriginTrialFeedback",
+      "--disable-features=DeviceBoundSessionsRefreshQuota,TrackingProtection3pcd"
     ],
     "expires": "never"
   },
@@ -685,7 +685,7 @@
     "args": [
       "--enable-features=DevToolsImprovedNetworkError"
     ],
-    "expires": "Mar 1, 2025",
+    "expires": "Jan 1, 2026",
     "owners": [
       "bmeurer@google.com",
       "changhaohan@google.com"
@@ -749,6 +749,21 @@
     ],
     "owners": [
       "abotella@igalia.com"
+    ]
+  },
+  {
+    "prefix": "disable-css-masonry-layout",
+    "platforms": [
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/css/css-grid/parsing"
+    ],
+    "args": [
+      "--disable-blink-features=CSSMasonryLayout"
+    ],
+    "owners": [
+      "almaher@microsoft.com"
     ]
   },
   {
@@ -934,7 +949,6 @@
   {
     "prefix": "exotic-color-space",
     "owners": [
-      "masonf@chromium.org",
       "ccameron@chromium.org"
     ],
     "platforms": [
@@ -949,7 +963,7 @@
       "--force-color-profile=srgb",
       "--force-raster-color-profile=color-spin-gamma24"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "expect-no-linked-resources",
@@ -1558,9 +1572,9 @@
       "--force-color-profile=scrgb-linear"
     ],
     "owners": [
-      "fserb@chromium.org"
+      "ccameron@chromium.org"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "hidpi",
@@ -1631,7 +1645,8 @@
     ],
     "bases": [
       "external/wpt/IndexedDB",
-      "storage/indexeddb"
+      "storage/indexeddb",
+      "wpt_internal/IndexedDB"
     ],
     "args": [
       "--enable-features=IdbSqliteBackingStore"
@@ -2386,7 +2401,7 @@
     ],
     "bases": [],
     "args": [
-      "--disable-blink-features=PermissionElement"
+      "--disable-blink-features=PermissionElement,GeolocationElement"
     ],
     "owners": [
       "permissions-core@google.com"
@@ -2511,6 +2526,7 @@
       "Win"
     ],
     "bases": [
+      "external/wpt/cookies/origin-bound-cookies/port-bound-cookies.html",
       "http/tests/inspector-protocol/issues/port-mismatch-exclusion.js",
       "http/tests/inspector-protocol/network/blocked-cookie-port-mismatch.js"
     ],
@@ -2964,6 +2980,7 @@
       "Win"
     ],
     "bases": [
+      "external/wpt/cookies/origin-bound-cookies/scheme-bound-cookies.https.html",
       "http/tests/inspector-protocol/issues/scheme-mismatch-exclusion.js",
       "http/tests/inspector-protocol/network/blocked-cookie-scheme-mismatch.js"
     ],
@@ -5136,6 +5153,7 @@
       "external/wpt/webnn/conformance_tests/max.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/maxPool2d.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/min.https.any.html?cpu",
+      "external/wpt/webnn/conformance_tests/mlNumber.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/mul.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/neg.https.any.html?cpu",
       "external/wpt/webnn/conformance_tests/not_equal.https.any.html?cpu",
@@ -5398,6 +5416,7 @@
       "external/wpt/webnn/conformance_tests/max.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/maxPool2d.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/min.https.any.html?npu",
+      "external/wpt/webnn/conformance_tests/mlNumber.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/mul.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/neg.https.any.html?npu",
       "external/wpt/webnn/conformance_tests/not_equal.https.any.html?npu",
@@ -5591,6 +5610,7 @@
   {
     "prefix": "webnn-service-with-gpu",
     "platforms": [
+      "Linux",
       "Win",
       "Mac"
     ],
@@ -5660,6 +5680,7 @@
       "external/wpt/webnn/conformance_tests/max.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/maxPool2d.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/min.https.any.html?gpu",
+      "external/wpt/webnn/conformance_tests/mlNumber.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/mul.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/neg.https.any.html?gpu",
       "external/wpt/webnn/conformance_tests/not_equal.https.any.html?gpu",

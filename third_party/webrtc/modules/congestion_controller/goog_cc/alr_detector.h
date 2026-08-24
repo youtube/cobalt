@@ -11,13 +11,13 @@
 #ifndef MODULES_CONGESTION_CONTROLLER_GOOG_CC_ALR_DETECTOR_H_
 #define MODULES_CONGESTION_CONTROLLER_GOOG_CC_ALR_DETECTOR_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <memory>
 #include <optional>
 
 #include "api/field_trials_view.h"
+#include "api/units/data_rate.h"
+#include "api/units/data_size.h"
+#include "api/units/timestamp.h"
 #include "modules/pacing/interval_budget.h"
 #include "rtc_base/experiments/struct_parameters_parser.h"
 
@@ -50,23 +50,23 @@ class AlrDetector {
   AlrDetector(const FieldTrialsView* key_value_config, RtcEventLog* event_log);
   ~AlrDetector();
 
-  void OnBytesSent(size_t bytes_sent, int64_t send_time_ms);
+  void OnBytesSent(DataSize bytes_sent, Timestamp send_time);
 
   // Set current estimated bandwidth.
-  void SetEstimatedBitrate(int bitrate_bps);
+  void SetEstimatedBitrate(DataRate bitrate);
 
   // Returns time in milliseconds when the current application-limited region
   // started or empty result if the sender is currently not application-limited.
-  std::optional<int64_t> GetApplicationLimitedRegionStartTime() const;
+  std::optional<Timestamp> GetApplicationLimitedRegionStartTime() const;
 
  private:
   friend class GoogCcStatePrinter;
   const AlrDetectorConfig conf_;
 
-  std::optional<int64_t> last_send_time_ms_;
+  std::optional<Timestamp> last_send_time_;
 
   IntervalBudget alr_budget_;
-  std::optional<int64_t> alr_started_time_ms_;
+  std::optional<Timestamp> alr_started_time_;
 
   RtcEventLog* event_log_;
 };

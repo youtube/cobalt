@@ -46,6 +46,7 @@ blink_python_runner("make_generated_features") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/features_generated.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
   outputs = [ "$root_gen_dir/third_party/blink/common/features_generated.cc" ]
 
@@ -70,6 +71,7 @@ blink_python_runner("make_generated_origin_trials") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/origin_trials.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
   outputs = [
     "$root_gen_dir/third_party/blink/common/origin_trials/origin_trials.cc",
@@ -93,6 +95,7 @@ blink_python_runner("make_runtime_feature_state_contexts_impl") {
              "../renderer/build/scripts/make_runtime_features.py",
              "../renderer/build/scripts/templates/runtime_feature_state_context.cc.tmpl",
              "../renderer/platform/runtime_enabled_features.json5",
+             "../renderer/platform/runtime_enabled_features.override.json5",
            ]
 
   outputs = [ "$root_gen_dir/third_party/blink/common/runtime_feature_state/runtime_feature_state_context.cc" ]
@@ -292,8 +295,8 @@ source_set("common") {
     ":make_generated_features",
     ":make_generated_origin_trials",
     ":make_runtime_feature_state_contexts_impl",
-    "//components/viz/common:common",
-    "//third_party/blink/common/privacy_budget:privacy_budget",
+    "//components/viz/common",
+    "//third_party/blink/common/privacy_budget",
     "//third_party/blink/public/common:common_export",
     "//third_party/blink/public/common:headers",
     "//ui/base/mojom:ui_base_types",
@@ -309,13 +312,13 @@ source_set("common") {
     "//net",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
-    "//services/metrics/public/mojom:mojom",
-    "//services/network/public/cpp:cpp",
+    "//services/metrics/public/mojom",
+    "//services/network/public/cpp",
     "//services/network/public/mojom:mojom_permissions_policy",
     "//third_party/blink/common/rust_crash",
     "//third_party/blink/public/common:buildflags",
     "//third_party/re2",
-    "//ui/base:base",
+    "//ui/base",
     "//ui/base/dragdrop/mojom:mojom_shared",
     "//ui/base/mojom",
     "//ui/display",
@@ -361,7 +364,7 @@ test("blink_common_unittests") {
     ":common_unittests_sources",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
-    "//services/metrics/public/mojom:mojom",
+    "//services/metrics/public/mojom",
     "//third_party/blink/common/privacy_budget:unit_tests",
     "//third_party/blink/public/common",
     "//ui/gfx:test_support",
@@ -459,7 +462,7 @@ source_set("common_unittests_sources") {
     "//net:test_support",
     "//services/device:test_support",
     "//services/network:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//skia/public/mojom",
     "//testing/gmock",
     "//testing/gtest",

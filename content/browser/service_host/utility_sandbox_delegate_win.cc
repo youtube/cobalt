@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/win/scoped_handle.h"
 #include "base/win/windows_handle_util.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
@@ -357,8 +358,7 @@ bool UtilitySandboxedProcessLauncherDelegate::InitializeConfig(
       return false;
     }
 
-    config->SetFilterEnvironment(base::FeatureList::IsEnabled(
-        sandbox::policy::features::kWinSboxFilterServiceEnvironment));
+    config->SetFilterEnvironment(true);
   }
 
   if (sandbox_type_ == sandbox::mojom::Sandbox::kService) {
@@ -421,7 +421,13 @@ bool UtilitySandboxedProcessLauncherDelegate::PreSpawnTarget(
 
 void UtilitySandboxedProcessLauncherDelegate::SetBootstrapStatusEvent(
     const base::WaitableEvent& event) {
-  event_handle_to_inherit_.emplace(event.handle());
+  CHECK(!event_handle_to_inherit_)
+      << "SetBootstrapStatusEvent should only be called once.";
+  HANDLE dup_handle;
+  CHECK(::DuplicateHandle(
+      ::GetCurrentProcess(), event.handle(), ::GetCurrentProcess(), &dup_handle,
+      EVENT_MODIFY_STATE, /*bInheritHandle=*/TRUE, /*dwOptions=*/0));
+  event_handle_to_inherit_.emplace(base::win::ScopedHandle(dup_handle));
 }
 
 void UtilitySandboxedProcessLauncherDelegate::AddDelegateData(
@@ -434,8 +440,8 @@ void UtilitySandboxedProcessLauncherDelegate::AddDelegateData(
 
   if (event_handle_to_inherit_) {
     sandbox_config->bootstrap_event_handle =
-        base::win::HandleToUint32(*event_handle_to_inherit_);
-    policy->AddHandleToShare(*event_handle_to_inherit_);
+        base::win::HandleToUint32(event_handle_to_inherit_->Get());
+    policy->AddHandleToShare(event_handle_to_inherit_->Get());
   }
 
   std::vector<uint8_t> blob =

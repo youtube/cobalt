@@ -79,6 +79,10 @@ rtc_library("alr_detector") {
   deps = [
     "../../../api:field_trials_view",
     "../../../api/rtc_event_log",
+    "../../../api/units:data_rate",
+    "../../../api/units:data_size",
+    "../../../api/units:time_delta",
+    "../../../api/units:timestamp",
     "../../../logging:rtc_event_pacing",
     "../../../rtc_base:checks",
     "../../../rtc_base:safe_conversions",
@@ -312,6 +316,7 @@ if (rtc_include_tests) {
         "../../../test/scenario:column_printer",
         "../../pacing",
         "//testing/gmock",
+        "//third_party/abseil-cpp/absl/base:nullability",
         "//third_party/abseil-cpp/absl/strings:string_view",
       ]
     }

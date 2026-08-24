@@ -621,29 +621,34 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
 }
 
 IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest,
-                       MiniToolbarShownForInactiveContents) {
+                       MiniToolbarVisibilityForContents) {
+  bool visible_on_active_contents =
+      features::kSideBySideMiniToolbarActiveConfiguration.Get() !=
+      features::MiniToolbarActiveConfiguration::Hide;
   RunTestSequence(
       // Open split view.
       CreateTabsAndEnterSplitView(), WaitForActiveTabChange(0),
-      // Verify the mini toolbar is only visible for the inactive contents.
+      // Verify the mini toolbar is visible for the inactive contents.
       Check([&]() {
-        return !multi_contents_view()
-                    ->mini_toolbar_for_testing(0)
-                    ->GetVisible();
+        return multi_contents_view()
+                   ->mini_toolbar_for_testing(0)
+                   ->GetVisible() == visible_on_active_contents;
       }),
+      // Verify the mini toolbar visibility on active contents.
       Check([&]() {
         return multi_contents_view()->mini_toolbar_for_testing(1)->GetVisible();
       }),
       // Focus inactive contents and verify active tab.
       FocusInactiveTabInSplit(), WaitForActiveTabChange(1),
-      // Verify the mini toolbar is only visile for the newly inactive contents.
+      // Verify the mini toolbar is only visible on the newly inactive contents.
       Check([&]() {
         return multi_contents_view()->mini_toolbar_for_testing(0)->GetVisible();
       }),
+      // Verify the mini toolbar visibility on the newly active contents.
       Check([&]() {
-        return !multi_contents_view()
-                    ->mini_toolbar_for_testing(1)
-                    ->GetVisible();
+        return multi_contents_view()
+                   ->mini_toolbar_for_testing(1)
+                   ->GetVisible() == visible_on_active_contents;
       }));
 }
 
@@ -732,6 +737,24 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, CoordinateScrimShowReasons) {
       // The scrim should hide after the prompt is closed because there is no
       // longer any reason to continue showing the scrim.
       SimulateTriggeringPermissionPrompt(false),
+      WaitForHide(MultiContentsView::kEndContainerViewScrimElementId));
+}
+
+IN_PROC_BROWSER_TEST_F(MultiContentsViewUiTest, ScrimShowsForPageInfoBubble) {
+  RunTestSequence(
+      EnsureNotPresent(MultiContentsView::kStartContainerViewScrimElementId),
+      EnsureNotPresent(MultiContentsView::kEndContainerViewScrimElementId),
+      InstrumentTab(kNewTab),
+      NavigateWebContents(kNewTab, GURL(chrome::kChromeUISettingsURL)),
+      AddInstrumentedTab(kSecondTab, GetTestUrl()),
+      SelectTab(kTabStripElementId, 0), EnterSplitView(0, 1),
+      FocusElement(kNewTab),
+      WaitForHide(MultiContentsView::kEndContainerViewScrimElementId),
+      PressButton(kLocationIconElementId),
+      WaitForShow(MultiContentsView::kEndContainerViewScrimElementId),
+      // Clicking the location icon again should close the page info bubble and
+      // hide the scrim.
+      MoveMouseTo(kLocationIconElementId), ClickMouse(),
       WaitForHide(MultiContentsView::kEndContainerViewScrimElementId));
 }
 

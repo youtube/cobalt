@@ -436,6 +436,16 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       [ChromeMatchersAppInterface buttonWithAccessibilityLabelID:(IDS_CANCEL)];
 }
 
++ (id<GREYMatcher>)actionSheetCancelButton {
+  return [ChromeMatchersAppInterface
+      actionSheetItemWithAccessibilityLabelID:IDS_CANCEL];
+}
+
++ (id<GREYMatcher>)closeButton {
+  return
+      [ChromeMatchersAppInterface buttonWithAccessibilityLabelID:(IDS_CLOSE)];
+}
+
 + (id<GREYMatcher>)navigationBarCancelButton {
   return grey_allOf(
       grey_ancestor(grey_kindOfClass([UINavigationBar class])),
@@ -479,6 +489,10 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 + (id<GREYMatcher>)stopButton {
   return [ChromeMatchersAppInterface
       buttonWithAccessibilityLabelID:(IDS_IOS_ACCNAME_STOP)];
+}
+
++ (id<GREYMatcher>)searchBarClearTextButton {
+  return [self buttonWithAccessibilityLabel:@"Clear text"];
 }
 
 + (id<GREYMatcher>)omnibox {
@@ -989,16 +1003,6 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
   return grey_accessibilityID(kSettingsSafetyCheckCellId);
 }
 
-// TODO(crbug.com/40106317): Remove this stub.
-+ (id<GREYMatcher>)paymentRequestView {
-  return nil;
-}
-
-// TODO(crbug.com/40106317): Remove this stub.
-+ (id<GREYMatcher>)paymentRequestErrorView {
-  return nil;
-}
-
 + (id<GREYMatcher>)voiceSearchButton {
   return grey_allOf(grey_accessibilityID(kSettingsVoiceSearchCellId),
                     grey_accessibilityTrait(UIAccessibilityTraitButton), nil);
@@ -1091,23 +1095,14 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       grey_interactable(), nil);
 }
 
-// TODO(crbug.com/40106317): Remove this stub.
-+ (id<GREYMatcher>)warningMessageView {
-  return nil;
-}
-
-// TODO(crbug.com/40106317): Remove this stub.
-+ (id<GREYMatcher>)paymentRequestPickerRow {
-  return nil;
-}
-
-// TODO(crbug.com/40106317): Remove this stub.
-+ (id<GREYMatcher>)paymentRequestPickerSearchBar {
-  return nil;
-}
-
 + (id<GREYMatcher>)openNewWindowMenuButton {
   return grey_accessibilityID(kToolsMenuNewWindowId);
+}
+
++ (id<GREYMatcher>)searchBar {
+  // Match using the accessibility trait for a search field.
+  return grey_allOf(grey_accessibilityTrait(UIAccessibilityTraitSearchField),
+                    grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)copyActivityButton {
@@ -1151,6 +1146,19 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 + (id<GREYMatcher>)deleteButton {
   return [ChromeMatchersAppInterface
       contextMenuItemWithAccessibilityLabelID:IDS_IOS_DELETE_ACTION_TITLE];
+}
+
++ (id<GREYMatcher>)swipeActionDeleteButton {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  NSString* buttonClass = @"_UISwipeActionDynamicButton";
+#else
+  NSString* buttonClass = @"UISwipeActionStandardButton";
+#endif
+  return grey_allOf(
+      [ChromeMatchersAppInterface
+          buttonWithAccessibilityLabelID:IDS_IOS_DELETE_ACTION_TITLE],
+      grey_accessibilityTrait(UIAccessibilityTraitButton),
+      grey_kindOfClassName(buttonClass), grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)contextMenuCopyButton {

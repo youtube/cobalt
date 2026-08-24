@@ -99,7 +99,7 @@ using ModelExecutionError =
 ModelExecutionManager::ModelExecutionManager(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     signin::IdentityManager* identity_manager,
-    scoped_refptr<OnDeviceModelServiceController>
+    base::WeakPtr<OnDeviceModelServiceController>
         on_device_model_service_controller,
     OptimizationGuideLogger* optimization_guide_logger,
     base::WeakPtr<ModelQualityLogsUploaderService>
@@ -386,19 +386,19 @@ ModelExecutionManager::GetOnDeviceModelEligibility(
   return on_device_model_service_controller_->CanCreateSession(feature);
 }
 
-std::optional<optimization_guide::OnDeviceModelAdaptationMetadata>
+std::optional<OnDeviceModelAdaptationMetadata>
 ModelExecutionManager::GetOnDeviceModelAdaptationMetadata(
-    optimization_guide::ModelBasedCapabilityKey feature) {
+    ModelBasedCapabilityKey feature) {
   if (!on_device_model_service_controller_) {
     return std::nullopt;
   }
 
-  optimization_guide::OnDeviceModelAdaptationMetadata* metadata =
+  MaybeAdaptationMetadata metadata =
       on_device_model_service_controller_->GetFeatureMetadata(feature);
-  if (!metadata) {
+  if (!metadata.has_value()) {
     return std::nullopt;
   }
-  return *metadata;
+  return metadata.value();
 }
 
 std::optional<optimization_guide::SamplingParamsConfig>

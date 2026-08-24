@@ -21,6 +21,7 @@ vars = {
   'checkout_go': True,
   'checkout_fuzzer': False,
   'checkout_perl': True,
+  'checkout_rust': False,
   'checkout_sde': False,
   'checkout_nasm': False,
   'checkout_libcxx': False,
@@ -53,7 +54,12 @@ vars = {
 
   # Update to the latest revision of
   # https://chromium.googlesource.com/chromium/src/tools/clang
-  'tools_clang_revision': '222883ecc9931686c1ae27764ef2a66b2d8d7e10',
+  'tools_clang_revision': '3454fad2d461a3d0ba08a55daede8bc183e403ad',
+
+  # Update to the latest revision of
+  # https://chromium.googlesource.com/chromium/src/tools/rust
+  # and also ensure that `tools_clang_revision` above is up-to-date.
+  'tools_rust_revision': '51c21fc75b69394363af6f2796970ea944a7379f',
 
   # The Android NDK cannot be updated until https://crbug.com/42290318 is fixed.
   # We rely on an older NDK to test building without NEON instructions as the baseline.
@@ -163,7 +169,13 @@ deps = {
 
   'boringssl/util/bot/tools/clang': {
     'url': Var('chromium_git') + '/chromium/src/tools/clang.git' + '@' + Var('tools_clang_revision'),
-    'condition': 'checkout_clang',
+    # tools/rust/update_rust.py depends upon tools/clang/scripts/update.py.
+    'condition': 'checkout_clang or checkout_rust',
+  },
+
+  'boringssl/util/bot/tools/rust': {
+    'url': Var('chromium_git') + '/chromium/src/tools/rust.git' + '@' + Var('tools_rust_revision'),
+    'condition': 'checkout_rust',
   },
 }
 
@@ -191,6 +203,15 @@ hooks = [
     'action': [ 'python3',
                 'boringssl/util/bot/tools/clang/scripts/update.py',
                 '--output-dir', 'boringssl/util/bot/llvm-build',
+    ],
+  },
+  {
+    'name': 'rust',
+    'pattern': '.',
+    'condition': 'checkout_rust',
+    'action': [ 'python3',
+                'boringssl/util/bot/tools/rust/update_rust.py',
+                '--output-dir', 'boringssl/util/bot/rust-toolchain',
     ],
   },
   {

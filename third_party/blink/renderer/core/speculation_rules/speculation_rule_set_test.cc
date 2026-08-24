@@ -345,6 +345,24 @@ void AssertParseError(const SpeculationRuleSet* rule_set) {
   EXPECT_THAT(rule_set->prerender_rules(), ElementsAre());
 }
 
+TEST_F(SpeculationRuleSetTest, PrerenderUntilScript) {
+  auto* rule_set = CreateRuleSet(
+      R"({
+        "prerender_until_script": [{
+        "source": "list",
+        "urls": ["https://example.com/index2.html"]
+      }]
+    })",
+      KURL("https://example.com/"), execution_context());
+
+  EXPECT_THAT(rule_set->prefetch_rules(), ElementsAre());
+  EXPECT_THAT(rule_set->prefetch_with_subresources_rules(), ElementsAre());
+  EXPECT_THAT(rule_set->prerender_rules(), ElementsAre());
+  EXPECT_THAT(
+      rule_set->prerender_until_script_rules(),
+      ElementsAre(MatchesListOfURLs("https://example.com/index2.html")));
+}
+
 TEST_F(SpeculationRuleSetTest, RejectsInvalidJSON) {
   auto* rule_set = CreateRuleSet("[invalid]", KURL("https://example.com"),
                                  execution_context());
@@ -374,12 +392,12 @@ TEST_F(SpeculationRuleSetTest, RejectsComments) {
 
 TEST_F(SpeculationRuleSetTest, SimplePrefetchRule) {
   auto* rule_set = CreateRuleSet(
-      R"({
-        "prefetch": [{
-          "source": "list",
-          "urls": ["https://example.com/index2.html"]
-        }]
-      })",
+    R"({
+      "prefetch": [{
+        "source": "list",
+        "urls": ["https://example.com/index2.html"]
+      }]
+    })",
       KURL("https://example.com/"), execution_context());
   ASSERT_TRUE(rule_set);
   EXPECT_EQ(rule_set->error_type(), SpeculationRuleSetErrorType::kNoError);
@@ -4476,7 +4494,7 @@ TEST_F(SpeculationRuleSetTest, InvalidTag) {
       })",
       KURL("https://example.com/"), execution_context());
   EXPECT_EQ(rule_set->error_type(),
-            SpeculationRuleSetErrorType::kInvalidRulesSkipped);
+            SpeculationRuleSetErrorType::kInvalidRulesetLevelTag);
   EXPECT_TRUE(rule_set->error_message().Contains("Tag value"))
       << rule_set->error_message();
 
@@ -4492,7 +4510,7 @@ TEST_F(SpeculationRuleSetTest, InvalidTag) {
                                           tag),
                            KURL("https://example.com/"), execution_context());
   EXPECT_EQ(rule_set->error_type(),
-            SpeculationRuleSetErrorType::kInvalidRulesSkipped);
+            SpeculationRuleSetErrorType::kInvalidRulesetLevelTag);
   EXPECT_TRUE(rule_set->error_message().Contains("Tag value"))
       << rule_set->error_message();
 }

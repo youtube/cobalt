@@ -26,6 +26,7 @@
 #include "api/rtc_event_log_output.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
+#include "api/task_queue/task_queue_factory.h"
 #include "api/units/time_delta.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder_legacy.h"

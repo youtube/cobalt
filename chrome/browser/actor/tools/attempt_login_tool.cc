@@ -52,8 +52,9 @@ AttemptLoginTool::GetObservationDelayer() const {
       GetPrimaryMainFrameOfTab(tab_handle_));
 }
 
-void AttemptLoginTool::UpdateTaskBeforeInvoke(ActorTask& task) const {
-  task.AddToTabSet(tab_handle_);
+void AttemptLoginTool::UpdateTaskBeforeInvoke(ActorTask& task,
+                                              InvokeCallback callback) const {
+  task.AddTab(tab_handle_, std::move(callback));
 }
 
 }  // namespace actor

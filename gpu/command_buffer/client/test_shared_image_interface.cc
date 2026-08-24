@@ -77,91 +77,6 @@ gfx::GpuMemoryBufferHandle CreateGMBHandle(
   return handle;
 }
 
-class GpuMemoryBufferImpl : public gfx::GpuMemoryBuffer {
- public:
-  GpuMemoryBufferImpl(const gfx::Size& size,
-                      gfx::BufferFormat format,
-                      base::UnsafeSharedMemoryRegion shared_memory_region,
-                      size_t offset,
-                      size_t stride)
-      : size_(size),
-        format_(format),
-        region_(std::move(shared_memory_region)),
-        offset_(offset),
-        stride_(stride),
-        mapped_(false) {}
-
-  ~GpuMemoryBufferImpl() override = default;
-
-  // Overridden from gfx::GpuMemoryBuffer:
-  bool Map() override {
-    DCHECK(!mapped_);
-    DCHECK_EQ(stride_, gfx::RowSizeForBufferFormat(size_.width(), format_, 0));
-    mapping_ = region_.MapAt(
-        0, offset_ + gfx::BufferSizeForBufferFormat(size_, format_));
-    if (!mapping_.IsValid()) {
-      return false;
-    }
-    mapped_ = true;
-    return true;
-  }
-  void* memory(size_t plane) override {
-    DCHECK(mapped_);
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return reinterpret_cast<uint8_t*>(mapping_.memory()) + offset_ +
-           gfx::BufferOffsetForBufferFormat(size_, format_, plane);
-  }
-  void Unmap() override {
-    DCHECK(mapped_);
-    mapping_ = base::WritableSharedMemoryMapping();
-    mapped_ = false;
-  }
-  gfx::Size GetSize() const override { return size_; }
-  gfx::BufferFormat GetFormat() const override { return format_; }
-  int stride(size_t plane) const override {
-    DCHECK_LT(plane, gfx::NumberOfPlanesForLinearBufferFormat(format_));
-    return base::checked_cast<int>(gfx::RowSizeForBufferFormat(
-        size_.width(), format_, static_cast<int>(plane)));
-  }
-  gfx::GpuMemoryBufferType GetType() const override {
-    return gfx::SHARED_MEMORY_BUFFER;
-  }
-  gfx::GpuMemoryBufferHandle CloneHandle() const override {
-    gfx::GpuMemoryBufferHandle handle(region_.Duplicate());
-    handle.offset = base::checked_cast<uint32_t>(offset_);
-    handle.stride = base::checked_cast<uint32_t>(stride_);
-    return handle;
-  }
-
- private:
-  const gfx::Size size_;
-  gfx::BufferFormat format_;
-  base::UnsafeSharedMemoryRegion region_;
-  base::WritableSharedMemoryMapping mapping_;
-  size_t offset_;
-  size_t stride_;
-  bool mapped_;
-};
-
-std::unique_ptr<gfx::GpuMemoryBuffer> CreateTestGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    gpu::SurfaceHandle surface_handle) {
-  const size_t buffer_size = gfx::BufferSizeForBufferFormat(size, format);
-  base::UnsafeSharedMemoryRegion shared_memory_region =
-      base::UnsafeSharedMemoryRegion::Create(buffer_size);
-  if (!shared_memory_region.IsValid()) {
-    return nullptr;
-  }
-
-  std::unique_ptr<gfx::GpuMemoryBuffer> result(new GpuMemoryBufferImpl(
-      size, format, std::move(shared_memory_region), 0,
-      base::checked_cast<int>(
-          gfx::RowSizeForBufferFormat(size.width(), format, 0))));
-  return result;
-}
-
 }  // namespace
 
 #if BUILDFLAG(IS_FUCHSIA)
@@ -305,36 +220,27 @@ scoped_refptr<ClientSharedImage> TestSharedImageInterface::CreateSharedImage(
   shared_images_.insert(mailbox);
   most_recent_size_ = si_info.meta.size;
 
-  auto buffer_format =
-      viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-          si_info.meta.format);
   // Copy which can be modified.
   SharedImageInfo si_info_copy = si_info;
   // Set CPU read/write usage based on buffer usage.
   si_info_copy.meta.usage |= GetCpuSIUsage(buffer_usage);
   if (use_test_gmb_) {
-    auto gpu_memory_buffer = CreateTestGpuMemoryBuffer(
-        si_info.meta.size, buffer_format, buffer_usage, surface_handle);
-
-    // Since the |gpu_memory_buffer| here is always a shared memory, clear the
-    // external sampler prefs if it is already set by client.
-    // https://issues.chromium.org/339546249.
-    if (si_info_copy.meta.format.PrefersExternalSampler()) {
-      si_info_copy.meta.format.ClearPrefersExternalSampler();
-    }
-    return ClientSharedImage::CreateForTesting(
-        mailbox, si_info_copy.meta, sync_token, std::move(gpu_memory_buffer),
-        buffer_usage, holder_);
+    auto client_si = ClientSharedImage::CreateForTesting(
+        mailbox, si_info_copy.meta, sync_token, buffer_usage, holder_);
+    most_recent_mappable_shared_image_ = client_si.get();
+    return client_si;
   }
 
-  auto gmb_handle =
-      CreateGMBHandle(buffer_format, si_info_copy.meta.size, buffer_usage);
+  auto gmb_handle = CreateGMBHandle(
+      viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
+          si_info.meta.format),
+      si_info_copy.meta.size, buffer_usage);
 
-  return base::MakeRefCounted<ClientSharedImage>(
+  auto client_si = base::MakeRefCounted<ClientSharedImage>(
       mailbox, si_info_copy, sync_token,
-      GpuMemoryBufferHandleInfo(std::move(gmb_handle), si_info_copy.meta.format,
-                                si_info_copy.meta.size, buffer_usage),
-      holder_);
+      GpuMemoryBufferHandleInfo(std::move(gmb_handle), buffer_usage), holder_);
+  most_recent_mappable_shared_image_ = client_si.get();
+  return client_si;
 }
 
 scoped_refptr<ClientSharedImage>
@@ -349,33 +255,18 @@ TestSharedImageInterface::CreateSharedImage(
   shared_images_.insert(mailbox);
   most_recent_size_ = si_info.meta.size;
 
-  auto buffer_format =
-      viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-          si_info.meta.format);
   // Copy which can be modified.
   SharedImageInfo si_info_copy = si_info;
   // Set CPU read/write usage based on buffer usage.
   si_info_copy.meta.usage |= GetCpuSIUsage(buffer_usage);
   if (use_test_gmb_) {
-    auto gpu_memory_buffer = CreateTestGpuMemoryBuffer(
-        si_info.meta.size, buffer_format, buffer_usage, surface_handle);
-
-    // Since the |gpu_memory_buffer| here is always a shared memory, clear the
-    // external sampler prefs if it is already set by client.
-    // https://issues.chromium.org/339546249.
-    if (si_info_copy.meta.format.PrefersExternalSampler()) {
-      si_info_copy.meta.format.ClearPrefersExternalSampler();
-    }
     return ClientSharedImage::CreateForTesting(
-        mailbox, si_info_copy.meta, sync_token, std::move(gpu_memory_buffer),
-        buffer_usage, holder_);
+        mailbox, si_info_copy.meta, sync_token, buffer_usage, holder_);
   }
 
   return base::MakeRefCounted<ClientSharedImage>(
       mailbox, si_info_copy, sync_token,
-      GpuMemoryBufferHandleInfo(std::move(buffer_handle),
-                                si_info_copy.meta.format,
-                                si_info_copy.meta.size, buffer_usage),
+      GpuMemoryBufferHandleInfo(std::move(buffer_handle), buffer_usage),
       holder_);
 }
 
@@ -460,6 +351,11 @@ void TestSharedImageInterface::DestroySharedImage(
     const SyncToken& sync_token,
     const Mailbox& mailbox) {
   base::AutoLock locked(lock_);
+  if (most_recent_mappable_shared_image_ &&
+      mailbox == most_recent_mappable_shared_image_->mailbox()) {
+    most_recent_mappable_shared_image_ = nullptr;
+  }
+
   shared_images_.erase(mailbox);
   most_recent_destroy_token_ = sync_token;
 

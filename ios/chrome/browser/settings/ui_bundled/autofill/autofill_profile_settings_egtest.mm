@@ -33,6 +33,7 @@ using chrome_test_util::ButtonWithAccessibilityLabel;
 using chrome_test_util::ButtonWithAccessibilityLabelId;
 using chrome_test_util::NavigationBarCancelButton;
 using chrome_test_util::NavigationBarDoneButton;
+using chrome_test_util::SearchBar;
 using chrome_test_util::SettingsDoneButton;
 using chrome_test_util::SettingsMenuBackButton;
 using chrome_test_util::SettingsToolbarAddButton;
@@ -104,20 +105,6 @@ id<GREYMatcher> NavigationBarEditButton() {
 // Matcher for a country entry with the given accessibility label.
 id<GREYMatcher> CountryEntry(NSString* label) {
   return grey_allOf(chrome_test_util::ButtonWithAccessibilityLabel(label),
-                    grey_sufficientlyVisible(), nil);
-}
-
-// Matcher for the search bar.
-id<GREYMatcher> SearchBar() {
-  return grey_allOf(grey_accessibilityID(kAutofillCountrySelectionTableViewId),
-                    grey_sufficientlyVisible(), nil);
-}
-
-// Matcher for the search bar's cancel button.
-id<GREYMatcher> SearchBarCancelButton() {
-  return grey_allOf(ButtonWithAccessibilityLabelId(IDS_APP_CANCEL),
-                    grey_kindOfClass([UIButton class]),
-                    grey_ancestor(grey_kindOfClass([UISearchBar class])),
                     grey_sufficientlyVisible(), nil);
 }
 
@@ -354,24 +341,24 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
   [self openAutofillProfilesSettings];
 
   // Verify the "Add" button is initially visible.
-  [[EarlGrey selectElementWithMatcher:SettingsToolbarAddButton()]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:SettingsToolbarAddButton()];
 
   // Switch on edit mode.
   [[EarlGrey selectElementWithMatcher:SettingsToolbarEditButton()]
       performAction:grey_tap()];
 
   // Confirm that the "Add" button no longer exists.
-  [[EarlGrey selectElementWithMatcher:SettingsToolbarAddButton()]
-      assertWithMatcher:grey_nil()];
+  [ChromeEarlGrey waitForNotSufficientlyVisibleElementWithMatcher:
+                      SettingsToolbarAddButton()];
 
   // Switch off edit mode.
   [[EarlGrey selectElementWithMatcher:SettingsToolbarDoneButton()]
       performAction:grey_tap()];
 
   // Verify the "Add" button is visible.
-  [[EarlGrey selectElementWithMatcher:SettingsToolbarAddButton()]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:SettingsToolbarAddButton()];
 }
 
 // Checks that the toolbar "Add" button's enabled state changes based on the
@@ -540,8 +527,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       assertWithMatcher:grey_notNil()];
 
   // Verify the cancel button is visible and unfocuses search bar when tapped.
-  [[EarlGrey selectElementWithMatcher:SearchBarCancelButton()]
-      performAction:grey_tap()];
+  [ChromeEarlGreyUI clearAndDismissSearchBar];
 
   // Verify countries are searchable using their name in the current locale.
   [[EarlGrey selectElementWithMatcher:SearchBar()] performAction:grey_tap()];
@@ -799,9 +785,8 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
   [SigninEarlGrey signOut];
 }
 
-// TODO(crbug.com/427946024): This test is flaky.
 // Tests that the local profile is migrated to account.
-- (void)FLAKY_testMigrateToAccount {
+- (void)testMigrateToAccount {
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
   [AutofillAppInterface saveExampleProfile];
   [self
@@ -929,18 +914,6 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
   GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
                  kSnackbarAppearanceTimeout, wait_for_appearance),
              @"Snackbar did not appear.");
-
-  // Wait for the snackbar to disappear.
-  ConditionBlock wait_for_disappearance = ^{
-    NSError* error = nil;
-    [[EarlGrey selectElementWithMatcher:snackbar_matcher]
-        assertWithMatcher:grey_nil()
-                    error:&error];
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 kSnackbarDisappearanceTimeout, wait_for_disappearance),
-             @"Snackbar did not disappear.");
 
   // Go back to the list view page.
   [[EarlGrey selectElementWithMatcher:SettingsMenuBackButton(0)]

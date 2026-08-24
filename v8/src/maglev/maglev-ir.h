@@ -32,6 +32,7 @@
 // TODO(dmercadier): move the Turboshaft utils functions to shared code (in
 // particular, any_of, which is the reason we're including this Turboshaft
 // header)
+#include "src/base/functional/function-ref.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/utils.h"
@@ -168,6 +169,7 @@ class ExceptionHandlerInfo;
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
   V(CreateFastArrayElements)        \
+  V(NewConsString)                  \
   V(MapPrototypeGet)                \
   V(MapPrototypeGetInt32Key)        \
   V(SetPrototypeHas)
@@ -596,6 +598,17 @@ constexpr bool IsTypedArrayStore(Opcode opcode) {
          opcode == Opcode::kStoreDoubleTypedArrayElement;
 }
 
+constexpr bool CanTriggerTruncationPass(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kTruncateFloat64ToInt32:
+    case Opcode::kCheckedTruncateFloat64ToInt32:
+    case Opcode::kUnsafeTruncateFloat64ToInt32:
+      return true;
+    default:
+      return false;
+  }
+}
+
 constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
   switch (opcode) {
     case Opcode::kStoreMap:
@@ -605,6 +618,18 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
     case Opcode::kStoreContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
+      return true;
+    default:
+      return false;
+  }
+}
+
+constexpr bool HasRangeType(Opcode opcode) {
+  switch (opcode) {
+    case Opcode::kFloat64Add:
+    case Opcode::kFloat64Subtract:
+    case Opcode::kFloat64Multiply:
+    case Opcode::kFloat64Divide:
       return true;
     default:
       return false;
@@ -673,8 +698,29 @@ enum class ValueRepresentation : uint8_t {
   kUint32,
   kFloat64,
   kHoleyFloat64,
-  kIntPtr
+  kIntPtr,
+  kNone,
 };
+
+inline constexpr bool IsInt64Representable(double value) {
+  constexpr double min = -9223372036854775808.0;  // -2^63.
+  // INT64_MAX (2^63 - 1) is not representable to double, but 2^63 is, so we
+  // check if it is strictly below it.
+  constexpr double max_bound = 9223372036854775808.0;  // 2^63.
+  return value >= min && value < max_bound;
+}
+
+inline constexpr bool IsSafeInteger(int64_t value) {
+  return value >= kMinSafeInteger && value <= kMaxSafeInteger;
+}
+
+inline constexpr bool IsSafeInteger(double value) {
+  if (!std::isfinite(value)) return false;
+  if (value != std::trunc(value)) return false;
+  double max = static_cast<double>(kMaxSafeInteger);
+  double min = static_cast<double>(kMinSafeInteger);
+  return value >= min && value <= max;
+}
 
 inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   return repr == ValueRepresentation::kFloat64 ||
@@ -712,6 +758,8 @@ enum class UseRepresentation : uint8_t {
   kFloat64,
   kHoleyFloat64,
 };
+
+std::ostream& operator<<(std::ostream& os, UseRepresentation repr);
 
 typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
 typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
@@ -1089,6 +1137,62 @@ inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
           static_cast<int>(NodeType::kNullOrUndefined)) != 0;
 }
 
+struct RangeType {
+  RangeType() = default;
+  RangeType(int64_t min, int64_t max) : is_valid_(true), min_(min), max_(max) {
+    DCHECK(min <= max);
+  }
+  explicit RangeType(int64_t value) : RangeType(value, value) {}
+
+  bool is_valid() const { return is_valid_; }
+
+  int64_t max() const {
+    DCHECK(is_valid_);
+    return max_;
+  }
+
+  int64_t min() const {
+    DCHECK(is_valid_);
+    return min_;
+  }
+
+  static RangeType Join(base::FunctionRef<double(double, double)> op,
+                        RangeType left, RangeType right) {
+    double results[4];
+    results[0] =
+        op(static_cast<double>(left.min()), static_cast<double>(right.min()));
+    results[1] =
+        op(static_cast<double>(left.min()), static_cast<double>(right.max()));
+    results[2] =
+        op(static_cast<double>(left.max()), static_cast<double>(right.min()));
+    results[3] =
+        op(static_cast<double>(left.max()), static_cast<double>(right.max()));
+    double min = *std::min_element(std::begin(results), std::end(results));
+    double max = *std::max_element(std::begin(results), std::end(results));
+    if (!IsInt64Representable(min) || !IsInt64Representable(max)) return {};
+    return RangeType(static_cast<int64_t>(min), static_cast<int64_t>(max));
+  }
+
+  bool IsSafeIntegerRange() {
+    if (!is_valid_) return false;
+    return min_ >= kMinSafeInteger && max_ <= kMaxSafeInteger;
+  }
+
+ private:
+  bool is_valid_ = false;
+  int64_t min_ = 0;
+  int64_t max_ = 0;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const RangeType& range) {
+  if (!range.is_valid()) {
+    os << "[-inf, +inf]";
+    return os;
+  }
+  os << "[" << range.min() << ", " << range.max() << "]";
+  return os;
+}
+
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
   kNumberOrUndefined,
@@ -1116,7 +1220,9 @@ inline std::ostream& operator<<(std::ostream& os,
     case ValueRepresentation::kHoleyFloat64:
       return os << "HoleyFloat64";
     case ValueRepresentation::kIntPtr:
-      return os << "Word64";
+      return os << "IntPtr";
+    case ValueRepresentation::kNone:
+      return os << "None";
   }
 }
 
@@ -1585,6 +1691,16 @@ class InputLocation : public ValueLocation {
 class Input : public InputLocation {
  public:
   explicit Input(ValueNode* node) : node_(node) {}
+  Input(const Input&) V8_NOEXCEPT = default;
+  Input& operator=(const Input&) V8_NOEXCEPT = default;
+  Input(Input&& other) V8_NOEXCEPT {
+    DCHECK_NULL(node_);
+    node_ = other.node_;
+#ifdef DEBUG
+    other.node_ = nullptr;
+#endif  // DEBUG
+  }
+
   ValueNode* node() const { return node_; }
   void set_node(ValueNode* node) { node_ = node; }
   void clear();
@@ -2184,10 +2300,11 @@ class NodeBase : public ZoneObject {
       NumTemporariesNeededField::Next<uint8_t, 1>;
  protected:
   // Reserved for intermediate superclasses such as ValueNode.
-  using ReservedField = NumDoubleTemporariesNeededField::Next<bool, 1>;
+  using LastNodeBaseField = NumDoubleTemporariesNeededField;
+  using ReservedFields = LastNodeBaseField::Next<uint8_t, 2>;
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
-  using NextBitField = ReservedField::Next<T, size>;
+  using NextBitField = ReservedFields::Next<T, size>;
 
   static constexpr int kMaxInputs = InputCountField::kMax;
 
@@ -2429,7 +2546,7 @@ class NodeBase : public ZoneObject {
     // bitfield start, excluding any spare bits) are equal in the new value.
     const uint64_t base_bitfield_mask =
         ((uint64_t{1} << NextBitField<bool, 1>::kShift) - 1) &
-        ~ReservedField::kMask;
+        ~ReservedFields::kMask;
     DCHECK_EQ(bitfield_ & base_bitfield_mask,
               new_bitfield & base_bitfield_mask);
 #endif
@@ -2694,10 +2811,17 @@ class Node : public NodeBase {
 // All non-control nodes with a result.
 class ValueNode : public Node {
  private:
-  using TaggedResultNeedsDecompressField = NodeBase::ReservedField;
+  using TaggedResultNeedsDecompressField =
+      NodeBase::LastNodeBaseField::Next<bool, 1>;
+  using CanTruncateToInt32Field =
+      TaggedResultNeedsDecompressField::Next<bool, 1>;
+  static_assert(CanTruncateToInt32Field::kShift +
+                    CanTruncateToInt32Field::kSize ==
+                ReservedFields::kShift + ReservedFields::kSize);
 
  protected:
-  using ReservedField = void;
+  using LastNodeBaseField = void;
+  using ReservedFields = void;
 
  public:
   ValueLocation& result() { return result_; }
@@ -2847,6 +2971,14 @@ class ValueNode : public Node {
   constexpr bool decompresses_tagged_result() const { return false; }
 #endif
 
+  constexpr bool can_truncate_to_int32() const {
+    return CanTruncateToInt32Field::decode(bitfield());
+  }
+
+  void set_can_truncate_to_int32(bool value) {
+    set_bitfield(CanTruncateToInt32Field::update(bitfield(), value));
+  }
+
   constexpr ValueRepresentation value_representation() const {
     return properties().value_representation();
   }
@@ -2864,8 +2996,12 @@ class ValueNode : public Node {
         return MachineRepresentation::kFloat64;
       case ValueRepresentation::kHoleyFloat64:
         return MachineRepresentation::kFloat64;
+      case ValueRepresentation::kNone:
+        UNREACHABLE();
     }
   }
+
+  RangeType GetRange() const;
 
   compiler::OptionalHeapObjectRef TryGetConstant(
       compiler::JSHeapBroker* broker);
@@ -2876,7 +3012,8 @@ class ValueNode : public Node {
     return NodeTypeIs(GetStaticType(broker), type);
   }
 
-  inline void RecordUseReprHintIfPhi(UseRepresentation repr);
+  inline void MaybeRecordUseReprHint(UseRepresentationSet repr);
+  inline void MaybeRecordUseReprHint(UseRepresentation repr);
 
   void InitializeRegisterData() {
     if (use_double_register()) {
@@ -2949,6 +3086,12 @@ class ValueNode : public Node {
     return spill_;
   }
 
+  ValueNode* UnwrapIdentities();
+  const ValueNode* UnwrapIdentities() const;
+
+  // Unwrap identities and conversions.
+  ValueNode* Unwrap();
+
  protected:
   explicit ValueNode(uint64_t bitfield)
       : Node(bitfield),
@@ -3003,7 +3146,7 @@ inline void NodeBase::initialize_input_null(int index) {
 
 inline void NodeBase::set_input(int index, ValueNode* node) {
   DCHECK_NOT_NULL(node);
-  DCHECK_EQ(input(index).node(), nullptr);
+  DCHECK_NULL(input(index).node());
   node->add_use();
   new (&input(index)) Input(node);
 }
@@ -3039,6 +3182,26 @@ void NodeBase::change_input(int index, ValueNode* node) {
 ValueLocation& Node::result() {
   DCHECK(Is<ValueNode>());
   return Cast<ValueNode>()->result();
+}
+
+inline ValueNode* ValueNode::UnwrapIdentities() {
+  ValueNode* node = this;
+  while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
+}
+
+inline const ValueNode* ValueNode::UnwrapIdentities() const {
+  const ValueNode* node = this;
+  while (node->Is<Identity>()) node = node->input(0).node();
+  return node;
+}
+
+inline ValueNode* ValueNode::Unwrap() {
+  ValueNode* node = this;
+  while (node->Is<Identity>() || node->properties().is_conversion()) {
+    node = node->input(0).node();
+  }
+  return node;
 }
 
 // Mixin for a node with known class (and therefore known opcode and static
@@ -3162,7 +3325,9 @@ class Identity : public FixedInputValueNodeT<1, Identity> {
   using Base = FixedInputValueNodeT<1, Identity>;
 
  public:
-  static constexpr OpProperties kProperties = OpProperties::Pure();
+  static constexpr OpProperties kProperties =
+      OpProperties::Pure() |
+      OpProperties::ForValueRepresentation(ValueRepresentation::kNone);
 
   explicit Identity(uint64_t bitfield) : Base(bitfield) {}
 
@@ -3546,10 +3711,18 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   Input& left_input() { return Node::input(kLeftIndex); }
   Input& right_input() { return Node::input(kRightIndex); }
 
+  RangeType range() const { return range_; }
+  void set_range(RangeType r) { range_ = r; }
+
  protected:
   explicit Float64BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 
   void PrintParams(std::ostream&) const {}
+
+  // TODO(victorgomes): This could be in the KNA for more use-precision.
+  // However, for truncation purposes, since it depends on all uses, it is
+  // simpler to store this here.
+  RangeType range_ = {};
 };
 
 #define DEF_OPERATION_NODE_WITH_CALL(Name, Super, OpName)        \
@@ -6609,9 +6782,7 @@ template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) {
   ForEachInput([&](ValueNode*& value) {
-    if (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
       return;
@@ -6648,9 +6819,7 @@ template <typename Function>
 inline void VirtualObject::ForEachNestedRuntimeInput(
     VirtualObjectList virtual_objects, Function&& f) const {
   ForEachInput([&](ValueNode* value) {
-    if (value->Is<Identity>()) {
-      value = value->input(0).node();
-    }
+    value = value->UnwrapIdentities();
     if (IsConstantNode(value->opcode())) {
       // No location assigned to constants.
       return;
@@ -7727,7 +7896,7 @@ class CheckTypedArrayBounds : public FixedInputNodeT<2, CheckTypedArrayBounds> {
   explicit CheckTypedArrayBounds(uint64_t bitfield) : Base(bitfield) {}
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kUint32, ValueRepresentation::kIntPtr};
+      ValueRepresentation::kInt32, ValueRepresentation::kIntPtr};
 
   static constexpr int kIndexIndex = 0;
   static constexpr int kLengthIndex = 1;
@@ -7793,6 +7962,9 @@ class Dead : public NodeT<Dead> {
   using Base = NodeT<Dead>;
 
  public:
+  static constexpr OpProperties kProperties =
+      OpProperties::ForValueRepresentation(ValueRepresentation::kNone);
+
   void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&) { UNREACHABLE(); }
   void PrintParams(std::ostream&) const {}
@@ -8126,6 +8298,27 @@ class CreateFastArrayElements
 
  private:
   const AllocationType allocation_type_;
+};
+
+class NewConsString : public FixedInputValueNodeT<3, NewConsString> {
+  using Base = FixedInputValueNodeT<3, NewConsString>;
+
+ public:
+  explicit NewConsString(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate();
+
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kInt32, ValueRepresentation::kTagged,
+      ValueRepresentation::kTagged};
+
+  Input& length_input() { return input(0); }
+  Input& first_input() { return input(1); }
+  Input& second_input() { return input(2); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&) const {}
 };
 
 class TransitionAndStoreArrayElement
@@ -8945,7 +9138,7 @@ class LoadDoubleDataViewElement
     static constexpr OpProperties kProperties =                        \
         OpProperties::CanRead() | properties;                          \
     static constexpr typename Base::InputTypes kInputTypes{            \
-        ValueRepresentation::kTagged, ValueRepresentation::kUint32};   \
+        ValueRepresentation::kTagged, ValueRepresentation::kInt32};    \
                                                                        \
     static constexpr int kObjectIndex = 0;                             \
     static constexpr int kIndexIndex = 1;                              \
@@ -8993,7 +9186,7 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
     static constexpr OpProperties kProperties =                               \
         OpProperties::CanRead() | properties;                                 \
     static constexpr                                                          \
-        typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};  \
+        typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};   \
                                                                               \
     static constexpr int kIndexIndex = 0;                                     \
     Input& index_input() { return input(kIndexIndex); }                       \
@@ -9027,36 +9220,36 @@ LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
 
 #undef LOAD_CONSTANT_TYPED_ARRAY
 
-#define STORE_TYPED_ARRAY(name, properties, type, ...)                     \
-  class name : public FixedInputNodeT<3, name> {                           \
-    using Base = FixedInputNodeT<3, name>;                                 \
-                                                                           \
-   public:                                                                 \
-    explicit name(uint64_t bitfield, ElementsKind elements_kind)           \
-        : Base(bitfield), elements_kind_(elements_kind) {                  \
-      DCHECK(elements_kind ==                                              \
-             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));     \
-    }                                                                      \
-                                                                           \
-    static constexpr OpProperties kProperties = properties;                \
-    static constexpr typename Base::InputTypes kInputTypes{                \
-        ValueRepresentation::kTagged, ValueRepresentation::kUint32, type}; \
-                                                                           \
-    static constexpr int kObjectIndex = 0;                                 \
-    static constexpr int kIndexIndex = 1;                                  \
-    static constexpr int kValueIndex = 2;                                  \
-    Input& object_input() { return input(kObjectIndex); }                  \
-    Input& index_input() { return input(kIndexIndex); }                    \
-    Input& value_input() { return input(kValueIndex); }                    \
-                                                                           \
-    void SetValueLocationConstraints();                                    \
-    void GenerateCode(MaglevAssembler*, const ProcessingState&);           \
-    void PrintParams(std::ostream&) const {}                               \
-                                                                           \
-    ElementsKind elements_kind() const { return elements_kind_; }          \
-                                                                           \
-   private:                                                                \
-    ElementsKind elements_kind_;                                           \
+#define STORE_TYPED_ARRAY(name, properties, type, ...)                    \
+  class name : public FixedInputNodeT<3, name> {                          \
+    using Base = FixedInputNodeT<3, name>;                                \
+                                                                          \
+   public:                                                                \
+    explicit name(uint64_t bitfield, ElementsKind elements_kind)          \
+        : Base(bitfield), elements_kind_(elements_kind) {                 \
+      DCHECK(elements_kind ==                                             \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));    \
+    }                                                                     \
+                                                                          \
+    static constexpr OpProperties kProperties = properties;               \
+    static constexpr typename Base::InputTypes kInputTypes{               \
+        ValueRepresentation::kTagged, ValueRepresentation::kInt32, type}; \
+                                                                          \
+    static constexpr int kObjectIndex = 0;                                \
+    static constexpr int kIndexIndex = 1;                                 \
+    static constexpr int kValueIndex = 2;                                 \
+    Input& object_input() { return input(kObjectIndex); }                 \
+    Input& index_input() { return input(kIndexIndex); }                   \
+    Input& value_input() { return input(kValueIndex); }                   \
+                                                                          \
+    void SetValueLocationConstraints();                                   \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);          \
+    void PrintParams(std::ostream&) const {}                              \
+                                                                          \
+    ElementsKind elements_kind() const { return elements_kind_; }         \
+                                                                          \
+   private:                                                               \
+    ElementsKind elements_kind_;                                          \
   };
 
 STORE_TYPED_ARRAY(StoreIntTypedArrayElement, OpProperties::CanWrite(),
@@ -9084,7 +9277,7 @@ STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
                                                                             \
     static constexpr OpProperties kProperties = properties;                 \
     static constexpr typename Base::InputTypes kInputTypes{                 \
-        ValueRepresentation::kUint32, type};                                \
+        ValueRepresentation::kInt32, type};                                 \
                                                                             \
     static constexpr int kIndexIndex = 0;                                   \
     static constexpr int kValueIndex = 1;                                   \
@@ -10122,10 +10315,6 @@ class Phi : public ValueNodeT<Phi> {
 
   BasicBlock* predecessor_at(int i);
 
-  void RecordUseReprHint(UseRepresentation repr) {
-    RecordUseReprHint(UseRepresentationSet{repr});
-  }
-
   void RecordUseReprHint(UseRepresentationSet repr_mask);
 
   UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
@@ -10225,12 +10414,6 @@ class Phi : public ValueNodeT<Phi> {
 
   friend base::ThreadedListTraits<Phi>;
 };
-
-void ValueNode::RecordUseReprHintIfPhi(UseRepresentation repr) {
-  if (Phi* phi = TryCast<Phi>()) {
-    phi->RecordUseReprHint(repr);
-  }
-}
 
 class Call : public ValueNodeT<Call> {
   using Base = ValueNodeT<Call>;
@@ -10826,6 +11009,11 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
 
   int expected_parameter_count() const { return expected_parameter_count_; }
 
+  void RecordUseReprHint(UseRepresentationSet repr_mask) {
+    uses_repr_hint_.Add(repr_mask);
+  }
+  UseRepresentationSet get_uses_repr_hints() { return uses_repr_hint_; }
+
  private:
 #ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle_;
@@ -10834,6 +11022,8 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
+
+  UseRepresentationSet uses_repr_hint_ = {};
 };
 
 class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
@@ -10915,6 +11105,20 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   const compiler::FunctionTemplateInfoRef function_template_info_;
   const compiler::OptionalJSObjectRef api_holder_;
 };
+
+void ValueNode::MaybeRecordUseReprHint(UseRepresentation repr) {
+  MaybeRecordUseReprHint(UseRepresentationSet{repr});
+}
+
+void ValueNode::MaybeRecordUseReprHint(UseRepresentationSet repr_mask) {
+  if (Phi* phi = TryCast<Phi>()) {
+    phi->RecordUseReprHint(repr_mask);
+  }
+  if (CallKnownJSFunction* call = TryCast<CallKnownJSFunction>()) {
+    // std::cout << "Recording UseRepr hint for call : " << repr_mask << "\n";
+    call->RecordUseReprHint(repr_mask);
+  }
+}
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
   using Base = ValueNodeT<ConstructWithSpread>;

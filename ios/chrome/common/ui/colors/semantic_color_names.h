@@ -40,7 +40,6 @@ extern NSString* const kBWGSeparatorColor;
 extern NSString* const kSolidButtonTextColor;
 extern NSString* const kTableViewRowHighlightColor;
 extern NSString* const kTertiaryBackgroundColor;
-extern NSString* const kUpdatedTertiaryBackgroundColor;
 extern NSString* const kTextPrimaryColor;
 // Primary text color when the background color is inverted.
 extern NSString* const kInvertedTextPrimaryColor;
@@ -181,7 +180,9 @@ extern NSString* const kGrey700Color;
 extern NSString* const kGrey800Color;
 extern NSString* const kGrey900Color;
 // Static Grey palette (same color for light and dark modes).
+extern NSString* const kStaticGrey50Color;
 extern NSString* const kStaticGrey300Color;
+extern NSString* const kStaticGrey400Color;
 extern NSString* const kStaticGrey600Color;
 extern NSString* const kStaticGrey900Color;
 

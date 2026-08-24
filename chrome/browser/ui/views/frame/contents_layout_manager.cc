@@ -11,14 +11,14 @@ ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
                                              views::View* devtools_scrim_view,
                                              views::View* contents_view,
                                              views::View* lens_overlay_view,
-                                             views::View* border_view,
-                                             views::View* watermark_view)
+                                             views::View* watermark_view,
+                                             views::View* actor_overlay_view)
     : devtools_view_(devtools_view),
       devtools_scrim_view_(devtools_scrim_view),
       contents_view_(contents_view),
       lens_overlay_view_(lens_overlay_view),
-      border_view_(border_view),
-      watermark_view_(watermark_view) {}
+      watermark_view_(watermark_view),
+      actor_overlay_view_(actor_overlay_view) {}
 
 ContentsLayoutManager::~ContentsLayoutManager() = default;
 
@@ -75,20 +75,18 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
                                      lens_overlay_view_->GetVisible(),
                                      contents_rect, optional_size_bound);
 
-  if (border_view_) {
-    layouts.child_layouts.push_back(
-        {.child_view = border_view_.get(),
-         .visible = border_view_->GetVisible(),
-         // The border shares the same bounds with the ContentWebView.
-         .bounds = contents_rect,
-         .available_size = optional_size_bound});
-  }
-
   // Enterprise watermark view is always overlaid, even when empty.
   if (watermark_view_) {
     layouts.child_layouts.emplace_back(
         watermark_view_.get(), watermark_view_->GetVisible(),
         gfx::Rect(0, 0, width, height), views::SizeBounds(container_size));
+  }
+
+  // Actor Overlay view bounds are the same as the contents view.
+  if (actor_overlay_view_) {
+    layouts.child_layouts.emplace_back(actor_overlay_view_.get(),
+                                       actor_overlay_view_->GetVisible(),
+                                       contents_rect, optional_size_bound);
   }
 
   layouts.host_size = gfx::Size(width, height);

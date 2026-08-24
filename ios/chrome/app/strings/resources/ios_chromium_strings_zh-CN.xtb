@@ -113,6 +113,7 @@
 <translation id="3728124580182886854">关联 Chromium 和其他 Google 服务，以便获得个性化体验和实现其他用途</translation>
 <translation id="377649297473651452">Chromium 自动填充视图已展开</translation>
 <translation id="3780779443901618967">通过比“标准保护”机制分析更多的网站数据，针对危险网站（甚至是 Google 未曾得知的网站）向您发出警告。您可以选择忽略 Chromium 警告。</translation>
+<translation id="3804124559081428680">Chromium 提示：验证身份</translation>
 <translation id="3805899903892079518">Chromium 无权访问您的照片或视频。请依次点按 iOS 中的“设置”&gt;“隐私”&gt;“照片”，授予其访问权限。</translation>
 <translation id="3816686541346279443">Chromium 会询问您是否保存密码。</translation>
 <translation id="3827545470516145620">此设备正在为您提供标准安全保护</translation>
@@ -252,6 +253,7 @@
 
 只有知道您口令的人能读取您的加密数据。该口令不会发送给 Google，也不会被 Google 存储。如果您忘记了该口令或想更改此设置，请<ph name="BEGIN_LINK" />删除您账号中的 Chromium 数据<ph name="END_LINK" />。</translation>
 <translation id="7192111075364461693">目前，在您的设备设置中，Chromium 通知功能处于关闭状态。</translation>
+<translation id="7195217321165708458">Chromium 中的 Gemini</translation>
 <translation id="7219205286115692265">从 iPad 主屏幕上的程序坞更快速地访问 Chromium。</translation>
 <translation id="7222001353246886083">在 Chromium 中搜索 ${searchPhrase}</translation>
 <translation id="7228180817326917122">Chromium 提示：选择地址栏的位置</translation>

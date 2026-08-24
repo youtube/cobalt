@@ -10,8 +10,7 @@
 
 #include "pc/remote_audio_source.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>

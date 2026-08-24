@@ -63,6 +63,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="1704230497453185209">Don't allow sites to play sound</translation>
 <translation id="1717218214683051432">Motion sensors</translation>
 <translation id="1717996979683942279">When on, sites can ask to manage windows on all your displays. When off, sites can't manage windows on all your displays.</translation>
+<translation id="1738912554587725807">New tab page appearance theme collections bottom sheet</translation>
 <translation id="1743802530341753419">Ask before allowing sites to connect to a device (recommended)</translation>
 <translation id="1777815584158991902">Discover feed bottom sheet</translation>
 <translation id="1779089405699405702">Image decoder</translation>
@@ -120,6 +121,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> and <ph name="NUM_MORE" /> more allowed}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> and <ph name="NUM_MORE" /> more allowed}}</translation>
 <translation id="2410940059315936967">A site that you visit can embed content from other sites, for example, images, ads and text. Cookies set by these other sites are called third-party cookies.</translation>
+<translation id="2411116727035790889">Turn on shortcuts</translation>
 <translation id="2433507940547922241">Appearance</translation>
 <translation id="2434158240863470628">Download complete <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">You temporarily allowed this site to use third-party cookies, which means less browsing protection but site features are more likely to work as expected. <ph name="BEGIN_LINK" />Send feedback<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="3114012059975132928">Video player</translation>
 <translation id="3115898365077584848">Show info</translation>
 <translation id="3123473560110926937">Blocked on some sites</translation>
+<translation id="3132996321662585180">Refresh daily</translation>
 <translation id="3143754809889689516">Play from the beginning</translation>
 <translation id="3162899666601560689">Sites can use cookies to improve your browsing experience, for example to keep you signed in or to remember items in your shopping basket</translation>
 <translation id="3165022941318558018">Allow a site to use third-party cookies</translation>
@@ -356,6 +359,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="5100237604440890931">Collapsed – click to expand.</translation>
 <translation id="5116239826668864748">You can use Chrome any time that you tap links in messages, documents and other apps</translation>
 <translation id="5123685120097942451">Incognito tab</translation>
+<translation id="512938610812707830">New tab page appearance theme collections bottom sheet opened at full height</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Price drop on your open tabs}other{Price drops on your open tabs}}</translation>
 <translation id="5186036860380548585">Option available near top of the screen</translation>
 <translation id="5197729504361054390">The contacts that you select will be shared with <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
@@ -538,7 +542,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="7366415735885268578">Add a site</translation>
 <translation id="7368695150573390554">Any offline data will be deleted</translation>
 <translation id="7383715096023715447">Settings for <ph name="DOMAIN" /></translation>
-<translation id="7399802613464275309">Safety Check</translation>
+<translation id="7399802613464275309">Safety check</translation>
 <translation id="7406113532070524618">This setting works without identifying you or allowing sites to see your browsing history, though sites can share a small amount of info as part of the verification</translation>
 <translation id="7409735910987429903">Sites might send pop-ups to show ads, or use redirects to lead you to websites that you may not want to visit</translation>
 <translation id="7423098979219808738">Ask first</translation>
@@ -608,7 +612,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="8186479265534291036">Site not working? Third-party cookies blocked</translation>
 <translation id="8197286292360124385"><ph name="PERMISSION_1" /> allowed</translation>
 <translation id="8200772114523450471">Resume</translation>
-<translation id="8206354486702514201">This setting is enforced by your administrator.</translation>
 <translation id="8211406090763984747">Connection is secure</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Move to top</translation>
@@ -619,6 +622,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="8324158725704657629">Don't ask again</translation>
 <translation id="8362795839483915693">You can zoom in or out on sites that you visit</translation>
 <translation id="8372893542064058268">Allow Background Sync for a specific site.</translation>
+<translation id="8378714024927312812">Managed by your organisation</translation>
 <translation id="83792324527827022">A site is using your camera and microphone</translation>
 <translation id="8380167699614421159">This site shows intrusive or misleading ads</translation>
 <translation id="8394832520002899662">Tap to return to the site</translation>

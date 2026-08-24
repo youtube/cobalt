@@ -17,6 +17,7 @@
 #include "api/environment/environment.h"
 #include "api/rtp_parameters.h"
 #include "api/test/video/function_video_encoder_factory.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
@@ -94,12 +95,11 @@ void HistogramTest::VerifyHistogramStats(bool use_rtx,
     }
 
     bool MinMetricRunTimePassed() {
-      int64_t now_ms = Clock::GetRealTimeClock()->TimeInMilliseconds();
-      if (!start_runtime_ms_)
-        start_runtime_ms_ = now_ms;
+      Timestamp now = Clock::GetRealTimeClock()->CurrentTime();
+      if (!start_runtime_)
+        start_runtime_ = now;
 
-      int64_t elapsed_sec = (now_ms - *start_runtime_ms_) / 1000;
-      return elapsed_sec > metrics::kMinRunTimeInSeconds * 2;
+      return now - *start_runtime_ > metrics::kMinRunTime * 2;
     }
 
     bool MinNumberOfFramesReceived() const {
@@ -168,7 +168,7 @@ void HistogramTest::VerifyHistogramStats(bool use_rtx,
     const bool use_fec_;
     const bool screenshare_;
     test::FunctionVideoEncoderFactory encoder_factory_;
-    std::optional<int64_t> start_runtime_ms_;
+    std::optional<Timestamp> start_runtime_;
     int num_frames_received_ RTC_GUARDED_BY(&mutex_);
   } test(use_rtx, use_fec, screenshare);
 

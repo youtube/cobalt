@@ -97,7 +97,6 @@ std::unique_ptr<net::test_server::HttpResponse> RequestHandler(
             .Set("refresh_url",
                  base_url.Resolve("/dbsc_refresh_session").spec())
             .Set("scope", base::Value::Dict()
-                              .Set("include_site", true)
                               .Set("scope_specification",
                                    base::Value::List().Append(
                                        base::Value::Dict()
@@ -339,7 +338,8 @@ ScopedTestRegistrationFetcher ScopedTestRegistrationFetcher::CreateWithSuccess(
         return base::expected<SessionParams, SessionError>(SessionParams(
             session_id, GURL(refresh_url_string), refresh_url_string,
             std::move(scope), std::move(cookie_credentials),
-            unexportable_keys::UnexportableKeyId()));
+            unexportable_keys::UnexportableKeyId(),
+            /*allowed_refresh_initiators=*/{}));
       },
       std::string(session_id), std::string(refresh_url_string),
       std::string(origin_string)));

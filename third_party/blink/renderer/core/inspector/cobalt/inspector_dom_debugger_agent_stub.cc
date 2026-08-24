@@ -33,6 +33,6 @@ void InspectorDOMDebuggerAgent::DidInvalidateStyleAttr(Node*) {}
 void InspectorDOMDebuggerAgent::EventListenersInfoForTarget(
     v8::Isolate*,
     v8::Local<v8::Value>,
-    Vector<V8EventListenerInfo, 0u, WTF::PartitionAllocator>*) {}
+    V8EventListenerInfoList*) {}
 
 }  // namespace blink

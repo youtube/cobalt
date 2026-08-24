@@ -3865,17 +3865,18 @@ struct SkHalfPlane {
 // assumes plane is pre-normalized
 // If we fail in our calculations, we return the empty path
 static SkPath clip(const SkPath& path, const SkHalfPlane& plane) {
-    SkMatrix mx, inv;
+    SkMatrix mx;
     SkPoint p0 = { -plane.fA*plane.fC, -plane.fB*plane.fC };
     mx.setAll( plane.fB, plane.fA, p0.fX,
               -plane.fA, plane.fB, p0.fY,
                       0,        0,     1);
-    if (!mx.invert(&inv)) {
+    auto inv = mx.invert();
+    if (!inv) {
         return SkPath();
     }
 
     SkPath rotated;
-    path.transform(inv, &rotated);
+    path.transform(*inv, &rotated);
     if (!rotated.isFinite()) {
         return SkPath();
     }
@@ -3964,20 +3965,21 @@ int SkPathPriv::GenIDChangeListenersCount(const SkPath& path) {
     return path.fPathRef->genIDChangeListenerCount();
 }
 
-bool SkPathPriv::IsAxisAligned(const SkPath& path) {
+bool SkPathPriv::IsAxisAligned(SkSpan<const SkPoint> pts) {
     // Conservative (quick) test to see if all segments are axis-aligned.
     // Multiple contours might give a false-negative, but for speed, we ignore that
     // and just look at the raw points.
 
-    const SkPoint* pts = path.fPathRef->points();
-    const int count = path.fPathRef->countPoints();
-
-    for (int i = 1; i < count; ++i) {
+    for (size_t i = 1; i < pts.size(); ++i) {
         if (pts[i-1].fX != pts[i].fX && pts[i-1].fY != pts[i].fY) {
             return false;
         }
     }
     return true;
+}
+
+bool SkPathPriv::IsAxisAligned(const SkPath& path) {
+    return IsAxisAligned(path.fPathRef->pointSpan());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////

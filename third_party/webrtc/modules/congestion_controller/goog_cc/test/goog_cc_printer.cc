@@ -9,8 +9,7 @@
  */
 #include "modules/congestion_controller/goog_cc/test/goog_cc_printer.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <deque>
 #include <memory>
 #include <optional>

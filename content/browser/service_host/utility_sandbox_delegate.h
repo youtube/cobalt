@@ -22,6 +22,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "base/synchronization/waitable_event.h"
+#include "base/win/scoped_handle.h"
 #include "sandbox/win/src/sandbox_policy.h"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -54,9 +55,8 @@ class CONTENT_EXPORT UtilitySandboxedProcessLauncherDelegate
   void SetPreloadLibraries(const std::vector<base::FilePath>& preloads) {
     preload_libraries_ = preloads;
   }
-  // Set the event used for bootstrap info. Only respected for sandboxed
-  // processes. This event must remain valid until the process launch and
-  // `PreSpawnTarget` is called by the sandbox.
+  // Set the event used for bootstrap info. Takes a duplicate of the passed
+  // event and ensures it is passed to the utility process.
   void SetBootstrapStatusEvent(const base::WaitableEvent& event);
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -88,7 +88,7 @@ class CONTENT_EXPORT UtilitySandboxedProcessLauncherDelegate
 
   std::vector<base::FilePath> preload_libraries_;
 
-  std::optional<HANDLE> event_handle_to_inherit_;
+  std::optional<base::win::ScopedHandle> event_handle_to_inherit_;
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(USE_ZYGOTE)

@@ -603,7 +603,6 @@
 <translation id="3026897869154397692">已新增至日曆</translation>
 <translation id="3033545621352269033">開啟</translation>
 <translation id="3033912566804961911">與「<ph name="DESK_NAME" />」合併</translation>
-<translation id="3036649622769666520">開啟檔案</translation>
 <translation id="3039939407102840004">觸控筆電量：<ph name="PERCENTAGE" />%。</translation>
 <translation id="304097922505898963">開啟 Key Shortcuts 應用程式</translation>
 <translation id="304417730895741346">檔案櫃會顯示已固定及開啟的應用程式。如要將應用程式固定到檔案櫃，請在應用程式上按一下滑鼠右鍵，或在觸控板上用兩指輕觸應用程式。</translation>
@@ -1499,7 +1498,7 @@
 <translation id="584525477304726060">按住視窗即可放到最大</translation>
 <translation id="5856638668464565213"><ph name="NETWORK_NAME" /> 尚未啟用。</translation>
 <translation id="5860033963881614850">關閉</translation>
-<translation id="5860491529813859533">啟用</translation>
+<translation id="5860491529813859533">開啟</translation>
 <translation id="5864691701242730005">顯示「快速分享」設定。目前選取「<ph name="VISIBILITY" />」瀏覽權限</translation>
 <translation id="5864748620896638071">電池電量：<ph name="BATTERY_PERCENTAGE" />%</translation>
 <translation id="5867217927013474703">正在收集網路資訊</translation>
@@ -1600,7 +1599,6 @@
 <translation id="6166852626429024716">搜尋你的裝置、應用程式、設定、網路...</translation>
 <translation id="6168318496333165060">開啟「診斷」應用程式</translation>
 <translation id="6168622430237609329">已安裝的應用程式</translation>
-<translation id="6179832488876878285">你可以將重要的檔案固定在這裡，只要開啟「檔案」應用程式即可開始使用。</translation>
 <translation id="6180193585172850042">「上一頁」按鈕</translation>
 <translation id="6180651297859206670">「下一頁」按鈕</translation>
 <translation id="6182592640011875895">開啟桌面</translation>
@@ -1911,6 +1909,7 @@
 <translation id="7240636904654154599">已建立 Google 試算表</translation>
 <translation id="7244725679040769470">剩餘電量：<ph name="PERCENTAGE" />%。請將裝置接上電源。</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />。這部 Chromebook 需要重新啟動才能套用更新。最多可能需要 1 分鐘才能完成。</translation>
+<translation id="7248100343060254997">搜尋我的畫面</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">後置麥克風</translation>
 <translation id="7258828758145722155">昨天編輯過</translation>

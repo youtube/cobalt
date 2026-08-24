@@ -13,7 +13,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/containers/span.h"
 
-namespace base::android {
+namespace base::files_internal {
 
 // Represents and operates on a virtual path for Android's Storage Access
 // Framework (SAF).
@@ -108,12 +108,18 @@ class VirtualDocumentPath {
   // has been successfully written, and false otherwise.
   bool WriteFile(span<const uint8_t> data) const;
 
- private:
-  explicit VirtualDocumentPath(const JavaRef<jobject>& obj);
+  // Creates an empty file if it does not exist and its parent directory exists.
+  // If the file exists or created, it returns a pair of two values where the
+  // first value is the content URI, and the second is a bool which is true if
+  // the file has been created and false if the file already existed.
+  std::optional<std::pair<std::string, bool>> CreateOrOpen() const;
 
-  ScopedJavaGlobalRef<jobject> obj_;
+ private:
+  explicit VirtualDocumentPath(const base::android::JavaRef<jobject>& obj);
+
+  base::android::ScopedJavaGlobalRef<jobject> obj_;
 };
 
-}  // namespace base::android
+}  // namespace base::files_internal
 
 #endif  // BASE_ANDROID_VIRTUAL_DOCUMENT_PATH_H_

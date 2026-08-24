@@ -9,9 +9,8 @@
 
 #include "modules/video_coding/deprecated/receiver.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <queue>
 #include <vector>

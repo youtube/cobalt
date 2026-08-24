@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/include/flexfec_receiver.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "api/scoped_refptr.h"

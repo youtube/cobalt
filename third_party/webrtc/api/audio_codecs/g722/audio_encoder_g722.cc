@@ -10,8 +10,7 @@
 
 #include "api/audio_codecs/g722/audio_encoder_g722.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>

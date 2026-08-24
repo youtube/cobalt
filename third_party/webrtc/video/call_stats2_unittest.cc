@@ -295,8 +295,7 @@ TEST_F(CallStats2Test, ProducesHistogramMetrics) {
 
   AsyncSimulateRttUpdate(kRtt);
   loop_.Run();
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds *
-                                      CallStats::kUpdateInterval.ms());
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   AsyncSimulateRttUpdate(kRtt);
   loop_.Run();
 

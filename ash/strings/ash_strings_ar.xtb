@@ -602,7 +602,6 @@
 <translation id="3026897869154397692">تمت الإضافة إلى التقويم</translation>
 <translation id="3033545621352269033">مُفعَّلة</translation>
 <translation id="3033912566804961911">دمج مع <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">فتح الملفات</translation>
 <translation id="3039939407102840004">مستوى شحن بطارية قلم الشاشة <ph name="PERCENTAGE" /> في المئة.</translation>
 <translation id="304097922505898963">فتح تطبيق "اختصارات لوحة المفاتيح"</translation>
 <translation id="304417730895741346">تطبيقاتك المثبَّتة والمفتوحة معروضة هنا على الرف. لتثبيت تطبيق في الرف، انقر بزر الماوس الأيمن عليه أو انقر بإصبعين على لوحة اللمس.</translation>
@@ -1601,7 +1600,6 @@
 <translation id="6166852626429024716">البحث في الجهاز والتطبيقات والإعدادات والويب...</translation>
 <translation id="6168318496333165060">فتح تطبيق "بيانات التشخيص"</translation>
 <translation id="6168622430237609329">تطبيقاتك المثبَّتة</translation>
-<translation id="6179832488876878285">يمكنك تثبيت الملفات المهمّة هنا. افتح تطبيق "الملفات" للبدء.</translation>
 <translation id="6180193585172850042">زر الرجوع</translation>
 <translation id="6180651297859206670">زر الانتقال للأمام</translation>
 <translation id="6182592640011875895">فتح سطح المكتب</translation>
@@ -1914,6 +1912,7 @@
 <translation id="7244725679040769470">‏يتبقّى ‎<ph name="PERCENTAGE" />%.
 يُرجى توصيل الجهاز بمصدر طاقة.</translation>
 <translation id="7246071203293827765">‏<ph name="UPDATE_TEXT" />. يجب إعادة تشغيل جهاز Chromebook لتطبيق التحديث. قد يستغرق هذا الإجراء مدة تصل إلى دقيقة واحدة.</translation>
+<translation id="7248100343060254997">البحث عن محتوى الشاشة</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">الميكروفون الخلفي</translation>
 <translation id="7258828758145722155">تم تعديله أمس.</translation>

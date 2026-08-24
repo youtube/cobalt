@@ -27,6 +27,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/mock_client_hints_controller_delegate.h"
@@ -43,7 +44,6 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/network/cookie_settings.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
@@ -491,9 +491,11 @@ TEST_F(NavigationURLLoaderImplTest, EnsureEnabledClientHints) {
                   ->enabled_client_hints.has_value());
   // The default types are added in addition, and that is why `IsSupersetOf()`
   // is used.
-  EXPECT_THAT(
-      *most_recent_resource_request_->trusted_params->enabled_client_hints,
-      testing::IsSupersetOf(expected_client_hints));
+  EXPECT_THAT(most_recent_resource_request_->trusted_params
+                  ->enabled_client_hints->hints,
+              testing::IsSupersetOf(expected_client_hints));
+  EXPECT_EQ(origin, most_recent_resource_request_->trusted_params
+                        ->enabled_client_hints->origin);
 }
 
 TEST_F(NavigationURLLoaderImplTest, EnsureEnabledClientHintsDisabled) {

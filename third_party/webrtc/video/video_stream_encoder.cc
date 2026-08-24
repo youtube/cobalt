@@ -1526,7 +1526,7 @@ void VideoStreamEncoder::RequestEncoderSwitch() {
   }
 
   if (!preferred_fallback_encoder) {
-    if (env_.field_trials().IsEnabled(
+    if (!env_.field_trials().IsDisabled(
             kSwitchEncoderFollowCodecPreferenceOrderFieldTrial)) {
       encoder_fallback_requested_ = true;
       settings_.encoder_switch_request_callback->RequestEncoderFallback();

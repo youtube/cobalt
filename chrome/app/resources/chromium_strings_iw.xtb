@@ -66,6 +66,7 @@
 <translation id="1880677175115548835">בחירת טקסט</translation>
 <translation id="1881322772814446296">‏נכנסת עם חשבון מנוהל שנותן למנהל המערכת שלו שליטה על הפרופיל שלך ב-Chromium. הנתונים שלך ב-Chromium, כגון אפליקציות, סימניות, היסטוריה, סיסמאות והגדרות אחרות ייקשרו באופן קבוע ל-<ph name="USER_NAME" />. ניתן למחוק את הנתונים האלה באמצעות לוח הבקרה של חשבונות Google, אבל אי אפשר לשייך את הנתונים האלה לחשבון אחר. לחלופין, באפשרותך ליצור פרופיל חדש כדי לשמור את הנתונים הקיימים שלך ב-Chromium בנפרד.<ph name="LEARN_MORE" /></translation>
 <translation id="1896836275755235458">‏‫Chromium חוסך בחיי הסוללה על ידי הגבלת הפעילות ברקע והאפקטים החזותיים, כמו גלילה חלקה וקצב פריימים של סרטונים. <ph name="BEGIN_LINK" />מידע נוסף על מצב חיסכון באנרגיה<ph name="END_LINK" /></translation>
+<translation id="1898804291554630487">כאן שואלים שאלה לגבי הדף הזה</translation>
 <translation id="1900969832270057921">‏שירות לעדכון של Chromium</translation>
 <translation id="1911763535808217981">‏כיבוי הגדרה זו יאפשר לך להיכנס לאתרי Google, כמו Gmail, בלי להיכנס אל Chromium</translation>
 <translation id="1916451563296275579">‏הסרת הנתונים של האפליקציות האלה מ-Chromium</translation>
@@ -133,6 +134,7 @@
 <translation id="2711502716910134313">‏כרטיסייה של Chromium</translation>
 <translation id="2718390899429598676">‏לשיפור האבטחה, Chromium יצפין את הנתונים.</translation>
 <translation id="2721354645805494590">‏כדי להסיר את החשבון שלך ב-Google מ-Chromium, צריך לצאת מהחשבון</translation>
+<translation id="2722636413143664436">‏כדי לקבל גישה לסיסמאות, לסימניות ולנתונים נוספים בכל המכשירים שלך, כדאי להיכנס ל-Chromium</translation>
 <translation id="2738871930057338499">‏לא ניתן להתחבר לאינטרנט. HTTP 403: קוד איסור. צריך לבדוק את ההגדרה של שרת ה-proxy.</translation>
 <translation id="2753623023919742414">צריך ללחוץ כדי לחפש</translation>
 <translation id="2768103863314748511">‏הגדרת Chromium ככלי ברירת המחדל לצפייה בקובצי PDF</translation>
@@ -160,6 +162,7 @@
 <translation id="3032787606318309379">‏מתבצעת הוספה ל-Chromium...</translation>
 <translation id="3038232873781883849">בהמתנה להתקנה…</translation>
 <translation id="3045032126857188731">שפת התרגום: <ph name="LANGUAGE" /></translation>
+<translation id="3047590466164881923">סגירה של תיבת דו-שיח של משוב</translation>
 <translation id="3068187312562070417">‏פרופילים אחרים ב-Chromium</translation>
 <translation id="3068515742935458733">‏עזרה בשיפור Chromium על ידי שליחת <ph name="UMA_LINK" /> ודוחות קריסה אל Google</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{‏תוסף אחד לפחות ל-Chromium ניגש להתקן USB אחד}=1{‏תוסף אחד לפחות ל-Chromium ניגש להתקן USB אחד}one{‏תוסף אחד לפחות ל-Chromium ניגש ל-# התקני USB}two{‏תוסף אחד לפחות ל-Chromium ניגש ל-# התקני USB}other{‏תוסף אחד לפחות ל-Chromium ניגש ל-# התקני USB}}</translation>
@@ -401,6 +404,7 @@
 <translation id="6366160072964553914">‏Chromium חסם את ההורדה הזאת כי לרוב לא מתבצעת הורדה של קבצים כאלה ויכול להיות שהקובץ מסוכן</translation>
 <translation id="6373523479360886564">‏ברצונך באמת להסיר את התקנת Chromium?</translation>
 <translation id="6375219077595103062">ניתן להוסיף קיצור דרך למנהל הסיסמאות</translation>
+<translation id="6388799252195623474">אני רוצה עזרה בנושא הזה</translation>
 <translation id="6390800440335263989">‏כדי להמשיך, עליך להיכנס ל-Chromium באמצעות החשבון <ph name="EMAIL" />. כך המדיניות של הארגון תחול על המכשיר שלך.</translation>
 <translation id="6400112897226594999">‏הלוגו של Chromium בתוך מסך מחשב.</translation>
 <translation id="6403826409255603130">‏Chromium הוא דפדפן אינטרנט המפעיל דפי אינטרנט ואפליקציות במהירות הבזק. זהו דפדפן מהיר, יציב וקל לשימוש שמאפשר לך לגלוש באינטרנט בצורה מאובטחת יותר הודות להגנה מפני תוכנות זדוניות ופישינג המובנית ב-Chromium.</translation>

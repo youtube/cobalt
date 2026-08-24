@@ -46,6 +46,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonDataProvider;
@@ -120,8 +121,6 @@ public class TopToolbarCoordinator implements Toolbar {
     /**
      * Creates a new {@link TopToolbarCoordinator}.
      *
-     * @param reloadButtonCoordinator Component that encapsulates interactions with a reload button.
-     *     It only presents on tablet.
      * @param controlContainer The {@link ToolbarControlContainer} for the containing activity.
      * @param toolbarLayout The {@link ToolbarLayout}.
      * @param toolbarDataProvider The provider for toolbar data.
@@ -186,7 +185,8 @@ public class TopToolbarCoordinator implements Toolbar {
             ObservableSupplier<@Nullable Tab> tabSupplier,
             ObservableSupplier<Boolean> toolbarNavControlsEnabledSupplier,
             @Nullable BackButtonCoordinator backButtonCoordinator,
-            @Nullable HomeButtonDisplay homeButtonDisplay) {
+            @Nullable HomeButtonDisplay homeButtonDisplay,
+            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator) {
         mToolbarLayout = toolbarLayout;
         mMenuButtonCoordinator = browsingModeMenuButtonCoordinator;
         mControlContainer = controlContainer;
@@ -251,7 +251,8 @@ public class TopToolbarCoordinator implements Toolbar {
                 progressBar,
                 mReloadButtonCoordinator,
                 mBackButtonCoordinator,
-                homeButtonDisplay);
+                homeButtonDisplay,
+                extensionToolbarCoordinator);
         mToolbarLayout.setThemeColorProvider(normalThemeColorProvider);
         mAppMenuButtonHelperSupplier = appMenuButtonHelperSupplier;
         new OneShotCallback<>(mAppMenuButtonHelperSupplier, this::setAppMenuButtonHelper);
@@ -669,6 +670,7 @@ public class TopToolbarCoordinator implements Toolbar {
     public void setIncognitoStateProvider(
             IncognitoStateProvider provider,
             @Nullable ObservableSupplier<Integer> overviewColorSupplier) {
+        mToolbarLayout.setIncognitoStateProvider(provider);
         if (overviewColorSupplier == null) {
             assert mToolbarLayout != null;
             cleanUpIncognitoStateObserver();

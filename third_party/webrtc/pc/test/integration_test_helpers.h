@@ -878,7 +878,7 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
 
   void HandleIncomingAnswer(SdpType type, const std::string& msg) {
     RTC_LOG(LS_INFO) << debug_name_ << ": HandleIncomingAnswer of type "
-                     << SdpTypeToString(type);
+                     << type;
     std::unique_ptr<SessionDescriptionInterface> desc =
         CreateSessionDescription(type, msg);
     if (received_sdp_munger_) {
@@ -1874,12 +1874,11 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
       callee()->pc()->Close();
   }
 
-  void TestNegotiatedCipherSuite(
-      const PeerConnectionFactory::Options& caller_options,
-      const PeerConnectionFactory::Options& callee_options,
-      int expected_cipher_suite) {
-    ASSERT_TRUE(CreatePeerConnectionWrappersWithOptions(caller_options,
-                                                        callee_options));
+  void TestNegotiatedCipherSuite(const RTCConfiguration& caller_config,
+                                 const RTCConfiguration& callee_config,
+                                 int expected_cipher_suite) {
+    ASSERT_TRUE(
+        CreatePeerConnectionWrappersWithConfig(caller_config, callee_config));
     ConnectFakeSignaling();
     caller()->AddAudioVideoTracks();
     callee()->AddAudioVideoTracks();
@@ -1896,17 +1895,17 @@ class PeerConnectionIntegrationBaseTest : public ::testing::Test {
                                          bool remote_gcm_enabled,
                                          bool aes_ctr_enabled,
                                          int expected_cipher_suite) {
-    PeerConnectionFactory::Options caller_options;
-    caller_options.crypto_options.srtp.enable_gcm_crypto_suites =
-        local_gcm_enabled;
-    caller_options.crypto_options.srtp.enable_aes128_sha1_80_crypto_cipher =
-        aes_ctr_enabled;
-    PeerConnectionFactory::Options callee_options;
-    callee_options.crypto_options.srtp.enable_gcm_crypto_suites =
-        remote_gcm_enabled;
-    callee_options.crypto_options.srtp.enable_aes128_sha1_80_crypto_cipher =
-        aes_ctr_enabled;
-    TestNegotiatedCipherSuite(caller_options, callee_options,
+    RTCConfiguration caller_config;
+    CryptoOptions caller_crypto;
+    caller_crypto.srtp.enable_gcm_crypto_suites = local_gcm_enabled;
+    caller_crypto.srtp.enable_aes128_sha1_80_crypto_cipher = aes_ctr_enabled;
+    caller_config.crypto_options = caller_crypto;
+    RTCConfiguration callee_config;
+    CryptoOptions callee_crypto;
+    callee_crypto.srtp.enable_gcm_crypto_suites = remote_gcm_enabled;
+    callee_crypto.srtp.enable_aes128_sha1_80_crypto_cipher = aes_ctr_enabled;
+    callee_config.crypto_options = callee_crypto;
+    TestNegotiatedCipherSuite(caller_config, callee_config,
                               expected_cipher_suite);
   }
 

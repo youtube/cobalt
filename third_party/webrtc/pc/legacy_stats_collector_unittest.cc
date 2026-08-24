@@ -10,9 +10,8 @@
 
 #include "pc/legacy_stats_collector.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>

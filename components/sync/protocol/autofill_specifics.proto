@@ -183,6 +183,11 @@ message AutofillProfileSpecifics {
   // address_home_apt. Note that some address forms require the combination of
   // both in a single field as opposed to each one separately.
   optional string address_home_thoroughfare_number_and_apt = 91;
+  // Sometimes address_home_zip consists of two parts.
+  // For example, address_home_zip = 12345-6789,
+  // prefix = 12345, suffix = 6789.
+  optional string address_home_zip_prefix = 103;
+  optional string address_home_zip_suffix = 104;
 
   // Validation status records for address fields.
   optional VerificationStatus address_home_city_status = 43;
@@ -214,6 +219,8 @@ message AutofillProfileSpecifics {
   optional VerificationStatus address_home_apt_num_status = 58;
   optional VerificationStatus address_home_apt_type_status = 88;
   optional VerificationStatus address_home_floor_status = 59;
+  optional VerificationStatus address_home_zip_prefix_status = 105;
+  optional VerificationStatus address_home_zip_suffix_status = 106;
 
   // Phone.
   repeated string phone_home_whole_number = 13;
@@ -418,6 +425,12 @@ message WalletMaskedCreditCard {
     SOURCE_CURINOS = 3;
   }
 
+  enum CardCreationSource {
+    CREATION_SOURCE_UNSPECIFIED = 0;
+    CREATION_SOURCE_CHROME_PAYMENTS = 1;
+    CREATION_SOURCE_NON_CHROME_PAYMENTS = 2;
+  }
+
   // Server-generated unique ID string. This is opaque to the client.
   // This is the legacy version of `instrument_id`.
   optional string id = 1;
@@ -490,6 +503,11 @@ message WalletMaskedCreditCard {
   // The source of the card's benefits. eg: Curinos. Each card can only have one
   // single benefit source, even if there are multiple benefits.
   optional CardBenefitSource card_benefit_source = 23;
+
+  // The source of the card creation, indicating whether the card was added
+  // through a Chrome-related service, or through an external service (which
+  // includes Android Autofill).
+  optional CardCreationSource card_creation_source = 24;
 }
 
 // Unused by the client since M121.

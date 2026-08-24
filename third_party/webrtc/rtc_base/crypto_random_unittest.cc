@@ -10,8 +10,6 @@
 
 #include "rtc_base/crypto_random.h"
 
-#include <string.h>
-
 #include <cstdint>
 #include <cstring>
 #include <memory>

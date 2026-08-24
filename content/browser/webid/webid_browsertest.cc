@@ -1267,9 +1267,9 @@ class WebIdDigitalCredentialsBrowserTest : public WebIdBrowserTest {
 std::string BuildDigitalIdentityValidJsRequestDictionary() {
   return R"({
     digital: {
-      providers: [{
+      requests: [{
         protocol: "openid4vp",
-        request: JSON.stringify({
+        data: {
           // Based on https://github.com/openid/OpenID4VP/issues/125
           client_id: "client.example.org",
           client_id_scheme: "web-origin",
@@ -1277,7 +1277,7 @@ std::string BuildDigitalIdentityValidJsRequestDictionary() {
           presentation_definition: {
             // Presentation Exchange request, omitted for brevity
           }
-        })
+        }
       }],
     },
   })";
@@ -1298,7 +1298,7 @@ EvalJsResult EvalJsAndReturnToken(const ToRenderFrameHost& execution_target,
 EvalJsResult RunDigitalIdentityValidRequest(
     const ToRenderFrameHost& execution_target) {
   std::string script = base::StringPrintf(
-      "const {data} = await navigator.identity.get(%s);return data;",
+      "const {data} = await navigator.credentials.get(%s);return data;",
       BuildDigitalIdentityValidJsRequestDictionary().c_str());
   return EvalJsAndReturnToken(execution_target, script);
 }
@@ -1314,10 +1314,10 @@ MATCHER_P(JsonMatches, ref, "") {
   return ref_json.has_value() && (ref_json.value() == arg.ToValue());
 }
 
-// Test that a Verifiable Credential can be requested via the navigator.identity
-// JS API
+// Test that a Verifiable Credential can be requested via the
+// navigator.credentials JS API.
 IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
-                       NavigatorIdentityApi) {
+                       NavigatorCredentialsApi) {
   base::Value kIdentityProviderResponse =
       base::JSONReader::Read(
           R"({"vp_token": "token data" , "presentation_submission":"bar"})")
@@ -1330,15 +1330,15 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
 
   std::string_view request = R"(
   {
-   "providers": [ {
+   "requests": [ {
       "protocol": "openid4vp",
-      "request": "{
-        \"client_id\": \"client.example.org\",
-        \"client_id_scheme\": \"web-origin\",
-        \"nonce\": \"n-0S6_WzA2Mj\",
-        \"presentation_definition\": {
+      "data": {
+        "client_id": "client.example.org",
+        "client_id_scheme": "web-origin",
+        "nonce": "n-0S6_WzA2Mj",
+        "presentation_definition": {
         }
-      }",
+      },
    } ]
   }
   )";
@@ -1358,55 +1358,6 @@ IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
           }));
 
   EXPECT_EQ(kIdentityProviderResponse, RunDigitalIdentityValidRequest(shell()));
-}
-
-// Test that a Verifiable Credential can be requested via the
-// navigator.credentials JS API too.
-IN_PROC_BROWSER_TEST_F(WebIdDigitalCredentialsBrowserTest,
-                       NavigatorCredentialsApi) {
-  base::Value kIdentityProviderResponse =
-      base::JSONReader::Read(
-          R"({"vp_token": "token data" , "presentation_submission":"bar"})")
-          .value();
-
-  idp_server()->SetConfigResponseDetails(BuildValidConfigDetails());
-  MockDigitalIdentityProvider* digital_identity_provider =
-      static_cast<MockDigitalIdentityProvider*>(
-          test_browser_client_->GetDigitalIdentityProviderForTests());
-
-  std::string_view request = R"(
-  {
-   "providers": [ {
-      "protocol": "openid4vp",
-      "request": "{
-        \"client_id\": \"client.example.org\",
-        \"client_id_scheme\": \"web-origin\",
-        \"nonce\": \"n-0S6_WzA2Mj\",
-        \"presentation_definition\": {
-        }
-      }",
-   } ]
-  }
-  )";
-
-  std::string json;
-  // Invalid whitespace and newlines are added to the request string to make it
-  // easier to read in this test, so we remove them before actually making the
-  // JSON comparison in IsJson below.
-  base::RemoveChars(request, "\n ", &json);
-
-  EXPECT_CALL(*digital_identity_provider, Get(_, _, JsonMatches(json), _))
-      .WillOnce(WithArg<3>(
-          [&kIdentityProviderResponse](
-              DigitalIdentityProvider::DigitalIdentityCallback callback) {
-            std::move(callback).Run(DigitalCredential(
-                "openid4vp", kIdentityProviderResponse.Clone()));
-          }));
-
-  std::string script = base::StringPrintf(
-      "const {data} = await navigator.credentials.get(%s);return data;",
-      BuildDigitalIdentityValidJsRequestDictionary().c_str());
-  EXPECT_EQ(kIdentityProviderResponse, EvalJsAndReturnToken(shell(), script));
 }
 
 // Test that when there's a pending mdoc request, a second `get` call should be
@@ -2412,8 +2363,7 @@ IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, IdpLoginClosed) {
   EXPECT_EQ("true", metrics_parameters_["did_show_ui"]);
 }
 
-// TODO(crbug.com/431760416): Re-enable this test
-IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, DISABLED_Failure) {
+IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, Failure) {
   base::RunLoop run_loop;
   SetMetricsConfigDetails(&run_loop, kAccountsFailure);
 

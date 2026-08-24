@@ -9,6 +9,8 @@ import android.view.ViewGroup;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -23,12 +25,15 @@ public class ComposeplateCoordinator {
      * Constructs a new ComposeplateCoordinator.
      *
      * @param parentView The parent {@link ViewGroup} for the composeplate.
+     * @param profile The current user profile.
      */
-    public ComposeplateCoordinator(ViewGroup parentView) {
+    public ComposeplateCoordinator(ViewGroup parentView, Profile profile) {
         mModel = new PropertyModel(ComposeplateProperties.ALL_KEYS);
         View view = parentView.findViewById(R.id.composeplate_view);
         PropertyModelChangeProcessor.create(mModel, view, ComposeplateViewBinder::bind);
-        mHideIncognitoButton = ChromeFeatureList.sAndroidComposeplateHideIncognitoButton.getValue();
+        mHideIncognitoButton =
+                ChromeFeatureList.sAndroidComposeplateHideIncognitoButton.getValue()
+                        || !IncognitoUtils.isIncognitoModeEnabled(profile);
     }
 
     /**
@@ -101,5 +106,15 @@ public class ComposeplateCoordinator {
             }
             ComposeplateMetricsUtils.recordComposeplateClick(sectionType);
         };
+    }
+
+    public void destroy() {
+        mModel.set(ComposeplateProperties.VOICE_SEARCH_CLICK_LISTENER, null);
+        mModel.set(ComposeplateProperties.LENS_CLICK_LISTENER, null);
+        mModel.set(ComposeplateProperties.INCOGNITO_CLICK_LISTENER, null);
+    }
+
+    public PropertyModel getModelForTesting() {
+        return mModel;
     }
 }

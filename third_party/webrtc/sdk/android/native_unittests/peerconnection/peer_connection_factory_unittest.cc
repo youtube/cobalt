@@ -15,6 +15,7 @@
 #include <memory>
 #include <utility>
 
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment_factory.h"
 #include "api/peer_connection_interface.h"

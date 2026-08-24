@@ -55,19 +55,16 @@ class AutofillType {
         server_predictions;
   };
 
-  // NOLINTNEXTLINE(google-explicit-constructor)
-  AutofillType(FieldType field_type = NO_SERVER_DATA);
+  AutofillType();
+  explicit AutofillType(FieldType field_type);
   explicit AutofillType(HtmlFieldType field_type);
   AutofillType(const AutofillType& autofill_type) = default;
   AutofillType& operator=(const AutofillType& autofill_type) = default;
+  ~AutofillType() = default;
 
   HtmlFieldType html_type() const { return html_type_; }
 
   FieldTypeGroup group() const;
-
-  // Returns true if both the `server_type_` and the `html_type_` are set to
-  // their respective enum's unknown value.
-  bool IsUnknown() const;
 
   // Maps `this` type to a field type that can be directly stored in an Autofill
   // data model (in the sense that it makes sense to call

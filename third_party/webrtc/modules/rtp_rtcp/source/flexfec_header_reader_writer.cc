@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/flexfec_header_reader_writer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 
 #include "api/array_view.h"
 #include "api/scoped_refptr.h"

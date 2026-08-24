@@ -10,7 +10,7 @@
 
 #include "rtc_base/sanitizer.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "rtc_base/logging.h"
 #include "test/gtest.h"

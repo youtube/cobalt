@@ -22,6 +22,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
@@ -167,7 +168,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
       int64_t now_ms) const;
 
   Clock* const clock_;
-  const int64_t start_ms_;
+  const Timestamp start_;
 
   // Note: The `stats_.rtp_stats` member is not used or populated by this class.
   mutable VideoReceiveStreamInterface::Stats stats_

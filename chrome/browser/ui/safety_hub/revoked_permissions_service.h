@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/safety_hub/revoked_permissions_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_service.h"
+#include "chrome/browser/ui/safety_hub/unused_site_permissions_manager.h"
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
@@ -117,19 +118,6 @@ class RevokedPermissionsService final : public SafetyHubService,
       base::Clock* clock,
       const scoped_refptr<HostContentSettingsMap> hcsm);
 
-  // Helpers to convert content settings between enum int and string name.
-  static std::string ConvertContentSettingsTypeToKey(ContentSettingsType type);
-  static ContentSettingsType ConvertKeyToContentSettingsType(
-      const std::string& key);
-
-  // Helper to convert single origin primary pattern to an origin.
-  // Converting a primary pattern to an origin is normally an anti-pattern, and
-  // this method should only be used for single origin primary patterns.
-  // They have fully defined URL+scheme+port which makes converting
-  // a primary pattern to an origin successful.
-  static url::Origin ConvertPrimaryPatternToOrigin(
-      const ContentSettingsPattern& primary_pattern);
-
   // SafetyHubService implementation
   // Returns a weak pointer to the service.
   base::WeakPtr<SafetyHubService> GetAsWeakRef() override;
@@ -146,18 +134,6 @@ class RevokedPermissionsService final : public SafetyHubService,
   using UnusedPermissionMap = RevokedPermissionsResult::UnusedPermissionMap;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(RevokedPermissionsServiceTest,
-                           UpdateIntegerValuesToGroupName_AllContentSettings);
-  FRIEND_TEST_ALL_PREFIXES(
-      RevokedPermissionsServiceTest,
-      UpdateIntegerValuesToGroupName_SubsetOfContentSettings);
-  FRIEND_TEST_ALL_PREFIXES(
-      RevokedPermissionsServiceTest,
-      UpdateIntegerValuesToGroupName_UnknownContentSettings);
-  FRIEND_TEST_ALL_PREFIXES(RevokedPermissionsServiceTest,
-                           UpdateIntegerValuesToGroupName_OnStartUp);
-  FRIEND_TEST_ALL_PREFIXES(RevokedPermissionsServiceTest,
-                           UpdateIntegerValuesToGroupName_MixedKeys);
   // Called by TabHelper when a URL was visited.
   void OnPageVisited(const url::Origin& origin);
 
@@ -218,10 +194,6 @@ class RevokedPermissionsService final : public SafetyHubService,
   const std::set<ContentSettingsType> GetRevokedUnusedSitePermissionTypes(
       const std::set<ContentSettingsType> permissions);
 
-  // Convert all integer permission values to string, if there is any permission
-  // represented by integer.
-  void UpdateIntegerValuesToGroupName();
-
   // Set of permissions that haven't been used for at least a week.
   UnusedPermissionMap recently_unused_permissions_;
 
@@ -244,6 +216,10 @@ class RevokedPermissionsService final : public SafetyHubService,
   // Object for notification revocation for disruptive sites.
   std::unique_ptr<DisruptiveNotificationPermissionsManager>
       disruptive_notification_manager_;
+
+  // Object for unused site permissions revocation.
+  std::unique_ptr<UnusedSitePermissionsManager>
+      unused_site_permissions_manager_;
 
   // Returns true if automatic check and revocation of unused site permissions
   // is occurring. This value is used in `OnContentSettingChanged` to help

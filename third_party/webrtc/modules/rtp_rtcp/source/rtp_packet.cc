@@ -402,6 +402,10 @@ uint8_t* RtpPacket::AllocatePayload(size_t size_bytes) {
   return SetPayloadSize(size_bytes);
 }
 
+void RtpPacket::SetPayload(ArrayView<const uint8_t> payload) {
+  memcpy(AllocatePayload(payload.size()), payload.data(), payload.size());
+}
+
 uint8_t* RtpPacket::SetPayloadSize(size_t size_bytes) {
   RTC_DCHECK_EQ(padding_size_, 0);
   payload_size_ = size_bytes;

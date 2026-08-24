@@ -121,6 +121,7 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e mais <ph name="NUM_MORE" /> permitidas.}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> e mais <ph name="NUM_MORE" /> permitidas.}}</translation>
 <translation id="2410940059315936967">Um site que visita pode incorporar conteúdo de outros sites, por exemplo, imagens, anúncios e texto. Os cookies definidos por estes sites são denominados cookies de terceiros.</translation>
+<translation id="2411116727035790889">Ativar atalhos</translation>
 <translation id="2433507940547922241">Aspeto</translation>
 <translation id="2434158240863470628">Transferência concluída: <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Permitiu temporariamente que este site usasse cookies de terceiros, o que significa uma proteção da navegação inferior, mas é mais provável que as funcionalidades do site funcionem conforme esperado. <ph name="BEGIN_LINK" />Envie feedback<ph name="END_LINK" /></translation>
@@ -187,6 +188,7 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="3114012059975132928">Leitor de vídeo</translation>
 <translation id="3115898365077584848">Mostrar informações</translation>
 <translation id="3123473560110926937">Bloqueado em alguns sites.</translation>
+<translation id="3132996321662585180">Atualizar diariamente</translation>
 <translation id="3143754809889689516">Reproduzir desde o início</translation>
 <translation id="3162899666601560689">Os sites podem usar cookies para melhorar a experiência de navegação, por exemplo, para manter a sua sessão iniciada ou memorizar os artigos no seu carrinho de compras</translation>
 <translation id="3165022941318558018">Permita que um site use cookies de terceiros</translation>
@@ -412,6 +414,7 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="5750869797196646528">Monitorização das mãos</translation>
 <translation id="5753570386948603678">Eliminar do histórico</translation>
 <translation id="5771720122942595109">Bloqueio de <ph name="PERMISSION_1" />.</translation>
+<translation id="5801457289562671820">Recomendada pela sua organização</translation>
 <translation id="5804241973901381774">Permissões</translation>
 <translation id="5822675474983796325">Secção inferior de Personalize a página Novo separador aberta à altura total</translation>
 <translation id="5833899990800318936">Não permitir que os sites usem JavaScript</translation>
@@ -610,7 +613,6 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="8186479265534291036">O site não funciona? Cookies de terceiros bloqueados</translation>
 <translation id="8197286292360124385">Autorização de <ph name="PERMISSION_1" />.</translation>
 <translation id="8200772114523450471">Continuar</translation>
-<translation id="8206354486702514201">Esta definição é aplicada pelo gestor.</translation>
 <translation id="8211406090763984747">A ligação é segura</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">Mover para o início</translation>
@@ -621,6 +623,7 @@ A Proteção avançada controla estas definições do Chrome:
 <translation id="8324158725704657629">Não perguntar novamente</translation>
 <translation id="8362795839483915693">Pode aumentar ou diminuir o zoom nos sites que visitar</translation>
 <translation id="8372893542064058268">Permitir Sincronização em segundo plano num site específico.</translation>
+<translation id="8378714024927312812">Gerido pela sua entidade</translation>
 <translation id="83792324527827022">Um site está a utilizar a sua câmara e microfone.</translation>
 <translation id="8380167699614421159">Este site apresenta anúncios intrusivos ou enganadores.</translation>
 <translation id="8394832520002899662">Toque para regressar ao site.</translation>

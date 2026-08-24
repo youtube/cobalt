@@ -7,7 +7,7 @@
 //   --gn_target chrome/test/data/webui/glic:build_ts
 
 import {HostCapability, ScrollToErrorReason, WebClientMode} from '/glic/glic_api/glic_api.js';
-import type {FocusedTabData, GlicBrowserHost, GlicHostRegistry, GlicWebClient, Observable, OpenPanelInfo, PanelOpeningData, ScrollToError, Subscriber, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
+import type {FocusedTabData, GlicBrowserHost, GlicHostRegistry, GlicWebClient, Observable, OpenPanelInfo, PanelOpeningData, ScrollToError, Subscriber, UserProfileInfo, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
 import {ObservableValue} from '/glic/observable.js';
 
 import {createGlicHostRegistryOnLoad} from './api_boot.js';
@@ -340,6 +340,50 @@ class ApiTests extends ApiTestFixtureBase {
     const suggestions = await sequence.next();
     assertTrue(!!suggestions);
     assertEquals(0, suggestions.suggestions.length);
+    assertEquals(false, suggestions.isPending);
+  }
+
+  async testGetZeroStateSuggestionsMultipleNavigations() {
+    // Initial state.
+    assertTrue(!!this.host.getZeroStateSuggestions);
+    const sequence = observeSequence<ZeroStateSuggestionsV2>(
+        this.host.getZeroStateSuggestions());
+    const suggestions = await sequence.next();
+    assertTrue(!!suggestions);
+    assertEquals(0, suggestions.suggestions.length);
+    assertEquals(false, suggestions.isPending);
+
+    // After a second navigation occurs.
+    await this.advanceToNextStep();
+
+    // Should first get a pending state.
+    const suggestions2 = await sequence.next();
+    assertTrue(!!suggestions2);
+    // We don't care about the suggestions here.
+    assertEquals(true, suggestions2.isPending);
+
+    // Should later get the actual suggestions.
+    const suggestions3 = await sequence.next();
+    assertTrue(!!suggestions2);
+    assertEquals(3, suggestions3.suggestions.length);
+    assertEquals(false, suggestions3.isPending);
+  }
+
+  async testGetZeroStateSuggestionsFailsWhenHidden() {
+    // Initial state.
+    assertTrue(!!this.host.getZeroStateSuggestions);
+    const sequence = observeSequence<ZeroStateSuggestionsV2>(
+        this.host.getZeroStateSuggestions());
+    const suggestions = await sequence.next();
+    assertTrue(!!suggestions);
+    assertEquals(0, suggestions.suggestions.length);
+
+    // Close panel.
+    assertTrue(!!this.host.closePanel);
+    await this.closePanelAndWaitUntilInactive();
+
+    // After next navigation in focused tab occurs.
+    await this.advanceToNextStep();
   }
 
   async testGetFocusedTabStateV2() {
@@ -616,6 +660,20 @@ class ApiTests extends ApiTestFixtureBase {
     assertFalse(result.pdfDocumentData!.pdfSizeLimitExceeded);
   }
 
+  async testGetContextForActorFromFocusedTabWithoutPermission() {
+    await this.host.setTabContextPermissionState(true);
+    assertTrue(!!this.host.getFocusedTabStateV2);
+    const focusedTab = await this.host.getFocusedTabStateV2().getCurrentValue();
+    assertTrue(!!focusedTab?.hasFocus?.tabData?.tabId);
+    await this.host.setTabContextPermissionState(false);
+    const result = await this.host.getContextForActorFromTab?.(
+        focusedTab.hasFocus.tabData.tabId, {});
+    assertTrue(!!result);
+  }
+
+  // TODO(crbug.com/422544382): add test for getContextForActorFromTab for the
+  // case where tab is in background.
+
   // TODO(harringtond): This is disabled because it hangs. Fix it.
   async testCaptureScreenshot() {
     assertTrue(!!this.host.captureScreenshot);
@@ -689,23 +747,16 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals('', profileInfo.givenName);
     assertEquals(false, profileInfo.isManaged!);
     assertTrue((profileInfo.localProfileName?.length ?? 0) > 0);
+    assertEquals('Your Chromium', profileInfo.localProfileName);
   }
 
-  async testGetUserProfileInfoDefersWhenInactive() {
+  async testGetUserProfileInfoDoesNotDeferWhenInactive() {
     assertTrue(!!this.host.getUserProfileInfo);
     assertTrue(!!this.host.closePanel);
     await this.closePanelAndWaitUntilInactive();
-    const promise = this.host.getUserProfileInfo();
-    try {
-      await waitFor(promise, 200);
-      // We should have thrown here as the promise should not resolve until
-      // advancing to the next step.
-      assertTrue(false);
-    } catch {
-    }
-    await this.advanceToNextStep();
-    const profileInfo = await promise;
+    const profileInfo: UserProfileInfo = await this.host.getUserProfileInfo();
     assertEquals('glic-test@example.com', profileInfo.email);
+    assertEquals('Your Chromium', profileInfo.localProfileName);
   }
 
   async testRefreshSignInCookies() {
@@ -1030,6 +1081,12 @@ class ApiTests extends ApiTestFixtureBase {
         `Expect each of ${
             this.capabilitiesToString(expectedCapabilities)} is in ${
             this.capabilitiesToString(Array.from(capabilities))}`);
+  }
+
+  async testGetModelQualityClientId() {
+    assertTrue(!!this.host.getModelQualityClientId);
+    const clientId = await this.host.getModelQualityClientId();
+    assertTrue(!!clientId);
   }
 
   private async closePanelAndWaitUntilInactive() {

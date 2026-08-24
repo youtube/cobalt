@@ -8,12 +8,12 @@
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "pdf/page_character_index.h"
 #include "pdf/pdf_caret_client.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace chrome_pdf {
 
-struct PageCharacterIndex;
 struct RegionData;
 
 // Manages the text caret for text selection and navigation within a PDF. This
@@ -26,7 +26,8 @@ class PdfCaret {
   static constexpr base::TimeDelta kDefaultBlinkInterval =
       base::Milliseconds(500);
 
-  explicit PdfCaret(PdfCaretClient* client);
+  // PdfCaret should only be instantiated on a text page with chars.
+  PdfCaret(PdfCaretClient* client, const PageCharacterIndex& index);
   PdfCaret(const PdfCaret&) = delete;
   PdfCaret& operator=(const PdfCaret&) = delete;
   ~PdfCaret();
@@ -38,6 +39,11 @@ class PdfCaret {
   // Sets how often the caret should blink. If the interval is set to 0, the
   // caret will not blink. No-op if `interval` is negative.
   void SetBlinkInterval(base::TimeDelta interval);
+
+  // Sets the caret's char position and updates its screen rect. Requires a
+  // page with at least one char and a valid char index (from 0 up to the page's
+  // char count, inclusive), otherwise crashes.
+  void SetChar(const PageCharacterIndex& next_char);
 
   // Draws the caret on the canvas if it is visible within any paint updates in
   // `dirty_in_screen`. Returns true if the caret was drawn, false otherwise.
@@ -57,11 +63,13 @@ class PdfCaret {
   // Called by `blink_timer_` to toggle caret visibility.
   void OnBlinkTimerFired();
 
-  // Sets the caret's char position and updates its screen rect.
-  void SetChar(const PageCharacterIndex& next_char);
-
-  // Returns the screen rect for the current caret.
+  // Returns the screen rect for the current caret. For chars without a defined
+  // rect (like synthetic newlines), it calculates a position based on the
+  // preceding char.
   gfx::Rect GetScreenRectForCaret() const;
+
+  // Returns the screen rect for a char, which may be empty.
+  gfx::Rect GetScreenRectForChar(const PageCharacterIndex& index) const;
 
   // Draws `rect` as the caret on `region`.
   void Draw(const RegionData& region, const gfx::Rect& rect) const;
@@ -69,11 +77,10 @@ class PdfCaret {
   // Client must outlive `this`.
   const raw_ptr<PdfCaretClient> client_;
 
-  // `page_index_` and `char_index_` represent the current caret position.
-  int page_index_ = -1;
-  // Can be max char count on the page, since the cursor can be to the right of
-  // the last char.
-  int char_index_ = -1;
+  // The current caret position.
+  // The char index can be max char count on the page, since the cursor can be
+  // to the right of the last char.
+  PageCharacterIndex index_;
 
   // Whether the caret is visible.
   bool is_visible_ = false;

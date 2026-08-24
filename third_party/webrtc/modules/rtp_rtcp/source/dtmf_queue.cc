@@ -10,7 +10,7 @@
 
 #include "modules/rtp_rtcp/source/dtmf_queue.h"
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"

@@ -10,8 +10,7 @@
 
 #include "api/audio/channel_layout.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <iterator>
 
 #include "rtc_base/checks.h"

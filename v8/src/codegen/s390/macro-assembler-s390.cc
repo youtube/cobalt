@@ -4463,8 +4463,9 @@ void MacroAssembler::SubF32(DoubleRegister dst, DoubleRegister lhs,
   if (dst == lhs) {
     sebr(dst, rhs);
   } else if (dst == rhs) {
-    sebr(dst, lhs);
-    lcebr(dst, dst);
+    ler(kScratchDoubleReg, dst);
+    ler(dst, lhs);
+    sebr(dst, kScratchDoubleReg);
   } else {
     ler(dst, lhs);
     sebr(dst, rhs);
@@ -5100,11 +5101,11 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t argument_count, Register scratch) {
   Register code = kJavaScriptCallCodeStartRegister;
 #if V8_ENABLE_LEAPTIERING
   Register dispatch_handle = r0;
-  Register scratch = ip;
+  scratch = ip;
   LoadU32(dispatch_handle,
           FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);

@@ -3,25 +3,28 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.android builder group."""
 
-load("//lib/branches.star", "branches")
-load("//lib/builder_config.star", "builder_config")
-load("//lib/builders.star", "os", "siso")
-load("//lib/consoles.star", "consoles")
-load("//lib/gn_args.star", "gn_args")
-load("//lib/targets.star", "targets")
-load("//lib/try.star", "try_")
+load("@chromium-luci//branches.star", "branches")
+load("@chromium-luci//builder_config.star", "builder_config")
+load("@chromium-luci//builders.star", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//gn_args.star", "gn_args")
+load("@chromium-luci//targets.star", "targets")
+load("@chromium-luci//try.star", "try_")
+load("//lib/gpu.star", "gpu")
+load("//lib/siso.star", "siso")
+load("//lib/try_constants.star", "try_constants")
 load("//project.star", "settings")
 
 try_.defaults.set(
-    executable = try_.DEFAULT_EXECUTABLE,
+    executable = try_constants.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.android",
-    pool = try_.DEFAULT_POOL,
+    pool = try_constants.DEFAULT_POOL,
     cores = 8,
     os = os.LINUX_DEFAULT,
     compilator_cores = 32,
-    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
+    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
     orchestrator_cores = 4,
-    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
+    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
     # crbug.com/372192123 - downloading with "minimum" strategy doesn't work
     # well for Android builds because some steps have additional inputs/outputs
     # they are not configured in the build graph.
@@ -394,6 +397,22 @@ try_.builder(
 )
 
 try_.builder(
+    name = "android-16-x64-dbg",
+    mirrors = [
+        "ci/Android x64 Builder (dbg)",
+        "ci/android-16-x64-dbg-tests",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/Android x64 Builder (dbg)",
+            "debug_try_builder",
+        ],
+    ),
+    contact_team_email = "clank-engprod@google.com",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
+)
+
+try_.builder(
     name = "android-16-x64-rel",
     branch_selector = branches.selector.ANDROID_BRANCHES,
     description_html = "Run Chromium tests on Android 16 emulator.",
@@ -616,6 +635,7 @@ try_.builder(
             "components/grpc_support/.+",
             "build/android/.+",
             "build/config/android/.+",
+            "third_party/jni_zero/.+",
         ],
     ),
 )
@@ -704,6 +724,7 @@ try_.builder(
             "components/grpc_support/.+",
             "build/android/.+",
             "build/config/android/.+",
+            "third_party/jni_zero/.+",
         ],
     ),
 )
@@ -1253,6 +1274,7 @@ try_.builder(
             "components/cast_receiver/.+",
             "components/cast_streaming/.+",
             "third_party/cast_core/.+",
+            "third_party/jni_zero/.+",
             "third_party/openscreen/.+",
         ],
     ),
@@ -1276,6 +1298,7 @@ try_.builder(
             "components/cast_receiver/.+",
             "components/cast_streaming/.+",
             "third_party/cast_core/.+",
+            "third_party/jni_zero/.+",
             "third_party/openscreen/.+",
         ],
     ),
@@ -1404,7 +1427,7 @@ try_.builder(
     ),
 )
 
-try_.gpu.optional_tests_builder(
+gpu.try_.optional_tests_builder(
     name = "android_optional_gpu_tests_rel",
     branch_selector = branches.selector.ANDROID_BRANCHES,
     description_html = "Runs GPU tests on Pixel 4 devices. Only automatically added to CLs that touch GPU-related files.",
@@ -1538,7 +1561,7 @@ try_.gpu.optional_tests_builder(
     ),
 )
 
-try_.gpu.optional_tests_builder(
+gpu.try_.optional_tests_builder(
     name = "gpu-fyi-cq-android-arm64",
     branch_selector = branches.selector.ANDROID_BRANCHES,
     description_html = "Runs GPU tests on Pixel 6 devices. Only automatically added to CLs that touch GPU-related files.",
@@ -1557,38 +1580,41 @@ try_.gpu.optional_tests_builder(
     contact_team_email = "chrome-gpu-infra@google.com",
     main_list_view = "try",
     max_concurrent_builds = 10,
-    tryjob = try_.job(
-        location_filters = [
-            # Inclusion filters.
-            cq.location_filter(path_regexp = "cc/.+"),
-            cq.location_filter(path_regexp = "chrome/browser/vr/.+"),
-            cq.location_filter(path_regexp = "content/browser/xr/.+"),
-            cq.location_filter(path_regexp = "components/viz/.+"),
-            cq.location_filter(path_regexp = "content/test/data/gpu/.+"),
-            cq.location_filter(path_regexp = "content/test/gpu/.+"),
-            cq.location_filter(path_regexp = "gpu/.+"),
-            cq.location_filter(path_regexp = "media/audio/.+"),
-            cq.location_filter(path_regexp = "media/base/.+"),
-            cq.location_filter(path_regexp = "media/capture/.+"),
-            cq.location_filter(path_regexp = "media/filters/.+"),
-            cq.location_filter(path_regexp = "media/gpu/.+"),
-            cq.location_filter(path_regexp = "media/mojo/.+"),
-            cq.location_filter(path_regexp = "media/renderers/.+"),
-            cq.location_filter(path_regexp = "media/video/.+"),
-            cq.location_filter(path_regexp = "services/viz/.+"),
-            cq.location_filter(path_regexp = "testing/trigger_scripts/.+"),
-            cq.location_filter(path_regexp = "third_party/blink/renderer/modules/mediastream/.+"),
-            cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webcodecs/.+"),
-            cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgl/.+"),
-            cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
-            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
-            cq.location_filter(path_regexp = "tools/clang/scripts/update.py"),
-            cq.location_filter(path_regexp = "ui/gl/.+"),
-
-            # Exclusion filters.
-            cq.location_filter(exclude = True, path_regexp = ".*\\.md"),
-        ],
-    ),
+    # TODO(crbug.com/433899671): Re-enable once the culprit CL has been
+    # reverted and the builder is healthy enough to block CL submission.
+    #tryjob = try_.job(
+    #    location_filters = [
+    #
+    #        # Inclusion filters.
+    #        cq.location_filter(path_regexp = "cc/.+"),
+    #        cq.location_filter(path_regexp = "chrome/browser/vr/.+"),
+    #        cq.location_filter(path_regexp = "content/browser/xr/.+"),
+    #        cq.location_filter(path_regexp = "components/viz/.+"),
+    #        cq.location_filter(path_regexp = "content/test/data/gpu/.+"),
+    #        cq.location_filter(path_regexp = "content/test/gpu/.+"),
+    #        cq.location_filter(path_regexp = "gpu/.+"),
+    #        cq.location_filter(path_regexp = "media/audio/.+"),
+    #        cq.location_filter(path_regexp = "media/base/.+"),
+    #        cq.location_filter(path_regexp = "media/capture/.+"),
+    #        cq.location_filter(path_regexp = "media/filters/.+"),
+    #        cq.location_filter(path_regexp = "media/gpu/.+"),
+    #        cq.location_filter(path_regexp = "media/mojo/.+"),
+    #        cq.location_filter(path_regexp = "media/renderers/.+"),
+    #        cq.location_filter(path_regexp = "media/video/.+"),
+    #        cq.location_filter(path_regexp = "services/viz/.+"),
+    #        cq.location_filter(path_regexp = "testing/trigger_scripts/.+"),
+    #        cq.location_filter(path_regexp = "third_party/blink/renderer/modules/mediastream/.+"),
+    #        cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webcodecs/.+"),
+    #        cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgl/.+"),
+    #        cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+    #        cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
+    #        cq.location_filter(path_regexp = "tools/clang/scripts/update.py"),
+    #        cq.location_filter(path_regexp = "ui/gl/.+"),
+    #
+    #        # Exclusion filters.
+    #        cq.location_filter(exclude = True, path_regexp = ".*\\.md"),
+    #    ],
+    #),
 )
 
 try_.builder(

@@ -217,11 +217,7 @@ GroupSuggestionsServiceAndroid::GroupSuggestionsServiceAndroid(
   DCHECK(group_suggestions_service_);
   JNIEnv* env = base::android::AttachCurrentThread();
   java_obj_.Reset(env, Java_GroupSuggestionsServiceImpl_create(
-                           env, reinterpret_cast<int64_t>(this))
-                           .obj());
-
-  delegate_bridge_ = std::make_unique<SuggestionDelegateBridge>(
-      group_suggestions_service, this);
+                           env, reinterpret_cast<int64_t>(this)));
 }
 
 GroupSuggestionsServiceAndroid::~GroupSuggestionsServiceAndroid() {

@@ -10,8 +10,7 @@
 
 #include "modules/desktop_capture/blank_detector_desktop_capturer_wrapper.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 #include <utility>
 

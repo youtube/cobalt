@@ -143,7 +143,7 @@ class SemiSpace final : public Space {
 
   void AddRangeToActiveSystemPages(Address start, Address end);
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
 
  private:
   bool AllocateFreshPage();
@@ -209,6 +209,10 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
     return result;
   }
 
+  // Promotes a young generation page to the old generation.
+  //
+  // Does not clear `will_be_promoted()` to allow for different collector
+  // handling.
   void PromotePageToOldSpace(PageMetadata* page, FreeMode free_mode);
 
   virtual size_t Capacity() const = 0;
@@ -422,7 +426,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   int GetSpaceRemainingOnCurrentPageForTesting();
   void FillCurrentPageForTesting();
 
-  void MoveQuarantinedPage(MemoryChunk* chunk);
+  void MoveQuarantinedPage(PageMetadata* metadata);
   size_t QuarantinedSize() const { return quarantined_size_; }
   size_t QuarantinedPageCount() const {
     return to_space_.quarantined_pages_count_;

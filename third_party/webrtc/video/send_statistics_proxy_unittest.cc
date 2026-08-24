@@ -798,7 +798,7 @@ TEST_F(SendStatisticsProxyTest, AdaptChangesNotReported_AdaptationNotEnabled) {
   // First RTP packet sent.
   UpdateDataCounters(kFirstSsrc);
   // Min runtime has passed.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(
       0, metrics::NumSamples("WebRTC.Video.AdaptChangesPerMinute.Cpu"));
@@ -812,7 +812,7 @@ TEST_F(SendStatisticsProxyTest, AdaptChangesNotReported_MinRuntimeNotPassed) {
   // Enable adaptation.
   statistics_proxy_->UpdateAdaptationSettings(kScalingEnabled, kScalingEnabled);
   // Min runtime has not passed.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000 - 1);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime - TimeDelta::Millis(1));
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(
       0, metrics::NumSamples("WebRTC.Video.AdaptChangesPerMinute.Cpu"));
@@ -826,7 +826,7 @@ TEST_F(SendStatisticsProxyTest, ZeroAdaptChangesReported) {
   // Enable adaptation.
   statistics_proxy_->UpdateAdaptationSettings(kScalingEnabled, kScalingEnabled);
   // Min runtime has passed.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(
       1, metrics::NumSamples("WebRTC.Video.AdaptChangesPerMinute.Cpu"));
@@ -1033,7 +1033,7 @@ TEST_F(SendStatisticsProxyTest,
   statistics_proxy_->OnSuspendChange(false);
 
   // Min runtime has passed but scaling not enabled.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(
       0, metrics::NumSamples("WebRTC.Video.AdaptChangesPerMinute.Cpu"));
@@ -1863,7 +1863,7 @@ TEST_F(SendStatisticsProxyTest, LifetimeHistogramIsUpdated) {
 }
 
 TEST_F(SendStatisticsProxyTest, CodecTypeHistogramIsUpdated) {
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.Encoder.CodecType"));
 }
@@ -1873,7 +1873,7 @@ TEST_F(SendStatisticsProxyTest, PauseEventHistogramIsUpdated) {
   UpdateDataCounters(kFirstSsrc);
 
   // Min runtime has passed.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(1, metrics::NumSamples("WebRTC.Video.NumberOfPauseEvents"));
   EXPECT_METRIC_EQ(1,
@@ -1886,7 +1886,7 @@ TEST_F(SendStatisticsProxyTest,
   UpdateDataCounters(kFirstSsrc);
 
   // Min runtime has not passed.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000 - 1);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime - TimeDelta::Millis(1));
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(0, metrics::NumSamples("WebRTC.Video.NumberOfPauseEvents"));
   EXPECT_METRIC_EQ(0, metrics::NumSamples("WebRTC.Video.PausedTimeInPercent"));
@@ -1895,7 +1895,7 @@ TEST_F(SendStatisticsProxyTest,
 TEST_F(SendStatisticsProxyTest,
        PauseEventHistogramIsNotUpdatedIfNoMediaIsSent) {
   // First RTP packet not sent.
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_.reset();
   EXPECT_METRIC_EQ(0, metrics::NumSamples("WebRTC.Video.NumberOfPauseEvents"));
 }
@@ -1906,7 +1906,7 @@ TEST_F(SendStatisticsProxyTest, NoPauseEvent) {
 
   // No change. Video: 10000 ms, paused: 0 ms (0%).
   statistics_proxy_->OnSetEncoderTargetRate(50000);
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
   statistics_proxy_->OnSetEncoderTargetRate(0);  // VideoSendStream::Stop
 
   statistics_proxy_.reset();
@@ -1972,11 +1972,11 @@ TEST_F(SendStatisticsProxyTest,
        PausedTimeHistogramIsNotUpdatedIfMinRuntimeHasNotPassed) {
   // First RTP packet sent.
   UpdateDataCounters(kFirstSsrc);
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
 
   // Min runtime has not passed.
   statistics_proxy_->OnSetEncoderTargetRate(50000);
-  fake_clock_.AdvanceTimeMilliseconds(metrics::kMinRunTimeInSeconds * 1000 - 1);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime - TimeDelta::Millis(1));
   statistics_proxy_->OnSetEncoderTargetRate(0);  // VideoSendStream::Stop
 
   statistics_proxy_.reset();
@@ -2483,13 +2483,13 @@ TEST_F(SendStatisticsProxyTest, ResetsRtcpCountersOnContentChange) {
   proxy->RtcpPacketTypesCounterUpdated(kFirstSsrc, counters);
   proxy->RtcpPacketTypesCounterUpdated(kSecondSsrc, counters);
 
-  fake_clock_.AdvanceTimeMilliseconds(1000 * metrics::kMinRunTimeInSeconds);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
 
-  counters.nack_packets += 1 * metrics::kMinRunTimeInSeconds;
-  counters.fir_packets += 2 * metrics::kMinRunTimeInSeconds;
-  counters.pli_packets += 3 * metrics::kMinRunTimeInSeconds;
-  counters.unique_nack_requests += 4 * metrics::kMinRunTimeInSeconds;
-  counters.nack_requests += 5 * metrics::kMinRunTimeInSeconds;
+  counters.nack_packets += 1 * metrics::kMinRunTime.seconds();
+  counters.fir_packets += 2 * metrics::kMinRunTime.seconds();
+  counters.pli_packets += 3 * metrics::kMinRunTime.seconds();
+  counters.unique_nack_requests += 4 * metrics::kMinRunTime.seconds();
+  counters.nack_requests += 5 * metrics::kMinRunTime.seconds();
 
   proxy->RtcpPacketTypesCounterUpdated(kFirstSsrc, counters);
   proxy->RtcpPacketTypesCounterUpdated(kSecondSsrc, counters);
@@ -2527,13 +2527,13 @@ TEST_F(SendStatisticsProxyTest, ResetsRtcpCountersOnContentChange) {
   proxy->RtcpPacketTypesCounterUpdated(kFirstSsrc, counters);
   proxy->RtcpPacketTypesCounterUpdated(kSecondSsrc, counters);
 
-  fake_clock_.AdvanceTimeMilliseconds(1000 * metrics::kMinRunTimeInSeconds);
+  fake_clock_.AdvanceTime(metrics::kMinRunTime);
 
-  counters.nack_packets += 1 * metrics::kMinRunTimeInSeconds;
-  counters.fir_packets += 2 * metrics::kMinRunTimeInSeconds;
-  counters.pli_packets += 3 * metrics::kMinRunTimeInSeconds;
-  counters.unique_nack_requests += 4 * metrics::kMinRunTimeInSeconds;
-  counters.nack_requests += 5 * metrics::kMinRunTimeInSeconds;
+  counters.nack_packets += 1 * metrics::kMinRunTime.seconds();
+  counters.fir_packets += 2 * metrics::kMinRunTime.seconds();
+  counters.pli_packets += 3 * metrics::kMinRunTime.seconds();
+  counters.unique_nack_requests += 4 * metrics::kMinRunTime.seconds();
+  counters.nack_requests += 5 * metrics::kMinRunTime.seconds();
 
   proxy->RtcpPacketTypesCounterUpdated(kFirstSsrc, counters);
   proxy->RtcpPacketTypesCounterUpdated(kSecondSsrc, counters);

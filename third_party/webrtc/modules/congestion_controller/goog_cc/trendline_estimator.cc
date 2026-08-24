@@ -10,9 +10,8 @@
 
 #include "modules/congestion_controller/goog_cc/trendline_estimator.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>

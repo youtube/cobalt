@@ -11,6 +11,7 @@
 #include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
+#include "src/gpu/graphite/Log.h"
 
 #include <functional>
 
@@ -23,6 +24,7 @@ class ResourceProvider;
 class RuntimeEffectDictionary;
 class ScratchResourceManager;
 class Texture;
+class TextureProxy;
 
 class Task : public SkRefCnt {
 public:
@@ -59,9 +61,17 @@ public:
     // Returns true on success; false on failure.
     virtual Status addCommands(Context*, CommandBuffer*, ReplayTargetData) = 0;
 
-    // Visit all pipelines until `visitor` returns false to end early.
+    // Visit all pipelines or proxies until `visitor` returns false to end early. By default assume
+    // the task uses none. Because these are functions are virtual, they cannot be templated.
+    //
+    // WARNING: These visit functions will visit all tasks and their children, including revisiting
+    // anything that was added multiple times. Ideally the task graph should be visited after
+    // prepareResources() has been called because that will clean out cycles and re-references.
     virtual bool visitPipelines(const std::function<bool(const GraphicsPipeline*)>& visitor) {
-        // By default assume the task uses no GraphicsPipelines
+        return true;
+    }
+
+    virtual bool visitProxies(const std::function<bool(const TextureProxy*)>& visitor) {
         return true;
     }
 };

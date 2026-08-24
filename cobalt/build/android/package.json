@@ -136,7 +136,6 @@
                 "obj/third_party/blink/public/mojom/mojom_platform_java.javac.jar",
                 "obj/third_party/blink/public/mojom/origin_trials/origin_trial_feature_java.javac.jar",
                 "obj/third_party/blink/public/mojom/origin_trials/origin_trial_state_java.javac.jar",
-                "obj/third_party/blink/public/mojom/private_network_device/private_network_device_java.javac.jar",
                 "obj/third_party/blink/public/mojom/quota/quota_java.javac.jar",
                 "obj/third_party/blink/public/mojom/runtime_feature_state/runtime_feature_state_java.javac.jar",
                 "obj/third_party/blink/public/mojom/script_type_mojo_bindings_java.javac.jar",
@@ -684,10 +683,6 @@
                 {
                     "from_file": "obj/third_party/blink/public/mojom/origin_trials/origin_trial_state_java.javac.jar",
                     "to_file": "jar/third_party_blink_public_mojom_origin_trials_origin_trial_state_java.jar"
-                },
-                {
-                    "from_file": "obj/third_party/blink/public/mojom/private_network_device/private_network_device_java.javac.jar",
-                    "to_file": "jar/third_party_blink_public_mojom_private_network_device_private_network_device_java.jar"
                 },
                 {
                     "from_file": "obj/third_party/blink/public/mojom/quota/quota_java.javac.jar",

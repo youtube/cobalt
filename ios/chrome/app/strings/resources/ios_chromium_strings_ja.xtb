@@ -113,6 +113,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="3728124580182886854">パーソナライズなどの目的で、Chromium と他の Google サービスをリンクします</translation>
 <translation id="377649297473651452">Chromium の自動入力拡張ビュー</translation>
 <translation id="3780779443901618967">標準保護機能より多くのサイトデータを分析して、危険なサイト（Google が認識していなかったサイトも含む）について警告します。Chromium の警告をスキップすることもできます。</translation>
+<translation id="3804124559081428680">Chromium のヒント: 本人確認</translation>
 <translation id="3805899903892079518">Chromium で写真または動画にアクセスできません。iOS の [設定] &gt; [プライバシー] &gt; [写真] でアクセスを有効にしてください。</translation>
 <translation id="3816686541346279443">Chromium でパスワードの保存を確認するメッセージが表示されます。</translation>
 <translation id="3827545470516145620">このデバイスは標準のセキュリティ機能で保護されます</translation>
@@ -252,6 +253,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 
 パスフレーズを知っているユーザーだけが暗号化されたデータを見ることができます。パスフレーズは Google には送信されず、保存されることもありません。パスフレーズを忘れた場合や、この設定を変更する場合は、<ph name="BEGIN_LINK" />アカウントの Chromium データを削除<ph name="END_LINK" />してください。</translation>
 <translation id="7192111075364461693">現在、デバイスの設定で Chromium の通知がオフになっています。</translation>
+<translation id="7195217321165708458">Gemini in Chromium</translation>
 <translation id="7219205286115692265">iPad のホーム画面ドックから Chromium にすばやくアクセス。</translation>
 <translation id="7222001353246886083">Chromium で「${searchPhrase}」を検索</translation>
 <translation id="7228180817326917122">Chromium のヒント: アドレスバーの位置を選択</translation>

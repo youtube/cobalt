@@ -18,6 +18,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/string_utils.h"
 
@@ -392,7 +393,7 @@ namespace webrtc {
 namespace metrics {
 
 // Time that should have elapsed for stats that are gathered once per call.
-constexpr int kMinRunTimeInSeconds = 10;
+inline constexpr TimeDelta kMinRunTime = TimeDelta::Seconds(10);
 
 class Histogram;
 

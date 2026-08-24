@@ -10,8 +10,7 @@
 
 #include "pc/dtmf_sender.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>

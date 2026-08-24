@@ -18,7 +18,7 @@
 <translation id="1181037720776840403">移除</translation>
 <translation id="1192844206376121885">此操作会删除 <ph name="ORIGIN" /> 存储的全部数据和 Cookie。</translation>
 <translation id="1201402288615127009">下一步</translation>
-<translation id="1240190568154816272">Chrome 技巧</translation>
+<translation id="1240190568154816272">Chrome 提示</translation>
 <translation id="1242008676835033345">嵌入来源：<ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">依次点按“应用”&gt;“默认应用”</translation>
 <translation id="1272079795634619415">停止</translation>
@@ -63,6 +63,7 @@
 <translation id="1704230497453185209">不允许网站播放声音</translation>
 <translation id="1717218214683051432">移动传感器</translation>
 <translation id="1717996979683942279">开启此设置后，网站可以询问能否管理所有显示屏上的窗口。关闭此设置后，网站无法管理所有显示屏上的窗口。</translation>
+<translation id="1738912554587725807">“新标签页”页面外观主题集合底部动作条</translation>
 <translation id="1743802530341753419">需先询问，得到许可后才允许网站连接设备（推荐）</translation>
 <translation id="1777815584158991902">探索信息流底部动作条</translation>
 <translation id="1779089405699405702">图片解码器</translation>
@@ -120,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{已授予“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}other{已授予“<ph name="PERMISSION_1" />”权限、“<ph name="PERMISSION_2" />”权限和另外 <ph name="NUM_MORE" /> 项权限}}</translation>
 <translation id="2410940059315936967">您访问的网站可以嵌入其他网站的内容，例如图片、广告和文字。由这类其他网站设置的 Cookie 称为第三方 Cookie。</translation>
+<translation id="2411116727035790889">开启快捷方式</translation>
 <translation id="2433507940547922241">外观</translation>
 <translation id="2434158240863470628">下载完成 <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">您暂时允许了此网站使用第三方 Cookie，这意味着您选择采用较低级别的浏览保护措施，但网站功能更有可能会按预期运行。<ph name="BEGIN_LINK" />发送反馈<ph name="END_LINK" /></translation>
@@ -186,6 +188,7 @@
 <translation id="3114012059975132928">视频播放器</translation>
 <translation id="3115898365077584848">显示信息</translation>
 <translation id="3123473560110926937">已禁止部分网站显示广告</translation>
+<translation id="3132996321662585180">每日刷新</translation>
 <translation id="3143754809889689516">从头播放</translation>
 <translation id="3162899666601560689">网站可以使用 Cookie 来提升您的浏览体验，例如让您保持登录状态或记住您购物车中的商品</translation>
 <translation id="3165022941318558018">允许网站使用第三方 Cookie</translation>
@@ -199,7 +202,7 @@
 <translation id="3273479183583863618">在标签页上显示降价通知</translation>
 <translation id="3277252321222022663">允许网站使用传感器（推荐）</translation>
 <translation id="327891165872793509">Chrome 会限制大多数网站使用第三方 Cookie 跟踪您在浏览时的活动。访问“设置”可<ph name="BEGIN_LINK" />管理对第三方 Cookie 的使用权限<ph name="END_LINK" />。</translation>
-<translation id="3285500645985761267">允许相关网站查看您在该群组中的活动记录</translation>
+<translation id="3285500645985761267">允许关联网站查看您在该群组中的活动记录</translation>
 <translation id="3295019059349372795">第 11 章：奥兹国神奇的翡翠城</translation>
 <translation id="3295602654194328831">隐藏信息</translation>
 <translation id="3328801116991980348">网站信息</translation>
@@ -348,7 +351,7 @@
 <translation id="5048841907079026162">管理浏览数据</translation>
 <translation id="5050380848339752099">该网站即将与某个并非处于无痕模式下的应用共享信息。</translation>
 <translation id="5063480226653192405">空间占用量</translation>
-<translation id="5068293087784369013">自定义您的新标签页</translation>
+<translation id="5068293087784369013">自定义新标签页</translation>
 <translation id="5091013926750941408">移动网站</translation>
 <translation id="509133520954049755">请求获取桌面版视图</translation>
 <translation id="5091663350197390230">开启此设置后，网站可以使用 JavaScript。关闭此设置后，网站无法使用 JavaScript。</translation>
@@ -356,6 +359,7 @@
 <translation id="5100237604440890931">已收起 - 点击此处即可展开。</translation>
 <translation id="5116239826668864748">当您点按消息、文档和其他应用中的链接时，可以随时使用 Chrome 打开链接</translation>
 <translation id="5123685120097942451">无痕式标签页</translation>
+<translation id="512938610812707830">“新标签页”页面外观主题集合底部动作条已按最大高度显示</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{您打开的标签页中有降价}other{您打开的标签页中有降价}}</translation>
 <translation id="5186036860380548585">选项位于屏幕顶部附近</translation>
 <translation id="5197729504361054390">系统会将您所选联系人的详细信息分享给 <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />。</translation>
@@ -608,7 +612,6 @@
 <translation id="8186479265534291036">网站无法正常运行？这是因为第三方 Cookie 已被屏蔽</translation>
 <translation id="8197286292360124385">已授予“<ph name="PERMISSION_1" />”权限</translation>
 <translation id="8200772114523450471">继续</translation>
-<translation id="8206354486702514201">此设置是由您的管理员执行的。</translation>
 <translation id="8211406090763984747">连接安全</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />、<ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">移至顶部</translation>
@@ -619,6 +622,7 @@
 <translation id="8324158725704657629">别再询问</translation>
 <translation id="8362795839483915693">您可以放大或缩小所访问网站的内容</translation>
 <translation id="8372893542064058268">允许特定网站进行后台同步。</translation>
+<translation id="8378714024927312812">由贵组织管理</translation>
 <translation id="83792324527827022">有一个网站正在使用您的摄像头和麦克风</translation>
 <translation id="8380167699614421159">此网站会展示侵扰性或误导性广告</translation>
 <translation id="8394832520002899662">点按即可返回到网站</translation>

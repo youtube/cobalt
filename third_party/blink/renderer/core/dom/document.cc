@@ -403,6 +403,8 @@ namespace blink {
 
 namespace {
 
+constexpr char kSelectName[] = "select";
+
 class IntrinsicSizeResizeObserverDelegate : public ResizeObserver::Delegate {
  public:
   void OnResize(const HeapVector<Member<ResizeObserverEntry>>& entries) final;
@@ -464,6 +466,60 @@ bool DefaultFaviconAllowedByCSP(const Document* document, const IconURL& icon) {
       ContentSecurityPolicy::CheckHeaderType::kCheckAll);
 }
 
+// This function is a heuristic to detect potential synthetic selects.
+// It is a necessary but not sufficient condition for an element to be
+// considered a synthetic select.
+//
+// Synthetic selects are select elements that are built using
+// <div>s, <span>s, <button>s etc. with CSS and JavaScript
+// instead of the native <select> element.
+// For more details, see go/analyzing-synthetic-selects.
+bool CanBeSyntheticSelect(Element& element) {
+  return !element.HasTagName(html_names::kSelectTag) &&
+         (element.hasAttribute(html_names::kAriaExpandedAttr) ||
+          element.hasAttribute(html_names::kAriaHaspopupAttr));
+}
+
+bool HasSelectInTagName(Element& element) {
+  return element.localName().Contains(kSelectName, kTextCaseASCIIInsensitive);
+}
+
+bool HasSelectInClassAttribute(Element& element) {
+  return element.GetClassAttribute().Contains(kSelectName,
+                                              kTextCaseASCIIInsensitive);
+}
+
+bool HasSelectInNameAttribute(Element& element) {
+  return element.getAttribute(html_names::kNameAttr)
+      .Contains(kSelectName, kTextCaseASCIIInsensitive);
+}
+
+bool IsRoleCombobox(Element& element) {
+  DEFINE_STATIC_LOCAL(const AtomicString, combobox, ("combobox"));
+  return element.getAttribute(html_names::kRoleAttr) == combobox;
+}
+
+bool IsAriaHasPopupListbox(Element& element) {
+  DEFINE_STATIC_LOCAL(const AtomicString, listbox, ("listbox"));
+  return element.getAttribute(html_names::kAriaHaspopupAttr) == listbox;
+}
+
+// This function is a heuristic to detect synthetic selects.
+//
+// Synthetic selects are select elements that are built using
+// <div>s, <span>s, <button>s etc. with CSS and JavaScript
+// instead of the native <select> element.
+// For more details, see go/analyzing-synthetic-selects.
+bool IsSyntheticSelect(Element& element) {
+  if (!CanBeSyntheticSelect(element)) {
+    return false;
+  }
+
+  return HasSelectInTagName(element) || HasSelectInClassAttribute(element) ||
+         HasSelectInNameAttribute(element) || IsRoleCombobox(element) ||
+         IsAriaHasPopupListbox(element);
+}
+
 // The sampling rate for UKM.
 constexpr double kUkmSamplingRate = 0.001;
 
@@ -486,6 +542,7 @@ template <typename CharType>
 std::optional<CharType> ParseNamespacePrefixNewSpec(
     base::span<const CharType> characters) {
   DCHECK(RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled());
+  DCHECK(!characters.empty());
   for (size_t i = 0; i < characters.size(); i++) {
     CharType c = characters[i];
     // A string is a valid namespace prefix if its length is at least 1 and
@@ -797,9 +854,53 @@ const HeapVector<Member<HTMLFormElement>>& Document::TopLevelFormsList::Get(
         }
       }
     }
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillEnableSyntheticSelectMetricsLogging)) {
+      LogSyntheticSelectMetrics(owner);
+    }
     dirty_ = false;
   }
   return list_;
+}
+
+// For every form found in the document, logs the number of synthetic select
+// and potential synthetic select elements.
+//
+// An element is classified as a synthetic select if and only if it
+//   * has 'aria-expanded' attribute, or
+//   * has 'aria-haspopup' attribute
+// and one of the following conditions
+//   * has 'select' substring in the HTML tag name,
+//   * has 'select' substring in the HTML class attribute,
+//   * has 'select' substring in the HTML name attribute,
+//   * 'aria-role' attribute is equal to 'combobox',
+//   * 'aria-haspopup' attribute is equal to 'listbox'
+// is true.
+//
+// The element which satisfies one of the first 2 conditions
+// but does satisfy any of the last 5 conditions
+// is considered a potential synthetic select.
+void Document::TopLevelFormsList::LogSyntheticSelectMetrics(
+    Document& owner) const {
+  for (Node* form : list_) {
+    bool found_synthetic_select = false;
+    bool found_potential_synthetic_select = false;
+
+    for (Element& element : Traversal<Element>::DescendantsOf(*form)) {
+      if (found_synthetic_select && found_potential_synthetic_select) {
+        return;
+      }
+
+      if (!found_synthetic_select && IsSyntheticSelect(element)) {
+        found_synthetic_select = true;
+        UseCounter::Count(owner, WebFeature::kAutofillSyntheticSelect);
+      } else if (!found_potential_synthetic_select &&
+                 CanBeSyntheticSelect(element)) {
+        found_potential_synthetic_select = true;
+        UseCounter::Count(owner, WebFeature::kAutofillMaybeSyntheticSelect);
+      }
+    }
+  }
 }
 
 const HeapVector<Member<HTMLFormElement>>& Document::GetTopLevelForms() {
@@ -1442,8 +1543,9 @@ Element* Document::CreateElement(const QualifiedName& q_name,
       q_name.NamespaceURI() == html_names::xhtmlNamespaceURI) {
     const CustomElementDescriptor desc(is.IsNull() ? q_name.LocalName() : is,
                                        q_name.LocalName());
-    if (CustomElementRegistry* registry = CustomElement::Registry(*this))
+    if (CustomElementRegistry* registry = customElementRegistry()) {
       definition = registry->DefinitionFor(desc);
+    }
   }
 
   if (definition)
@@ -7213,19 +7315,31 @@ ParseQualifiedNameResult ParseQualifiedNameInternalNewSpec(
   // Do a first pass to look for the colon. Otherwise, we don't know which
   // parsing rules to apply to the text we are iterating.
   std::optional<size_t> colon_index;
+  std::optional<size_t> second_colon_index;
   for (size_t i = 0; i < characters.size(); i++) {
     if (characters[i] == ':') {
-      colon_index = i;
-      break;
+      if (colon_index) {
+        second_colon_index = i;
+        break;
+      } else {
+        colon_index = i;
+      }
     }
   }
 
   base::span<const CharType> prefix;
   base::span<const CharType> local_name;
   if (colon_index) {
-    auto split_pair = characters.split_at(*colon_index);
-    prefix = split_pair.first;
-    local_name = split_pair.second.subspan(1u);
+    prefix = characters.subspan(0u, *colon_index);
+    if (second_colon_index) {
+      local_name = characters.subspan(*colon_index + 1,
+                                      *second_colon_index - *colon_index - 1);
+    } else {
+      local_name = characters.subspan(*colon_index + 1);
+    }
+    if (!prefix.size()) {
+      return ParseQualifiedNameResult(kQNEmptyPrefix, ':');
+    }
     if (auto invalid_char = ParseNamespacePrefixNewSpec(prefix)) {
       return ParseQualifiedNameResult(kQNInvalidChar, *invalid_char);
     }
@@ -8127,7 +8241,7 @@ void Document::MaybeRecordSvgImageProcessingTime(
 bool Document::AllowInlineEventHandler(Node* node,
                                        EventListener* listener,
                                        const String& context_url,
-                                       const WTF::OrdinalNumber& context_line) {
+                                       const OrdinalNumber& context_line) {
   auto* element = DynamicTo<Element>(node);
   // HTML says that inline script needs browsing context to create its execution
   // environment.
@@ -8814,8 +8928,9 @@ void Document::EnqueueAutofocusCandidate(Element& element) {
   if (autofocus_processed_flag_)
     return;
   wtf_size_t index = autofocus_candidates_.Find(&element);
-  if (index != WTF::kNotFound)
+  if (index != kNotFound) {
     autofocus_candidates_.EraseAt(index);
+  }
   autofocus_candidates_.push_back(element);
 }
 

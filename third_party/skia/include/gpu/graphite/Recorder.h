@@ -58,15 +58,11 @@ class ResourceProvider;
 class RuntimeEffectDictionary;
 class SharedContext;
 class TaskList;
-class TextureDataBlock;
 class TextureInfo;
 class UploadBufferManager;
 class UploadList;
 
 struct RecorderOptionsPriv;
-
-template<typename T> class PipelineDataCache;
-using TextureDataCache = PipelineDataCache<TextureDataBlock>;
 
 struct SK_API RecorderOptions final {
     RecorderOptions();
@@ -275,6 +271,8 @@ private:
     void registerDevice(sk_sp<Device>);
     void deregisterDevice(const Device*);
 
+    SkCanvas* makeCaptureCanvas(SkCanvas*) override;
+
     sk_sp<SharedContext> fSharedContext;
     ResourceProvider* fResourceProvider; // May point to the Context's resource provider
     std::unique_ptr<ResourceProvider> fOwnedResourceProvider; // May be null
@@ -285,7 +283,6 @@ private:
     // Aggregated one-time uploads that preceed all tasks in the root task list.
     std::unique_ptr<UploadList> fRootUploads;
 
-    std::unique_ptr<TextureDataCache> fTextureDataCache;
     std::unique_ptr<DrawBufferManager> fDrawBufferManager;
     std::unique_ptr<UploadBufferManager> fUploadBufferManager;
     std::unique_ptr<ProxyReadCountMap> fProxyReadCounts;
@@ -322,22 +319,6 @@ private:
     // For testing use only -- the Context used to create this Recorder
     Context* fContext = nullptr;
 #endif
-
-    // TODO(b/407062399): Tracking of resource use for pathologic scenarios in the wild
-    int fMaxRootTaskListSize = 0;
-    int fMaxRootUploadListSize = 0;
-    int fMaxTexturesPerRecording = 0;
-    int fMaxAliveRecordings = 0;
-    int fMaxCommandBufferResources = 0;
-
-    // Cloned from UploadBufferManager for storage
-    int fMaxReusedUploadBufferCount = 0;
-    int fMaxUsedUploadBufferCount = 0;
-
-    // Cloned from DrawBufferManager
-    int fMaxUsedDrawBufferCount = 0;
-    uint32_t fMaxUsedUniformBytes = 0;
-    uint32_t fMaxUsedVertexBytes = 0;
 };
 
 } // namespace skgpu::graphite

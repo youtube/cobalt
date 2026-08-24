@@ -215,6 +215,7 @@
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
+#include "third_party/blink/renderer/core/patching/patch_supplement.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observation.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
@@ -2461,7 +2462,7 @@ void Element::setScrollLeft(double new_left) {
     if (LocalDOMWindow* window = GetDocument().domWindow()) {
       ScrollToOptions* options = ScrollToOptions::Create();
       options->setLeft(new_left);
-      window->scrollTo(options);
+      window->scrollTo(nullptr, options);
     }
     return;
   }
@@ -2518,7 +2519,7 @@ void Element::setScrollTop(double new_top) {
     if (LocalDOMWindow* window = GetDocument().domWindow()) {
       ScrollToOptions* options = ScrollToOptions::Create();
       options->setTop(new_top);
-      window->scrollTo(options);
+      window->scrollTo(nullptr, options);
     }
     return;
   }
@@ -3757,6 +3758,16 @@ Node::InsertionNotificationRequest Element::InsertedInto(
   return kInsertionDone;
 }
 
+// https://github.com/WICG/declarative-partial-updates
+DOMPatchStatus* Element::currentPatch() {
+  PatchSupplement* supplement = PatchSupplement::FromIfExists(GetDocument());
+  if (!supplement) {
+    return nullptr;
+  }
+  CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
+  return supplement->CurrentPatchFor(*this);
+}
+
 void Element::MovedFrom(ContainerNode& old_parent) {
   Node::MovedFrom(old_parent);
 
@@ -4040,6 +4051,7 @@ void Element::AttachLayoutTree(AttachContext& context) {
   }
 
   AttachSucceedingPseudoElements(children_context);
+  AttachTransitionPseudo();
 
   if (!IsPseudoElement() && layout_object) {
     context.counters_context.LeaveObject(*layout_object);
@@ -4101,6 +4113,9 @@ void Element::DetachLayoutTree(bool performing_reattach) {
   // https://crbug.com/939769
   if (ChildNeedsReattachLayoutTree() || GetComputedStyle() ||
       (!performing_reattach && IsUserActionElement())) {
+    if (performing_reattach) {
+      DetachTransitionPseudo();
+    }
     if (ShadowRoot* shadow_root = GetShadowRoot()) {
       shadow_root->DetachLayoutTree(performing_reattach);
       Node::DetachLayoutTree(performing_reattach);
@@ -4132,6 +4147,52 @@ void Element::DetachLayoutTree(bool performing_reattach) {
   if (context) {
     context->DetachLayoutTree();
   }
+}
+
+void Element::DetachTransitionPseudo() {
+  if (!RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
+    return;
+  }
+
+  auto* transition_pseudo = GetPseudoElement(kPseudoIdViewTransition);
+  if (!transition_pseudo || IsDocumentElement()) {
+    return;
+  }
+
+  auto* scope_layout_object = GetLayoutObject();
+  auto* pseudo_layout_object = transition_pseudo->GetLayoutObject();
+  if (!scope_layout_object || !pseudo_layout_object) {
+    return;
+  }
+
+  // Disconnect the pseudo's layout object from the scope's layout object.
+  // This is done so that when the scope runs LayoutObject::Destroy, it does
+  // not recurse into the pseudo tree. Instead the pseudo holds on to its
+  // layout tree until it is reattached in AttachTransitionPseudo.
+  scope_layout_object->RemoveChild(pseudo_layout_object);
+}
+
+void Element::AttachTransitionPseudo() {
+  if (!RuntimeEnabledFeatures::ScopedViewTransitionsEnabled()) {
+    return;
+  }
+
+  auto* transition_pseudo = GetPseudoElement(kPseudoIdViewTransition);
+  if (!transition_pseudo || IsDocumentElement()) {
+    return;
+  }
+
+  auto* scope_layout_object = GetLayoutObject();
+  auto* pseudo_layout_object = transition_pseudo->GetLayoutObject();
+  if (!scope_layout_object || !pseudo_layout_object) {
+    return;
+  }
+
+  // Reconnect the existing pseudo layout object to the scope parent.
+  // Note: this method only handles the scenario of the scope being reattached
+  // after acquiring transition pseudos. Construction of the transition pseudo
+  // layout objects is handled in RebuildTransitionPseudoLayoutTree.
+  scope_layout_object->AddChild(pseudo_layout_object);
 }
 
 void Element::ReattachLayoutTreeChildren(base::PassKey<StyleEngine>) {
@@ -6430,7 +6491,7 @@ const char* Element::ErrorMessageForAttachShadow(
   // IsValidName() is not cheap.
   if (IsCustomElement() &&
       (CustomElement::IsValidName(localName()) || !IsValue().IsNull())) {
-    auto* registry = CustomElement::Registry(*this);
+    auto* registry = GetTreeScope().customElementRegistry();
     auto* definition =
         registry ? registry->DefinitionForName(IsValue().IsNull() ? localName()
                                                                   : IsValue())
@@ -7712,6 +7773,14 @@ void Element::ActiveViewTransitionTypeStateChanged() {
           style_change_reason::kPseudoClass,
           style_change_extra_data::g_active_view_transition_type));
   PseudoStateChanged(CSSSelector::kPseudoActiveViewTransitionType);
+}
+
+void Element::PatchStateChanged() {
+  SetNeedsStyleRecalc(kLocalStyleChange,
+                      StyleChangeReasonForTracing::CreateWithExtraData(
+                          style_change_reason::kPseudoClass,
+                          style_change_extra_data::g_patching));
+  PseudoStateChanged(CSSSelector::kPseudoPatching);
 }
 
 void Element::FocusWithinStateChanged() {
@@ -10620,7 +10689,7 @@ bool Element::IsStyleAttributeChangeAllowed(const AtomicString& style_string) {
 
   if (auto* context = GetExecutionContext()) {
     if (auto* policy = context->GetContentSecurityPolicyForCurrentWorld()) {
-      WTF::OrdinalNumber start_line_number = WTF::OrdinalNumber::BeforeFirst();
+      OrdinalNumber start_line_number = OrdinalNumber::BeforeFirst();
       auto& document = GetDocument();
       if (document.GetScriptableDocumentParser() &&
           !document.IsInDocumentWrite()) {

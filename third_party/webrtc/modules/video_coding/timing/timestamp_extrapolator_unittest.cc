@@ -10,8 +10,7 @@
 
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 #include <optional>

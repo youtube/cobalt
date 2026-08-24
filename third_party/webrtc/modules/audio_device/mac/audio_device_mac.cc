@@ -17,7 +17,6 @@
 #include <memory>
 #include <vector>
 
-#include "modules/audio_device/audio_device_config.h"
 #include "modules/third_party/portaudio/pa_ringbuffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/platform_thread.h"

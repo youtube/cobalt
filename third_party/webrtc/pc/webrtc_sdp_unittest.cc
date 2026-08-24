@@ -8,10 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdio.h>
-#include <string.h>
-
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
@@ -1083,12 +1082,10 @@ class WebRtcSdpTest : public ::testing::Test {
         jdesc_.candidates(1);
     ASSERT_NE(nullptr, video_candidates_collection);
     std::vector<Candidate> video_candidates;
-    for (size_t i = 0; i < video_candidates_collection->count(); ++i) {
-      Candidate c = video_candidates_collection->at(i)->candidate();
-      c.set_transport_name("video_content_name");
-      video_candidates.push_back(c);
+    for (const auto& c : video_candidates_collection->candidates()) {
+      video_candidates.push_back(c->candidate());
     }
-    jdesc_.RemoveCandidates(video_candidates);
+    jdesc_.RemoveCandidates("video_content_name", video_candidates);
   }
 
   // Turns the existing reference description into a description using

@@ -158,6 +158,9 @@ declare_args() {
   # Sets -DOBJECT_PRINT.
   v8_enable_object_print = ""
 
+  # Sets -DALWAYS_MAGLEV_GRAPH_LABELLER.
+  v8_always_enable_maglev_graph_labeller = ""
+
   # Sets -DV8_TRACE_MAPS.
   v8_enable_trace_maps = ""
 
@@ -468,10 +471,6 @@ declare_args() {
   # the explicit dependency and allows the build to complete.
   v8_depend_on_icu_data_file = icu_use_data_file
 
-  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
-  # For binary size reasons this functionality is not always available.
-  v8_wasm_random_fuzzers = ""
-
   # Experimental testing mode where various limits are artificially set lower.
   v8_lower_limits_mode = false
 
@@ -497,6 +496,9 @@ declare_args() {
 
   # Expose F.p.caller and .arguments as own properties.
   v8_function_arguments_caller_are_own_props = false
+
+  # Use a hard-coded secret value when hashing.
+  v8_use_default_hasher_secret = true
 }
 
 # Derived defaults.
@@ -508,6 +510,9 @@ if (v8_enable_verify_heap == "") {
 }
 if (v8_enable_object_print == "") {
   v8_enable_object_print = v8_enable_debugging_features
+}
+if (v8_always_enable_maglev_graph_labeller == "") {
+  v8_always_enable_maglev_graph_labeller = v8_enable_debugging_features
 }
 if (v8_enable_disassembler == "") {
   v8_enable_disassembler = v8_enable_debugging_features
@@ -808,14 +813,6 @@ if (v8_expose_public_symbols == "") {
   v8_expose_public_symbols = v8_expose_symbols
 }
 
-# Some fuzzers depend on fuzzing functionality linked into the v8 library.
-# For binary size reasons this functionality is not available for official
-# builds, therefore these fuzzers do not function there and should be skipped
-# instead.
-if (v8_wasm_random_fuzzers == "") {
-  v8_wasm_random_fuzzers = !is_official_build
-}
-
 assert(
     !build_with_chromium || !v8_enable_partition_alloc,
     "V8 using partition_alloc from Chromium is not implemented at the moment")
@@ -964,6 +961,7 @@ external_v8_defines = [
   "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
   "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
   "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
   "V8_ENABLE_CHECKS",
   "V8_ENABLE_MEMORY_ACCOUNTING_CHECKS",
   "V8_COMPRESS_POINTERS",
@@ -992,6 +990,7 @@ enabled_external_v8_defines = [
   "V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT=${v8_array_buffer_internal_field_count}",
   "V8_ARRAY_BUFFER_VIEW_INTERNAL_FIELD_COUNT=${v8_array_buffer_view_internal_field_count}",
   "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}",
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
 ]
 
 if (v8_enable_v8_checks) {
@@ -1205,6 +1204,9 @@ config("features") {
   }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
+  }
+  if (v8_always_enable_maglev_graph_labeller) {
+    defines += [ "ALWAYS_MAGLEV_GRAPH_LABELLER" ]
   }
   if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
@@ -1893,6 +1895,7 @@ if (v8_postmortem_support) {
       "src/objects/primitive-heap-object-inl.h",
       "src/objects/scope-info.h",
       "src/objects/scope-info-inl.h",
+      "src/objects/script.cc",
       "src/objects/script.h",
       "src/objects/script-inl.h",
       "src/objects/shared-function-info.cc",
@@ -2922,6 +2925,7 @@ generated_file("v8_generate_features_json") {
     v8_random_seed = v8_random_seed
     v8_use_perfetto = v8_use_perfetto
     v8_use_siphash = v8_use_siphash
+    v8_use_default_hasher_secret = v8_use_default_hasher_secret
   }
 }
 
@@ -3464,6 +3468,7 @@ v8_header_set("v8_internal_headers") {
     "src/common/operation.h",
     "src/common/ptr-compr-inl.h",
     "src/common/ptr-compr.h",
+    "src/common/scoped-modification.h",
     "src/common/segmented-table-inl.h",
     "src/common/segmented-table.h",
     "src/common/simd128.h",
@@ -3965,6 +3970,7 @@ v8_header_set("v8_internal_headers") {
     "src/numbers/conversions-inl.h",
     "src/numbers/conversions.h",
     "src/numbers/hash-seed-inl.h",
+    "src/numbers/hash-seed.h",
     "src/numbers/ieee754.h",
     "src/numbers/math-random.h",
     "src/objects/all-objects-inl.h",
@@ -4382,6 +4388,7 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone-utils.h",
     "src/zone/zone.h",
     "third_party/rapidhash-v8/rapidhash.h",
+    "third_party/rapidhash-v8/secret.h",
     "third_party/siphash/halfsiphash.h",
     "third_party/utf8-decoder/utf8-decoder.h",
   ]
@@ -4462,6 +4469,8 @@ v8_header_set("v8_internal_headers") {
       sources += [ "src/maglev/x64/maglev-assembler-x64-inl.h" ]
     } else if (v8_current_cpu == "s390x") {
       sources += [ "src/maglev/s390/maglev-assembler-s390-inl.h" ]
+    } else if (v8_current_cpu == "ppc64") {
+      sources += [ "src/maglev/ppc64/maglev-assembler-ppc64-inl.h" ]
     }
   }
 
@@ -5752,6 +5761,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/property.cc",
     "src/objects/regexp-match-info.cc",
     "src/objects/scope-info.cc",
+    "src/objects/script.cc",
     "src/objects/shared-function-info.cc",
     "src/objects/simd.cc",
     "src/objects/source-text-module.cc",
@@ -5974,6 +5984,11 @@ v8_source_set("v8_base_without_compiler") {
       sources += [
         "src/maglev/s390/maglev-assembler-s390.cc",
         "src/maglev/s390/maglev-ir-s390.cc",
+      ]
+    } else if (v8_current_cpu == "ppc64") {
+      sources += [
+        "src/maglev/ppc64/maglev-assembler-ppc64.cc",
+        "src/maglev/ppc64/maglev-ir-ppc64.cc",
       ]
     }
   }
@@ -6729,6 +6744,8 @@ v8_component("v8_libbase") {
   configs = [ ":internal_config_base" ]
 
   public_configs = [ ":libbase_config" ]
+  v8_add_configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+  v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
 
   deps = [ ":v8_config_headers" ]
 
@@ -6950,6 +6967,8 @@ v8_component("v8_libplatform") {
   ]
 
   configs = [ ":internal_config_base" ]
+  v8_add_configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+  v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
 
   if (is_component_build) {
     defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
@@ -7052,6 +7071,7 @@ v8_header_set("v8_heap_base_headers") {
     "src/heap/base/incremental-marking-schedule.h",
     "src/heap/base/memory-tagging.h",
     "src/heap/base/stack.h",
+    "src/heap/base/unsafe-json-emitter.h",
     "src/heap/base/worklist.h",
   ]
 
@@ -7066,6 +7086,7 @@ v8_source_set("v8_heap_base") {
     "src/heap/base/incremental-marking-schedule.cc",
     "src/heap/base/memory-tagging.cc",
     "src/heap/base/stack.cc",
+    "src/heap/base/unsafe-json-emitter.cc",
     "src/heap/base/worklist.cc",
   ]
 
@@ -7741,6 +7762,8 @@ if (is_component_build) {
     ]
 
     configs = [ ":internal_config" ]
+    v8_add_configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+    v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
 
     public_configs = [ ":external_config" ]
   }
@@ -7876,6 +7899,8 @@ v8_executable("d8") {
     ":internal_config_base",
     ":v8_tracing_config",
   ]
+  v8_add_configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+  v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
 
   deps = [
     ":v8",
@@ -8135,10 +8160,15 @@ if (v8_enable_webassembly) {
     testonly = true
 
     sources = [
+      "test/common/c-signature.h",
       "test/common/flag-utils.h",
+      "test/common/value-helper.h",
       "test/common/wasm/flag-utils.h",
+      "test/common/wasm/wasm-macro-gen.h",
       "test/common/wasm/wasm-module-runner.cc",
       "test/common/wasm/wasm-module-runner.h",
+      "test/common/wasm/wasm-run-utils.cc",
+      "test/common/wasm/wasm-run-utils.h",
     ]
 
     deps = [

@@ -9,6 +9,7 @@
 #include <optional>
 #include <set>
 
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
 #include "components/page_load_metrics/renderer/page_resource_data_use.h"
@@ -91,7 +92,8 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
       const blink::SubresourceLoadMetrics& subresource_load_metrics) override;
   void DidObserveNewFeatureUsage(
       const blink::UseCounterFeature& feature) override;
-  void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics) override;
+  void DidObserveSoftNavigation(
+      blink::SoftNavigationMetricsForReporting metrics) override;
   void DidObserveLayoutShift(double score, bool after_input_or_scroll) override;
   void DidStartResponse(const url::SchemeHostPort& final_response_url,
                         int request_id,
@@ -192,6 +194,8 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
 
   // Will be null when we're not actively sending metrics.
   std::unique_ptr<PageTimingMetricsSender> page_timing_metrics_sender_;
+
+  base::WeakPtrFactory<MetricsRenderFrameObserver> weak_factory_{this};
 };
 
 }  // namespace page_load_metrics

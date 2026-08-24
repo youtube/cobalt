@@ -18,6 +18,10 @@
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/signin/public/identity_manager/account_info.h"
 
+namespace url {
+class Origin;
+}  // namespace url
+
 namespace optimization_guide {
 class OptimizationGuideDecider;
 }  // namespace optimization_guide
@@ -40,6 +44,9 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
  public:
   FacilitatedPaymentsClient();
   ~FacilitatedPaymentsClient() override;
+
+  // Gets the URL of the last committed page.
+  virtual const url::Origin& GetLastCommittedOrigin() const = 0;
 
   // Gets the `PaymentsDataManager` instance associated with the Chrome profile.
   // It is used to get user's account info.
@@ -83,6 +90,12 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   // Returns the `DeviceDelegate` instance owned by the implementation class.
   virtual DeviceDelegate* GetDeviceDelegate() = 0;
 
+  // Returns true if the WebContents associated with this instance is either
+  // visible or occluded, but not hidden. When a tab is occluded, it is still
+  // open, but not visible either because it is covered by other windows or
+  // because it's outside the screen bounds.
+  virtual bool IsWebContentsVisibleOrOccluded() = 0;
+
   // Shows the user's PIX accounts from their Google Wallet, and prompts to pay.
   // `bank_account_suggestions` is the list of PIX accounts to be shown to the
   // user for payment. `on_payment_account_selected` is the callback called with
@@ -122,13 +135,18 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   virtual autofill::StrikeDatabase* GetStrikeDatabase() = 0;
 
   // Virtual so it can be overridden in tests.
-  virtual void InitPixAccountLinkingFlow();
+  virtual void InitPixAccountLinkingFlow(
+      const url::Origin& pix_payment_page_origin);
 
   // Shows the PIX account linking prompt. Virtual so it can be overridden in
   // tests.
   virtual void ShowPixAccountLinkingPrompt(
       base::OnceCallback<void()> on_accepted,
       base::OnceCallback<void()> on_declined);
+
+  // Check whether the device has the screenlock or biometric set up which is
+  // required for Pix account linking in Wallet.
+  virtual bool HasScreenlockOrBiometricSetup();
 
   void SetPixAccountLinkingManagerForTesting(
       std::unique_ptr<PixAccountLinkingManager> pix_account_linking_manager);

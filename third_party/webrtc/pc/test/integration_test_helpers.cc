@@ -19,6 +19,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "api/audio/builtin_audio_processing_builder.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"

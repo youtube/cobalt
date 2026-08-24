@@ -10,11 +10,10 @@
 
 #include "call/receive_time_calculator.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <vector>
 

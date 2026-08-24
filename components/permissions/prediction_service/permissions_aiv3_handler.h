@@ -27,9 +27,12 @@ class PermissionsAiv3Handler : public optimization_guide::ModelHandler<
       optimization_guide::OptimizationGuideModelProvider* model_provider,
       optimization_guide::proto::OptimizationTarget optimization_target,
       RequestType request_type,
-      scoped_refptr<base::SequencedTaskRunner> model_executor_task_runner,
-      scoped_refptr<base::SequencedTaskRunner> reply_task_runner,
-      std::unique_ptr<PermissionsAiv3Encoder> model_executor);
+      std::unique_ptr<PermissionsAiv3Encoder> model_executor,
+      scoped_refptr<base::SequencedTaskRunner> model_executor_task_runner =
+          base::ThreadPool::CreateSequencedTaskRunner(
+              {base::MayBlock(), base::TaskPriority::USER_BLOCKING}),
+      scoped_refptr<base::SequencedTaskRunner> reply_task_runner =
+          base::SequencedTaskRunner::GetCurrentDefault());
   ~PermissionsAiv3Handler() override;
 
   PermissionsAiv3Handler(const PermissionsAiv3Handler&) = delete;
@@ -44,7 +47,26 @@ class PermissionsAiv3Handler : public optimization_guide::ModelHandler<
                             std::unique_ptr<SkBitmap> snapshot);
 
  private:
+  // Called when the model execution is complete. This is a wrapper around the
+  // callback provided to `ExecuteModel` that verifies that the callback is
+  // still valid.
+  void OnModelExecutionComplete(
+      ExecutionCallback original_callback,
+      const std::optional<PermissionRequestRelevance>& relevance);
+
   std::optional<PermissionsAiv3ModelMetadata> model_metadata_;
+
+  // Because there is no way to cancel a model execution once it has started, we
+  // will return an empty response to the new callback if a new execution is
+  // requested while the previous one is still in progress.
+  bool is_execution_in_progress_ = false;
+
+  // Whether the callback passed to ExecuteModel is still valid. It is no longer
+  // valid if a new execution is requested while the previous one is still in
+  // progress.
+  bool is_callback_valid_ = true;
+
+  base::WeakPtrFactory<PermissionsAiv3Handler> weak_factory_{this};
 };
 
 }  // namespace permissions

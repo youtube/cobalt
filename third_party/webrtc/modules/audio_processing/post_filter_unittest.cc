@@ -9,8 +9,6 @@
  */
 #include "modules/audio_processing/post_filter.h"
 
-#include <math.h>
-
 #include <algorithm>
 #include <cmath>
 #include <memory>

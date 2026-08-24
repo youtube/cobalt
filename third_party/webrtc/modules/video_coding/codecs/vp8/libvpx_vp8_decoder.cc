@@ -10,11 +10,10 @@
 
 #include "modules/video_coding/codecs/vp8/libvpx_vp8_decoder.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>

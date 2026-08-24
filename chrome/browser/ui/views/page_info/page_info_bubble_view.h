@@ -7,10 +7,11 @@
 
 #include <memory>
 
+#include "base/callback_list.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
-#include "chrome/browser/ui/views/page_info/page_info_history_controller.h"
 #include "chrome/browser/ui/views/page_info/page_info_navigation_handler.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/page_info/core/page_info_types.h"
@@ -19,6 +20,7 @@
 class ChromePageInfoUiDelegate;
 class PageSwitcherView;
 class PageInfoBubbleSpecification;
+class PageInfoHistoryController;
 class PageInfoViewFactory;
 class PageInfoMerchantTrustCoordinator;
 
@@ -39,6 +41,15 @@ class PageInfoBubbleView : public PageInfoBubbleViewBase,
   // parent of the widget hosting the bubble view.
   static views::BubbleDialogDelegateView* CreatePageInfoBubble(
       std::unique_ptr<PageInfoBubbleSpecification> specification);
+
+  using PageInfoBubbleCreatedCallbackList =
+      base::RepeatingCallbackList<void(content::WebContents* web_contents,
+                                       views::Widget* bubble_widget)>;
+  using PageInfoBubbleCreatedCallback =
+      PageInfoBubbleCreatedCallbackList::CallbackType;
+
+  static base::CallbackListSubscription RegisterPageInfoCreatedCallback(
+      PageInfoBubbleCreatedCallback callback);
 
   // PageInfoNavigationHandler:
   void OpenMainPage(base::OnceClosure initialized_callback) override;

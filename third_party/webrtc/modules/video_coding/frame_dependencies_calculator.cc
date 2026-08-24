@@ -9,9 +9,8 @@
  */
 #include "modules/video_coding/frame_dependencies_calculator.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <set>

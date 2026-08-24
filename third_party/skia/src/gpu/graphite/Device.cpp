@@ -138,71 +138,65 @@ const SkStrokeRec& DefaultFillStyle() {
     return kFillStyle;
 }
 
-bool blender_depends_on_dst(const SkBlender* blender, bool srcIsTransparent) {
-    std::optional<SkBlendMode> bm = blender ? as_BB(blender)->asBlendMode() : SkBlendMode::kSrcOver;
-    if (!bm.has_value()) {
-        return true;
-    }
-    if (bm.value() == SkBlendMode::kSrc || bm.value() == SkBlendMode::kClear) {
-        // src and clear blending never depends on dst
-        return false;
-    }
-    if (bm.value() == SkBlendMode::kSrcOver) {
-        // src-over depends on dst if src is transparent (a != 1)
-        return srcIsTransparent;
-    }
-    // TODO: Are their other modes that don't depend on dst that can be trivially detected?
-    return true;
-}
-
-bool paint_depends_on_dst(SkColor4f color,
-                          const SkShader* shader,
-                          const SkColorFilter* colorFilter,
-                          const SkBlender* finalBlender,
-                          const SkBlender* primitiveBlender) {
-    const bool srcIsTransparent = !color.isOpaque() || (shader && !shader->isOpaque()) ||
-                                  (colorFilter && !colorFilter->isAlphaUnchanged());
-
-    if (primitiveBlender && blender_depends_on_dst(primitiveBlender, srcIsTransparent)) {
-        return true;
-    }
-
-    return blender_depends_on_dst(finalBlender, srcIsTransparent);
-}
-
 bool paint_depends_on_dst(const PaintParams& paintParams) {
-    return paint_depends_on_dst(paintParams.color(),
-                                paintParams.shader(),
-                                paintParams.colorFilter(),
-                                paintParams.finalBlender(),
-                                paintParams.primitiveBlender());
-}
+    std::optional<SkBlendMode> bm = paintParams.asFinalBlendMode();
+    if (!bm.has_value()) {
+        return true; // Runtime blenders always depend on the dst
+    }
 
-bool paint_depends_on_dst(const SkPaint& paint) {
-    // CAUTION: getMaskFilter is intentionally ignored here.
-    SkASSERT(!paint.getImageFilter());  // no paints in SkDevice should have an image filter
-    return paint_depends_on_dst(paint.getColor4f(),
-                                paint.getShader(),
-                                paint.getColorFilter(),
-                                paint.getBlender(),
-                                /*primitiveBlender=*/nullptr);
+    if (bm == SkBlendMode::kClear || bm == SkBlendMode::kSrc) {
+        // src and clear blending never depend on dst
+        return false;
+    } else if (bm != SkBlendMode::kSrcOver && bm != SkBlendMode::kDstOut) {
+        // any other blend mode besides src-over and dst-out use dst in some way
+        return true;
+    }
+
+    // At this point, we depend on the dst if source alpha != 1, so analyze the paint to
+    // see if it's opaque.
+    bool srcIsTransparent = !paintParams.color().isOpaque() ||
+                                  (paintParams.shader() && !paintParams.shader()->isOpaque()) ||
+                                  (paintParams.colorFilter() &&
+                                        !paintParams.colorFilter()->isAlphaUnchanged());
+
+    if (paintParams.primitiveBlender()) {
+        std::optional<SkBlendMode> primBlend = as_BB(paintParams.primitiveBlender())->asBlendMode();
+        // The primitive blender does not blend against the dst color, but it might change whether
+        // or not the src is transparent.
+        if (primBlend && !srcIsTransparent) {
+            // Since dst might be transparent, we can only preserve opacity for cases where the
+            // src coefficient is one and the dst coefficient is zero (when src alpha = 1).
+            srcIsTransparent = primBlend != SkBlendMode::kSrcOver && primBlend != SkBlendMode::kSrc;
+        } else {
+            // Runtime blender or complex blend modifies the final src color so assume it has alpha
+            srcIsTransparent = true;
+        }
+    }
+
+    return srcIsTransparent;
 }
 
 /** If the paint can be reduced to a solid flood-fill, determine the correct color to fill with. */
-std::optional<SkColor4f> extract_paint_color(const SkPaint& paint,
+std::optional<SkColor4f> extract_paint_color(const PaintParams& paint,
                                              const SkColorInfo& dstColorInfo) {
     SkASSERT(!paint_depends_on_dst(paint));
-    if (paint.getShader()) {
+
+    std::optional<SkBlendMode> bm = paint.asFinalBlendMode();
+    // Since we don't depend on the dst, a dst-out blend mode implies source is
+    // opaque, which causes dst-out to behave like clear.
+    if (bm == SkBlendMode::kClear || bm == SkBlendMode::kDstOut) {
+        return SkColors::kTransparent;
+    }
+
+    // PaintParams has already consolidated constant shaders and applied color filters to constant
+    // input colors. If the paint still has any of those fields, then we can't extract it.
+    if (paint.shader() || paint.colorFilter()) {
         return std::nullopt;
     }
 
-    SkColor4f dstPaintColor = PaintParams::Color4fPrepForDst(paint.getColor4f(), dstColorInfo);
-
-    if (SkColorFilter* filter = paint.getColorFilter()) {
-        SkColorSpace* dstCS = dstColorInfo.colorSpace();
-        return filter->filterColor4f(dstPaintColor, dstCS, dstCS);
-    }
-    return dstPaintColor;
+    // However, PaintParams converted the color in sRGB and we need to return this in the
+    // destination color space.
+    return PaintParams::Color4fPrepForDst(paint.color(), dstColorInfo);
 }
 
 // Returns a local rect that has been adjusted such that when it's rasterized with `localToDevice`
@@ -814,22 +808,6 @@ void Device::replaceClip(const SkIRect& rect) {
 
 void Device::drawPaint(const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
-    // We never want to do a fullscreen clear on a fully-lazy render target, because the device size
-    // may be smaller than the final surface we draw to, in which case we don't want to fill the
-    // entire final surface.
-    if (this->isClipWideOpen() && !fDC->target()->isFullyLazy()) {
-        if (!paint_depends_on_dst(paint)) {
-            if (std::optional<SkColor4f> color = extract_paint_color(paint, fDC->colorInfo())) {
-                // do fullscreen clear
-                fDC->clear(*color);
-                return;
-            } else {
-                // This paint does not depend on the destination and covers the entire surface, so
-                // discard everything previously recorded and proceed with the draw.
-                fDC->discard();
-            }
-        }
-    }
 
     Shape inverseFill; // defaults to empty
     inverseFill.setInverted(true);
@@ -1242,7 +1220,7 @@ void Device::drawAtlasSubRun(const sktext::gpu::AtlasSubRun* subRun,
 }
 
 void Device::drawGeometry(const Transform& localToDevice,
-                          const Geometry& geometry,
+                          Geometry&& geometry,
                           const SkPaint& paint,
                           const SkStrokeRec& style,
                           SkEnumBitMask<DrawFlags> flags,
@@ -1290,7 +1268,7 @@ void Device::drawGeometry(const Transform& localToDevice,
             return;
         } else {
             SKGPU_LOG_W("Path effect failed to apply, drawing original path.");
-            this->drawGeometry(localToDevice, geometry, paint, style,
+            this->drawGeometry(localToDevice, std::move(geometry), paint, style,
                                flags | DrawFlags::kIgnorePathEffect, std::move(primitiveBlender),
                                skipColorXform);
             return;
@@ -1323,7 +1301,7 @@ void Device::drawGeometry(const Transform& localToDevice,
     // draw without updating the clip stack.
     ClipStack::ElementList clipElements;
     Clip clip = fClip.visitClipStackForDraw(localToDevice,
-                                            geometry,
+                                            &geometry,
                                             style,
                                             fMSAASupported,
                                             &clipElements);
@@ -1390,6 +1368,32 @@ void Device::drawGeometry(const Transform& localToDevice,
                         skipColorXform};
     const bool dependsOnDst = paint_depends_on_dst(shading) ||
                               clip.shader() || !clip.nonMSAAClip().isEmpty();
+
+    // If we are unclipped, do not depend on the dst, and cover the target, then we can adjust
+    // load ops of the renderpass to more optimally handle the draw (and avoid redundant clears).
+    // NOTE: We skip this for fully-lazy render targets because the load ops may impact a larger
+    // area than the Device's theoretical bounds.
+    const bool overwritesAllPixels = !dependsOnDst &&
+                                     geometry.isShape() &&
+                                     geometry.shape().isFloodFill() &&
+                                     !fDC->target()->isFullyLazy() &&
+                                     clipElements.empty() &&
+                                     clip.scissor().contains(this->bounds());
+    if (overwritesAllPixels) {
+        std::optional<SkColor4f> color = fRecorder->priv().caps()->avoidClearLoadOps() ?
+                std::nullopt : extract_paint_color(shading, fDC->colorInfo());
+        if (color.has_value()) {
+            // Fullscreen clear, so nothing has to be rendered at all
+            fDC->clear(*color);
+            return;
+        } else {
+            // This paint does not depend on the destination and covers the entire surface, so
+            // discard everything previously recorded and proceed with the draw.
+            fDC->discard();
+
+            // But then continue to render the flood fill with shading
+        }
+    }
 
     // Some shapes and styles combine multiple draws so the total render step count is split between
     // the main renderer and possibly a secondaryRenderer.

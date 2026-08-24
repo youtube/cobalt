@@ -251,9 +251,9 @@ public:
     SkTestScalerContext(TestTypeface& face,
                         const SkScalerContextEffects& effects,
                         const SkDescriptor* desc)
-            : SkScalerContext(face, effects, desc) {
-        fRec.getSingleMatrix(&fMatrix);
-    }
+        : SkScalerContext(face, effects, desc)
+        , fMatrix(fRec.getSingleMatrix())
+    {}
 
 protected:
     TestTypeface* getTestTypeface() const {
@@ -275,9 +275,11 @@ protected:
         this->generateImageFromPath(glyph, imageBuffer);
     }
 
-    bool generatePath(const SkGlyph& glyph, SkPath* path, bool* modified) override {
-        *path = this->getTestTypeface()->getPath(glyph.getGlyphID()).makeTransform(fMatrix);
-        return true;
+    std::optional<GeneratedPath> generatePath(const SkGlyph& glyph) override {
+        return {{
+            this->getTestTypeface()->getPath(glyph.getGlyphID()).makeTransform(fMatrix),
+            false
+        }};
     }
 
     void generateFontMetrics(SkFontMetrics* metrics) override {
@@ -286,7 +288,7 @@ protected:
     }
 
 private:
-    SkMatrix fMatrix;
+    const SkMatrix fMatrix;
 };
 
 std::unique_ptr<SkScalerContext> TestTypeface::onCreateScalerContext(

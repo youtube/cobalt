@@ -223,7 +223,38 @@ TEST_F(AutofillAiManagerTest, ShouldDisplayIph) {
   FormStructure form_structure = FormStructure(form);
   AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
   AddAutofillProfile();
-  SetAutofillAiOptInStatus(autofill_client(), false);
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
+
+  EXPECT_TRUE(
+      manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
+}
+
+// Tests that IPH should not be displayed if the user is opted out of the
+// feature, but does not have address or payments data stored.
+TEST_F(AutofillAiManagerTest,
+       ShouldNotDisplayIphWhenUserHasNoAddressOrPaymentsData) {
+  test::FormDescription form_description = {.fields = {{}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
+
+  EXPECT_FALSE(
+      manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
+}
+
+// Tests that if kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph is
+// enabled, IPH should be displayed when the user is opted out of the feature
+// and does not have address or payments data stored.
+TEST_F(AutofillAiManagerTest,
+       ShouldDisplayIphWhenUserHasNoAddressOrPaymentsDataAndFeatureFlagIsOn) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillAiIgnoreWhetherUserHasAddressOrPaymentsDataForIph};
+  test::FormDescription form_description = {.fields = {{}}};
+  FormData form = test::GetFormData(form_description);
+  FormStructure form_structure = FormStructure(form);
+  AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
 
   EXPECT_TRUE(
       manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
@@ -237,7 +268,7 @@ TEST_F(AutofillAiManagerTest, ShouldNotDisplayIphWhenOptedIn) {
   FormStructure form_structure = FormStructure(form);
   AddPredictionsToFormStructure(form_structure, {{PASSPORT_NUMBER}});
   AddAutofillProfile();
-  SetAutofillAiOptInStatus(autofill_client(), true);
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedIn);
 
   EXPECT_FALSE(
       manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
@@ -252,7 +283,7 @@ TEST_F(AutofillAiManagerTest,
   FormStructure form_structure = FormStructure(form);
   AddPredictionsToFormStructure(form_structure, {{PASSPORT_ISSUE_DATE}});
   AddAutofillProfile();
-  SetAutofillAiOptInStatus(autofill_client(), false);
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
 
   EXPECT_FALSE(
       manager().ShouldDisplayIph(form_structure, form.fields()[0].global_id()));
@@ -266,7 +297,7 @@ TEST_F(AutofillAiManagerTest, ShouldNotDisplayIphOnUnrelatedField) {
   AddPredictionsToFormStructure(
       form_structure, {{PASSPORT_NUMBER}, {PHONE_HOME_CITY_AND_NUMBER}});
   AddAutofillProfile();
-  SetAutofillAiOptInStatus(autofill_client(), false);
+  SetAutofillAiOptInStatus(autofill_client(), AutofillAiOptInStatus::kOptedOut);
 
   EXPECT_FALSE(
       manager().ShouldDisplayIph(form_structure, form.fields()[1].global_id()));

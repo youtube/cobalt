@@ -22,6 +22,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "components/os_crypt/async/browser/test_utils.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -29,8 +30,10 @@
 #include "components/signin/internal/identity_manager/mock_profile_oauth2_token_service_observer.h"
 #include "components/signin/internal/identity_manager/primary_account_manager.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
+#include "components/signin/internal/identity_manager/token_binding_helper.h"
 #include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/device_id_helper.h"
+#include "components/signin/public/base/hybrid_encryption_key.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -39,6 +42,7 @@
 #include "components/signin/public/webdata/token_service_table.h"
 #include "components/signin/public/webdata/token_web_data.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "components/unexportable_keys/fake_unexportable_key_service.h"
 #include "components/webdata/common/web_data_service_base.h"
 #include "components/webdata/common/web_database_service.h"
 #include "google_apis/gaia/core_account_id.h"
@@ -57,20 +61,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-#include "base/test/test_future.h"
-#include "components/signin/internal/identity_manager/token_binding_helper.h"  // nogncheck
-#include "components/signin/public/base/hybrid_encryption_key.h"
-#include "components/unexportable_keys/fake_unexportable_key_service.h"  // nogncheck
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-
 using TokenWithBindingKey = TokenServiceTable::TokenWithBindingKey;
 
 namespace {
 constexpr char kTestTokenDatabase[] = "TestTokenDatabase";
 constexpr char kNoBindingChallenge[] = "";
-
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 struct ExtractCredentialsTestCase {
   struct AccountCredentials {
@@ -124,7 +119,6 @@ const ExtractCredentialsTestCase kExtractCredentialsTestCases[] = {
          AccountMoveDecision::kCannotMoveInsertWithoutRefreshToken},
 };
 
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 }  // namespace
 
 class MutableProfileOAuth2TokenServiceDelegateTest
@@ -207,19 +201,13 @@ class MutableProfileOAuth2TokenServiceDelegateTest
 
   std::unique_ptr<MutableProfileOAuth2TokenServiceDelegate>
   CreateOAuth2ServiceDelegate(
-      signin::AccountConsistencyMethod account_consistency
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-      ,
-      std::unique_ptr<TokenBindingHelper> token_binding_helper = nullptr
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
-  ) {
+      signin::AccountConsistencyMethod account_consistency,
+      std::unique_ptr<TokenBindingHelper> token_binding_helper = nullptr) {
     return std::make_unique<MutableProfileOAuth2TokenServiceDelegate>(
         client_.get(), &account_tracker_service_,
         network::TestNetworkConnectionTracker::GetInstance(), token_web_data_,
         account_consistency, revoke_all_tokens_on_load_,
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
         std::move(token_binding_helper),
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
         MutableProfileOAuth2TokenServiceDelegate::FixRequestErrorCallback());
   }
 
@@ -1248,13 +1236,13 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
 
   {
     testing::InSequence sequence;
-    // `OnAuthErrorChanged()` is called *before* `OnRefreshTokenAvailable()`
+    EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
+    // `OnAuthErrorChanged()` is called after `OnRefreshTokenAvailable()`
     // after adding a new account on Desktop.
     EXPECT_CALL(
         observer,
         OnAuthErrorChanged(account_id, GoogleServiceAuthError::AuthErrorNone(),
                            testing::_));
-    EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     EXPECT_CALL(observer, OnEndBatchChanges());
     oauth2_service_delegate_->UpdateCredentials(account_id, "first_token");
     testing::Mock::VerifyAndClearExpectations(&observer);
@@ -1262,12 +1250,12 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
 
   {
     testing::InSequence sequence;
+    EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     // `OnAuthErrorChanged()` is also called when a token is updated.
     EXPECT_CALL(
         observer,
         OnAuthErrorChanged(account_id, GoogleServiceAuthError::AuthErrorNone(),
                            testing::_));
-    EXPECT_CALL(observer, OnRefreshTokenAvailable(account_id));
     EXPECT_CALL(observer, OnEndBatchChanges());
 
     oauth2_service_delegate_->UpdateCredentials(account_id, "second_token");
@@ -1306,16 +1294,17 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, GetAuthError) {
             oauth2_service_delegate_->GetAuthError(account_id_2));
 }
 
-// Checks that OnAuthErrorChanged() is called before OnRefreshTokenAvailable,
-// and that the error state is correctly available from within both calls.
+// Checks that the error state is correctly available from within both
+// `OnAuthErrorChanged()` and `OnRefreshTokenAvailable()` observer events.
 // Regression test for https://crbug.com/824791.
 TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
-       InvalidTokenObserverCallsOrdering) {
+       TokenUpdateDoesntExposeIntermediateState) {
   class TokenServiceErrorObserver : public ProfileOAuth2TokenServiceObserver {
    public:
     explicit TokenServiceErrorObserver(
-        MutableProfileOAuth2TokenServiceDelegate* delegate)
-        : delegate_(delegate) {}
+        MutableProfileOAuth2TokenServiceDelegate* delegate) {
+      scoped_observation_.Observe(delegate);
+    }
 
     TokenServiceErrorObserver(const TokenServiceErrorObserver&) = delete;
     TokenServiceErrorObserver& operator=(const TokenServiceErrorObserver&) =
@@ -1326,9 +1315,8 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
         const GoogleServiceAuthError& auth_error,
         signin_metrics::SourceForRefreshTokenOperation source) override {
       error_changed_ = true;
-      EXPECT_FALSE(token_available_)
-          << "OnAuthErrorChanged() should be called first";
-      EXPECT_EQ(auth_error, delegate_->GetAuthError(account_id));
+      EXPECT_EQ(auth_error,
+                scoped_observation_.GetSource()->GetAuthError(account_id));
       CheckTokenState(account_id);
       EXPECT_EQ(signin_metrics::SourceForRefreshTokenOperation::
                     kDiceResponseHandler_Signout,
@@ -1337,21 +1325,22 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
 
     void OnRefreshTokenAvailable(const CoreAccountId& account_id) override {
       token_available_ = true;
-      EXPECT_TRUE(error_changed_)
-          << "OnAuthErrorChanged() should be called first";
       CheckTokenState(account_id);
     }
 
     void CheckTokenState(const CoreAccountId& account_id) {
       EXPECT_EQ("account_id", account_id.ToString());
-      EXPECT_TRUE(delegate_->RefreshTokenIsAvailable(account_id));
+      EXPECT_TRUE(
+          scoped_observation_.GetSource()->RefreshTokenIsAvailable(account_id));
       EXPECT_EQ(GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
                     GoogleServiceAuthError::InvalidGaiaCredentialsReason::
                         CREDENTIALS_REJECTED_BY_CLIENT),
-                delegate_->GetAuthError(account_id));
+                scoped_observation_.GetSource()->GetAuthError(account_id));
     }
 
-    raw_ptr<MutableProfileOAuth2TokenServiceDelegate> delegate_;
+    base::ScopedObservation<MutableProfileOAuth2TokenServiceDelegate,
+                            ProfileOAuth2TokenServiceObserver>
+        scoped_observation_{this};
     bool error_changed_ = false;
     bool token_available_ = false;
   };
@@ -1359,7 +1348,6 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
   InitializeOAuth2ServiceDelegate(signin::AccountConsistencyMethod::kDisabled);
   TokenServiceErrorObserver token_service_observer(
       oauth2_service_delegate_.get());
-  oauth2_service_delegate_->AddObserver(&token_service_observer);
   oauth2_service_delegate_->UpdateCredentials(
       CoreAccountId::FromGaiaId(GaiaId("account_id")),
       GaiaConstants::kInvalidRefreshToken,
@@ -1367,7 +1355,6 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest,
           kDiceResponseHandler_Signout);
   EXPECT_TRUE(token_service_observer.token_available_);
   EXPECT_TRUE(token_service_observer.error_changed_);
-  oauth2_service_delegate_->RemoveObserver(&token_service_observer);
 }
 
 // Checks that set_revoke_all_tokens_on_first_load() revokes the tokens,
@@ -1691,7 +1678,6 @@ TEST_F(MutableProfileOAuth2TokenServiceDelegateTest, TokenReencryption) {
   }
 }
 
-#if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 class MutableProfileOAuth2TokenServiceDelegateBoundTokensTest
     : public MutableProfileOAuth2TokenServiceDelegateTest {
  public:
@@ -2075,7 +2061,6 @@ INSTANTIATE_TEST_SUITE_P(
     testing::ValuesIn(kExtractCredentialsTestCases),
     [](const auto& info) { return info.param.test_suffix; });
 
-#endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 // Checks that, for a signed in non-syncing account in UNO with clear on exit,
 // set_revoke_all_tokens_on_first_load() keeps the tokens for the primary and

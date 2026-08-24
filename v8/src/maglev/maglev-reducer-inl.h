@@ -10,6 +10,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
+#include "src/common/scoped-modification.h"
 #include "src/maglev/maglev-ir-inl.h"
 #include "src/numbers/ieee754.h"
 #include "src/objects/heap-number-inl.h"
@@ -304,6 +305,7 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
         return GetFloat64(input);
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
+      case ValueRepresentation::kNone:
         // These conversion should be explicitly done beforehand.
         UNREACHABLE();
     }
@@ -365,6 +367,12 @@ NodeT* MaglevReducer<BaseT>::AttachExtraInfoAndAddToGraph(NodeT* node) {
   if constexpr (ReducerBaseWithEffectTracking<NodeT, BaseT>) {
     base_->template MarkPossibleSideEffect<NodeT>(node);
   }
+  if constexpr (NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64) {
+    if (v8_flags.maglev_truncation) {
+      UpdateRange(node);
+    }
+  }
   return node;
 }
 
@@ -412,11 +420,54 @@ void MaglevReducer<BaseT>::AttachExceptionHandlerInfo(NodeT* node) {
 template <typename BaseT>
 template <typename NodeT>
 void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
+  if constexpr (CanTriggerTruncationPass(Node::opcode_of<NodeT>)) {
+    graph()->set_may_have_truncation();
+  }
+
   // Don't do anything for nodes without side effects.
   if constexpr (!NodeT::kProperties.can_write()) return;
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
     known_node_aspects().increment_effect_epoch();
+  }
+}
+
+template <typename BaseT>
+template <typename NodeT>
+void MaglevReducer<BaseT>::UpdateRange(NodeT* node) {
+  static_assert(NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64);
+  if constexpr (HasRangeType(Node::opcode_of<NodeT>)) {
+    RangeType r1 = node->input(0).node()->GetRange();
+    RangeType r2 = node->input(1).node()->GetRange();
+    if (!r1.is_valid() || !r2.is_valid()) return;
+    RangeType result;
+    switch (Node::opcode_of<NodeT>) {
+      case Opcode::kFloat64Add:
+        result =
+            RangeType::Join([](double x, double y) { return x + y; }, r1, r2);
+        break;
+      case Opcode::kFloat64Subtract:
+        result =
+            RangeType::Join([](double x, double y) { return x - y; }, r1, r2);
+        break;
+      case Opcode::kFloat64Multiply:
+        result =
+            RangeType::Join([](double x, double y) { return x * y; }, r1, r2);
+        break;
+      case Opcode::kFloat64Divide:
+        result = {};
+        break;
+      default:
+        UNREACHABLE();
+    }
+    // TODO(victorgomes): Calculating the range of a LoopPhi might need a
+    // fixpoint.
+    static_assert(!std::is_same_v<NodeT, Phi>);
+    node->set_range(result);
+    if (node->range().IsSafeIntegerRange()) {
+      node->set_can_truncate_to_int32(true);
+    }
   }
 }
 
@@ -438,7 +489,7 @@ template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
     ValueNode* value, UseReprHintRecording record_use_repr_hint) {
   if (V8_LIKELY(record_use_repr_hint == UseReprHintRecording::kRecord)) {
-    value->RecordUseReprHintIfPhi(UseRepresentation::kTagged);
+    value->MaybeRecordUseReprHint(UseRepresentation::kTagged);
   }
 
   // TODO(victorgomes): Change identity value representation to unknown. Or
@@ -510,6 +561,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
           AddNewNodeNoInputConversion<IntPtrToNumber>({value}));
 
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -518,7 +570,7 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
                                           bool can_be_heap_number) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kInt32);
+  value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
 
   ValueRepresentation representation =
       value->properties().value_representation();
@@ -543,7 +595,8 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     case ValueRepresentation::kTagged: {
       if (can_be_heap_number &&
           !known_node_aspects().CheckType(broker(), value, NodeType::kSmi)) {
-        return alternative.set_int32(AddNewNode<CheckedNumberToInt32>({value}));
+        return alternative.set_int32(
+            AddNewNodeNoInputConversion<CheckedNumberToInt32>({value}));
       }
       return alternative.set_int32(BuildSmiUntag(value));
     }
@@ -553,7 +606,8 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
         return alternative.set_int32(
             AddNewNode<TruncateUint32ToInt32>({value}));
       }
-      return alternative.set_int32(AddNewNode<CheckedUint32ToInt32>({value}));
+      return alternative.set_int32(
+          AddNewNodeNoInputConversion<CheckedUint32ToInt32>({value}));
     }
     case ValueRepresentation::kFloat64:
     // The check here will also work for the hole NaN, so we can treat
@@ -564,9 +618,11 @@ ValueNode* MaglevReducer<BaseT>::GetInt32(ValueNode* value,
     }
 
     case ValueRepresentation::kIntPtr:
-      return alternative.set_int32(AddNewNode<CheckedIntPtrToInt32>({value}));
+      return alternative.set_int32(
+          AddNewNodeNoInputConversion<CheckedIntPtrToInt32>({value}));
 
     case ValueRepresentation::kInt32:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -604,7 +660,7 @@ std::optional<int32_t> MaglevReducer<BaseT>::TryGetInt32Constant(
 
 template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetFloat64(ValueNode* value) {
-  value->RecordUseReprHintIfPhi(UseRepresentation::kFloat64);
+  value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
   return GetFloat64ForToNumber(value, NodeType::kNumber,
                                TaggedToFloat64ConversionType::kOnlyNumber);
 }
@@ -698,6 +754,7 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
       return alternative.set_float64(
           AddNewNode<ChangeIntPtrToFloat64>({value}));
     case ValueRepresentation::kFloat64:
+    case ValueRepresentation::kNone:
       UNREACHABLE();
   }
   UNREACHABLE();

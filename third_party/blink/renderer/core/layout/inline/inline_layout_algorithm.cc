@@ -589,10 +589,10 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
   // metrics, so that is has a height.
   if (line_info->HasLineEvenIfEmpty() || !box_states_->RubyColumnList().empty())
       [[unlikely]] {
-    constexpr float kFixedScale = 1.0f;  // No text in this case.
+    // No scaling because of no text.
     box_states_->LineBoxState().EnsureTextMetrics(
         line_info->LineStyle(), *box_states_->LineBoxState().font,
-        baseline_type_, kFixedScale);
+        baseline_type_, FitTextBlockScale::kFixed);
   } else if (line_builder.InitialLetterItemResult() &&
              box_states_->LineBoxState().metrics.IsEmpty()) [[unlikely]] {
     box_states_->LineBoxState().metrics = FontHeight();
@@ -757,9 +757,8 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
       space.ShouldTextBoxTrimFragmentainerEnd() ||
       space.ShouldTextBoxTrimInsideWhenLineClamp()) [[unlikely]] {
     LineClampData line_clamp_data = space.GetLineClampData();
-    bool is_truncated =
-        line_clamp_data.IsAtClampPoint() ||
-        line_clamp_data.state == LineClampData::kMeasureLinesUntilBfcOffset;
+    bool is_truncated = line_clamp_data.IsAtClampPoint() ||
+                        line_clamp_data.IsMeasureUntilBfcOffset();
     ApplyTextBoxTrim(*line_info, is_truncated);
   }
 
@@ -1686,12 +1685,11 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
         end_margin_strut_ = MarginStrut();
 
         if (lines_until_clamp_) {
-          if (constraint_space.GetLineClampData().state ==
-              LineClampData::kClampByLines) {
+          if (constraint_space.GetLineClampData().IsClampByLines()) {
             *lines_until_clamp_ = *lines_until_clamp_ - 1;
           } else {
-            DCHECK_EQ(constraint_space.GetLineClampData().state,
-                      LineClampData::kMeasureLinesUntilBfcOffset);
+            DCHECK(
+                constraint_space.GetLineClampData().IsMeasureUntilBfcOffset());
             *lines_until_clamp_ = *lines_until_clamp_ + 1;
           }
         }
@@ -1794,8 +1792,7 @@ InlineLayoutAlgorithm::DoesRemainderFitInLineWithoutEllipsis(
     if (item.IsForcedLineBreak() || item.Type() == InlineItem::kBlockInInline) {
       return false;
     } else if (item.Type() == InlineItem::kText ||
-               item.Type() == InlineItem::kControl ||
-               item.Type() == InlineItem::kBidiControl) {
+               item.Type() == InlineItem::kControl) {
       if (breakpoint_status != kHasBreakpoints &&
           item.Type() == InlineItem::kControl &&
           text[item.StartOffset()] == uchar::kZeroWidthSpace) {
@@ -1852,8 +1849,10 @@ InlineLayoutAlgorithm::DoesRemainderFitInLineWithoutEllipsis(
       if (bmp_width) {
         can_hang_or_collapse = LayoutUnit();
       }
-    } else if (item.Type() == InlineItem::kOutOfFlowPositioned) {
-      // Doesn't affect the line layout.
+    } else if (item.Type() == InlineItem::kBidiControl ||
+               item.Type() == InlineItem::kOutOfFlowPositioned) {
+      // These items don't add line width or affect whitespace
+      // hanging/collapsing.
     } else {
       DCHECK(item.Type() == InlineItem::kAtomicInline ||
              item.Type() == InlineItem::kFloating ||

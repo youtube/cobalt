@@ -11,7 +11,7 @@
 #if defined(WEBRTC_WIN)
 #include <windows.h>
 #else
-#include <string.h>
+#include <cstring>
 #endif
 
 #include "rtc_base/checks.h"

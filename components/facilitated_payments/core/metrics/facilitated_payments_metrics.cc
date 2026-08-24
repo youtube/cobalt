@@ -16,6 +16,9 @@
 namespace payments::facilitated {
 namespace {
 
+static constexpr std::string_view kPixAccountLinkingHistogramPrefix =
+    "FacilitatedPayments.Pix.AccountLinking.";
+
 // Helper to convert `PurchaseActionResult` to a string for logging.
 std::string GetPurchaseActionResultString(PurchaseActionResult result) {
   switch (result) {
@@ -70,6 +73,8 @@ std::string SchemeToString(PaymentLinkValidator::Scheme scheme) {
     case PaymentLinkValidator::Scheme::kPromptPay:
       // TODO(crbug.com/427319124): Add tests for kPromptPay when adding metrics.
       return "PromptPay";
+    case PaymentLinkValidator::Scheme::kMomo:
+      return "Momo";
     case PaymentLinkValidator::Scheme::kInvalid:
       // This case can't happen because `kInvalid` causes an early return in
       // the PaymentLinkManager.
@@ -383,9 +388,36 @@ void LogFopSelectorShownLatency(
   }
 }
 
+void LogPixAccountLinkingPromptAccepted() {
+  base::UmaHistogramBoolean(
+      base::StrCat({kPixAccountLinkingHistogramPrefix, "PromptAccepted"}),
+      /*sample=*/true);
+}
+
 void LogPixAccountLinkingPromptShown() {
-  base::UmaHistogramBoolean("FacilitatedPayments.Pix.AccountLinkingPromptShown",
-                            /*sample=*/true);
+  base::UmaHistogramBoolean(
+      base::StrCat({kPixAccountLinkingHistogramPrefix, "PromptShown"}),
+      /*sample=*/true);
+}
+
+void LogGetDetailsForCreatePaymentInstrumentResultAndLatency(
+    bool is_eligible,
+    base::TimeDelta latency) {
+  base::UmaHistogramBoolean(
+      base::StrCat({kPixAccountLinkingHistogramPrefix,
+                    "GetDetailsForCreatePaymentInstrument.Result"}),
+      is_eligible);
+  base::UmaHistogramLongTimes(
+      base::StrCat({kPixAccountLinkingHistogramPrefix,
+                    "GetDetailsForCreatePaymentInstrument.Latency"}),
+      latency);
+}
+
+void LogPixAccountLinkingFlowExitedReason(
+    PixAccountLinkingFlowExitedReason reason) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({kPixAccountLinkingHistogramPrefix, "FlowExitedReason"}),
+      reason);
 }
 
 }  // namespace payments::facilitated
