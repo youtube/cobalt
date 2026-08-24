@@ -80,6 +80,15 @@ interface StarboardRendererClientExtension {
   // Get SbWindow from StarboardRendererClient.
   GetSbWindowHandle();
 
+  [EnableIf=is_ios]
+  // URL player duration forwarding.
+  OnDurationChange(mojo_base.mojom.TimeDelta duration);
+
+  [EnableIf=is_ios]
+  // URL player buffered ranges forwarding.
+  OnBufferedTimeRangesChange(mojo_base.mojom.TimeDelta start,
+                             mojo_base.mojom.TimeDelta length);
+
   [EnableIf=is_android]
   // Request OverlayInfo from StarboardRendererClient.
   RequestOverlayInfo(bool restart_for_transitions);
