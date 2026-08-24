@@ -362,12 +362,13 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
   ]
 
-  # The symbolizer pipeline test requires launching external Python and
-  # llvm-symbolizer processes, which is not supported on Starboard and
-  # modular/Evergreen platforms due to subprocess spawning restrictions.
+  # Memory instrumentation host-side tool tests require launching external
+  # Python processes, which is not supported on Starboard and modular/Evergreen
+  # platforms due to subprocess spawning restrictions.
   if (!is_starboard && !sb_is_modular) {
     sources += [
       "//cobalt/tools/performance/memory/symbolize_in_process_heap_unittest.cc",
+      "//cobalt/tools/performance/memory/verify_memory_trace_unittest.cc",
     ]
   }
 
