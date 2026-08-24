@@ -75,7 +75,7 @@ if (cobalt_font_package == "standard") {
   }
 } else if (cobalt_font_package == "android_system") {
   # fonts.xml contains a superset of what we expect to find on Android
-  # devices. The Android SbFile implementation falls back to system font
+  # devices. The Android posix emulation layer falls back to the system font
   # files for those not in cobalt content.
   declare_args() {
     source_font_config_dir = "config/android"
@@ -142,3 +142,22 @@ package_categories = [
   "fallback-emoji=${package_fallback_emoji}",
   "fallback-symbols=${package_fallback_symbols}",
 ]
+
+if (cobalt_font_package == "empty") {
+  font_files = []
+} else if (copy_font_files) {
+  font_files =
+      exec_script("scripts/filter_fonts.py",
+                  [
+                        "-i",
+                        rebase_path("$source_font_config_dir/fonts.xml",
+                                    root_build_dir),
+                        "-f",
+                        source_font_files_dir,
+                      ] + package_categories,
+                  "trim list lines",
+                  [ "$source_font_config_dir/fonts.xml" ])
+} else {
+  # Copy at least the fallback Roboto Subsetted font.
+  font_files = [ "$source_font_files_dir/Roboto-Regular-Subsetted.woff2" ]
+}
