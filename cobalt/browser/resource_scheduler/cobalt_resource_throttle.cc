@@ -79,7 +79,7 @@ void CobaltResourceThrottle::WillStartRequest(network::ResourceRequest* request,
   }
 
   auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
-  if (scheduler && scheduler->IsScrolling()) {
+  if (scheduler && scheduler->ShouldDeferRequests()) {
     *defer = true;
     is_deferred_ = true;
     DLOG(INFO) << "CobaltResourceThrottle: Deferring "
@@ -102,7 +102,7 @@ void CobaltResourceThrottle::WillRedirectRequest(
   }
 
   auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
-  if (scheduler && scheduler->IsScrolling()) {
+  if (scheduler && scheduler->ShouldDeferRequests()) {
     *defer = true;
     is_deferred_ = true;
     DLOG(INFO) << "CobaltResourceThrottle: Deferring "

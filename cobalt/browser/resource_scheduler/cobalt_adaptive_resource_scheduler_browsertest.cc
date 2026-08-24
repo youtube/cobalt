@@ -46,17 +46,20 @@ class CobaltAdaptiveResourceSchedulerBrowserTest
 
   void TearDownOnMainThread() override {
     // Reset scheduler state to idle.
+    CobaltAdaptiveResourceScheduler::GetInstance()->SetStartupStateForTesting(
+        false);
     CobaltAdaptiveResourceScheduler::GetInstance()->SetScrollState(false);
     content::ContentBrowserTest::TearDownOnMainThread();
   }
 };
 
-// 1. Verifies that critical document and script requests bypass throttling.
+// 1. Verifies that critical document and script requests bypass throttling
+// during startup and scroll.
 IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
                        CriticalResourcesBypassThrottlingDuringScroll) {
   auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
   scheduler->SetScrollState(true);
-  EXPECT_TRUE(scheduler->IsScrolling());
+  EXPECT_TRUE(scheduler->ShouldDeferRequests());
 
   // Top-level document navigations must not be blocked by active scrolling.
   GURL url = embedded_test_server()->GetURL("/simple_page.html");
@@ -64,11 +67,43 @@ IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
   EXPECT_EQ(scheduler->GetDeferredCount(), 0u);
 }
 
-// 2. Verifies that user interaction transitions scheduler to SCROLLING state
+// 2. Verifies that startup phase defers low-priority images and drains when
+// startup completes.
+IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
+                       StartupPhaseDefersAndDrainsOnCompletion) {
+  auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
+  scheduler->SetStartupStateForTesting(true);
+  scheduler->SetScrollState(false);
+  EXPECT_TRUE(scheduler->IsStartingUp());
+  EXPECT_TRUE(scheduler->ShouldDeferRequests());
+
+  network::ResourceRequest img_request;
+  img_request.destination = network::mojom::RequestDestination::kImage;
+  img_request.priority = net::RequestPriority::LOW;
+
+  auto throttle = CobaltResourceThrottle::MaybeCreate(img_request);
+  ASSERT_NE(throttle, nullptr);
+
+  bool defer = false;
+  throttle->WillStartRequest(&img_request, &defer);
+  EXPECT_TRUE(defer);
+  EXPECT_TRUE(throttle->is_deferred());
+  EXPECT_EQ(scheduler->GetDeferredCount(), 1u);
+
+  // Notify scheduler that startup is completed (e.g. splash screen dismissed).
+  scheduler->OnStartupCompleted();
+  EXPECT_FALSE(scheduler->IsStartingUp());
+  EXPECT_FALSE(scheduler->ShouldDeferRequests());
+  EXPECT_FALSE(throttle->is_deferred());
+  EXPECT_EQ(scheduler->GetDeferredCount(), 0u);
+}
+
+// 3. Verifies that user interaction transitions scheduler to SCROLLING state
 //    and automatically drains upon settle debounce timeout.
 IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
                        InteractionTriggersScrollingAndSettles) {
   auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
+  scheduler->SetStartupStateForTesting(false);
   scheduler->SetSettleDelayForTesting(base::Milliseconds(100));
 
   GURL url = embedded_test_server()->GetURL("/simple_page.html");
@@ -104,7 +139,7 @@ IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
   EXPECT_EQ(scheduler->GetDeferredCount(), 0u);
 }
 
-// 3. Verifies that client cancellation (e.g. scrolling past thumbnail) cleanly
+// 4. Verifies that client cancellation (e.g. scrolling past thumbnail) cleanly
 //    destroys the throttle and unregisters from the scheduler.
 IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
                        DeferredThrottleCleansUpOnCancellation) {
@@ -123,7 +158,6 @@ IN_PROC_BROWSER_TEST_F(CobaltAdaptiveResourceSchedulerBrowserTest,
     throttle->WillStartRequest(&img_request, &defer);
     EXPECT_TRUE(defer);
     EXPECT_EQ(scheduler->GetDeferredCount(), 1u);
-    // Destroy throttle (simulating element removal / load cancellation).
   }
 
   // Destruction must automatically remove the throttle from scheduler queue.

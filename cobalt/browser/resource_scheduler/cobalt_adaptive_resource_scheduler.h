@@ -1,18 +1,16 @@
 // Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
-// Licensed under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in
-// compliance with the License. You may obtain a copy of the
-// License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in
-// writing, software distributed under the License is
-// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See
-// the License for the specific language governing
-// permissions and limitations under the License.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_BROWSER_RESOURCE_SCHEDULER_COBALT_ADAPTIVE_RESOURCE_SCHEDULER_H_
 #define COBALT_BROWSER_RESOURCE_SCHEDULER_COBALT_ADAPTIVE_RESOURCE_SCHEDULER_H_
@@ -32,23 +30,22 @@ namespace cobalt {
 
 class CobaltResourceThrottle;
 
-// Feature flag to control the Cobalt Adaptive Resource
-// Scheduler.
+// Feature flag to control the Cobalt Adaptive Resource Scheduler.
 BASE_DECLARE_FEATURE(kCobaltAdaptiveResourceScheduler);
 
-// Manages TV interaction and playback states to coordinate
-// network task scheduling in single-process Chrobalt.
+// Manages TV interaction, startup, and playback states to coordinate network
+// task scheduling in single-process Chrobalt.
 //
-// During active spatial navigation (e.g. D-pad carousel
-// scrolling), non-critical requests (such as off-screen
-// image thumbnails and background telemetry) are deferred
-// to prevent socket futex locks and thread contention from
-// starving Blink main JS and Compositor threads.
+// During cold startup and active spatial navigation (e.g. D-pad carousel
+// scrolling), non-critical requests (such as off-screen image thumbnails and
+// background telemetry) are deferred to prevent socket futex locks and thread
+// contention from starving Blink main JS, V8 compilation, and Compositor
+// threads.
 //
-// Lifetime: This is a singleton managed by
-// base::NoDestructor and lives for the duration of the
-// browser process. Threading: This class is sequence-affine
-// and must be accessed solely on the IO/Network thread.
+// Lifetime: This is a singleton managed by base::NoDestructor and lives for the
+// duration of the browser process.
+// Threading: This class is sequence-affine and must be accessed solely on the
+// IO/Network thread.
 class CobaltAdaptiveResourceScheduler {
  public:
   static CobaltAdaptiveResourceScheduler* GetInstance();
@@ -58,29 +55,39 @@ class CobaltAdaptiveResourceScheduler {
   CobaltAdaptiveResourceScheduler& operator=(
       const CobaltAdaptiveResourceScheduler&) = delete;
 
-  // Returns true if the adaptive scheduler feature is
-  // enabled.
+  // Returns true if the adaptive scheduler feature is enabled.
   bool IsEnabled() const;
 
-  // Returns true if the user is actively
-  // scrolling/navigating or UI is animating.
+  // Returns true if requests should currently be deferred (either starting up
+  // or scrolling).
+  bool ShouldDeferRequests() const;
+
+  // Returns true if the application is currently in the cold startup phase.
+  bool IsStartingUp() const;
+
+  // Returns true if the user is actively scrolling/navigating or UI is
+  // animating.
   bool IsScrolling() const;
 
-  // Called when a D-Pad key event or navigation input is
-  // detected. Sets `is_scrolling_ = true` and restarts the
-  // settle debounce timer.
+  // Called when cold startup is complete (e.g. splash screen dismissed / main
+  // frame rendered).
+  void OnStartupCompleted();
+
+  // Called when a D-Pad key event or navigation input is detected.
+  // Sets `is_scrolling_ = true` and restarts the settle debounce timer.
   void OnUserInteraction(int key_code);
 
-  // Explicitly notify the scheduler when a scroll animation
-  // starts or ends.
+  // Explicitly notify the scheduler when a scroll animation starts or ends.
   void SetScrollState(bool is_scrolling);
+
+  // Explicitly set startup state (useful for testing).
+  void SetStartupStateForTesting(bool is_starting_up);
 
   // Register / Unregister URLLoaderThrottles
   void RegisterDeferredThrottle(CobaltResourceThrottle* throttle);
   void UnregisterDeferredThrottle(CobaltResourceThrottle* throttle);
 
-  // Total count of currently deferred throttles (useful for
-  // testing & metrics).
+  // Total count of currently deferred throttles (useful for testing & metrics).
   size_t GetDeferredCount() const;
 
   // For testing: override settle debounce duration.
@@ -95,15 +102,16 @@ class CobaltAdaptiveResourceScheduler {
   // Called when the settle debounce timer expires.
   void OnScrollSettled();
 
-  // Drains deferred requests and throttles in a re-entrant
-  // safe manner.
+  // Drains deferred requests and throttles in a re-entrant safe manner.
   void DrainDeferredQueue();
 
   SEQUENCE_CHECKER(sequence_checker_);
 
+  bool is_starting_up_ = true;
   bool is_scrolling_ = false;
   base::TimeDelta settle_delay_;
   base::OneShotTimer settle_timer_;
+  base::OneShotTimer startup_fallback_timer_;
 
   std::set<CobaltResourceThrottle*> deferred_throttles_;
 

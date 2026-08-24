@@ -1,3 +1,4 @@
+#include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,8 +12,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#include "cobalt/shell/browser/shell.h"
 
 #include <stddef.h>
 
@@ -40,6 +39,7 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager.h"
+#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
@@ -1268,6 +1268,12 @@ void Shell::SwitchToMainWebContents() {
   if (!has_switched_to_main_frame_) {
     VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
+    content::GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &cobalt::CobaltAdaptiveResourceScheduler::OnStartupCompleted,
+            base::Unretained(
+                cobalt::CobaltAdaptiveResourceScheduler::GetInstance())));
     if (web_contents_) {
       CHECK(GetPlatform());
       GetPlatform()->UpdateContents(this);
