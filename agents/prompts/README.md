@@ -16,19 +16,6 @@ complete a task. Everything is intended to work with gemini-cli.
 
 ## Creating the System Instruction Prompt
 
-<<<<<<< HEAD
-Create a local, untracked file `chromium/src/GEMINI.md`. Include the relevant
-prompts using @, for example, a typical desktop developer will use:
-
-```src/GEMINI.md
-@agents/prompts/common.GEMINI.md
-@agents/prompts/templates/desktop.md
-```
-
-Whereas an Android developer would use:
-```src/GEMINI.md
-@agents/prompts/common.GEMINI.md
-=======
 Googler-only docs: http://go/chrome-coding-with-ai-agents
 
 Create a local, untracked file `//GEMINI.md`. Include the relevant
@@ -43,7 +30,6 @@ An Android developer would use:
 
 ```src/GEMINI.md
 @agents/prompts/common.md
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 @agents/prompts/templates/android.md
 ```
 
@@ -55,8 +41,6 @@ show` command in gemini-cli.
 All imports must be scoped to the current prompt file. a/prompt.md can import
 a/prompt2.md or a/b/prompt3.md, but cannot import c/prompt4.md. See
 https://github.com/google-gemini/gemini-cli/issues/4098.
-<<<<<<< HEAD
-=======
 
 ## Contributing
 
@@ -65,4 +49,3 @@ the format of the existing examples.
 
 Changes to `common.minimal.md` should be done carefully as it's meant to be used
 broadly.
->>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
