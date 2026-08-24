@@ -402,7 +402,6 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
     }
   }
 
-
   LOG(ERROR) << "eglCreateContext failed with error "
              << GetEGLErrorString(error);
   return false;

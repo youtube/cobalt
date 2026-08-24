@@ -28,6 +28,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
@@ -71,7 +72,7 @@ namespace {
 // A transition timeout of 5 seconds allows for any normal frame ACKs or
 // asynchronous GPU cleanup sequences to complete following
 // CobaltLifecycleManager's 2-second frame timeout.
-constexpr base::TimeDelta kTransitionTimeout = base::Seconds(5);
+constexpr base::TimeDelta kTransitionTimeout = base::Seconds(15);
 }  // namespace
 
 #if !BUILDFLAG(IS_ANDROID)
