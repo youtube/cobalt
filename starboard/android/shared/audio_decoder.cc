@@ -78,6 +78,7 @@ AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
       output_channel_count_(audio_stream_info.number_of_channels),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       enable_flush_during_seek_(enable_flush_during_seek) {
+  SupportedAudioCodecToMimeType(audio_stream_info_.codec, &is_passthrough_);
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }
@@ -109,7 +110,9 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
-  audio_frame_discarder_.OnInputBuffers(input_buffers);
+  if (!is_passthrough_) {
+    audio_frame_discarder_.OnInputBuffers(input_buffers);
+  }
 
 #if STARBOARD_ANDROID_SHARED_AUDIO_DECODER_VERBOSE
   for (const auto& input_buffer : input_buffers) {
@@ -240,8 +243,10 @@ void AudioDecoder::ProcessOutputBuffer(
         dequeue_output_result.presentation_time_microseconds, size);
 
     memcpy(decoded_audio->data(), data, size);
-    audio_frame_discarder_.AdjustForDiscardedDurations(
-        audio_stream_info_.samples_per_second, &decoded_audio);
+    if (!is_passthrough_) {
+      audio_frame_discarder_.AdjustForDiscardedDurations(
+          audio_stream_info_.samples_per_second, &decoded_audio);
+    }
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
@@ -258,7 +263,9 @@ void AudioDecoder::ProcessOutputBuffer(
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
     }
-    audio_frame_discarder_.OnDecodedAudioEndOfStream();
+    if (!is_passthrough_) {
+      audio_frame_discarder_.OnDecodedAudioEndOfStream();
+    }
     Schedule(output_cb_);
   }
 
