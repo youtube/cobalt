@@ -35,7 +35,7 @@ def main():
 
   os.chdir(LLVM_BUILD_PATH)
 
-  subprocess.check_call(['python', GSUTIL_PATH,
+  subprocess.check_call(['python3', GSUTIL_PATH,
                          'cp', remote_path, targz_name])
   subprocess.check_call(['tar', 'xzf', targz_name])
   os.remove(targz_name)

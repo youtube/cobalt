@@ -39,7 +39,7 @@ jobs:
       - id: checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - id: set-platforms
         run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
       - id: set-includes
@@ -69,7 +69,7 @@ jobs:
       - name: Checkout files
         uses: actions/checkout@v3
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
@@ -101,7 +101,7 @@ jobs:
       - name: Checkout files
         uses: actions/checkout@v3
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
@@ -179,6 +179,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Run Tests
         uses: ./.github/actions/on_host_test
