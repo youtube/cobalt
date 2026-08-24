@@ -137,6 +137,9 @@ public class JavaSwitches {
   /** Flag to disable BackForwardCache for WebContents. */
   public static final String DISABLE_BACK_FORWARD_CACHE = "DisableBackForwardCache";
 
+  /** Flag to disable v8 baseline compiler sparkplug. */
+  public static final String V8_DISABLE_SPARKPLUG = "V8DisableSparkplug";
+
   public static List<String> getExtraCommandLineArgs(Map<String, String> javaSwitches) {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
@@ -165,6 +168,10 @@ public class JavaSwitches {
               + javaSwitches.get(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
     } else {
       jsFlags.add("--initial-old-space-size=64");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_DISABLE_SPARKPLUG)) {
+      jsFlags.add("--no-sparkplug");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
