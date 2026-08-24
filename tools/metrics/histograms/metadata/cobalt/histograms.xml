@@ -53,6 +53,32 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Features.NativeMemoryAblation.AllocatedMB" units="MB"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the amount of native memory allocated in megabytes when the native
+    memory ablation Finch feature is enabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Enabled" enum="Boolean"
+    expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records whether the native memory ablation Finch feature is enabled. Used to
+    verify experiment arm rollout for Finch validation.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Features.NativeMemoryAblation.Result"
+    enum="NativeMemoryAblationResult" expires_after="never">
+  <owner>yijiazhang@google.com</owner>
+  <summary>
+    Records the outcome of the native memory ablation allocation attempt.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Features.TestFinchFeature" enum="Boolean"
     expires_after="never">
   <owner>yijiazhang@google.com</owner>
@@ -180,6 +206,21 @@ Always run the pretty print utility on this file after editing:
     The time it takes for the ELF dynamic shared library, stored as a compressed
     file, to be decompressed. This metric is only recorded when the shared
     library is stored as a compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.MaxSampledUsedCPUMemoryDuringELFLoad"
+    units="MB" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The maximum sampled value of CPU memory used by the Loader App while the ELF
+    dynamic shared library is being loaded. Note that this maximum sampled value
+    is not guaranteed to be the true maximum value, which could be greater. This
+    metric is only recorded when the shared library is stored as a compressed
+    file.
   </summary>
 </histogram>
 

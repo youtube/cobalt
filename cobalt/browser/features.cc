@@ -32,6 +32,13 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+BASE_FEATURE(kEnableUserAgentFinchToken,
+             "EnableUserAgentFinchToken",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kUserAgentFinchTokenParam{
+    &kEnableUserAgentFinchToken, "token", ""};
+
 BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -77,6 +84,16 @@ BASE_FEATURE(kEnablePictureInPicture,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif  // BUILDFLAG(IS_ANDROID)
 );
+
+BASE_FEATURE(kCobaltNativeMemoryAblation,
+             "CobaltNativeMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMemoryAblationSizeMBParam{
+    &kCobaltNativeMemoryAblation, "ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
+    &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
 
 }  // namespace features
 }  // namespace cobalt

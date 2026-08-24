@@ -13,6 +13,11 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <memory>
 
 #include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -84,8 +89,12 @@ TEST(PosixThreadAttrTest, StackSizeAttr) {
 // Test for setting and getting both stack address and size.
 TEST(PosixThreadAttrTest, StackAddrAndSizeAttr) {
   pthread_attr_t attr;
-  std::array<char, kStackSize> stack_buffer;
-  void* set_stack_addr = static_cast<void*>(stack_buffer.data());
+  void* set_stack_addr = nullptr;
+  // pthread_attr_setstack() may fail with EINVAL if the stack base does not
+  // meet implementation-defined alignment requirements, so page-align it.
+  const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  ASSERT_EQ(posix_memalign(&set_stack_addr, page_size, kStackSize), 0);
+  std::unique_ptr<void, void (*)(void*)> stack_guard(set_stack_addr, std::free);
   void* ret_stack_addr = nullptr;
   size_t ret_stack_size = 0;
 
