@@ -16,6 +16,7 @@
 
 namespace blink {
 
+void InspectorDOMAgent::WillHidePopover(HTMLElement*, bool*) {}
 void InspectorDOMAgent::DomContentLoadedEventFired(LocalFrame*) {}
 void InspectorDOMAgent::DidCommitLoad(LocalFrame*, DocumentLoader*) {}
 void InspectorDOMAgent::DidRestoreFromBackForwardCache(LocalFrame*) {}
