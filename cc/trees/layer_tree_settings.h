@@ -112,12 +112,6 @@ class CC_EXPORT LayerTreeSettings {
   size_t decoded_image_working_set_budget_bytes =
       ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/false);
-#if BUILDFLAG(IS_COBALT)
-  size_t decoded_image_persistent_cache_budget_count =
-      ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
-  size_t decoded_image_persistent_cache_budget_bytes =
-      ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
-#endif
   int max_preraster_distance_in_screen_pixels = 1000;
   bool use_rgba_4444 = false;
 

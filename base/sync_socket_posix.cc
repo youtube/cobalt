@@ -25,11 +25,6 @@
 #include <sys/filio.h>
 #endif
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "base/logging.h"
-#include <cerrno>
-#endif
-
 namespace base {
 
 namespace {
@@ -166,21 +161,6 @@ size_t SyncSocket::ReceiveWithTimeout(span<uint8_t> buffer, TimeDelta timeout) {
   return bytes_read_total;
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-size_t SyncSocket::Peek() {
-  DCHECK(IsValid());
-  constexpr size_t kPeekBufferBytes = 4096;
-  char buffer[kPeekBufferBytes];
-  ssize_t number_chars = recv(handle_.get(), buffer, sizeof(buffer),
-                              MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
-  if (number_chars < 0) {
-    PLOG_IF(ERROR, errno != EAGAIN && errno != EWOULDBLOCK)
-        << "recv failed in SyncSocket::Peek";
-    return 0;
-  }
-  return checked_cast<size_t>(number_chars);
-}
-#else
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
   int number_chars = 0;
@@ -190,7 +170,6 @@ size_t SyncSocket::Peek() {
   }
   return checked_cast<size_t>(number_chars);
 }
-#endif
 
 bool SyncSocket::IsValid() const {
   return handle_.is_valid();

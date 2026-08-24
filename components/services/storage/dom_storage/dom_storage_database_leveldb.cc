@@ -74,14 +74,6 @@ leveldb_env::Options MakeOptions() {
   return options;
 }
 
-#if BUILDFLAG(IS_COBALT)
-leveldb::WriteOptions CreateSyncWriteOptions() {
-  leveldb::WriteOptions options;
-  options.sync = true;
-  return options;
-}
-#endif
-
 std::unique_ptr<leveldb::DB> TryOpenDB(
     const leveldb_env::Options& options,
     const std::string& name,
@@ -297,13 +289,8 @@ DbStatus DomStorageDatabaseLevelDB::Put(KeyView key, ValueView value) const {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);
   }
-#if BUILDFLAG(IS_COBALT)
-  return FromLevelDBStatus(
-      db_->Put(CreateSyncWriteOptions(), MakeSlice(key), MakeSlice(value)));
-#else
   return FromLevelDBStatus(
       db_->Put(leveldb::WriteOptions(), MakeSlice(key), MakeSlice(value)));
-#endif
 }
 
 DbStatus DomStorageDatabaseLevelDB::GetPrefixed(
@@ -368,13 +355,8 @@ DbStatus DomStorageDatabaseLevelDB::Commit(
   if (fail_commits_for_testing_) {
     return DbStatus::IOError("Simulated I/O Error");
   }
-#if BUILDFLAG(IS_COBALT)
-  return FromLevelDBStatus(
-      db_->Write(CreateSyncWriteOptions(), GetAsWriteBatch(batch)));
-#else
   return FromLevelDBStatus(
       db_->Write(leveldb::WriteOptions(), GetAsWriteBatch(batch)));
-#endif
 }
 
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
