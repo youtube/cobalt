@@ -26,6 +26,7 @@
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/build/configs/buildflags.h"
 
 namespace cobalt {
 namespace browser {
@@ -177,18 +178,22 @@ std::optional<base::TimeDelta> CobaltHangWatcherDelegate::GetLongHangTimeout() {
 
 void CobaltHangWatcherDelegate::RecordHangStarted(
     const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangStarted(hang_uuid);
   }
+#endif
 }
 
 void CobaltHangWatcherDelegate::RecordHangRecovered(
     const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
   auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
   if (nsm) {
     nsm->RecordHangRecovered(hang_uuid);
   }
+#endif
 }
 
 }  // namespace browser
