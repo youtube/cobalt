@@ -25,13 +25,13 @@ RUN apt update -qqy \
     && echo "Done"
 
 RUN mkdir -p ${raspi_home}/tools \
-    && git clone https://github.com/raspberrypi/tools.git ${raspi_home}/tools
+    && git clone --depth 1 https://github.com/raspberrypi/tools.git ${raspi_home}/tools
 
 RUN cd ${raspi_home} \
     && wget -q \
     "https://storage.googleapis.com/cobalt-static-storage-public/${raspi_sysroot}"
 
-RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot} --no-same-owner
+RUN cd ${raspi_home} && tar Jxpf ${raspi_sysroot} --no-same-owner
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
     && ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
