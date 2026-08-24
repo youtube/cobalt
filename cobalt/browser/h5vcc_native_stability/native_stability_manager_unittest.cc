@@ -230,6 +230,71 @@ TEST_F(NativeStabilityManagerTest, GetPendingReportsParsesHangReport) {
 }
 
 TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsParsesBothCrashAndHangReports) {
+  const std::string kCrashUuid = "crash-uuid-12345";
+  const int64_t kCrashTime = 1700000000;
+  const std::string kHangUuid = "hang-uuid-67890";
+  const int64_t kHangTime = 1700005000;
+
+  auto* manager = NativeStabilityManager::GetInstance();
+
+  manager->RecordHangStarted(kHangUuid);
+  manager->RecordHangRecovered(kHangUuid);
+  task_environment_.RunUntilIdle();
+
+  SbNativeStabilityReport crash_report = {};
+  crash_report.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(crash_report.native_stability_event_uuid, kCrashUuid.c_str(),
+               sizeof(crash_report.native_stability_event_uuid) - 1);
+  crash_report.event_time_s = kCrashTime;
+
+  SbNativeStabilityReport hang_report = {};
+  hang_report.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(hang_report.native_stability_event_uuid, kHangUuid.c_str(),
+               sizeof(hang_report.native_stability_event_uuid) - 1);
+  hang_report.event_time_s = kHangTime;
+
+  SetupStubExtension(manager, {crash_report, hang_report});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](const std::string& crash_uuid, int64_t crash_time,
+         const std::string& hang_uuid, int64_t hang_time,
+         base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 2u);
+
+        // We avoid assuming any particular ordering of reports returned by
+        // GetPendingReports(), since the order isn't specified by the API.
+        const mojom::NativeCrashReport* crash = nullptr;
+        const mojom::HangReport* hang = nullptr;
+
+        for (const auto& report : reports) {
+          if (report->is_crash_report()) {
+            crash = report->get_crash_report().get();
+          } else if (report->is_hang_report()) {
+            hang = report->get_hang_report().get();
+          }
+        }
+
+        ASSERT_TRUE(crash);
+        ASSERT_TRUE(crash->base);
+        EXPECT_EQ(crash->base->native_stability_event_uuid, crash_uuid);
+        EXPECT_EQ(crash->base->event_time_sec, crash_time);
+
+        ASSERT_TRUE(hang);
+        ASSERT_TRUE(hang->base);
+        EXPECT_EQ(hang->base->native_stability_event_uuid, hang_uuid);
+        EXPECT_EQ(hang->base->event_time_sec, hang_time);
+        EXPECT_TRUE(hang->is_recovered);
+
+        std::move(quit_closure).Run();
+      },
+      kCrashUuid, kCrashTime, kHangUuid, kHangTime, run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
        GetPendingReportsClampsOutOfBoundsExtensionCount) {
   auto* manager = NativeStabilityManager::GetInstance();
 
