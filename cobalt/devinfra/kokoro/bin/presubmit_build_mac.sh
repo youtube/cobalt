@@ -134,31 +134,30 @@ EOF
       # --------------------------------------------------------------------------
       # Embed Provisioning Profile & Re-sign App (Internal Kokoro Device Builds Only)
       # --------------------------------------------------------------------------
-      local tvos_profile="${KOKORO_PIPER_DIR:-}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+      if [[ -n "${KOKORO_PIPER_DIR:-}" ]]; then
+        local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+        if [[ -f "${tvos_profile}" ]]; then
+          echo "Embedding ${tvos_profile} into ${target_name}.app..."
+          cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
 
-      if [[ -n "${KOKORO_PIPER_DIR:-}" ]] && [[ -f "${tvos_profile}" ]]; then
-        echo "Embedding ${tvos_profile} into ${target_name}.app..."
-        cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
-
-        # Extract entitlements from the provisioning profile
-        local profile_plist="${out_dir}/${target_name}_profile.plist"
-        local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
-        if security cms -D -i "${tvos_profile}" > "${profile_plist}" 2>/dev/null; then
-          if ! plutil -extract Entitlements xml1 -o "${entitlements_plist}" "${profile_plist}" 2>/dev/null; then
+          # Extract entitlements from the provisioning profile
+          local entitlements_plist="${out_dir}/${target_name}_entitlements.plist"
+          if ! security cms -D -i "${tvos_profile}" 2>/dev/null | plutil -extract Entitlements xml1 -o "${entitlements_plist}" - 2>/dev/null; then
             rm -f "${entitlements_plist}"
           fi
-        fi
-        rm -f "${profile_plist}"
 
-        # Re-sign app bundle using Kokoro's installed development certificate
-        echo "Signing ${target_name}.app for physical lab devices..."
-        if [[ -f "${entitlements_plist}" ]]; then
-          codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
-          codesign --force --deep --sign "iPhone Developer" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
-          rm -f "${entitlements_plist}"
+          # Re-sign app bundle using Kokoro's installed development certificate
+          echo "Signing ${target_name}.app for physical lab devices..."
+          if [[ -f "${entitlements_plist}" ]]; then
+            codesign --force --deep --sign "Apple Development" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app" || \
+            codesign --force --deep --sign "iPhone Developer" --entitlements "${entitlements_plist}" "${out_dir}/${target_name}.app"
+            rm -f "${entitlements_plist}"
+          else
+            codesign --force --deep --sign "Apple Development" "${out_dir}/${target_name}.app" || \
+            codesign --force --deep --sign "iPhone Developer" "${out_dir}/${target_name}.app"
+          fi
         else
-          codesign --force --deep --sign "Apple Development" "${out_dir}/${target_name}.app" || \
-          codesign --force --deep --sign "iPhone Developer" "${out_dir}/${target_name}.app"
+          echo "KOKORO_PIPER_DIR is present, but provisioning profile not found at ${tvos_profile}. Skipping re-signing."
         fi
       else
         echo "Not running in internal Kokoro (KOKORO_PIPER_DIR absent). Skipping re-signing for simulator build."
