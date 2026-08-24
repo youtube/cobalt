@@ -110,6 +110,10 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
     return acked_uuids;
   }
 
+  if (file_content.empty()) {
+    return acked_uuids;
+  }
+
   std::optional<base::Value::List> parsed_list =
       base::JSONReader::ReadList(file_content);
   if (!parsed_list) {
@@ -185,6 +189,10 @@ std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
   if (!base::ReadFileToString(file_path, &file_content)) {
     LOG(WARNING) << "Failed to read hang attributes file: "
                  << file_path.value();
+    return hang_attributes;
+  }
+
+  if (file_content.empty()) {
     return hang_attributes;
   }
 

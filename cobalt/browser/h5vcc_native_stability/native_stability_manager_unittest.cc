@@ -477,6 +477,33 @@ TEST_F(NativeStabilityManagerTest,
   run_loop.Run();
 }
 
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsIgnoresEmptyAckedUuidsFile) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportCrash;
+  std::strncpy(report1.native_stability_event_uuid, "uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  SetupStubExtension(manager, {report1});
+
+  // Write an empty string (0 bytes) to the acked UUIDs file path.
+  base::FilePath file_path =
+      temp_dir_.GetPath().Append("acked_event_uuids.json");
+  ASSERT_TRUE(base::WriteFile(file_path, ""));
+
+  // Verify GetPendingReports handles an empty file gracefully and returns the
+  // pending report.
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        EXPECT_EQ(reports.size(), 1u);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
 TEST_F(NativeStabilityManagerTest, PruneStorageRemovesObsoleteAckedUuids) {
   auto* manager = NativeStabilityManager::GetInstance();
 
@@ -866,6 +893,36 @@ TEST_F(NativeStabilityManagerTest,
   auto* manager = NativeStabilityManager::GetInstance();
   base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
   ASSERT_TRUE(base::WriteFile(file_path, "not a valid json"));
+
+  SbNativeStabilityReport report1 = {};
+  report1.report_type = kSbNativeStabilityReportHang;
+  std::strncpy(report1.native_stability_event_uuid, "hang-uuid-1",
+               sizeof(report1.native_stability_event_uuid) - 1);
+  report1.event_time_s = 1000;
+
+  SetupStubExtension(manager, {report1});
+
+  base::RunLoop run_loop;
+  manager->GetPendingReports(base::BindOnce(
+      [](base::OnceClosure quit_closure,
+         std::vector<mojom::NativeStabilityReportPtr> reports) {
+        ASSERT_EQ(reports.size(), 1u);
+        ASSERT_TRUE(reports[0]->is_hang_report());
+        EXPECT_EQ(
+            reports[0]->get_hang_report()->base->native_stability_event_uuid,
+            "hang-uuid-1");
+        EXPECT_FALSE(reports[0]->get_hang_report()->is_recovered);
+        std::move(quit_closure).Run();
+      },
+      run_loop.QuitClosure()));
+  run_loop.Run();
+}
+
+TEST_F(NativeStabilityManagerTest,
+       GetPendingReportsReturnsUnrecoveredWhenHangAttributesFileEmpty) {
+  auto* manager = NativeStabilityManager::GetInstance();
+  base::FilePath file_path = temp_dir_.GetPath().Append("hang_attributes.json");
+  ASSERT_TRUE(base::WriteFile(file_path, ""));
 
   SbNativeStabilityReport report1 = {};
   report1.report_type = kSbNativeStabilityReportHang;
