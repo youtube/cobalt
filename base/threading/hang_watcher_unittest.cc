@@ -1163,7 +1163,9 @@ TEST_F(WatchHangsInScopeBlockingTest, MAYBE_NewScopeDoesNotBlockDuringCapture) {
 
   // A scope started once a capture is already under way should not block
   // execution.
-  { WatchHangsInScope also_expires_right_away(base::TimeDelta{}); }
+  {
+    WatchHangsInScope also_expires_right_away(base::TimeDelta{});
+  }
 
   // Wait for the new WatchHangsInScope to be destroyed to let the capture
   // finish. If the new scope block waiting for the capture to finish this would
@@ -1186,6 +1188,12 @@ class MockHangWatcherDelegate : public HangWatcher::Delegate {
               IsThreadDumpingEnabled,
               (base::HangWatcher::ThreadType),
               (override));
+  MOCK_METHOD(std::optional<bool>, IsLongHangDetectionEnabled, (), (override));
+  MOCK_METHOD(std::optional<bool>, IsLongHangKillEnabled, (), (override));
+  MOCK_METHOD(std::optional<base::TimeDelta>,
+              GetLongHangTimeout,
+              (),
+              (override));
 };
 
 class HangWatcherCobaltTest : public testing::Test {
@@ -1199,12 +1207,19 @@ class HangWatcherCobaltTest : public testing::Test {
         HangWatcher::ProcessType::kBrowserProcess, /*emit_crashes=*/true);
   }
 
-  void StartHangWatcher(MockHangWatcherDelegate* mock_delegate) {
+  void StartHangWatcher(MockHangWatcherDelegate* mock_delegate,
+                        base::RepeatingClosure force_kill_closure = {}) {
     HangWatcher::SetDelegate(mock_delegate);
+    HangWatcher::UpdateConfiguration();
     hang_watcher_ = std::make_unique<HangWatcher>();
+    if (force_kill_closure) {
+      hang_watcher_->SetForceKillClosureForTesting(
+          std::move(force_kill_closure));
+    }
     hang_watcher_->SetAfterMonitorClosureForTesting(base::BindRepeating(
         &WaitableEvent::Signal, base::Unretained(&monitor_event_)));
     hang_watcher_->SetMonitoringPeriodForTesting(kVeryLongDelta);
+    hang_watcher_->SetTickClockForTesting(task_environment_.GetMockTickClock());
     hang_watcher_->Start();
   }
 
@@ -1221,8 +1236,14 @@ class HangWatcherCobaltTest : public testing::Test {
     EXPECT_CALL(mock_delegate, GetHangWatchTime())
         .WillRepeatedly(testing::Return(std::nullopt));
     EXPECT_CALL(mock_delegate, GetHangWatchMonitoringPeriod())
-        .WillRepeatedly(testing::Return(std::nullopt));
+        .WillRepeatedly(testing::Return(kVeryLongDelta));
     EXPECT_CALL(mock_delegate, IsThreadDumpingEnabled(testing::_))
+        .WillRepeatedly(testing::Return(std::nullopt));
+    EXPECT_CALL(mock_delegate, IsLongHangDetectionEnabled())
+        .WillRepeatedly(testing::Return(std::nullopt));
+    EXPECT_CALL(mock_delegate, IsLongHangKillEnabled())
+        .WillRepeatedly(testing::Return(std::nullopt));
+    EXPECT_CALL(mock_delegate, GetLongHangTimeout())
         .WillRepeatedly(testing::Return(std::nullopt));
   }
 
@@ -1230,6 +1251,20 @@ class HangWatcherCobaltTest : public testing::Test {
     hang_watcher_->SignalMonitorEventForTesting();
     monitor_event_.Wait();
     monitor_event_.Reset();
+  }
+
+  [[nodiscard]] base::ScopedClosureRunner StartAndRegisterWithUuidCapture(
+      MockHangWatcherDelegate& mock_delegate,
+      std::string* captured_uuid) {
+    SetDefaultDelegateExpectations(mock_delegate);
+    EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
+        .WillOnce(testing::SaveArg<0>(captured_uuid));
+
+    StartHangWatcher(&mock_delegate);
+    hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
+
+    return HangWatcher::RegisterThread(
+        base::HangWatcher::ThreadType::kMainThread);
   }
 
  protected:
@@ -1248,18 +1283,9 @@ class HangWatcherCobaltTest : public testing::Test {
 // 5. Monitor sees 0 hung threads, calls RecordHangRecovered with the same UUID.
 TEST_F(HangWatcherCobaltTest, NseHangUuidTracking) {
   testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
-  SetDefaultDelegateExpectations(mock_delegate);
-
   std::string captured_uuid;
-  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
-      .WillOnce(testing::SaveArg<0>(&captured_uuid));
-
-  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
-
   auto unregister_thread_closure =
-      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
+      StartAndRegisterWithUuidCapture(mock_delegate, &captured_uuid);
 
   {
     // Advance time so that the deadline is > 0 (TimeTicks()).
@@ -1281,14 +1307,7 @@ TEST_F(HangWatcherCobaltTest, NseHangUuidTracking) {
 
     // Re-apply repeated expectations because VerifyAndClearExpectations()
     // cleared them
-    EXPECT_CALL(mock_delegate, IsHangReportingEnabled())
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(mock_delegate, GetHangWatchTime())
-        .WillRepeatedly(testing::Return(std::nullopt));
-    EXPECT_CALL(mock_delegate, GetHangWatchMonitoringPeriod())
-        .WillRepeatedly(testing::Return(std::nullopt));
-    EXPECT_CALL(mock_delegate, IsThreadDumpingEnabled(testing::_))
-        .WillRepeatedly(testing::Return(std::nullopt));
+    SetDefaultDelegateExpectations(mock_delegate);
 
     // Now expect the recovery when the scope is destroyed.
     EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
@@ -1311,18 +1330,9 @@ TEST_F(HangWatcherCobaltTest, NseHangUuidTracking) {
 // UUID.
 TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
   testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
-  SetDefaultDelegateExpectations(mock_delegate);
-
   std::string captured_uuid;
-  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
-      .WillOnce(testing::SaveArg<0>(&captured_uuid));
-
-  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
-
   auto unregister_thread_closure =
-      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
+      StartAndRegisterWithUuidCapture(mock_delegate, &captured_uuid);
 
   base::WaitableEvent unblock_thread_1;
   base::WaitableEvent unblock_thread_2;
@@ -1356,14 +1366,7 @@ TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
     testing::Mock::VerifyAndClearExpectations(&mock_delegate);
 
     // Re-apply expectations
-    EXPECT_CALL(mock_delegate, IsHangReportingEnabled())
-        .WillRepeatedly(testing::Return(true));
-    EXPECT_CALL(mock_delegate, GetHangWatchTime())
-        .WillRepeatedly(testing::Return(std::nullopt));
-    EXPECT_CALL(mock_delegate, GetHangWatchMonitoringPeriod())
-        .WillRepeatedly(testing::Return(std::nullopt));
-    EXPECT_CALL(mock_delegate, IsThreadDumpingEnabled(testing::_))
-        .WillRepeatedly(testing::Return(std::nullopt));
+    SetDefaultDelegateExpectations(mock_delegate);
 
     // Recover thread_2. This is the last hung thread.
     EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
@@ -1376,10 +1379,10 @@ TEST_F(HangWatcherCobaltTest, MultipleHangsSingleUuid) {
 
 TEST_F(HangWatcherCobaltTest, ReportingDisabledNoEvents) {
   testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
   // Explicitly disable reporting.
   SetDefaultDelegateExpectations(mock_delegate, false);
+  StartHangWatcher(&mock_delegate);
+
   HangWatcher::UpdateConfiguration();
 
   // Assert that these are never called.
@@ -1414,9 +1417,8 @@ TEST_F(HangWatcherCobaltTest, ReportingDisabledNoEvents) {
 // 6. Asserts that UUID #1 and UUID #2 are strictly different.
 TEST_F(HangWatcherCobaltTest, SequentialDistinctHangs) {
   testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
   SetDefaultDelegateExpectations(mock_delegate);
+  StartHangWatcher(&mock_delegate);
 
   std::string first_uuid;
   std::string second_uuid;
@@ -1476,18 +1478,9 @@ TEST_F(HangWatcherCobaltTest, SequentialDistinctHangs) {
 // UUID.
 TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
   testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
-  SetDefaultDelegateExpectations(mock_delegate);
-
   std::string captured_uuid;
-  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
-      .WillOnce(testing::SaveArg<0>(&captured_uuid));
-
-  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
-
   auto unregister_thread_closure =
-      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
+      StartAndRegisterWithUuidCapture(mock_delegate, &captured_uuid);
 
   base::WaitableEvent unblock_thread_a;
   base::WaitableEvent unblock_thread_b;
@@ -1548,6 +1541,378 @@ TEST_F(HangWatcherCobaltTest, OverlappingHangsSingleUuid) {
   thread_b.Join();
 
   TriggerMonitorAndWait();
+}
+
+class HangWatcherLongHangTest : public HangWatcherCobaltTest {
+ public:
+  HangWatcherLongHangTest() {
+    feature_list_.Reset();
+    feature_list_.InitWithFeaturesAndParameters({{kEnableHangWatcher, {}}}, {});
+  }
+
+  [[nodiscard]] base::ScopedClosureRunner StartAndRegister(
+      MockHangWatcherDelegate& mock_delegate,
+      bool detection_enabled = true,
+      bool kill_enabled = false,
+      base::TimeDelta long_hang_timeout = base::Seconds(10),
+      base::RepeatingClosure force_kill_closure = {}) {
+    SetDefaultDelegateExpectations(mock_delegate);
+    EXPECT_CALL(mock_delegate, IsLongHangDetectionEnabled())
+        .WillRepeatedly(testing::Return(detection_enabled));
+    EXPECT_CALL(mock_delegate, IsLongHangKillEnabled())
+        .WillRepeatedly(testing::Return(kill_enabled));
+    EXPECT_CALL(mock_delegate, GetLongHangTimeout())
+        .WillRepeatedly(testing::Return(long_hang_timeout));
+
+    StartHangWatcher(&mock_delegate, std::move(force_kill_closure));
+
+    return HangWatcher::RegisterThread(
+        base::HangWatcher::ThreadType::kMainThread);
+  }
+
+ protected:
+  base::WaitableEvent force_kill_event_;
+};
+
+// Verifies that when a thread hangs past the GetLongHangTimeout,
+// the force_kill_event_ is signaled (simulating a native OS kill like
+// LOG(FATAL) or SIGKILL), confirming the kill switch works when enabled.
+TEST_F(HangWatcherLongHangTest, ForceKillEnabledTriggersFatal) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure = StartAndRegister(
+      mock_delegate,
+      /*detection_enabled=*/true,
+      /*kill_enabled=*/true,
+      /*long_hang_timeout=*/base::Seconds(10),
+      base::BindRepeating(&base::WaitableEvent::Signal,
+                          base::Unretained(&force_kill_event_)));
+
+  auto hang_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  // Advance time so the thread becomes hung, triggering the dump and
+  // RecordHangStarted.
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+
+  // Now advance time past the long hang timeout to trigger the kill.
+  task_environment_.FastForwardBy(base::Seconds(11));
+  hang_watcher_->SignalMonitorEventForTesting();
+  force_kill_event_.Wait();
+
+  // Assert that the native kill event was fired and the UMA was logged.
+  EXPECT_TRUE(force_kill_event_.IsSignaled());
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  hang_scope.reset();
+}
+
+// Verifies that a hang crossing the timeout threshold correctly logs exactly
+// one HangWatcher.LongHang.Detected UMA sample, and does not log additional
+// samples if the thread remains hung during subsequent monitor ticks.
+TEST_F(HangWatcherLongHangTest, MetricOnlyLogsUmaOnce) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure = StartAndRegister(mock_delegate);
+
+  auto hang_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  // Initial monitor, hang started.
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+
+  // Fast forward past the long hang timeout.
+  task_environment_.FastForwardBy(base::Seconds(11));
+
+  // Monitor again, should log UMA.
+  TriggerMonitorAndWait();
+
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  // Monitor again while still hung. Should NOT log another UMA.
+  TriggerMonitorAndWait();
+
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  hang_scope.reset();
+}
+
+// Verifies that after a long hang recovers and the incident ends, the UMA latch
+// is successfully reset. A subsequent long hang on the same thread will
+// correctly log a second UMA sample.
+TEST_F(HangWatcherLongHangTest, MetricOnlyResetsLatchOnRecovery) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure = StartAndRegister(mock_delegate);
+
+  {
+    auto hang_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+    task_environment_.FastForwardBy(base::Seconds(1));
+
+    EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+    TriggerMonitorAndWait();
+    task_environment_.FastForwardBy(base::Seconds(11));
+
+    TriggerMonitorAndWait();
+
+    histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true,
+                                        1);
+  }  // hang_scope destroyed, thread recovers.
+
+  // Monitor to process the recovery.
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(testing::_)).Times(1);
+  TriggerMonitorAndWait();
+
+  // Trigger a second hang.
+  {
+    auto hang_scope2 = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+    task_environment_.FastForwardBy(base::Seconds(1));
+
+    EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+    TriggerMonitorAndWait();
+    task_environment_.FastForwardBy(base::Seconds(11));
+
+    TriggerMonitorAndWait();
+
+    // UMA should be logged a second time.
+    histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true,
+                                        2);
+  }
+}
+
+// Verifies that if two separate threads hang simultaneously and both cross the
+// Long Hang threshold, only a single UMA metric is logged for the overlapping
+// incident, preventing over-reporting. It also ensures the latch only resets
+// when both threads recover.
+TEST_F(HangWatcherLongHangTest, MultipleThreadsOverlappingHangLogsOnce) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_a = StartAndRegister(mock_delegate);
+
+  base::WaitableEvent unblock_thread_b;
+  BlockingThread thread_b(&unblock_thread_b, base::Seconds(1));
+  thread_b.StartAndWaitForScopeEntered();
+
+  auto hang_scope_a = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  // Fast forward so Thread A and Thread B are both hung, but neither has
+  // hit the Long Hang timeout (10s) yet.
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+
+  histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
+
+  // Fast forward past Long Hang threshold. Thread A and B both cross it.
+  task_environment_.FastForwardBy(base::Seconds(11));
+  TriggerMonitorAndWait();
+
+  // Should log EXACTLY once because they overlap.
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  // Recover thread A, but thread B is still hung.
+  hang_scope_a.reset();
+  TriggerMonitorAndWait();
+
+  // Should NOT log again, incident is still active.
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  // Recover thread B.
+  unblock_thread_b.Signal();
+  thread_b.Join();
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(testing::_)).Times(1);
+  TriggerMonitorAndWait();
+
+  // Incident fully over. Latch is reset.
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+}
+
+// Verifies that if a hung thread calls InvalidateActiveExpectations() (meaning
+// the hang is expected/ignored, e.g., waiting in a debugger), the Long Hang
+// timeout ignores this thread entirely, preventing false-positive UMA logs or
+// fatal kills for explicitly ignored hangs.
+TEST_F(HangWatcherLongHangTest, IgnoredHangsDoNotTriggerLongHang) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure = StartAndRegister(mock_delegate);
+
+  auto hang_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  // Set the ignore flag!
+  HangWatcher::InvalidateActiveExpectations();
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+
+  // Fast forward well past the Long Hang timeout.
+  task_environment_.FastForwardBy(base::Seconds(11));
+
+  TriggerMonitorAndWait();
+
+  // Because the hang was ignored, no UMA should be logged.
+  histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
+
+  hang_scope.reset();
+}
+
+// Verifies the edge case where an actionable hung thread recovers, leaving only
+// an ignored hung thread. Ensures that the Long Hang logic correctly evaluates
+// the remaining state and does not trigger a false positive based on the
+// recovering thread.
+TEST_F(HangWatcherLongHangTest, ActionableHangFollowedByIgnoredHang) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_a = StartAndRegister(mock_delegate);
+
+  base::WaitableEvent unblock_thread_b;
+  BlockingThread thread_b(&unblock_thread_b, base::Seconds(1));
+  thread_b.StartAndWaitForScopeEntered();
+
+  auto hang_scope_a = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  // Set the ignore flag on Thread A!
+  HangWatcher::InvalidateActiveExpectations();
+
+  // Fast forward so Thread A and Thread B are both hung.
+  task_environment_.FastForwardBy(base::Seconds(1));
+
+  // Trigger monitor. Thread B is actionable, Thread A is ignored.
+  // A hang incident should start for Thread B.
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+  TriggerMonitorAndWait();
+
+  // Recover thread B. Thread A remains hung but ignored.
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(testing::_)).Times(1);
+  unblock_thread_b.Signal();
+  thread_b.Join();
+  TriggerMonitorAndWait();
+
+  // Fast forward past the long hang timeout.
+  // Since the incident for Thread B recovered and Thread A is ignored,
+  // it should NOT trigger a long hang.
+  task_environment_.FastForwardBy(base::Seconds(11));
+
+  TriggerMonitorAndWait();
+
+  // No long hang should be detected.
+  histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
+
+  hang_scope_a.reset();
+}
+
+// Verifies that when IsLongHangDetectionEnabled is false, no UMA metrics are
+// logged and no kill logic is triggered, regardless of how long the thread
+// hangs.
+TEST_F(HangWatcherLongHangTest, DetectionDisabledLogsNothing) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure =
+      StartAndRegister(mock_delegate, /*detection_enabled=*/false);
+
+  auto hang_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_)).Times(1);
+  TriggerMonitorAndWait();
+
+  task_environment_.FastForwardBy(base::Seconds(11));
+
+  TriggerMonitorAndWait();
+
+  histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
+
+  hang_scope.reset();
+}
+
+TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
+  // Edge case: "on the first run of Monitor(), the snapshot is actionable
+  // because thread x is hung but then on the second run of Monitor(), the
+  // snapshot is actionable because (only) thread y is hung."
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  std::string captured_uuid;
+  auto unregister_thread_closure =
+      StartAndRegisterWithUuidCapture(mock_delegate, &captured_uuid);
+
+  // Keep the main thread registered so watch_states_ is never empty,
+  // ensuring Monitor() is always invoked when triggered.
+
+  base::WaitableEvent unblock_thread_a;
+  base::WaitableEvent unblock_thread_b;
+  BlockingThread thread_a(&unblock_thread_a, kTimeout);
+  BlockingThread thread_b(&unblock_thread_b, kTimeout);
+
+  thread_a.StartAndWaitForScopeEntered();
+  monitor_event_.Reset();
+
+  // Advance time so thread A and thread B have different deadlines.
+  task_environment_.FastForwardBy(kTimeout / 2);
+
+  thread_b.StartAndWaitForScopeEntered();
+  monitor_event_.Reset();
+
+  // Thread A hangs.
+  task_environment_.FastForwardBy(kTimeout / 2 + base::Seconds(1));
+  TriggerMonitorAndWait();  // Actionable for A. Dump taken.
+
+  ASSERT_FALSE(captured_uuid.empty());
+
+  // Thread A recovers.
+  unblock_thread_a.Signal();
+  thread_a.Join();
+
+  // Thread B hangs.
+  task_environment_.FastForwardBy(kTimeout / 2);
+
+  // Thread B is now actionable. Monitor runs and captures a dump.
+  // CheckHangState() runs unconditionally, but because Thread B is still hung,
+  // it preserves the active UUID and does NOT fire RecordHangRecovered.
+  TriggerMonitorAndWait();
+
+  // Thread B recovers.
+  unblock_thread_b.Signal();
+  thread_b.Join();
+
+  // Monitor runs. IsActionable() is false because no threads are hung.
+  // CheckHangState() runs, sees no threads are hung, clears the incident state,
+  // and fires RecordHangRecovered.
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
+  TriggerMonitorAndWait();
+
+  testing::Mock::VerifyAndClearExpectations(&mock_delegate);
+}
+
+TEST_F(HangWatcherCobaltTest, ThreadUnregistersWhileHungRecordsRecovery) {
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  std::string captured_uuid;
+  auto unregister_thread_closure =
+      StartAndRegisterWithUuidCapture(mock_delegate, &captured_uuid);
+
+  base::WaitableEvent unblock_thread_a;
+  BlockingThread thread_a(&unblock_thread_a, kTimeout);
+
+  thread_a.StartAndWaitForScopeEntered();
+  monitor_event_.Reset();
+
+  // Thread A hangs.
+  task_environment_.FastForwardBy(kHangTime);
+  TriggerMonitorAndWait();  // Actionable for A. Dump taken.
+
+  ASSERT_FALSE(captured_uuid.empty());
+
+  // The unregistration of Thread A will now synchronously trigger
+  // RecordHangRecovered when Monitor() runs because the watch list becomes
+  // empty.
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
+
+  // Thread A unblocks and unregisters
+  unblock_thread_a.Signal();
+  thread_a.Join();
+
+  TriggerMonitorAndWait();
+
+  testing::Mock::VerifyAndClearExpectations(&mock_delegate);
 }
 
 #endif
@@ -1753,106 +2118,5 @@ TEST_F(HangWatchDeadlineTest, SetDeadlineWipesFlags) {
 }
 
 }  // namespace internal
-
-#if BUILDFLAG(IS_COBALT)
-TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {
-  // Edge case: "on the first run of Monitor(), the snapshot is actionable
-  // because thread x is hung but then on the second run of Monitor(), the
-  // snapshot is actionable because (only) thread y is hung."
-  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
-  SetDefaultDelegateExpectations(mock_delegate);
-
-  std::string captured_uuid;
-  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
-      .WillOnce(testing::SaveArg<0>(&captured_uuid));
-
-  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
-
-  // Keep the main thread registered so watch_states_ is never empty,
-  // ensuring Monitor() is always invoked when triggered.
-  auto unregister_thread_closure =
-      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
-
-  base::WaitableEvent unblock_thread_a;
-  base::WaitableEvent unblock_thread_b;
-  BlockingThread thread_a(&unblock_thread_a, kTimeout);
-  BlockingThread thread_b(&unblock_thread_b, kTimeout);
-
-  thread_a.StartAndWaitForScopeEntered();
-  monitor_event_.Reset();
-  
-  // Advance time so thread A and thread B have different deadlines.
-  task_environment_.FastForwardBy(kTimeout / 2);
-
-  thread_b.StartAndWaitForScopeEntered();
-  monitor_event_.Reset();
-
-  // Thread A hangs.
-  task_environment_.FastForwardBy(kTimeout / 2 + base::Seconds(1));
-  TriggerMonitorAndWait();  // Actionable for A. Dump taken.
-
-  // Thread A recovers.
-  unblock_thread_a.Signal();
-  thread_a.Join();
-
-  // Thread B hangs.
-  task_environment_.FastForwardBy(kTimeout / 2);
-
-  // Thread B is now actionable. Monitor runs.
-  // Because IsActionable() is true, the `else` block is skipped.
-  // So CheckAndRecordHangRecovered is skipped.
-  TriggerMonitorAndWait();
-
-  // Thread B recovers.
-  unblock_thread_b.Signal();
-  thread_b.Join();
-
-  // Monitor runs. IsActionable() is false.
-  // CheckAndRecordHangRecovered runs.
-  // It will check if any threads are hung. None are.
-  // So it fires RecordHangRecovered.
-  EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
-  TriggerMonitorAndWait();
-
-  testing::Mock::VerifyAndClearExpectations(&mock_delegate);
-}
-
-TEST_F(HangWatcherCobaltTest, ThreadUnregistersWhileHung) {
-  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
-  StartHangWatcher(&mock_delegate);
-
-  SetDefaultDelegateExpectations(mock_delegate);
-
-  std::string captured_uuid;
-  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
-      .WillOnce(testing::SaveArg<0>(&captured_uuid));
-
-  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
-
-  base::WaitableEvent unblock_thread_a;
-  BlockingThread thread_a(&unblock_thread_a, kTimeout);
-
-  thread_a.StartAndWaitForScopeEntered();
-  monitor_event_.Reset();
-
-  // Thread A hangs.
-  task_environment_.FastForwardBy(kHangTime);
-  TriggerMonitorAndWait();  // Actionable for A. Dump taken.
-
-  // The unregistration of Thread A will now synchronously trigger RecordHangRecovered
-  // when Monitor() runs because the watch list becomes empty.
-  EXPECT_CALL(mock_delegate, RecordHangRecovered(captured_uuid)).Times(1);
-
-  // Thread A unblocks and unregisters
-  unblock_thread_a.Signal();
-  thread_a.Join();
-
-  TriggerMonitorAndWait();
-
-  testing::Mock::VerifyAndClearExpectations(&mock_delegate);
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace base

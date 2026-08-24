@@ -45,6 +45,9 @@ public class JavaSwitches {
 
   public static final String USE_MINOR_MS_FOR_MINOR_GC = "UseMinorMSForMinorGC";
 
+  /** flag to enable smart flushing for DOM storage (0ms delay and onStop flush). */
+  public static final String ENABLE_DOM_STORAGE_SMART_FLUSHING = "EnableDomStorageSmartFlushing";
+
   /** flag to tune compositor offscreen interest area size in pixels. */
   public static final String INTEREST_AREA_SIZE_IN_PIXELS = "InterestAreaSizeInPixels";
 
@@ -94,10 +97,6 @@ public class JavaSwitches {
   /** Avoid reuse resource. */
   public static final String AVOID_CC_REUSE_RESOURCE = "AvoidCCReuseResource";
 
-  /** flag to bypass BufferingBytesConsumer Oilpan heap buffering. */
-  public static final String COBALT_BYPASS_BUFFERING_BYTES_CONSUMER =
-      "CobaltBypassBufferingBytesConsumer";
-
   /** flag to bypass ResourceLoadScheduler subresource queueing and throttling. */
   public static final String COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER =
       "CobaltBypassResourceLoadScheduler";
@@ -115,6 +114,10 @@ public class JavaSwitches {
   public static final String DIRECT_WINDOW_RENDERING = "DirectWindowRendering";
 
   public static final String V8_INITIAL_OLD_SPACE_SIZE = "V8InitialOldSpaceSize";
+  public static final String V8_MAX_OLD_SPACE_SIZE = "V8MaxOldSpaceSize";
+
+  /** flag to force GPU memory available in MB. */
+  public static final String FORCE_GPU_MEM_AVAILABLE_MB = "ForceGpuMemAvailableMb";
 
   /** flag to enable area based buffer budget experiment. */
   public static final String AREA_BASED_VIDEO_BUFFER_BUDGET = "AreaBasedVideoBufferBudget";
@@ -144,6 +147,10 @@ public class JavaSwitches {
     List<String> extraCommandLineArgs = new ArrayList<>();
     StringJoiner jsFlags = new StringJoiner(";");
 
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      extraCommandLineArgs.add("--enable-features=DomStorageSmartFlushing");
+    }
+
     if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
       extraCommandLineArgs.add("--disable-quic");
     }
@@ -172,6 +179,22 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.V8_DISABLE_SPARKPLUG)) {
       jsFlags.add("--no-sparkplug");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.V8_MAX_OLD_SPACE_SIZE)) {
+      jsFlags.add(
+          "--max-old-space-size="
+              + javaSwitches.get(JavaSwitches.V8_MAX_OLD_SPACE_SIZE).replaceAll("[^0-9]", ""));
+    } else {
+      jsFlags.add("--max-old-space-size=512");
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB)) {
+      extraCommandLineArgs.add(
+          "--force-gpu-mem-available-mb="
+              + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
+    } else {
+      extraCommandLineArgs.add("--force-gpu-mem-available-mb=64");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
@@ -291,11 +314,6 @@ public class JavaSwitches {
 
     if (javaSwitches.containsKey(JavaSwitches.AVOID_CC_REUSE_RESOURCE)) {
       extraCommandLineArgs.add("--avoid-cc-reuse-resource");
-    }
-
-    if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER)) {
-      extraCommandLineArgs.add(
-          "--enable-features=" + JavaSwitches.COBALT_BYPASS_BUFFERING_BYTES_CONSUMER);
     }
 
     if (javaSwitches.containsKey(JavaSwitches.COBALT_BYPASS_RESOURCE_LOAD_SCHEDULER)) {
