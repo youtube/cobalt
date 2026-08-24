@@ -4122,7 +4122,7 @@ Extensions Context::generateSupportedExtensions() const
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     supportedExtensions.EGLImageExternalOES = true;
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     return supportedExtensions;
 }

@@ -226,7 +226,7 @@ def CompileAssetCatalog(output, target_os, target_environment, product_type,
       if asset_type in (APP_ICON_ASSET_TYPE, BRAND_ASSETS_TYPE):
         if app_icon:
           continue
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         else:
             if target_environment == 'simulator':
                 command.extend([
