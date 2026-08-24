@@ -2618,7 +2618,6 @@ void PlayerImpl::WriteSamples(SbMediaType sample_type,
 
     GstBuffer* buffer = CreateGstBuffer(sample_info, sample_deallocate_func_, player_, context_);
     GstSample* sample = gst_sample_new(buffer, sample_type == kSbMediaTypeAudio ? audio_caps_ : video_caps_, nullptr, nullptr);
-    gst_buffer_unref(buffer); // gst sample owns the buffer now, the buffer pointer remains valid as long as sample is valid
     SB_DCHECK(buffer == gst_sample_get_buffer(sample));
 
     std::unique_lock lock(mutex_);
@@ -2672,6 +2671,8 @@ void PlayerImpl::WriteSamples(SbMediaType sample_type,
       }
       lock.lock();
     }
+
+    gst_buffer_unref(buffer);
   }
 
   std::lock_guard lock(mutex_);

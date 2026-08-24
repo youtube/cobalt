@@ -221,7 +221,7 @@ void EnsureGstInit() {
     gst_init_check(NULL, NULL, &error);
     if (error) {
       SB_LOG(ERROR) << "gst init fail:" << error->message;
-      g_free(error);
+      g_error_free(error);
     }
     g_once_init_leave (&init, 1);
   }

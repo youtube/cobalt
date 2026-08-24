@@ -487,6 +487,7 @@ class LocalAowsServer {
   LocalAowsServer()
       : port_(ParseAowsPort()),
         listen_socket_fd_(-1),
+        active_connection_fd_(-1),
         stop_requested_(false),
         ws_frames_total_(0),
         ws_bytes_total_(0),
@@ -497,6 +498,11 @@ class LocalAowsServer {
     SB_LOG(WARNING) << logtag << ": Stopping local AOWS server.";
     AOWSLog(kWarning, "Stopping local AOWS server.\n");
     stop_requested_.store(true);
+    const int active_connection_fd = active_connection_fd_.exchange(-1);
+    if (active_connection_fd >= 0) {
+      shutdown(active_connection_fd, SHUT_RDWR);
+      close(active_connection_fd);
+    }
     const int listen_socket_fd = listen_socket_fd_.exchange(-1);
     if (listen_socket_fd >= 0) {
       close(listen_socket_fd);
@@ -635,6 +641,7 @@ class LocalAowsServer {
     }
 
     ClearBufferedAudio();
+    active_connection_fd_.store(connection_fd);
     ws_frames_total_.store(0);
     ws_bytes_total_.store(0);
     read_bytes_total_.store(0);
@@ -668,6 +675,7 @@ class LocalAowsServer {
         case 0x9:
           if (!SendControlFrame(connection_fd, 0xA, payload.data(),
                                 payload.size())) {
+            active_connection_fd_.store(-1);
             return;
           }
           break;
@@ -681,6 +689,8 @@ class LocalAowsServer {
         break;
       }
     }
+
+    active_connection_fd_.store(-1);
 
     const size_t ws_frames = ws_frames_total_.load();
     const size_t ws_bytes = ws_bytes_total_.load();
@@ -744,6 +754,7 @@ class LocalAowsServer {
   std::deque<uint8_t> audio_buffer_;
   std::thread server_thread_;
   std::atomic<int> listen_socket_fd_;
+  std::atomic<int> active_connection_fd_;
   std::atomic<bool> stop_requested_;
   std::atomic<size_t> ws_frames_total_;
   std::atomic<size_t> ws_bytes_total_;

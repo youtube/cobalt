@@ -41,8 +41,11 @@ using namespace third_party::starboard::rdk::shared;
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_audio_configuration) {
+  if (!out_audio_configuration) {
+    return false;
+  }
   bool ret = platform::device().audio_configuration(output_index, out_audio_configuration).value_or(false);
-  if (!ret && output_index == 0 && out_audio_configuration) {
+  if (!ret && output_index == 0) {
     memset(out_audio_configuration, 0, sizeof(SbMediaAudioConfiguration));
     out_audio_configuration->coding_type = kSbMediaAudioCodingTypePcm;
     out_audio_configuration->number_of_channels = SbAudioSinkGetMaxChannels();

@@ -323,7 +323,7 @@ struct _CobaltOcdmDecryptorPrivate : public DrmSystemOcdm::Observer {
           ? gst_structure_get_string(s, "original-media-type")
           : gst_structure_get_name (s);
 
-      is_video_ = g_str_has_prefix(media_type, "video");
+      is_video_ = media_type && g_str_has_prefix(media_type, "video");
     }
   }
 
@@ -451,8 +451,8 @@ static GstCaps* cobalt_ocdm_decryptor_transform_caps(GstBaseTransform* base, Gst
 
     bool duplicate = false;
     unsigned size = gst_caps_get_size(transformed_caps);
-    for (unsigned i = 0; !duplicate && i < size; ++i) {
-      GstStructure* structure = gst_caps_get_structure(transformed_caps, i);
+    for (unsigned j = 0; !duplicate && j < size; ++j) {
+      GstStructure* structure = gst_caps_get_structure(transformed_caps, j);
       if (gst_structure_is_equal(structure, out_structure))
         duplicate = true;
     }

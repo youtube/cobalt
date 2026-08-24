@@ -55,6 +55,9 @@ int SbWindowPrivate::Height() const {
 float SbWindowPrivate::VideoPixelRatio() const {
   auto video_resolution = platform::device().video_resolution().value_or(platform::Resolution{});
   int window_height = ApplicationRdk::Get()->GetWindowHeight();
+  if (window_height <= 0) {
+    return 1.0f;
+  }
   float ratio = video_resolution.height / static_cast<float>(window_height);
   float max_ratio = ( window_height < 1080 )
     ? 1.5f : ( video_resolution.height <= 2160 ? 2.f : 4.f );
