@@ -19,8 +19,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <string>
+
 #include "starboard/android/shared/file_internal.h"
 
+using starboard::FallbackPath;
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
 using starboard::OpenAndroidAssetDir;
@@ -83,6 +86,11 @@ int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
     info->st_size = 0;
     AAssetDir_close(asset_dir);
     return 0;
+  }
+
+  std::string fallback_path = FallbackPath(path);
+  if (!fallback_path.empty()) {
+    return __real_fstatat(dirfd, fallback_path.c_str(), info, flags);
   }
 
   errno = ENOENT;
