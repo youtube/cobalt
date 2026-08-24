@@ -57,7 +57,7 @@ jobs:
       )
     steps:
       - id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
       - name: Remove runtest if exists
@@ -107,11 +107,11 @@ jobs:
       packages: write
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -139,11 +139,11 @@ jobs:
     runs-on: [self-hosted, linux-runner]
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -183,7 +183,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install requirements
         run: |
           pip3 install grpcio==1.37.0 grpcio-tools==1.38.0
@@ -193,7 +193,7 @@ jobs:
           python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
         shell: bash
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
       - name: Set env vars
         run: |
           echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
@@ -257,7 +257,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -312,7 +312,7 @@ jobs:
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
       - name: Run Tests

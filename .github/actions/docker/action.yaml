@@ -12,7 +12,7 @@ runs:
   steps:
     - name: Get docker file changes
       id: changed-files
-      uses: tj-actions/changed-files@8953e851a137075e59e84b5c15fbeb3617e82f15 # v32.1.1
+      uses: tj-actions/changed-files@a284dc1814e3fd07f2e34267fc8f81227ed29fb8 # v45.0.7
       with:
         files: |
           docker-compose.yml
@@ -21,7 +21,7 @@ runs:
           .github/actions/docker/**
     - name: Retrieve Docker metadata
       id: meta
-      uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
+      uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
       with:
         images: ${{env.REGISTRY}}/${{github.repository}}/${{inputs.docker_image}}
         tags: |
@@ -47,7 +47,7 @@ runs:
       run: echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${GITHUB_BASE_REF%.1+}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
     - name: Configure Docker auth for GCloud
       shell: bash
       run: |
