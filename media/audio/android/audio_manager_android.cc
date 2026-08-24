@@ -551,7 +551,7 @@ void AudioManagerAndroid::GetCommunicationDeviceNames(
   AddDefaultDevice(device_names);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // simplfified flow - just return, device_names is set to default. 
+  // simplified flow - just return, device_names is set to default.
   return;
 #else
   std::optional<std::vector<JniAudioDevice>> j_devices =
