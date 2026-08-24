@@ -59,7 +59,7 @@ jobs:
       )
     steps:
       - id: Checkout
-        uses: kaidokert/checkout@v3.5.999 # Temporary version
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         with:
           fetch-depth: 1
       - name: Remove runtest if exists
@@ -98,28 +98,10 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: windows-2019
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
-        with:
-          fetch-depth: 2
-      - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build docker image
-        id: build-docker-image
-        uses: ./.github/actions/docker_win
-        with:
-          service: ${{ needs.initialize.outputs.docker_service }}
-      - name: Build runner docker image
-        id: build-runner-docker-image
-        uses: ./.github/actions/docker_win
-        with:
-          service: ${{ needs.initialize.outputs.docker_runner_service }}
+      - name: Dummy step
+        run: echo "Skipping Windows docker build because windows-2019 is retired." 
   # Runs builds.
   build:
     needs: [initialize]
@@ -133,7 +115,7 @@ jobs:
         config: [devel, debug, qa, gold]
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -166,7 +148,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
         with:
           fetch-depth: 1
       - name: Run Tests

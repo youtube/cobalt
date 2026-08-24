@@ -61,7 +61,7 @@ jobs:
       )
     steps:
       - id: checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
       - name: Remove runtest if exists
@@ -111,11 +111,11 @@ jobs:
       packages: write
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -143,11 +143,11 @@ jobs:
     runs-on: [self-hosted, linux-runner]
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -186,7 +186,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -253,7 +253,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install requirements
         run: |
           pip3 install grpcio==1.37.0 grpcio-tools==1.38.0
@@ -329,7 +329,7 @@ jobs:
       COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
       - name: Run Tests
