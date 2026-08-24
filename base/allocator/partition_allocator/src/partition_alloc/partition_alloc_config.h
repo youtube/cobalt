@@ -177,7 +177,7 @@ constexpr bool kUseLazyCommit = false;
   (PA_BUILDFLAG(IS_APPLE) || (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || PA_BUILDFLAG(IS_CHROMEOS))
 // Enable shadow metadata.
 //
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // With this flag, shadow pools will be mapped, on which writable shadow
 // metadatas are placed, and the real metadatas are set to read-only instead.
 // This feature is only enabled with 64-bit environment because pools work

@@ -32,4 +32,4 @@ enable_screen_capture = is_linux || is_chromeos || (is_apple && use_blink) ||
                           is_win || is_android || is_fuchsia
 
 }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

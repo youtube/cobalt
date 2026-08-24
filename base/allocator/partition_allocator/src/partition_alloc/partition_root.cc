@@ -1831,7 +1831,7 @@ void PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask mask) {
 #endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
 // static
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void PartitionRoot::CheckMetadataIntegrity(const void* ptr) {
   uintptr_t address = internal::ObjectInnerPtr2Addr(ptr);
   if (!IsManagedByPartitionAlloc(address)) {

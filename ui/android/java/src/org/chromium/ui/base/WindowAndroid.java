@@ -278,7 +278,7 @@ public class WindowAndroid
             // Cobalt: Configuration.isScreenWideColorGamut() requires API level 26 (Android O).
             // Guard it to prevent NoSuchMethodError on older devices (e.g. SDK 24/25)
             // as Cobalt supports SDK 24. See b/508072838.
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             Configuration configuration = context.getResources().getConfiguration();
             boolean isScreenWideColorGamut = configuration.isScreenWideColorGamut();
             display.updateIsDisplayServerWideColorGamut(isScreenWideColorGamut);

@@ -377,7 +377,7 @@ DbStatus DomStorageDatabaseLevelDB::Commit(
 #else
   return FromLevelDBStatus(db_->Write(leveldb::WriteOptions(), batch));
 #endif
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
