@@ -242,22 +242,24 @@ template("modular_executable") {
     _lib_name = "lib${_name}"
   }
 
-  if (sb_is_evergreen) {
+  if (is_android) {
+    target("executable", _name) {
+      forward_variables_from(invoker, "*")
+    }
+    modular_apk("${_name}_apk") {
+      forward_variables_from(invoker, [ "testonly" ])
+      module_name = _name
+      lib_name = _lib_name
+    }
+  } else if (sb_is_evergreen) {
     target("evergreen_final_target", _name) {
       forward_variables_from(invoker, "*")
       lib_name = _lib_name
     }
   } else {
-    target("executable", _name) {
+    not_needed([ "_lib_name" ])
+    target("loader_final_target", _name) {
       forward_variables_from(invoker, "*")
-    }
-  }
-
-  if (is_android) {
-    modular_apk("${_name}_apk") {
-      forward_variables_from(invoker, [ "testonly" ])
-      module_name = _name
-      lib_name = _lib_name
     }
   }
 }
