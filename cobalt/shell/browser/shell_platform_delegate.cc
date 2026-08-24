@@ -205,6 +205,11 @@ void ShellPlatformDelegate::OnUnfreeze() {
 
   // Resume the hangwatcher.
   base::HangWatcher::Resume();
+
+  // Restore GPU process on UI early so that renderer IPCs (e.g.
+  // EstablishGpuChannel) are no longer blocked by the backgrounded GPU service.
+  content::RestoreGpuProcessOnUI();
+
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);
   }
