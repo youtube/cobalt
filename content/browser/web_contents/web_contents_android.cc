@@ -497,27 +497,20 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
   web_contents_->ResumeLoadingCreatedWebContents();
 }
 
-<<<<<<< HEAD
 void WebContentsAndroid::SetPrimaryPageImportance(JNIEnv* env,
                                                   jint main_frame_importance,
                                                   jint subframe_importance) {
   web_contents_->SetPrimaryPageImportance(
       static_cast<ChildProcessImportance>(main_frame_importance),
       static_cast<ChildProcessImportance>(subframe_importance));
-=======
+}
+
 void WebContentsAndroid::OnFreeze(JNIEnv* env) {
   web_contents_->SetPageFrozen(true);
 }
 
 void WebContentsAndroid::OnResume(JNIEnv* env) {
   web_contents_->SetPageFrozen(false);
-}
-
-void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
-                                                       jint importance) {
-  web_contents_->SetPrimaryMainFrameImportance(
-      static_cast<ChildProcessImportance>(importance));
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {
