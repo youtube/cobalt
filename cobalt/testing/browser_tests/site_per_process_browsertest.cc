@@ -10060,8 +10060,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
 #endif
 IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
                        MAYBE_TestChildProcessImportance) {
-  web_contents()->SetPrimaryMainFrameImportance(
-      ChildProcessImportance::MODERATE);
+  // In this test case, subframe importance is always NORMAL. With that
+  // WebContents never updates subframe importance.
+  web_contents()->SetPrimaryPageImportance(ChildProcessImportance::MODERATE,
+                                           ChildProcessImportance::NORMAL);
 
   // Construct root page with one child in different domain.
   GURL main_url(embedded_test_server()->GetURL(
@@ -10071,8 +10073,7 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
   ASSERT_EQ(1u, root->child_count());
   FrameTreeNode* child = root->child_at(0);
 
-  // Importance should survive initial navigation. Note importance only affect
-  // main frame, so sub frame process should remain NORMAL throughout.
+  // Importance should survive initial navigation.
   EXPECT_EQ(ChildProcessImportance::MODERATE,
             root->current_frame_host()->GetProcess()->GetEffectiveImportance());
   EXPECT_EQ(
@@ -10080,14 +10081,15 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessBrowserTest,
       child->current_frame_host()->GetProcess()->GetEffectiveImportance());
 
   // Check setting importance.
-  web_contents()->SetPrimaryMainFrameImportance(ChildProcessImportance::NORMAL);
+  web_contents()->SetPrimaryPageImportance(ChildProcessImportance::NORMAL,
+                                           ChildProcessImportance::NORMAL);
   EXPECT_EQ(ChildProcessImportance::NORMAL,
             root->current_frame_host()->GetProcess()->GetEffectiveImportance());
   EXPECT_EQ(
       ChildProcessImportance::NORMAL,
       child->current_frame_host()->GetProcess()->GetEffectiveImportance());
-  web_contents()->SetPrimaryMainFrameImportance(
-      ChildProcessImportance::IMPORTANT);
+  web_contents()->SetPrimaryPageImportance(ChildProcessImportance::IMPORTANT,
+                                           ChildProcessImportance::NORMAL);
   EXPECT_EQ(ChildProcessImportance::IMPORTANT,
             root->current_frame_host()->GetProcess()->GetEffectiveImportance());
   EXPECT_EQ(
