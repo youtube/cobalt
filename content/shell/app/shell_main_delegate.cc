@@ -114,7 +114,7 @@ content::ShellCrashReporterClient& GetShellCrashReporterClient() {
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #endif
 
 #if BUILDFLAG(IS_WIN)

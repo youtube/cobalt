@@ -25,7 +25,7 @@ if (is_cobalt && is_partner_toolchain) {
     public_deps = [ "//copied_base/base/tracing/protos:chrome_track_event_gen" ]
   }
 } else {
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 proto_library("chrome_track_event") {
   proto_in_dir = "//"
   proto_out_dir = "base/tracing/protos"

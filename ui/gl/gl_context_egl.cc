@@ -238,7 +238,7 @@ bool GLContextEGL::InitializeImpl(GLSurface* compatible_surface,
   #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     DCHECK(attribs.bind_generates_resource);
   #endif
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_webgl_compatibility) {

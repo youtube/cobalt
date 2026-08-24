@@ -407,7 +407,7 @@ TEST_P(AddressSorterPosixSyncOrAsyncTest, Rule6) {
 #else
   const int order[] = { 3, 2, 1, 0, -1 };
 #endif
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   Verify(addresses, order);
 }
 

@@ -407,7 +407,7 @@ static jni_zero::ScopedJavaLocalRef<jobject> Java_SampleForTests_addStructA(
 =======
   auto _ret = env->CallObjectMethod(obj.obj(), call_context.method_id(), a.obj(), b.obj());
   return jni_zero::ScopedJavaLocalRef<jobject>(env, _ret);
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 static jni_zero::ScopedJavaLocalRef<jclass> Java_SampleForTests_getClass(

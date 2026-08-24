@@ -43,7 +43,7 @@ An Android developer would use:
 
 ```src/GEMINI.md
 @agents/prompts/common.md
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 @agents/prompts/templates/android.md
 ```
 
@@ -65,4 +65,4 @@ the format of the existing examples.
 
 Changes to `common.minimal.md` should be done carefully as it's meant to be used
 broadly.
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

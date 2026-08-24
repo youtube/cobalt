@@ -14,7 +14,7 @@ variables such as `is_android` in GN or `BUILDFLAG(IS_ANDROID)` in C++ evaluate
 to true. `{OUT_DIR}/args.gn` should have `target_os="android"` in it.
 
 ## Build Targets
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 If building tests, `tools/autotest.py` should build the appropriate test on your
 behalf. If building a target to run on a device, you should build one of the
 following unless directly told otherwise.
@@ -33,7 +33,7 @@ following unless directly told otherwise.
     production build, if the user is testing performance.
 
 ## Installing or Running an APK/Bundle
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 To install or run an apk/bundle, use the generated wrapper script in
 `out/{USERS_OUT_DIR}/bin/`.
   * Installing is done via the `install command` - eg.
@@ -45,7 +45,7 @@ To install or run an apk/bundle, use the generated wrapper script in
 ### JNI
 =======
 ## JNI
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of f5ecdee5314 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 Chrome on Android uses both Java and C++ frequently. Our JNI uses codegen from
 `//third_party/jni_zero`.
 
