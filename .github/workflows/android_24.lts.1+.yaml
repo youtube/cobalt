@@ -58,37 +58,37 @@ jobs:
       contents: write
     steps:
       - name: Download arm-gold apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-arm-gold
           path: arm-gold
       - name: Download arm-qa apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-arm-qa
           path: arm-qa
       - name: Download arm64-gold apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-arm64-gold
           path: arm64-gold
       - name: Download arm64-qa apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-arm64-gold
           path: arm64-qa
       - name: Download x86-gold apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-x86-gold
           path: x86-gold
       - name: Download x86-qa apk
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: android-x86-qa
           path: x86-qa
       - name: 'Upload Android APKs'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: Android APKs
           path: ./*

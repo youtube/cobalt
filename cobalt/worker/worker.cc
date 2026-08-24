@@ -326,6 +326,11 @@ void Worker::Abort() {
     worker_global_scope_->owner_set()->clear();
   }
   if (web_agent_) {
+    if (task_runner()) {
+      task_runner()->PostTask(
+          FROM_HERE, base::Bind([](Worker* worker) { worker->loader_.reset(); },
+                                base::Unretained(this)));
+    }
     std::unique_ptr<web::Agent> web_agent(std::move(web_agent_));
     DCHECK(web_agent);
     DCHECK(!web_agent_);
