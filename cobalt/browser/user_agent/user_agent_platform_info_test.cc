@@ -16,7 +16,9 @@
 
 #include <map>
 
+#include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "cobalt/browser/features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -40,6 +42,7 @@ UserAgentPlatformInfo CreateEmptyPlatformInfo() {
   platform_info.set_evergreen_version("");
   platform_info.set_evergreen_type("");
   platform_info.set_evergreen_file_type("");
+  platform_info.set_finch_version("");
   platform_info.set_cobalt_version("");
   platform_info.set_cobalt_build_version_number("");
   platform_info.set_build_configuration("");
@@ -275,6 +278,15 @@ TEST_F(UserAgentStringTest, SanitizedEvergreenFileType) {
             user_agent_string.find("FooBar" TCHARORSLASH "BazQux"));
 }
 
+TEST_F(UserAgentStringTest, SanitizedFinchToken) {
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_finch_version("Foo" NOT_TCHAR "Bar" TCHAR "Baz" NOT_TCHAR
+                                  "Qux");
+  const std::string user_agent_string = platform_info.ToString();
+  EXPECT_NE(std::string::npos, user_agent_string.find("FooBar" TCHAR "BazQux"));
+}
+
 TEST_F(UserAgentStringTest, SanitizedCobaltVersion) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
@@ -352,6 +364,63 @@ TEST_F(UserAgentStringTest, WithJavaScriptVersion) {
   const std::string user_agent_string = platform_info.ToString();
 
   EXPECT_NE(std::string::npos, user_agent_string.find(" V8/6.5.254.28"));
+}
+
+TEST_F(UserAgentStringTest, EmitsFinchTokenBeforeComma) {
+  UserAgentPlatformInfo platform_info =
+      CreateOnlyOSNameAndVersionPlatformInfo();
+  platform_info.set_cobalt_version("26");
+  platform_info.set_cobalt_build_version_number("1036444");
+  platform_info.set_build_configuration("gold");
+  platform_info.set_starboard_version("Starboard/17");
+  platform_info.set_finch_version("1.0");
+  platform_info.set_original_design_manufacturer("Google");
+  platform_info.set_device_type("OTT");
+  platform_info.set_chipset_model_number("sabrina");
+  platform_info.set_model_year("2020");
+  platform_info.set_firmware_version("UTTC.250917.004");
+  platform_info.set_brand("Google");
+  platform_info.set_model("Chromecast");
+  platform_info.set_aux_field("com.google.android.youtube.tv/6.48.302");
+  const std::string user_agent_string = platform_info.ToString();
+
+  const std::string expected_full_string =
+      "Mozilla/5.0 (GLaDOS 3.11) Cobalt/26.1036444-gold (unlike Gecko) "
+      "Starboard/17 Finch/1.0, "
+      "Google_OTT_sabrina_2020/UTTC.250917.004 (Google, Chromecast) "
+      "com.google.android.youtube.tv/6.48.302";
+  EXPECT_EQ(expected_full_string, user_agent_string);
+}
+
+TEST_F(UserAgentStringTest, OmitsFinchTokenWhenParamIsEmpty) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kEnableUserAgentFinchToken);
+
+  UserAgentPlatformInfo platform_info(/*for_testing=*/true);
+  std::string user_agent_string = platform_info.ToString();
+  EXPECT_EQ(std::string::npos, user_agent_string.find("Finch/"));
+}
+
+TEST_F(UserAgentStringTest, EmitsFinchTokenWhenFeatureEnabledWithParam) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kEnableUserAgentFinchToken, {{"token", "treatment_group_a"}});
+
+  UserAgentPlatformInfo platform_info(/*for_testing=*/true);
+  std::string user_agent_string = platform_info.ToString();
+  EXPECT_NE(std::string::npos,
+            user_agent_string.find(" Finch/treatment_group_a"));
+}
+
+TEST_F(UserAgentStringTest, OmitsFinchTokenWhenFeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kEnableUserAgentFinchToken);
+
+  UserAgentPlatformInfo platform_info(/*for_testing=*/true);
+  std::string user_agent_string = platform_info.ToString();
+  EXPECT_EQ(std::string::npos, user_agent_string.find("Finch/"));
 }
 
 class GetUserAgentInputMapTest : public testing::Test {};
