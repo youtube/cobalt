@@ -48,6 +48,7 @@ void SbEventHandle(const SbEvent* event) {
     s_lifecycle_delegate->DoTeardown();
     delete s_lifecycle_delegate;
     s_lifecycle_delegate = nullptr;
+    LOG(INFO) << "Application Stopped";
   } else if (event->type == kSbEventTypeFreeze) {
     // Wait for the Freeze transition to complete natively before
     // allowing SbEventHandle to return, ensuring event callbacks
