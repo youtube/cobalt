@@ -49,6 +49,13 @@ class MEDIA_EXPORT MediaResource {
 #if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns the media URL for URL player.
   virtual GURL GetMediaUrl() const;
+
+  // Forwards duration change to DemuxerHost.
+  virtual void ForwardDurationChangeToDemuxerHost(base::TimeDelta duration);
+
+  // Forwards buffered ranges to DemuxerHost.
+  virtual void ForwardBufferedTimeRangesToDemuxerHost(base::TimeDelta start,
+                                                      base::TimeDelta length);
 #endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
