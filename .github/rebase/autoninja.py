@@ -20,8 +20,6 @@ from base_resolver import (
     get_clean_build_env,
     resolve_repo_file_path,
 )
-from reasoning_engine import CobaltReasoningEngine
-
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -273,7 +271,7 @@ class AutoninjaResolver(BaseResolver):
       target: str,
       *,
       keep_going: int = 1,
-      engine: Optional[CobaltReasoningEngine] = None,
+      engine: Optional[Any] = None,
       max_iterations: int = 60,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):

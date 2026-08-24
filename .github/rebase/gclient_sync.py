@@ -19,10 +19,27 @@ from base_resolver import (
     BaseResolver,
     get_clean_build_env,
 )
-from reasoning_engine import CobaltReasoningEngine
-
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+# Keywords that mark the beginning of an error or traceback in gclient sync
+# output. Covers standard Python exception names (since gclient and DEPS are
+# evaluated in Python) as well as tool-level error phrases.
+SYNC_ERROR_KEYWORDS = (
+    "error:",
+    "traceback",
+    "failed to",
+    "syntaxerror",
+    "syntax error",
+    "keyerror",
+    "key error",
+    "attributeerror",
+    "attribute error",
+    "exception",
+    "cannot find",
+    "conflict",
+    "fatal:",
+)
 
 
 @dataclasses.dataclass
@@ -40,18 +57,7 @@ def extract_sync_diagnostic_trace(output: str) -> str:
   error_lines = []
   capture = False
   for line in lines:
-    if any(kw in line.lower() for kw in [
-        "error:",
-        "traceback",
-        "failed to",
-        "syntaxerror",
-        "keyerror",
-        "attributeerror",
-        "exception",
-        "cannot find",
-        "conflict",
-        "fatal:",
-    ]):
+    if any(kw in line.lower() for kw in SYNC_ERROR_KEYWORDS):
       capture = True
     if capture:
       error_lines.append(line)
@@ -69,7 +75,7 @@ class GClientSyncResolver(BaseResolver):
       self,
       repo_path: str,
       *,
-      engine: Optional[CobaltReasoningEngine] = None,
+      engine: Optional[Any] = None,
       flags: Optional[List[str]] = None,
       max_iterations: int = 10,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,

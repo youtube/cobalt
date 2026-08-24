@@ -15,8 +15,6 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import warnings
 
-from reasoning_engine import CobaltReasoningEngine
-
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -499,6 +497,59 @@ def extract_build_progress(build_output: str, siso_output: str = "") -> str:
   return ""
 
 
+def write_rebase_report(
+    rebase_dir: str,
+    platform: str,
+    build_type: str,
+    *,
+    target: str,
+    model: str,
+    status: str,
+    elapsed_seconds: float,
+    repo_path: Optional[str] = None,
+) -> str:
+  """Generates the final comprehensive rebase summary report."""
+  milestone = get_chromium_milestone(repo_path)
+  results_dir = os.path.join(rebase_dir, "results")
+  os.makedirs(results_dir, exist_ok=True)
+  report_filename = f"{milestone}_rebase_summary.md"
+  report_path = os.path.join(results_dir, report_filename)
+  comp_status = ("[OK] Clean"
+                 if "SUCCESS" in status else "[WARNING] Requires Attention")
+  content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
+
+## 1. Executive Summary
+- **Status**: **{status}**
+- **Milestone**: `{milestone}`
+- **Platform**: `{platform}`
+- **Build Type**: `{build_type}`
+- **Target**: `{target}`
+- **Reasoning Model**: `{model}` (with `gemini-2.5-pro` escalation)
+- **Total Execution Time**: `{elapsed_seconds:.1f}s`
+
+## 2. Rebase Pipeline Stages
+| Phase | Stage | Description | Status |
+| :--- | :--- | :--- | :--- |
+| **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
+| **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
+| **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
+| **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
+"""
+  try:
+    with open(report_path, "w", encoding="utf-8") as f:
+      f.write(content)
+    print(
+        f"[pipeline] [REPORT] Report written to: {report_path}",
+        file=sys.stderr,
+    )
+  except OSError as e:
+    print(
+        f"[pipeline] [WARNING] Could not write report: {e}",
+        file=sys.stderr,
+    )
+  return report_path
+
+
 class BaseResolver(abc.ABC):
   """Abstract base class for all self-healing rebase command execution loops."""
 
@@ -506,20 +557,22 @@ class BaseResolver(abc.ABC):
       self,
       repo_path: str,
       *,
-      engine: Optional[CobaltReasoningEngine] = None,
+      engine: Optional[Any] = None,
       max_iterations: int = 50,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
     self.repo_path = repo_path
     self.max_iterations = max_iterations
     self.on_patch_applied_fn = on_patch_applied_fn
-    self.reasoning_engine = engine or CobaltReasoningEngine()
+    self.reasoning_engine = engine
     self.file_error_counts: Dict[str, int] = collections.defaultdict(int)
 
   @property
   def model(self) -> str:
     """Active primary model name from reasoning engine."""
-    return self.reasoning_engine.flash_model
+    if self.reasoning_engine is not None:
+      return getattr(self.reasoning_engine, "flash_model", "gemini-2.5-flash")
+    return "gemini-2.5-flash"
 
   @property
   @abc.abstractmethod

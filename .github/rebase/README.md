@@ -6,47 +6,54 @@ An autonomous, multi-phase AI-driven engineering pipeline powered by Google Clou
 
 ## 1. Architecture Overview
 
-The pipeline decomposes rebase automation into five sequential, object-oriented self-healing phases built upon an extensible `BaseResolver` architecture:
+The pipeline decomposes rebase automation into five sequential, object-oriented self-healing phases built upon an extensible `BaseResolver` architecture and a decoupled Client–Server design:
 
 ```
-+-----------------------------------------------------------------------------+
-| Phase 1: Unified Conflict Resolution (conflicts.py -> ConflictResolver)     |
-|   - Resolves DEPS merge conflicts & validates Python AST syntax             |
-|   - Resolves C++, Java, GN, and config file conflict blocks                 |
-|   - Multi-turn tool inspection (Read, Find, Grep, Git Show)                 |
-+-----------------------------------------------------------------------------+
-                                     |
-                                     v
-+-----------------------------------------------------------------------------+
-| Phase 2: Toolchain & Dependency Sync (gclient_sync.py -> GClientSyncResolver)|
-|   - Synchronizes Clang, Rust, NDK, node_modules, and CIPD packages          |
-|   - Auto-recovers with --force --reset and heals DEPS syntax errors         |
-+-----------------------------------------------------------------------------+
-                                     |
-                                     v
-+-----------------------------------------------------------------------------+
-| Phase 3: GN Generation & Header Verification (gn_gen.py -> GNGenResolver)   |
-|   - Executes `cobalt/build/gn.py -p <platform> -C <build_type> --check`     |
-|   - Deep 32KB trace parsing, target bridge resolution, import repair        |
-|   - Callback hook: Auto-reruns Phase 2 sync if DEPS is modified             |
-+-----------------------------------------------------------------------------+
-                                     |
-                                     v
-+-----------------------------------------------------------------------------+
-| Phase 4: Compiler Self-Healing Loop (autoninja.py -> AutoninjaResolver)     |
-|   - Invokes `autoninja -k 1 -C out/<dir> <target>`                          |
-|   - Third-party source protection guardrail (routes fixes to BUILD.gn)      |
-|   - Generates surgical SEARCH/REPLACE code patches via Vertex AI            |
-|   - Escalates to Pro model (gemini-2.5-pro) on repeat diagnostics           |
-|   - Callback hooks: Auto-reruns Phase 2 on DEPS and Phase 3 on build files  |
-+-----------------------------------------------------------------------------+
-                                     |
-                                     v
-+-----------------------------------------------------------------------------+
-| Phase 5: Comprehensive Report Generation (M140_rebase_summary.md)           |
-|   - Generates final execution metrics and verification summary              |
-|   - Deployed Reasoning Engine maintains GCS knowledge memory server-side   |
-+-----------------------------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ LOCAL CLIENT RUNNER (Developer Machine / CI Runner)                         │
+│                                                                             │
+│ Phase 1: Unified Conflict Resolution (conflicts.py -> ConflictResolver)     │
+│   - Resolves DEPS merge conflicts & validates Python AST syntax             │
+│   - Resolves C++, Java, GN, and config file conflict blocks                 │
+│   - Multi-turn tool inspection (Read, Find, Grep, Git Show)                 │
+│                                      │                                      │
+│                                      v                                      │
+│ Phase 2: Toolchain & Dependency Sync (gclient_sync.py -> GClientSyncResolver)│
+│   - Synchronizes Clang, Rust, NDK, node_modules, and CIPD packages          │
+│   - Auto-recovers with --force --reset and heals DEPS syntax errors         │
+│                                      │                                      │
+│                                      v                                      │
+│ Phase 3: GN Generation & Header Verification (gn_gen.py -> GNGenResolver)   │
+│   - Executes `cobalt/build/gn.py -p <platform> -C <build_type> --check`     │
+│   - Deep 32KB trace parsing, target bridge resolution, import repair        │
+│   - Callback hook: Auto-reruns Phase 2 sync if DEPS is modified             │
+│                                      │                                      │
+│                                      v                                      │
+│ Phase 4: Compiler Self-Healing Loop (autoninja.py -> AutoninjaResolver)     │
+│   - Invokes `autoninja -k 1 -C out/<dir> <target>`                          │
+│   - Third-party source protection guardrail (routes fixes to BUILD.gn)      │
+│   - Generates surgical SEARCH/REPLACE code patches via Vertex AI            │
+│   - Escalates to Pro model (gemini-2.5-pro) on repeat diagnostics           │
+│   - Callback hooks: Auto-reruns Phase 2 on DEPS and Phase 3 on build files  │
+│                                      │                                      │
+│                                      v                                      │
+│ Phase 5: Comprehensive Report Generation (M140_rebase_summary.md)           │
+│   - Generates final execution metrics and verification summary              │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                ReasoningEngineClient (engine_client.py)
+                - Automatic Connection Retries
+                - Exponential Backoff for 429/503/Transient Errors
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ HOSTED VERTEX AI REASONING ENGINE (reasoning_engine/engine.py in GCP)       │
+│                                                                             │
+│ - CobaltReasoningEngine service running in Vertex AI Container              │
+│ - Server-Side GCS Knowledge Memory Bank (gs://.../knowledge_bank.json)      │
+│ - Declarative Domain Skills (skills/*.md)                                   │
+│ - Gemini 2.5 Flash / Pro LLM Execution via google.genai SDK                 │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -57,13 +64,14 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
 .github/rebase/
 │
 ├── base_resolver.py       # [CORE] Abstract base class (loop, tools, guards, patch engine)
+├── engine_client.py       # [CLIENT] ReasoningEngineClient proxy with retries & backoff
 ├── conflicts.py           # [PHASE 1] ConflictResolver library (DEPS & source conflicts)
 ├── gclient_sync.py        # [PHASE 2] GClientSyncResolver library (toolchain sync)
 ├── gn_gen.py              # [PHASE 3] GNGenResolver library (GN build verification)
 ├── autoninja.py           # [PHASE 4] AutoninjaResolver library (compiler feedback loop)
 ├── run_rebase_pipeline.py # [ORCHESTRATOR] Clean orchestrator managing Phase 1-5 execution
 ├── token_usage.py         # Token tracking and cost metrics
-├── test_rebase_suite.py   # Comprehensive unit test suite
+├── test_rebase_suite.py   # Comprehensive unit test suite (26 unit tests)
 │
 └── reasoning_engine/      # [DEPLOYED TO VERTEX AI]
     ├── engine.py          # CobaltReasoningEngine service & native GCS memory bank
@@ -85,7 +93,7 @@ The pipeline decomposes rebase automation into five sequential, object-oriented 
    ```bash
    gcloud auth application-default login
    export GCP_PROJECT="your-gcp-project-id"
-   export GCP_LOCATION="global"
+   export GCP_LOCATION="us-central1"
    ```
 2. **Environment**:
    Ensure `depot_tools` is in your `PATH`.
@@ -118,7 +126,7 @@ python3 .github/rebase/run_rebase_pipeline.py \
 
 You can skip or run specific phases using orchestrator flags:
 
-* **Skip merge conflicts (e.g. if already resolved)**:
+* **Skip merge conflict phase (start directly at toolchain sync)**:
   ```bash
   python3 .github/rebase/run_rebase_pipeline.py --skip-conflicts ...
   ```
@@ -149,7 +157,7 @@ classDiagram
     class BaseResolver {
         <<abstract>>
         +str repo_path
-        +CobaltReasoningEngine reasoning_engine
+        +ReasoningEngineClient reasoning_engine
         +int max_iterations
         +execute_local_tool(tool_cmd) str
         +apply_patch_or_replacement(patch) List[str]

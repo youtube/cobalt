@@ -22,27 +22,10 @@ from base_resolver import (
     is_unmodified_third_party,
 )
 from gclient_sync import GClientSyncResolver
-from reasoning_engine import CobaltReasoningEngine, load_skill
 from token_usage import TokenUsage
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-
-class GeminiAPIError(Exception):
-  """Raised when Gemini API fails after all retries."""
-
-
-def build_system_instruction(
-    language: str,
-    skills_dir: Optional[str] = None,
-) -> str:
-  """Builds the Gemini system instruction from modular skill files."""
-  rebase_skill = load_skill("cobalt_rebase", skills_dir)
-  conflict_skill = load_skill("conflict_resolution", skills_dir)
-  return (f"You are an expert Chromium and Cobalt engineer ({language}).\n\n"
-          f"--- General Rebase Guidelines ---\n{rebase_skill}\n\n"
-          f"--- Conflict Resolution Skill ---\n{conflict_skill}\n")
 
 
 @dataclasses.dataclass
@@ -314,65 +297,12 @@ def clean_output(text: str) -> str:
   return text.rstrip()
 
 
-def query_gemini_for_conflict(
-    prompt: str,
-    system_instruction: str,
-    *,
-    engine: Optional[CobaltReasoningEngine] = None,
-    token_tracker: Optional[TokenUsage] = None,
-    mock_mode: bool = False,
-    use_pro: bool = False,
-) -> str:
-  """Queries Gemini via Vertex AI Reasoning Engine."""
-  reasoning_engine = engine or CobaltReasoningEngine()
-  model = (
-      reasoning_engine.pro_model if use_pro else reasoning_engine.flash_model)
-  if mock_mode:
-    if token_tracker:
-      prompt_est = len(prompt) // 4
-      resp_est = 50
-      token_tracker.add(prompt_est, resp_est, prompt_est + resp_est,
-                        f"{model} (mock)")
-    lines = prompt.splitlines()
-    theirs_lines = []
-    in_theirs = False
-    for line in lines:
-      if line.startswith("======="):
-        in_theirs = True
-        continue
-      if in_theirs and line.startswith(">>>>>>>"):
-        break
-      if in_theirs:
-        theirs_lines.append(line)
-    return "\n".join(theirs_lines)
-
-  try:
-    resp = reasoning_engine.generate_content(
-        contents=prompt,
-        system_instruction=system_instruction,
-        model=model,
-    )
-    if token_tracker and resp and resp.usage_metadata:
-      p_tok = resp.usage_metadata.prompt_token_count or 0
-      c_tok = resp.usage_metadata.candidates_token_count or 0
-      t_tok = resp.usage_metadata.total_token_count or (p_tok + c_tok)
-      token_tracker.add(p_tok, c_tok, t_tok, model)
-
-    if resp is None:
-      raise GeminiAPIError(f"No response from Gemini for model {model}")
-    raw_text = resp.text if resp.text is not None else ""
-    return clean_output(raw_text)
-  except Exception as e:  # pylint: disable=broad-exception-caught
-    raise GeminiAPIError(
-        f"Gemini API request failed through Reasoning Engine: {e}") from e
-
-
 def resolve_file_conflicts(
     file_path: str,
     repo_path: str,
     git_context: str,
     *,
-    engine: Optional[CobaltReasoningEngine] = None,
+    engine: Optional[Any] = None,
     skills_dir: Optional[str] = None,
     token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
@@ -380,6 +310,7 @@ def resolve_file_conflicts(
     mock_mode: bool = False,
 ) -> bool:
   """Resolves all conflict markers in a specific file."""
+  del skills_dir
   if not os.path.isfile(file_path):
     return False
 
@@ -417,8 +348,6 @@ def resolve_file_conflicts(
       f"{rel_path} ({lang})...",
       file=sys.stderr,
   )
-  effective_skills = (skills_dir or (engine.skills_dir if engine else None))
-  sys_instruction = build_system_instruction(lang, effective_skills)
 
   for block in blocks:
     print(
@@ -426,15 +355,9 @@ def resolve_file_conflicts(
         f"{len(block.raw_block.splitlines())} lines)...",
         file=sys.stderr,
     )
-    prompt = (f"Git Rebase Context:\n{git_context}\n\n"
-              f"File: {rel_path} ({lang})\n\n"
-              f"Context Before Conflict:\n```\n{block.context_before}\n```\n\n"
-              f"Conflict Block #{block.index}:\n```\n{block.raw_block}\n```\n\n"
-              f"Context After Conflict:\n```\n{block.context_after}\n```\n\n"
-              "Resolve this conflict. Return ONLY the resolved code block "
-              "replacement.")
 
     resolved_code: Optional[str] = None
+    investigation_history = ""
     for attempt in range(2):
       use_pro = attempt > 0
       if use_pro:
@@ -442,32 +365,52 @@ def resolve_file_conflicts(
             f"    [PRO_RETRY] Retrying Block #{block.index} with Pro model...",
             file=sys.stderr,
         )
-      active_prompt = prompt
       for _ in range(max_tool_rounds):
-        try:
-          resp = query_gemini_for_conflict(
-              prompt=active_prompt,
-              system_instruction=sys_instruction,
-              engine=engine,
-              token_tracker=token_tracker,
-              mock_mode=mock_mode,
-              use_pro=use_pro,
-          )
-        except GeminiAPIError as e:
-          print(f"    [FAIL] API Error: {e}", file=sys.stderr)
+        if mock_mode:
+          resolved_code = block.theirs_content
+          if token_tracker:
+            token_tracker.add(50, 20, 70, "mock")
           break
 
-        tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", resp.strip(),
+        if engine is None:
+          raise ValueError(
+              "ReasoningEngine client required for conflict resolution.")
+
+        try:
+          res = engine.resolve_conflict(
+              file_path=rel_path,
+              language=lang,
+              raw_conflict=block.raw_block,
+              context_before=block.context_before,
+              context_after=block.context_after,
+              git_context=git_context,
+              investigation_history=investigation_history,
+              use_pro=use_pro,
+          )
+        except Exception as e:  # pylint: disable=broad-exception-caught
+          print(f"    [FAIL] Reasoning Engine Error: {e}", file=sys.stderr)
+          break
+
+        raw_replacement = ""
+        if isinstance(res, dict):
+          raw_replacement = res.get("replacement", "")
+          model_used = res.get("model_used", "flash")
+          if token_tracker:
+            token_tracker.add(100, 30, 130, model_used)
+        elif isinstance(res, str):
+          raw_replacement = res
+
+        tool_match = re.search(r"^(TOOL_[A-Z_]+:.*)$", raw_replacement.strip(),
                                re.MULTILINE)
         if tool_match:
           tool_cmd = tool_match.group(1).strip()
           print(f"    [TOOL_USE] Model requested: {tool_cmd}", file=sys.stderr)
           tool_output = execute_local_tool(tool_cmd, repo_path)
-          active_prompt += (
+          investigation_history += (
               f"\n\nTool Call: `{tool_cmd}`\nResult:\n```\n{tool_output}\n```")
           continue
 
-        resolved_code = resp
+        resolved_code = clean_output(raw_replacement)
         break
 
       if resolved_code is not None and "<<<<<<<" not in resolved_code:
@@ -569,7 +512,7 @@ class ConflictResolver(BaseResolver):
       self,
       repo_path: str,
       *,
-      engine: Optional[CobaltReasoningEngine] = None,
+      engine: Optional[Any] = None,
       max_iterations: int = 5,
       files: Optional[List[str]] = None,
       skip_sync: bool = False,

@@ -5,6 +5,7 @@ import ast
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from autoninja import (
     AutoninjaResolver,
@@ -15,6 +16,7 @@ from autoninja import (
 from base_resolver import (
     apply_patch_or_replacement,
     execute_local_tool,
+    extract_build_progress,
     get_chromium_milestone,
     is_unmodified_third_party,
 )
@@ -23,7 +25,8 @@ from conflicts import (
     extract_conflict_blocks,
     resolve_file_conflicts,
 )
-from gn_gen import GNDiagnostic, GNGenResolver
+from engine_client import ReasoningEngineClient
+from gn_gen import GNDiagnostic, GNGenResolver, extract_gn_target_files
 from reasoning_engine import CobaltReasoningEngine
 from token_usage import TokenUsage
 
@@ -366,8 +369,6 @@ void Foo() {{}}
 
   def test_extract_build_progress(self):
     """Tests extraction of Ninja and Siso build step progress."""
-    from base_resolver import extract_build_progress  # pylint: disable=import-outside-toplevel
-
     # Ninja format
     sample_ninja = ("[11464/39292] 3m35.89s F ACTION //foo:bar\n"
                     "[11465/39291] 3m35.90s S ACTION //foo:baz\n")
@@ -622,7 +623,6 @@ void Foo() {{}}
 
   def test_extract_gn_target_files_universal(self):
     """Tests that GN file extraction captures all referenced .gn/.gni files."""
-    from gn_gen import extract_gn_target_files  # pylint: disable=import-outside-toplevel
     with tempfile.TemporaryDirectory() as tmp_dir:
       buildconfig = os.path.join(tmp_dir, "build/config/BUILDCONFIG.gn")
       rtc_gn = os.path.join(tmp_dir, "third_party/webrtc/rtc_tools/BUILD.gn")
@@ -709,6 +709,37 @@ target("foo") {{}}
       self.assertEqual(len(called_contexts), 1)
       self.assertIn("component(\"freetype\")", called_contexts[0])
       self.assertIn("150: component(\"freetype\")", called_contexts[0])
+
+  def test_reasoning_engine_client_dispatch(self):
+    """Tests that ReasoningEngineClient routes calls to remote mock engine."""
+    client = ReasoningEngineClient(
+        resource_id="projects/p/locations/l/reasoningEngines/123",
+        project_id="test-p",
+        location="us-central1",
+    )
+    mock_remote = mock.MagicMock()
+    mock_remote.query.return_value = {
+        "status": "SUCCESS",
+        "patch": "TEST_PATCH",
+        "model_used": "gemini-2.5-flash",
+    }
+    client._remote_engine = mock_remote  # pylint: disable=protected-access
+
+    res = client.heal_compiler_error(
+        target="cobalt",
+        diagnostics="error: foo",
+    )
+    self.assertEqual(res["status"], "SUCCESS")
+    self.assertEqual(res["patch"], "TEST_PATCH")
+    mock_remote.query.assert_called_once_with(
+        action="heal_compiler_error",
+        target="cobalt",
+        diagnostics="error: foo",
+        source_contexts="",
+        past_experience="",
+        investigation_history="",
+        use_pro=False,
+    )
 
 
 if __name__ == "__main__":

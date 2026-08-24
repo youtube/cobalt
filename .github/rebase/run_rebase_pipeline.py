@@ -7,78 +7,25 @@ Executes all rebase phases in sequence:
   Phase 2: Toolchain & Dependency Sync (gclient sync -D).
   Phase 3: GN Build Generation & Verification (cobalt/build/gn.py).
   Phase 4: autoninja Compiler Self-Healing Loop (up to 100 iterations).
-  Phase 5: Comprehensive M140_rebase_summary.md generation with metrics.
+  Phase 5: Comprehensive MXXX_rebase_summary.md generation with metrics.
 """
 
 import argparse
 import os
 import sys
 import time
-from typing import List, Optional
+from typing import List
 import warnings
 
 from autoninja import AutoninjaResolver
-from base_resolver import get_chromium_milestone
+from base_resolver import write_rebase_report
 from conflicts import ConflictResolver
 from gclient_sync import GClientSyncResolver
 from gn_gen import GNGenResolver
-from reasoning_engine import CobaltReasoningEngine
+from engine_client import ReasoningEngineClient
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-
-def _write_final_report(
-    rebase_dir: str,
-    platform: str,
-    build_type: str,
-    *,
-    target: str,
-    model: str,
-    status: str,
-    elapsed_seconds: float,
-    repo_path: Optional[str] = None,
-) -> str:
-  """Generates the final comprehensive rebase summary report."""
-  milestone = get_chromium_milestone(repo_path)
-  results_dir = os.path.join(rebase_dir, "results")
-  os.makedirs(results_dir, exist_ok=True)
-  report_filename = f"{milestone}_rebase_summary.md"
-  report_path = os.path.join(results_dir, report_filename)
-  comp_status = ("[OK] Clean"
-                 if "SUCCESS" in status else "[WARNING] Requires Attention")
-  content = f"""# Cobalt {milestone} Rebase Resolution & Verification Report
-
-## 1. Executive Summary
-- **Status**: **{status}**
-- **Milestone**: `{milestone}`
-- **Platform**: `{platform}`
-- **Build Type**: `{build_type}`
-- **Target**: `{target}`
-- **Reasoning Model**: `{model}` (with `gemini-2.5-pro` escalation)
-- **Total Execution Time**: `{elapsed_seconds:.1f}s`
-
-## 2. Rebase Pipeline Stages
-| Phase | Stage | Description | Status |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | Conflict Resolution | Unified DEPS & source conflict repair | [OK] Completed |
-| **Phase 2** | Toolchain Sync | `gclient sync -D` toolchain & CIPD sync | [OK] Completed |
-| **Phase 3** | GN Config Check | `cobalt/build/gn.py --check` validation | [OK] Completed |
-| **Phase 4** | autoninja Loop | autoninja compiler healing | {comp_status} |
-"""
-  try:
-    with open(report_path, "w", encoding="utf-8") as f:
-      f.write(content)
-    print(
-        f"[pipeline] [REPORT] Report written to: {report_path}",
-        file=sys.stderr,
-    )
-  except OSError as e:
-    print(
-        f"[pipeline] [WARNING] Could not write report: {e}",
-        file=sys.stderr,
-    )
-  return report_path
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -210,13 +157,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
   # -------------------------------------------------------------------------
   # REASONING ENGINE & RESOLVER SETUP
   # -------------------------------------------------------------------------
-  reasoning_engine = CobaltReasoningEngine(
+  reasoning_engine = ReasoningEngineClient(
       resource_id=args.reasoning_engine_id,
       project_id=args.project_id,
       location=args.location,
-      flash_model=args.model,
-      skills_dir=args.skills_dir,
-      gcs_memory_uri=args.gcs_memory_uri,
   )
 
   # Phase 1: Conflict Resolver
@@ -279,6 +223,18 @@ def run_pipeline(args: argparse.Namespace) -> int:
       on_patch_applied_fn=on_build_patch_applied,
   )
 
+  def write_report(status_str: str) -> str:
+    return write_rebase_report(
+        rebase_dir=rebase_dir,
+        platform=args.platform,
+        build_type=args.build_type,
+        target=effective_target,
+        model=args.model,
+        status=status_str,
+        elapsed_seconds=time.time() - start_time,
+        repo_path=args.repo_path,
+    )
+
   # -------------------------------------------------------------------------
   # PHASE 1: Unified Conflict Resolution (DEPS + Source)
   # -------------------------------------------------------------------------
@@ -295,16 +251,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           "[FAIL] Phase 1 Conflict Resolution failed.",
           file=sys.stderr,
       )
-      _write_final_report(
-          rebase_dir=rebase_dir,
-          platform=args.platform,
-          build_type=args.build_type,
-          target=effective_target,
-          model=args.model,
-          status="FAILED (Phase 1: Conflict Resolution)",
-          elapsed_seconds=time.time() - start_time,
-          repo_path=args.repo_path,
-      )
+      write_report("FAILED (Phase 1: Conflict Resolution)")
       return 1
     print("[OK] Phase 1 Completed Successfully.", file=sys.stderr)
 
@@ -324,16 +271,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           "[FAIL] Phase 2 Toolchain Sync failed.",
           file=sys.stderr,
       )
-      _write_final_report(
-          rebase_dir=rebase_dir,
-          platform=args.platform,
-          build_type=args.build_type,
-          target=effective_target,
-          model=args.model,
-          status="FAILED (Phase 2: gclient sync)",
-          elapsed_seconds=time.time() - start_time,
-          repo_path=args.repo_path,
-      )
+      write_report("FAILED (Phase 2: gclient sync)")
       return 1
     print("[OK] Phase 2 Completed Successfully.", file=sys.stderr)
 
@@ -353,16 +291,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
           "[FAIL] Phase 3 GN Generation & Header Verification failed.",
           file=sys.stderr,
       )
-      _write_final_report(
-          rebase_dir=rebase_dir,
-          platform=args.platform,
-          build_type=args.build_type,
-          target=effective_target,
-          model=args.model,
-          status="FAILED (Phase 3: GN Generation)",
-          elapsed_seconds=time.time() - start_time,
-          repo_path=args.repo_path,
-      )
+      write_report("FAILED (Phase 3: GN Generation)")
       return 1
     print("[OK] Phase 3 Completed Successfully.", file=sys.stderr)
 
@@ -383,30 +312,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
           "[FAIL] Phase 4 Compiler Feedback Loop failed.",
           file=sys.stderr,
       )
-      _write_final_report(
-          rebase_dir=rebase_dir,
-          platform=args.platform,
-          build_type=args.build_type,
-          target=effective_target,
-          model=args.model,
-          status="FAILED (Phase 4: Compiler Loop)",
-          elapsed_seconds=time.time() - start_time,
-          repo_path=args.repo_path,
-      )
+      write_report("FAILED (Phase 4: Compiler Loop)")
       return 1
     print("[OK] Phase 4 Completed Successfully.", file=sys.stderr)
 
   elapsed = time.time() - start_time
-  summary_path = _write_final_report(
-      rebase_dir=rebase_dir,
-      platform=args.platform,
-      build_type=args.build_type,
-      target=effective_target,
-      model=args.model,
-      status="SUCCESS (All Phases Complete)",
-      elapsed_seconds=elapsed,
-      repo_path=args.repo_path,
-  )
+  summary_path = write_report("SUCCESS (All Phases Complete)")
 
   print("\n" + "=" * 80, file=sys.stderr)
   print(
