@@ -135,7 +135,11 @@ EOF
       # Embed Provisioning Profile & Re-sign App (Internal Kokoro Device Builds Only)
       # --------------------------------------------------------------------------
       if [[ -n "${KOKORO_PIPER_DIR:-}" ]]; then
-        local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+        local tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/YouTube/YouTube_Dev_tvOS.mobileprovision"
+        if [[ ! -f "${tvos_profile}" ]]; then
+          tvos_profile="${KOKORO_PIPER_DIR}/google3/googlemac/iPhone/Shared/ProvisioningProfiles/Google_Development_tvOS.mobileprovision"
+        fi
+
         if [[ -f "${tvos_profile}" ]]; then
           echo "Embedding ${tvos_profile} into ${target_name}.app..."
           cp -f "${tvos_profile}" "${out_dir}/${target_name}.app/embedded.mobileprovision"
