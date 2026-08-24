@@ -103,23 +103,6 @@ class MEDIA_EXPORT DecoderBuffer
 
   using DiscardPadding = DecoderBufferSideData::DiscardPadding;
 
-<<<<<<< HEAD
-=======
-  // TODO(crbug.com/365814210): Remove this structure. It's barely used outside
-  // of unit tests.
-  struct MEDIA_EXPORT TimeInfo {
-    // Presentation time of the frame.
-    base::TimeDelta timestamp;
-    // Presentation duration of the frame.
-    base::TimeDelta duration;
-    // Duration of (audio) samples from the beginning and end of this frame
-    // which should be discarded after decoding. A value of kInfiniteDuration
-    // for the first value indicates the entire frame should be discarded; the
-    // second value must be base::TimeDelta() in this case.
-    DiscardPadding discard_padding;
-  };
-
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the
