@@ -31,7 +31,7 @@ RUN cd ${raspi_home} \
     && wget -q \
     "https://storage.googleapis.com/cobalt-static-storage-public/${raspi_sysroot}"
 
-RUN cd ${raspi_home} && tar Jxpvf ${raspi_sysroot} --no-same-owner
+RUN cd ${raspi_home} && tar Jxpf ${raspi_sysroot} --no-same-owner
 
 CMD /code/cobalt/build/gyp_cobalt -v -C ${CONFIG} ${PLATFORM} \
     && ninja -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_deploy}
