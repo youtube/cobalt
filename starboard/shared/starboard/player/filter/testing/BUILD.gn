@@ -68,7 +68,12 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard:starboard_test_main",
     ]
     if (is_android) {
-      deps += [ "//starboard/shared/starboard/player:player_test_data" ]
+      deps += [
+        "//cobalt/android:cobalt_testing_java",
+        "//starboard/shared/starboard/player:player_test_data",
+      ]
+      android_manifest_template =
+          "//starboard/android/shared/testing/AndroidManifest.xml.jinja2"
     }
   }
 

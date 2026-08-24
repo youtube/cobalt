@@ -88,6 +88,10 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
   std::set<SbMediaTransferId> GetSupportedHdrTypes() override {
     std::set<SbMediaTransferId> supported_transfer_ids;
 
+    if (!StarboardBridge::GetInstance()->is_initialized()) {
+      return supported_transfer_ids;
+    }
+
     JNIEnv* env = AttachCurrentThread();
     ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
         StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
@@ -119,6 +123,9 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     return supported_transfer_ids;
   }
   bool GetIsPassthroughSupported(SbMediaAudioCodec codec) override {
+    if (!StarboardBridge::GetInstance()->is_initialized()) {
+      return false;
+    }
     SbMediaAudioCodingType coding_type;
     switch (codec) {
       case kSbMediaAudioCodecAc3:
@@ -138,6 +145,9 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
   bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) override {
+    if (!StarboardBridge::GetInstance()->is_initialized()) {
+      return false;
+    }
     JNIEnv* env = AttachCurrentThread();
     return AudioOutputManager::GetInstance()->GetAudioConfiguration(
         env, index, configuration);
@@ -553,8 +563,7 @@ MediaCapabilitiesCache::MediaCapabilitiesCache(
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
-  if (!jni_zero::IsVMInitialized() ||
-      !StarboardBridge::GetInstance()->is_initialized()) {
+  if (!jni_zero::IsVMInitialized()) {
     capabilities_is_dirty_ = true;
     return;
   }
