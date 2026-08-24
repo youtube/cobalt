@@ -98,28 +98,10 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: windows-2019
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout files
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
-      - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build docker image
-        id: build-docker-image
-        uses: ./.github/actions/docker_win
-        with:
-          service: ${{ needs.initialize.outputs.docker_service }}
-      - name: Build runner docker image
-        id: build-runner-docker-image
-        uses: ./.github/actions/docker_win
-        with:
-          service: ${{ needs.initialize.outputs.docker_runner_service }}
+      - name: Dummy step
+        run: echo "Skipping Windows docker build because windows-2019 is retired." 
   # Runs builds.
   build:
     needs: [initialize]
