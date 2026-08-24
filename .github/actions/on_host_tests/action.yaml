@@ -14,7 +14,7 @@ runs:
   using: "composite"
   steps:
     - name: Download Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
       with:
         name: ${{ inputs.test_artifacts_key }}
     - name: Extract Artifacts
@@ -94,7 +94,7 @@ runs:
         fi
     - name: Archive Test Results
       if: success() || failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
       with:
         name: ${{ inputs.test_results_key }}
         path: ${{ env.results_dir }}/*
