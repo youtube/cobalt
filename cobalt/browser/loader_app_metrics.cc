@@ -47,12 +47,34 @@ const StarboardExtensionLoaderAppMetricsApi* GetLoaderAppMetricsExtension() {
 
 void RecordLoaderAppTimeMetrics(
     const StarboardExtensionLoaderAppMetricsApi* metrics_extension) {
+  int64_t elf_load_duration_us =
+      metrics_extension->GetElfLoadDurationMicroseconds();
+  if (elf_load_duration_us < 0) {
+    LOG(ERROR) << "LoaderAppMetrics: ELF Load duration is negative, "
+                  "not logging.";
+    return;
+  }
+
+  base::UmaHistogramTimes("Cobalt.LoaderApp.ElfLoadDuration",
+                          base::Microseconds(elf_load_duration_us));
+  LOG(INFO) << "LoaderAppMetrics: Logging ELF Load Duration: "
+            << elf_load_duration_us << " us";
+
   int64_t elf_decompression_duration_us =
       metrics_extension->GetElfDecompressionDurationMicroseconds();
-
   if (elf_decompression_duration_us < 0) {
-    LOG(ERROR) << "LoaderAppMetrics: Decompression duration is negative, "
-                  "not logging.";
+    // This value is expected to not be set for libcobalt.zst installations,
+    // although this will be reconsidered in b/537769651.
+    LOG(INFO) << "LoaderAppMetrics: Diagnostic submetrics for ELF Load "
+                 "duration not provided.";
+    return;
+  }
+
+  if (elf_decompression_duration_us > elf_load_duration_us) {
+    LOG(ERROR) << "LoaderAppMetrics: Decompression duration ("
+               << elf_decompression_duration_us
+               << " us) exceeds load duration (" << elf_load_duration_us
+               << " us). Not logging diagnostic submetrics.";
     return;
   }
 
@@ -60,6 +82,13 @@ void RecordLoaderAppTimeMetrics(
                           base::Microseconds(elf_decompression_duration_us));
   LOG(INFO) << "LoaderAppMetrics: Logging ELF Decompression Duration: "
             << elf_decompression_duration_us << " us";
+
+  int64_t unexplained_duration_us =
+      elf_load_duration_us - elf_decompression_duration_us;
+  base::UmaHistogramTimes("Cobalt.LoaderApp.ElfLoadUnexplainedDuration",
+                          base::Microseconds(unexplained_duration_us));
+  LOG(INFO) << "LoaderAppMetrics: Logging ELF Load Unexplained Duration: "
+            << unexplained_duration_us << " us";
 }
 
 void RecordLoaderAppSpaceMetrics(
@@ -102,8 +131,10 @@ void RecordLoaderAppMetrics() {
   }
 
   if (!metrics_extension->GetElfLibraryStoredCompressed()) {
+    // We're only interested in load performance when the ELF library is stored
+    // compressed and must therefore be decompressed at load time.
     LOG(INFO) << "LoaderAppMetrics: ELF was not stored compressed. Skipping "
-                 "decompression metric.";
+                 "decompression performance metrics.";
     return;
   }
 
