@@ -21,6 +21,11 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
 3. When Linker or Build File errors occur on `BUILD.gn`:
    - Always inspect how upstream Chromium structured the target in the new milestone using `TOOL_GIT_SHOW: <upstream_commit_or_HEAD^2>:<path>` or `TOOL_READ_FILE: <path>`.
    - Use upstream's canonical target structure as the baseline, grafting ONLY Cobalt/Starboard-specific flags/configs (e.g. `if (is_starboard) { ... }`) inside the target.
+4. When errors occur in template headers (e.g. `ipc/ipc_param_traits.h`, `base/`, `mojo/`) or third-party files:
+   - Check the `In file included from ...` stack trace in the error snippet.
+   - Use `TOOL_READ_FILE: <caller_path> <start>-<end>` to inspect the caller file that instantiated the template or triggered the include.
+   - **Layering Rule**: Foundational libraries (`ipc/`, `base/`, `mojo/`) must NEVER `#include` higher-level domain headers (`media/`, `content/`, `chrome/`, `components/`).
+   - If a template specialization (e.g. `ParamTraits<T>`) is missing, place the specialization in the domain component's header (e.g. `media/base/ipc/media_param_traits.h`), NOT in the foundational header.
 
 ## Core Rules
 1. THIRD-PARTY MISSING HEADERS (Fix in BUILD.gn, NOT in third-party C++):

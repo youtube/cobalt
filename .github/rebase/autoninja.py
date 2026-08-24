@@ -18,6 +18,7 @@ import warnings
 from base_resolver import (
     BaseResolver,
     get_clean_build_env,
+    is_unmodified_third_party,
     resolve_repo_file_path,
 )
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
@@ -149,8 +150,22 @@ def parse_compiler_errors(build_output: str,
 
       abs_path = resolve_repo_file_path(raw_path, repo_path)
 
-      snippet_lines = [line]
-      notes = []
+      # Capture preceding "In file included from ..." include stack trace
+      include_stack = []
+      lookback = i - 1
+      while lookback >= 0 and lookback >= i - 12:
+        prev_l = re.sub(r"\x1b\[[0-9;]*m", "", lines[lookback]).strip()
+        if prev_l.startswith("In file included from"):
+          include_stack.insert(0, prev_l)
+          lookback -= 1
+        elif not prev_l:
+          lookback -= 1
+        else:
+          break
+
+      snippet_lines = list(include_stack)
+      snippet_lines.append(line)
+      notes = list(include_stack)
       i += 1
       while i < len(lines):
         next_line = re.sub(r"\x1b\[[0-9;]*m", "", lines[i])
@@ -172,7 +187,7 @@ def parse_compiler_errors(build_output: str,
               line_number=line_no,
               column=col_no,
               error_message=error_msg.strip(),
-              raw_snippet="\n".join(snippet_lines[:15]),
+              raw_snippet="\n".join(snippet_lines[:20]),
               notes=notes,
           ))
     else:
@@ -403,29 +418,51 @@ class AutoninjaResolver(BaseResolver):
       except OSError:
         pass
 
+    rel_target = os.path.relpath(diagnostic.file_path, self.repo_path)
+    is_third_party = is_unmodified_third_party(diagnostic.file_path,
+                                               self.repo_path)
+    guard_msg = ""
+    if is_third_party:
+      guard_msg = (
+          f"\n\nCRITICAL GUARD: '{rel_target}' is an UNMODIFIED THIRD-PARTY "
+          "FILE and is strictly READ-ONLY. Do NOT output a patch for this "
+          "file.\n"
+          "You MUST investigate referencing first-party files or BUILD.gn:\n"
+          "- Use `TOOL_READ_FILE: <path> <start>-<end>` to inspect caller "
+          "files in the #include stack trace or the target's BUILD.gn.\n"
+          "- Output a patch for the referencing first-party file or "
+          "BUILD.gn instead.")
+
     notes_str = "\n".join(diagnostic.notes) if diagnostic.notes else ""
     error_trace = (f"File: {diagnostic.file_path}:{diagnostic.line_number}:"
                    f"{diagnostic.column}\n"
                    f"Error: {diagnostic.error_message}\n"
                    f"Snippet:\n{diagnostic.raw_snippet}\n"
-                   f"{notes_str}")
+                   f"{notes_str}"
+                   f"{guard_msg}")
 
     history_items = []
-    for h in history_records[-5:]:
-      it = h.get("iteration", "")
+    investigation_items = []
+    for h in history_records[-6:]:
+      it = str(h.get("iteration", ""))
       hf = h.get("file", "")
       he = h.get("error", "")
-      history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
+      if it.startswith("Tool-"):
+        investigation_items.append(
+            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
+      else:
+        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
     history_str = "\n".join(history_items)
+    investigation_str = "\n\n".join(investigation_items)
 
     res = self.reasoning_engine.heal_compiler_error(
         error_trace=error_trace,
         file_context=file_context,
         target_file=diagnostic.file_path,
         history=history_str,
+        investigation_history=investigation_str,
         use_pro=use_pro,
     )
     patch = res.get("patch", "")
     model_used = res.get("model_used", self.model)
-    rel_target = os.path.relpath(diagnostic.file_path, self.repo_path)
     return patch, model_used, rel_target

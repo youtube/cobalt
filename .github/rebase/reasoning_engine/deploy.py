@@ -47,6 +47,19 @@ def _normalize_resource_name(resource_id: str, project_id: str,
           f"reasoningEngines/{resource_id}")
 
 
+def _get_effective_staging_bucket(
+    staging_bucket: Optional[str],
+    project_id: str,
+) -> str:
+  """Resolves or defaults the GCS staging bucket for Vertex AI deployment."""
+  bucket = (
+      staging_bucket or os.environ.get("GCS_STAGING_BUCKET") or
+      f"gs://{project_id}-vertex-staging")
+  if not bucket.startswith("gs://"):
+    bucket = f"gs://{bucket}"
+  return bucket
+
+
 def deploy_reasoning_engine(
     project_id: str,
     location: str,
@@ -57,14 +70,16 @@ def deploy_reasoning_engine(
     pro_model: str = "gemini-2.5-pro",
 ) -> str:
   """Deploys a new CobaltReasoningEngine instance to Vertex AI."""
+  effective_bucket = _get_effective_staging_bucket(staging_bucket, project_id)
   vertexai.init(
       project=project_id,
       location=location,
-      staging_bucket=staging_bucket,
+      staging_bucket=effective_bucket,
   )
   print(
       f"[deploy] Deploying \"{display_name}\" to Vertex AI "
-      f"(Project: {project_id}, Region: {location})...",
+      f"(Project: {project_id}, Region: {location}, "
+      f"Bucket: {effective_bucket})...",
       file=sys.stderr,
   )
 
@@ -107,15 +122,17 @@ def update_reasoning_engine(
     pro_model: str = "gemini-2.5-pro",
 ):
   """Updates an existing Reasoning Engine instance on Vertex AI."""
+  effective_bucket = _get_effective_staging_bucket(staging_bucket, project_id)
   vertexai.init(
       project=project_id,
       location=location,
-      staging_bucket=staging_bucket,
+      staging_bucket=effective_bucket,
   )
   resource_name = _normalize_resource_name(resource_id, project_id, location)
 
   print(
-      f"[deploy] Updating Reasoning Engine \"{resource_name}\"...",
+      f"[deploy] Updating Reasoning Engine \"{resource_name}\" "
+      f"(Staging Bucket: {effective_bucket})...",
       file=sys.stderr,
   )
   engine_instance = CobaltReasoningEngine(

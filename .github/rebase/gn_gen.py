@@ -40,18 +40,62 @@ def extract_gn_target_files(
   """Extracts all referenced GN build files and line numbers from output."""
   unique_gn_files: Dict[str, Optional[int]] = {}
 
-  # 1. Universal scan: Match ANY //path/to/file.gn[i] with optional line number
+  # Priority 0: Dependency Cycle -> prioritize locally modified BUILD.gn files
+  if "Dependency cycle:" in output:
+    try:
+      proc = subprocess.run(
+          ["git", "status", "--porcelain", "--", "*.gn", "*.gni"],
+          cwd=repo_path,
+          capture_output=True,
+          text=True,
+          check=False,
+      )
+      for line in proc.stdout.splitlines():
+        f_rel = line.strip().split()[-1]
+        if f_rel.endswith((".gn", ".gni")):
+          abs_f = os.path.join(repo_path, f_rel)
+          if os.path.isfile(abs_f):
+            unique_gn_files[abs_f] = None
+    except (OSError, subprocess.SubprocessError):
+      pass
+
+  # 1. Target definitions: "The target: //dir:target" (e.g. missing sources)
+  target_def_matches = re.findall(
+      r"The target:\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):",
+      output,
+  )
+  for t_dir in target_def_matches:
+    gn_path = os.path.join(repo_path, t_dir, "BUILD.gn")
+    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
+      unique_gn_files[gn_path] = None
+
+  # 2. Caller targets missing dependency: "dependency of //dir:target"
+  caller_matches = re.findall(
+      r"dependency of\s*(?:\n\s*)?//([a-zA-Z0-9_/\.\-]+):",
+      output,
+  )
+  for c_dir in caller_matches:
+    gn_path = os.path.join(repo_path, c_dir, "BUILD.gn")
+    if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
+      unique_gn_files[gn_path] = None
+
+  # 3. Universal scan: Match ANY //path/to/file.gn[i] with optional line number
   all_gn_matches = re.findall(
       r"//([a-zA-Z0-9_/\.\-]+\.gn[i]?)(?::(\d+))?",
       output,
   )
+  deferred_gn_files: Dict[str, Optional[int]] = {}
   for f, line_str in all_gn_matches:
     full_p = os.path.join(repo_path, f) if not os.path.isabs(f) else f
     if os.path.isfile(full_p) and full_p not in unique_gn_files:
       target_line = int(line_str) if line_str else None
-      unique_gn_files[full_p] = target_line
+      if f.endswith("BUILDCONFIG.gn") and ("Source file not found" in output or
+                                           "The target:" in output):
+        deferred_gn_files[full_p] = target_line
+      else:
+        unique_gn_files[full_p] = target_line
 
-  # 2. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
+  # 4. Resolve GN targets: "target(s): //dir:target" or "needs //dir:target"
   target_matches = re.findall(
       r"(?:target(?:\(s\))?:\s+|needs\s+)//([a-zA-Z0-9_/\.\-]+):",
       output,
@@ -61,13 +105,23 @@ def extract_gn_target_files(
     if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
       unique_gn_files[gn_path] = None
 
-  # 3. Resolve source errors: "ERROR at //gpu/command_buffer/service/err.cc"
-  src_pattern = (r"ERROR at //([a-zA-Z0-9_/\.\-]+)/[a-zA-Z0-9_/\.\-]+\."
-                 r"(?:cc|h|mm|cpp|c):")
-  for s_dir in re.findall(src_pattern, output):
+  # 5. Resolve source files and BUILD.gn: "ERROR at //path/to/file.cc:line"
+  src_pattern = re.findall(
+      r"ERROR at //([a-zA-Z0-9_/\.\-]+\.(?:cc|h|mm|cpp|c))(?::(\d+))?",
+      output,
+  )
+  for s_rel, line_str in src_pattern:
+    s_abs = os.path.join(repo_path, s_rel)
+    if os.path.isfile(s_abs) and s_abs not in unique_gn_files:
+      unique_gn_files[s_abs] = int(line_str) if line_str else None
+    s_dir = os.path.dirname(s_rel)
     gn_path = os.path.join(repo_path, s_dir, "BUILD.gn")
     if os.path.isfile(gn_path) and gn_path not in unique_gn_files:
       unique_gn_files[gn_path] = None
+
+  for p, line_no in deferred_gn_files.items():
+    if p not in unique_gn_files:
+      unique_gn_files[p] = line_no
 
   return unique_gn_files
 
@@ -180,10 +234,11 @@ class GNGenResolver(BaseResolver):
         with open(gnf, "r", encoding="utf-8", errors="replace") as gf:
           file_content = gf.read()
         rel_f = os.path.relpath(gnf, self.repo_path)
+        lang = "gn" if gnf.endswith((".gn", ".gni")) else "cpp"
         if (send_full_file or target_line is None or
             len(file_content.splitlines()) <= 800):
           file_contexts.append(
-              f"### Full File: {rel_f}\n```gn\n{file_content}\n```")
+              f"### Full File: {rel_f}\n```{lang}\n{file_content}\n```")
         else:
           lines = file_content.splitlines(keepends=True)
           start_idx = max(0, target_line - 150)
@@ -191,22 +246,39 @@ class GNGenResolver(BaseResolver):
           snippet = "".join(lines[start_idx:end_idx])
           file_contexts.append(
               f"### File: {rel_f} (Lines {start_idx + 1}-{end_idx})\n"
-              f"```gn\n{snippet}\n```")
+              f"```{lang}\n{snippet}\n```")
       except OSError:
         pass
 
     history_items = []
-    for h in history_records[-3:]:
-      it = h.get("iteration", "")
+    investigation_items = []
+    for h in history_records[-6:]:
+      it = str(h.get("iteration", ""))
       hf = h.get("file", "")
       he = h.get("error", "")
-      history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
+      if it.startswith("Tool-"):
+        investigation_items.append(
+            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
+      else:
+        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
     history_str = "\n".join(history_items)
+    investigation_str = "\n\n".join(investigation_items)
+
+    anti_oscillation_note = ""
+    if "Source file not found" in diagnostic.raw_output:
+      anti_oscillation_note = (
+          "\n\nCRITICAL INSTRUCTION: If a target references source files "
+          "that do not exist on disk at either relative path, DO NOT toggle or "
+          "guess relative paths back and forth.\n"
+          "If the tool/test was removed upstream and no matching "
+          "source file exists, DELETE the defunct target definition from "
+          "BUILD.gn using a <<<<<<< DELETE block.")
 
     res = self.reasoning_engine.heal_gn_error(
-        error_trace=diagnostic.raw_output[:32768],
+        error_trace=f"{diagnostic.raw_output[:32768]}{anti_oscillation_note}",
         file_context="\n\n".join(file_contexts),
         attempt_history=history_str,
+        investigation_history=investigation_str,
         use_pro=use_pro,
     )
     patch = res.get("patch", "")

@@ -764,7 +764,7 @@ class BaseResolver(abc.ABC):
       )
 
       # Check for multi-turn tool commands
-      if patch.strip().startswith("TOOL_"):
+      if re.search(r"^(TOOL_[A-Z_]+:.*)$", patch.strip(), re.MULTILINE):
         patch, model_used = self.execute_investigation_tools(
             initial_patch=patch,
             diagnostic=first_diag,

@@ -7,7 +7,7 @@
 - **Build Type**: `devel`
 - **Target**: `cobalt_apk`
 - **Reasoning Model**: `None` (with `gemini-2.5-pro` escalation)
-- **Total Execution Time**: `2748.5s`
+- **Total Execution Time**: `2715.0s`
 
 ## 2. Rebase Pipeline Stages
 | Phase | Stage | Description | Status |

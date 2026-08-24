@@ -18,10 +18,8 @@ import warnings
 from base_resolver import (
     BaseResolver,
     execute_local_tool,
-    get_chromium_milestone,
     is_unmodified_third_party,
 )
-from gclient_sync import GClientSyncResolver
 from token_usage import TokenUsage
 
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
@@ -303,14 +301,12 @@ def resolve_file_conflicts(
     git_context: str,
     *,
     engine: Optional[Any] = None,
-    skills_dir: Optional[str] = None,
     token_tracker: Optional[TokenUsage] = None,
     escalations: Optional[List[EscalationItem]] = None,
     max_tool_rounds: int = 5,
     mock_mode: bool = False,
 ) -> bool:
   """Resolves all conflict markers in a specific file."""
-  del skills_dir
   if not os.path.isfile(file_path):
     return False
 
@@ -450,61 +446,6 @@ def resolve_file_conflicts(
   return True
 
 
-def write_result_report(
-    report_path: str,
-    *,
-    resolved_files: List[str],
-    git_meta: Dict[str, str],
-    token_usage: TokenUsage,
-    sync_success: bool,
-    sync_output: str,
-    escalations: List[EscalationItem],
-) -> None:
-  """Writes structured Markdown summary report."""
-  del sync_output
-  os.makedirs(os.path.dirname(os.path.abspath(report_path)), exist_ok=True)
-  status_badge = ("[OK] ALL CONFLICTS RESOLVED"
-                  if not escalations else "[WARNING] ESCALATIONS FLAGGED")
-  branch = git_meta.get("branch", "Unknown")
-  head_sha = git_meta.get("head_sha", "Unknown")
-  upstream = git_meta.get("upstream", "Unknown")
-  sync_str = "PASSED" if sync_success else "FAILED"
-  lines = [
-      "# Cobalt Rebase Conflict Resolution Report",
-      "",
-      f"**Status**: {status_badge}  ",
-      f"**Branch**: `{branch}`  ",
-      f"**HEAD Commit**: `{head_sha}`  ",
-      f"**Upstream**: `{upstream}`  ",
-      f"**Total AI Calls**: {token_usage.calls}  ",
-      f"**Total Tokens**: {token_usage.total_tokens:,}  ",
-      f"**Toolchain Sync**: {sync_str}  ",
-      "",
-      "## Resolved Files",
-      "",
-      "| # | File Path | Language |",
-      "|---|-----------|----------|",
-  ]
-  for idx, rf in enumerate(resolved_files, 1):
-    lang = detect_language(rf)
-    lines.append(f"| {idx} | `{rf}` | {lang} |")
-
-  if escalations:
-    lines.extend([
-        "",
-        "## Escalated Blocks Requiring Human Review",
-        "",
-        "| File | Block # | Reason |",
-        "|------|---------|--------|",
-    ])
-    for esc in escalations:
-      lines.append(f"| `{esc.file_path}` | {esc.block_index} | {esc.reason} |")
-
-  lines.append("")
-  with open(report_path, "w", encoding="utf-8") as f:
-    f.write("\n".join(lines))
-
-
 class ConflictResolver(BaseResolver):
   """Self-healing resolver for git merge conflicts (DEPS & source files)."""
 
@@ -516,7 +457,6 @@ class ConflictResolver(BaseResolver):
       max_iterations: int = 5,
       files: Optional[List[str]] = None,
       skip_sync: bool = False,
-      report_path: Optional[str] = None,
       on_patch_applied_fn: Optional[Callable[[List[str]], None]] = None,
   ):
     super().__init__(
@@ -527,7 +467,6 @@ class ConflictResolver(BaseResolver):
     )
     self.explicit_files = files
     self.skip_sync = skip_sync
-    self.report_path = report_path
     self.git_context, self.git_meta = extract_git_context(self.repo_path)
     self.token_tracker = TokenUsage()
     self.escalations: List[EscalationItem] = []
@@ -603,7 +542,6 @@ class ConflictResolver(BaseResolver):
         file_path=tf,
         repo_path=self.repo_path,
         git_context=self.git_context,
-        skills_dir=self.reasoning_engine.skills_dir,
         token_tracker=self.token_tracker,
         escalations=self.escalations,
         engine=self.reasoning_engine,
@@ -651,7 +589,6 @@ class ConflictResolver(BaseResolver):
           file_path=tf,
           repo_path=self.repo_path,
           git_context=self.git_context,
-          skills_dir=self.reasoning_engine.skills_dir,
           token_tracker=self.token_tracker,
           escalations=self.escalations,
           engine=self.reasoning_engine,
@@ -662,30 +599,9 @@ class ConflictResolver(BaseResolver):
       else:
         print(f"[WARNING] Issues detected in: {tf}", file=sys.stderr)
 
-    # If DEPS was resolved, execute gclient sync self-healing loop
-    sync_success = True
-    sync_output = ""
-    if deps_resolved and not self.skip_sync:
-      sync_resolver = GClientSyncResolver(
-          repo_path=self.repo_path,
-          engine=self.reasoning_engine,
-      )
-      sync_success = sync_resolver.run_resolution_loop()
-
-    # Write report
-    milestone = get_chromium_milestone(self.repo_path)
-    rebase_dir = os.path.dirname(os.path.abspath(__file__))
-    final_report_path = self.report_path or os.path.join(
-        rebase_dir, "results", f"{milestone}_rebase_summary.md")
-    write_result_report(
-        report_path=final_report_path,
-        resolved_files=self.resolved_list,
-        git_meta=self.git_meta,
-        token_usage=self.token_tracker,
-        sync_success=sync_success,
-        sync_output=sync_output,
-        escalations=self.escalations,
-    )
+    # If DEPS was resolved and callback hook provided, trigger callback
+    if deps_resolved and self.on_patch_applied_fn:
+      self.on_patch_applied_fn(["DEPS"])
 
     print("\n" + "=" * 70, file=sys.stderr)
     print(
