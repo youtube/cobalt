@@ -1,16 +1,18 @@
 // Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the
+// License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in
+// writing, software distributed under the License is
+// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See
+// the License for the specific language governing
+// permissions and limitations under the License.
 
 #include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 
@@ -40,9 +42,10 @@ CobaltAdaptiveResourceScheduler::GetInstance() {
 CobaltAdaptiveResourceScheduler::CobaltAdaptiveResourceScheduler()
     : settle_delay_(kDefaultScrollSettleDelay) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
-  LOG(INFO) << "CobaltAdaptiveResourceScheduler: Initialized successfully. "
-               "Feature enabled: "
-            << IsEnabled();
+  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: "
+                "Initialized successfully. "
+                "Feature enabled: "
+             << IsEnabled();
 }
 
 CobaltAdaptiveResourceScheduler::~CobaltAdaptiveResourceScheduler() = default;
@@ -63,8 +66,9 @@ void CobaltAdaptiveResourceScheduler::OnUserInteraction(int key_code) {
   }
 
   if (!is_scrolling_) {
-    LOG(INFO) << "CobaltAdaptiveResourceScheduler: Interaction detected (key "
-              << key_code << "). Transitioning to SCROLLING state.";
+    DLOG(INFO) << "CobaltAdaptiveResourceScheduler: "
+                  "Interaction detected (key "
+               << key_code << "). Transitioning to SCROLLING state.";
   }
   is_scrolling_ = true;
 
@@ -82,8 +86,8 @@ void CobaltAdaptiveResourceScheduler::SetScrollState(bool is_scrolling) {
     return;
   }
 
-  LOG(INFO) << "CobaltAdaptiveResourceScheduler: SetScrollState("
-            << is_scrolling << ")";
+  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: SetScrollState("
+             << is_scrolling << ")";
   if (is_scrolling) {
     is_scrolling_ = true;
     settle_timer_.Stop();
@@ -97,9 +101,10 @@ void CobaltAdaptiveResourceScheduler::RegisterDeferredThrottle(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(throttle);
   deferred_throttles_.insert(throttle);
-  LOG(INFO) << "CobaltAdaptiveResourceScheduler: Registered deferred throttle. "
-               "Total in queue: "
-            << deferred_throttles_.size();
+  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: "
+                "Registered deferred throttle. "
+                "Total in queue: "
+             << deferred_throttles_.size();
 }
 
 void CobaltAdaptiveResourceScheduler::UnregisterDeferredThrottle(
@@ -122,18 +127,19 @@ void CobaltAdaptiveResourceScheduler::SetSettleDelayForTesting(
 void CobaltAdaptiveResourceScheduler::OnScrollSettled() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   is_scrolling_ = false;
-  LOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
-               "Transitioning to IDLE. "
-            << "Draining " << deferred_throttles_.size()
-            << " deferred requests.";
+  DLOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle "
+                "timer expired. "
+                "Transitioning to IDLE. "
+             << "Draining " << deferred_throttles_.size()
+             << " deferred requests.";
   DrainDeferredQueue();
 }
 
 void CobaltAdaptiveResourceScheduler::DrainDeferredQueue() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Pop throttles one-by-one from the set to avoid re-entrancy use-after-free
-  // bugs if resuming a throttle causes another throttle to be cancelled and
-  // destroyed.
+  // Pop throttles one-by-one from the set to avoid
+  // re-entrancy use-after-free bugs if resuming a throttle
+  // causes another throttle to be cancelled and destroyed.
   while (!deferred_throttles_.empty()) {
     auto it = deferred_throttles_.begin();
     CobaltResourceThrottle* throttle = *it;

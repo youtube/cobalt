@@ -1,16 +1,18 @@
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the
+// License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in
+// writing, software distributed under the License is
+// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See
+// the License for the specific language governing
+// permissions and limitations under the License.
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
@@ -135,19 +137,21 @@ void CobaltWebContentsObserver::SetTimerForTestInternal(
 
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
-  // M138 refinement: Ensure we don't restart timers for subframes or
-  // background prerenders that haven't been activated yet.
+  // M138 refinement: Ensure we don't restart timers for
+  // subframes or background prerenders that haven't been
+  // activated yet.
   if (!handle->IsInPrimaryMainFrame() ||
       handle->IsServedFromBackForwardCache()) {
     LOG(INFO) << "DidStartNavigation: Skipping timer for " << handle->GetURL()
-              << " (Not primary mainframe or served from BFCache)";
+              << " (Not primary mainframe or served from "
+                 "BFCache)";
     return;
   }
 
   latest_navigation_id_ = handle->GetNavigationId();
 
-  // Start a navigation timer with a timeout callback to raise a
-  // network error dialog
+  // Start a navigation timer with a timeout callback to
+  // raise a network error dialog
   timeout_timer_->Stop();
   timeout_timer_->Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
@@ -156,11 +160,13 @@ void CobaltWebContentsObserver::DidStartNavigation(
                      handle->GetURL().spec()));
 }
 
-// Opting for WebContentsObserver::DidFinishNavigation() over
-// WebContentsObserver::PrimaryPageChanged as the network check can't
-// assume HasCommitted() is true. Doing so would not catch network
-// errors that are thrown before a navigation commits such as
-// net::ERR_CONNECTION_TIMED_OUT and net::ERR_NAME_NOT_RESOLVED.
+// Opting for WebContentsObserver::DidFinishNavigation()
+// over WebContentsObserver::PrimaryPageChanged as the
+// network check can't assume HasCommitted() is true. Doing
+// so would not catch network errors that are thrown before
+// a navigation commits such as
+// net::ERR_CONNECTION_TIMED_OUT and
+// net::ERR_NAME_NOT_RESOLVED.
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!navigation_handle->IsInPrimaryMainFrame()) {
@@ -177,7 +183,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
                               true);
     base::UmaHistogramSparse("Cobalt.WebContentsObserver.FailedNavigationError",
                              -net_error_code);
-    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
+    LOG(INFO) << "DidFinishNavigation: Raising platform "
+                 "error with code: "
               << net::ErrorToString(net_error_code);
     SetStartupDiagnosisInfo("navigation_error",
                             net::ErrorToString(net_error_code).c_str());
@@ -199,10 +206,12 @@ void CobaltWebContentsObserver::DidGetUserInteraction(
     const auto& key_event = static_cast<const blink::WebKeyboardEvent&>(event);
     key_code = key_event.windows_key_code;
   }
-  LOG(INFO) << "CobaltWebContentsObserver::DidGetUserInteraction: type="
+  LOG(INFO) << "CobaltWebContentsObserver::"
+               "DidGetUserInteraction: type="
             << static_cast<int>(event.GetType()) << ", key_code=" << key_code;
-  // Post task to the IO thread where CobaltAdaptiveResourceScheduler resides to
-  // ensure thread-safety.
+  // Post task to the IO thread where
+  // CobaltAdaptiveResourceScheduler resides to ensure
+  // thread-safety.
   content::GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -214,8 +223,9 @@ void CobaltWebContentsObserver::DidGetUserInteraction(
 void CobaltWebContentsObserver::OnVisibilityChanged(
     content::Visibility visibility) {
 #if BUILDFLAG(ENABLE_IN_APP_DIAL)
-  // This is similar to the C25 behavior of restarting the DIAL servers when an
-  // Unfreeze event was sent by Starboard.
+  // This is similar to the C25 behavior of restarting the
+  // DIAL servers when an Unfreeze event was sent by
+  // Starboard.
   if (visibility == content::Visibility::HIDDEN) {
     in_app_dial::DialService::GetInstance()->Stop();
   } else {
@@ -241,7 +251,8 @@ void CobaltWebContentsObserver::OnNavigationTimeout(int64_t navigation_id,
 void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
                                                    const std::string& url) {
   if (navigation_id != latest_navigation_id_) {
-    LOG(INFO) << "Ignoring stale platform error request for navigation "
+    LOG(INFO) << "Ignoring stale platform error request "
+                 "for navigation "
               << navigation_id;
     return;
   }
@@ -249,7 +260,8 @@ void CobaltWebContentsObserver::RaisePlatformError(int64_t navigation_id,
   JNIEnv* env = base::android::AttachCurrentThread();
   auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
 
-  // Don't raise a new platform error if one is already showing
+  // Don't raise a new platform error if one is already
+  // showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
@@ -304,18 +316,21 @@ void CobaltWebContentsObserver::OnPlatformErrorResponse(
   pending_platform_error_bridge_ = nullptr;
   is_platform_error_showing_ = false;
   if (navigation_id != latest_navigation_id_) {
-    LOG(INFO) << "Ignoring stale platform error response for navigation "
+    LOG(INFO) << "Ignoring stale platform error response "
+                 "for navigation "
               << navigation_id;
     return;
   }
   if (response == kSbSystemPlatformErrorResponsePositive) {
-    LOG(INFO) << "Platform error response is POSITIVE. Reloading...";
+    LOG(INFO) << "Platform error response is POSITIVE. "
+                 "Reloading...";
     if (web_contents()) {
       web_contents()->GetController().Reload(content::ReloadType::NORMAL,
                                              /*check_for_repost=*/false);
     }
   } else {
-    LOG(INFO) << "Platform error response is NEGATIVE/CANCEL. Stopping app...";
+    LOG(INFO) << "Platform error response is "
+                 "NEGATIVE/CANCEL. Stopping app...";
     SbSystemRequestStop(0);
   }
 }

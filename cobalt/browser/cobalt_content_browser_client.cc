@@ -1,16 +1,18 @@
 // Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Licensed under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the
+// License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Unless required by applicable law or agreed to in
+// writing, software distributed under the License is
+// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See
+// the License for the specific language governing
+// permissions and limitations under the License.
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
@@ -130,7 +132,8 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
 #if !BUILDFLAG(IS_ANDROIDTV)
-// This value is expected by offline data processing and should not be changed.
+// This value is expected by offline data processing and
+// should not be changed.
 constexpr const char kUserAgentAnnotationKey[] = "user_agent_string";
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
@@ -236,7 +239,8 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
       is_visible_(is_visible) {
   COBALT_DETACH_FROM_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows.
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple
+  // tabs/windows.
   ui::PlatformWindowStarboard::SetWindowCreatedCallback(
       base::BindRepeating(&CobaltContentBrowserClient::OnSbWindowCreated,
                           weak_factory_.GetWeakPtr()));
@@ -289,8 +293,9 @@ std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
     content::VideoPictureInPictureWindowController* controller) {
   // TODO: b/532158001 - Support PiP on Linux.
-  // PiP is currently only supported on Android. On other platforms, calling
-  // Create() allocates a dummy object that leaks memory, so we return nullptr.
+  // PiP is currently only supported on Android. On other
+  // platforms, calling Create() allocates a dummy object
+  // that leaks memory, so we return nullptr.
 #if BUILDFLAG(IS_ANDROID)
   return content::VideoOverlayWindow::Create(controller);
 #else   // BUILDFLAG(IS_ANDROID)
@@ -345,8 +350,8 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
   // Default compiled javascript quota in Cobalt 25 is 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // When enable-optimized-v8-code-cache switch is set, increase to 5 MB for
-  // YouTube TV.
+  // When enable-optimized-v8-code-cache switch is set,
+  // increase to 5 MB for YouTube TV.
   size_t size = 3 * 1024 * 1024;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "enable-optimized-v8-code-cache")) {
@@ -354,8 +359,8 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   }
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
-  return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             cache_path);
+  return content::GeneratedCodeCacheSettings(
+      /*enabled=*/true, size, cache_path);
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -389,8 +394,8 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
     blink::web_pref::WebPreferences* prefs) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
-  // Allow creating a ws: connection on a https: page to allow current
-  // testing set up. See b/377410179.
+  // Allow creating a ws: connection on a https: page to
+  // allow current testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
@@ -401,8 +406,8 @@ content::StoragePartitionConfig
 CobaltContentBrowserClient::GetStoragePartitionConfigForSite(
     content::BrowserContext* browser_context,
     const GURL& site) {
-  // Default to the browser-wide storage partition and override based on |site|
-  // below.
+  // Default to the browser-wide storage partition and
+  // override based on |site| below.
   content::StoragePartitionConfig default_storage_partition_config =
       content::StoragePartitionConfig::CreateDefault(browser_context);
 
@@ -425,8 +430,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->cookie_manager_params =
       std::move(cookie_manager_params);
 
-  // Configure on-disk storage for non-off-the-record profiles. Off-the-record
-  // profiles just use default behavior (in memory storage, default sizes).
+  // Configure on-disk storage for non-off-the-record
+  // profiles. Off-the-record profiles just use default
+  // behavior (in memory storage, default sizes).
   if (!in_memory) {
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
@@ -442,8 +448,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
         user_data_dir.Append(kNetworkDataDirname);
     network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
 
-    // Currently this just contains HttpServerProperties, but that will likely
-    // change.
+    // Currently this just contains HttpServerProperties,
+    // but that will likely change.
     network_context_params->file_paths->http_server_properties_file_name =
         base::FilePath(kNetworkPersistentStateFilename);
     network_context_params->file_paths->cookie_database_name =
@@ -483,8 +489,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
       network::mojom::SCTAuditingMode::kDisabled;
 
   // All consumers of the main NetworkContext must provide
-  // NetworkAnonymizationKey / IsolationInfos, so storage can be isolated on a
-  // per-site basis.
+  // NetworkAnonymizationKey / IsolationInfos, so storage
+  // can be isolated on a per-site basis.
   network_context_params->require_network_anonymization_key = true;
 }
 
@@ -501,12 +507,14 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
-  // Initialize the lifecycle tracker for this WebContents to ensure we track
-  // and register its frames (including the main frame) for lifecycle events
-  // from the very start.
+  // Initialize the lifecycle tracker for this WebContents
+  // to ensure we track and register its frames (including
+  // the main frame) for lifecycle events from the very
+  // start.
   CobaltLifecycleManager::GetInstance()->InitializeTracker(web_contents);
 #if BUILDFLAG(USE_EVERGREEN)
-  // Create the updater module singleton if not already created.
+  // Create the updater module singleton if not already
+  // created.
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition && !updater::UpdaterModule::GetInstance()) {
@@ -516,7 +524,8 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
           storage_partition->GetURLLoaderFactoryForBrowserProcess(),
           GetUserAgent(), updater::kDefaultUpdateCheckDelay);
     } else {
-      LOG(INFO) << "Evergreen Lite mode detected, disabling UpdaterModule.";
+      LOG(INFO) << "Evergreen Lite mode detected, "
+                   "disabling UpdaterModule.";
     }
   }
 #endif
@@ -601,8 +610,9 @@ void CobaltContentBrowserClient::AddPendingWindowReceiver(
 }
 
 void CobaltContentBrowserClient::OnSbWindowCreated(SbWindow window) {
-  // TODO: b/476434249 - Revisit if Cobalt supports multiple tabs/windows. This
-  // assumes only single PlatformWindowStarboard() in Cobalt.
+  // TODO: b/476434249 - Revisit if Cobalt supports multiple
+  // tabs/windows. This assumes only single
+  // PlatformWindowStarboard() in Cobalt.
   CHECK(!cached_sb_window_);
   cached_sb_window_ = reinterpret_cast<uint64_t>(window);
 #if BUILDFLAG(IS_STARBOARD)
@@ -643,8 +653,8 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {
-  // All Cobalt features are associated with the same field trial. This is for
-  // easier feature param lookup.
+  // All Cobalt features are associated with the same field
+  // trial. This is for easier feature param lookup.
   base::FieldTrial* cobalt_field_trial = base::FieldTrialList::CreateFieldTrial(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
@@ -714,8 +724,9 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   auto* global_features = GlobalFeatures::GetInstance();
   global_features->metrics_services_manager()->InstantiateFieldTrialList();
-  // Mark the session as unclean at startup. If the session exits cleanly, it
-  // will be marked as clean in CobaltMetricsServiceClient's destructor.
+  // Mark the session as unclean at startup. If the session
+  // exits cleanly, it will be marked as clean in
+  // CobaltMetricsServiceClient's destructor.
   global_features->metrics_services_manager_client()
       ->GetMetricsStateManager()
       ->LogHasSessionShutdownCleanly(false, false);
@@ -733,7 +744,8 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
         command_line.GetSwitchValueASCII(switches::kEnableH5vccSettings),
         global_features);
   }
-  // Overrides for content/common and lower layers' switches.
+  // Overrides for content/common and lower layers'
+  // switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
 
@@ -741,11 +753,12 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
       command_line.GetSwitchValueASCII(::switches::kDisableFeatures));
 
-  // This needs to happen here: After the InitFromCommandLine() call,
-  // because the explicit cmdline --disable-features and --enable-features
-  // should take precedence over these extra overrides. Before the call to
-  // SetInstance(), because overrides cannot be registered after the FeatureList
-  // instance is set.
+  // This needs to happen here: After the
+  // InitFromCommandLine() call, because the explicit
+  // cmdline --disable-features and --enable-features should
+  // take precedence over these extra overrides. Before the
+  // call to SetInstance(), because overrides cannot be
+  // registered after the FeatureList instance is set.
   feature_list->RegisterExtraFeatureOverrides(feature_overrides);
 
   SetUpCobaltFeaturesAndParams(feature_list.get());
@@ -767,17 +780,20 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << CommandLineSwitchesToString(
                    *base::CommandLine::ForCurrentProcess());
 
-  // Push the initialized features and params down to Starboard.
+  // Push the initialized features and params down to
+  // Starboard.
   features::InitializeStarboardFeatures();
 }
 
 #if !BUILDFLAG(IS_ANDROIDTV)
-// TODO: b/411198914 - Consider making this implementation platform-agnostic by
-// using the mojom::CrashAnnotator interface.
+// TODO: b/411198914 - Consider making this implementation
+// platform-agnostic by using the mojom::CrashAnnotator
+// interface.
 void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
   std::string user_agent_string = GetUserAgent();
   if (user_agent_string.empty()) {
-    LOG(ERROR) << "Not setting the user agent annotation because the string is "
+    LOG(ERROR) << "Not setting the user agent annotation "
+                  "because the string is "
                << "empty";
     return;
   }
@@ -790,8 +806,10 @@ void CobaltContentBrowserClient::SetUserAgentCrashAnnotation() {
     crash_handler_extension->SetString(kUserAgentAnnotationKey,
                                        user_agent_string.c_str());
   } else {
-    LOG(ERROR) << "The plaform does not implement (the required version of) "
-               << "the CrashHandler Starboard extension; not setting the user "
+    LOG(ERROR) << "The plaform does not implement (the "
+                  "required version of) "
+               << "the CrashHandler Starboard extension; "
+                  "not setting the user "
                << "agent annotation";
   }
 #elif BUILDFLAG(IS_IOS_TVOS)
