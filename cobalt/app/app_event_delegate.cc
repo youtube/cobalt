@@ -361,7 +361,8 @@ void AppEventDelegate::ExecuteStepOnUIThread(ApplicationState next_state,
 
   if (is_intermediate) {
     LOG(INFO) << "Transition to " << GetStateString(next_state)
-              << " complete (target: " << GetStateString(logging_target_state) << ")";
+              << " complete (target: " << GetStateString(logging_target_state)
+              << ")";
   } else {
     LOG(INFO) << "Transition to " << GetStateString(next_state) << " complete";
   }
