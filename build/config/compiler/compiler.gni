@@ -148,9 +148,8 @@ declare_args() {
   use_sized_deallocation = is_clang && is_asan
 }
 
-if (is_starboard && defined(sb_is_evergreen) && sb_is_evergreen) {
-  use_relative_vtables_abi = current_toolchain == default_toolchain
-}
+use_relative_vtables_abi =
+    is_cobalt_hermetic_build && (current_toolchain == default_toolchain)
 
 # To try out this combination, delete this assert.
 assert(
