@@ -187,7 +187,7 @@ public class JavaSwitches {
       extraCommandLineArgs.add(
           "--force-gpu-mem-available-mb="
               + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
-    } else if (!"arm64".equals(BuildInfo.getArch())) {
+    } else if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
       extraCommandLineArgs.add("--force-gpu-mem-available-mb=64");
     }
 
