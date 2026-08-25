@@ -72,16 +72,16 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return -1;
     }
 
-    if (!out_audio_data) {
-      SB_LOG(WARNING) << logtag << ": Read called with null out_audio_data pointer.";
-      AOWSLog(kWarning, "Read called with null out_audio_data pointer.\n");
-      return 0;
-    }
-
     if (audio_data_size == 0) {
       SB_LOG(WARNING) << logtag << ": Read called with zero audio_data_size.";
       AOWSLog(kWarning, "Read called with zero audio_data_size.\n");
       return 0;
+    }
+
+    if (!out_audio_data) {
+      SB_LOG(WARNING) << logtag << ": Read called with null out_audio_data pointer.";
+      AOWSLog(kWarning, "Read called with null out_audio_data pointer.\n");
+      return -1;
     }
 
     if (audio_data_size < kMinReadSizeBytes) {
