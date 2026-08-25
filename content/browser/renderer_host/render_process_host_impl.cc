@@ -1351,14 +1351,8 @@ void RenderProcessHostImpl::IOThreadHostImpl::Ping(PingCallback callback) {
 
 // static
 scoped_refptr<base::SingleThreadTaskRunner>
-RenderProcessHost::GetInProcessRendererThreadTaskRunner() {
-  return g_in_process_thread ? g_in_process_thread->task_runner() : nullptr;
-}
-
-// static
-scoped_refptr<base::SingleThreadTaskRunner>
 RenderProcessHostImpl::GetInProcessRendererThreadTaskRunnerForTesting() {
-  return GetInProcessRendererThreadTaskRunner();
+  return g_in_process_thread->task_runner();
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1678,6 +1672,7 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   // Check here to avoid future use-after-free.
   CHECK(render_frame_host_id_set_.empty());
 
+#if BUILDFLAG(IS_COBALT)
   // Remove the cache handles for the client at teardown if relevant.
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableGpuShaderDiskCache)) {
@@ -1690,6 +1685,7 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   // any synchronous EstablishGpuChannelSync() calls before joining the
   // in-process renderer.
   gpu_client_.reset();
+#endif
 
   // Make sure to clean up the in-process renderer before the channel, otherwise
   // it may still run and have its IPCs fail, causing asserts.
@@ -1701,6 +1697,16 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   is_dead_ = true;
 
   UnregisterHost(GetID());
+
+#if !BUILDFLAG(IS_COBALT)
+  // Remove the cache handles for the client at teardown if relevant.
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableGpuShaderDiskCache)) {
+    if (GetGpuDiskCacheFactorySingleton()) {
+      gpu_client_->RemoveDiskCacheHandles();
+    }
+  }
+#endif
 
   base::UmaHistogramCounts1000(
       "BrowserRenderProcessHost.MaxOutermostMainFrames",
