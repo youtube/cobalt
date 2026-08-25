@@ -150,7 +150,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   elf_loader::CompressionType compression_type =
       elf_loader::CompressionType::kNone;
   struct stat info;
-  if (stat(lz4_compressed_library_path.c_str(), &info) == 0) {
+  if (use_memory_mapped_file &&
+      stat(uncompressed_library_path.c_str(), &info) == 0) {
+    library_path = uncompressed_library_path;
+  } else if (stat(lz4_compressed_library_path.c_str(), &info) == 0) {
     library_path = lz4_compressed_library_path;
     compression_type = elf_loader::CompressionType::kLz4;
   } else if (stat(zstd_compressed_library_path.c_str(), &info) == 0) {
