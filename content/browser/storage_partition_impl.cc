@@ -209,6 +209,7 @@ namespace {
 using Type = StoragePartitionImpl::ContextType;
 
 const storage::QuotaSettings* g_test_quota_settings;
+const storage::QuotaSettings* g_test_cache_quota_settings;
 
 // Timeout after which the
 // History.ClearBrowsingData.Duration.SlowTasks180sStoragePartition histogram is
@@ -924,6 +925,9 @@ class StoragePartitionImpl::DataDeletionHelper {
       const base::FilePath& path,
       DOMStorageContextWrapper* dom_storage_context,
       storage::QuotaManager* quota_manager,
+#if BUILDFLAG(IS_STARBOARD)
+      storage::QuotaManager* cache_quota_manager,
+#endif
       storage::SpecialStoragePolicy* special_storage_policy,
       storage::FileSystemContext* filesystem_context,
       network::mojom::CookieManager* cookie_manager,
@@ -1397,6 +1401,8 @@ void StoragePartitionImpl::Initialize(
           std::move(file_system_access_context), GetIOThreadTaskRunner({}));
 
   base::FilePath cache_storage_path = path;
+  scoped_refptr<storage::QuotaManagerProxy> cache_quota_manager_proxy =
+      quota_manager_proxy;
 #if BUILDFLAG(IS_STARBOARD)
   if (!is_in_memory()) {
     base::FilePath cache_dir;
@@ -1404,13 +1410,25 @@ void StoragePartitionImpl::Initialize(
       cache_storage_path = config_.partition_domain().empty()
                                ? cache_dir
                                : cache_dir.Append(relative_partition_path_);
+      cache_quota_context_ = base::MakeRefCounted<QuotaContext>(
+          is_in_memory(), cache_storage_path,
+          browser_context_->GetSpecialStoragePolicy(),
+          base::BindRepeating(&StoragePartitionImpl::GetCacheQuotaSettings,
+                              weak_factory_.GetWeakPtr()));
+      cache_quota_manager_ = cache_quota_context_->quota_manager();
+      cache_quota_manager_proxy = cache_quota_manager_->proxy();
+      if (storage_notification_service) {
+        cache_quota_manager_->SetStoragePressureCallback(
+            storage_notification_service
+                ->CreateThreadSafePressureNotificationCallback());
+      }
     }
   }
 #endif
 
   cache_storage_control_wrapper_ = std::make_unique<CacheStorageControlWrapper>(
       GetIOThreadTaskRunner({}), cache_storage_path,
-      browser_context_->GetSpecialStoragePolicy(), quota_manager_proxy,
+      browser_context_->GetSpecialStoragePolicy(), cache_quota_manager_proxy,
       ChromeBlobStorageContext::GetRemoteFor(browser_context_));
 
   service_worker_context_ = new ServiceWorkerContextWrapper(browser_context_);
@@ -1763,6 +1781,17 @@ QuotaContext* StoragePartitionImpl::GetQuotaContext() {
   DCHECK(initialized_);
   return quota_context_.get();
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool StoragePartitionImpl::HasSplitQuota() {
+  DCHECK(initialized_);
+#if BUILDFLAG(IS_STARBOARD)
+  return cache_quota_context_ != nullptr;
+#else
+  return false;
+#endif  // BUILDFLAG(IS_STARBOARD)
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 storage::mojom::CacheStorageControl*
 StoragePartitionImpl::GetCacheStorageControl() {
@@ -2844,20 +2873,18 @@ void StoragePartitionImpl::ClearDataImpl(
   helper->ClearDataOnUIThread(
       storage_key, filter_builder, std::move(storage_key_policy_matcher),
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
-      quota_manager_.get(), special_storage_policy_.get(),
-      filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
+      quota_manager_.get(),
+#if BUILDFLAG(IS_STARBOARD)
+      cache_quota_manager_.get(),
+#endif
+      special_storage_policy_.get(), filesystem_context_.get(),
+      GetCookieManagerForBrowserProcess(),
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-      interest_group_manager_.get(),
-      attribution_manager_.get(),
-      aggregation_service_.get(),
-      private_aggregation_manager_.get(),
+      interest_group_manager_.get(), attribution_manager_.get(),
+      aggregation_service_.get(), private_aggregation_manager_.get(),
       shared_storage_manager_.get(),
 #else
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
+      nullptr, nullptr, nullptr, nullptr, nullptr,
 #endif
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
       cdm_storage_manager_.get(),
@@ -3037,6 +3064,9 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
     const base::FilePath& path,
     DOMStorageContextWrapper* dom_storage_context,
     storage::QuotaManager* quota_manager,
+#if BUILDFLAG(IS_STARBOARD)
+    storage::QuotaManager* cache_quota_manager,
+#endif
     storage::SpecialStoragePolicy* special_storage_policy,
     storage::FileSystemContext* filesystem_context,
     network::mojom::CookieManager* cookie_manager,
@@ -3174,6 +3204,19 @@ void StoragePartitionImpl::DataDeletionHelper::ClearDataOnUIThread(
                        storage_key, storage_policy_ref,
                        combined_storage_key_matcher, perform_storage_cleanup,
                        CreateTaskCompletionClosure(TracingDataType::kQuota)));
+#if BUILDFLAG(IS_STARBOARD)
+    if (cache_quota_manager &&
+        (remove_mask_ & REMOVE_DATA_MASK_CACHE_STORAGE)) {
+      GetIOThreadTaskRunner({})->PostTask(
+          FROM_HERE,
+          base::BindOnce(&DataDeletionHelper::ClearQuotaManagedDataOnIOThread,
+                         base::Unretained(this),
+                         base::WrapRefCounted(cache_quota_manager), begin, end,
+                         storage_key, storage_policy_ref,
+                         combined_storage_key_matcher, perform_storage_cleanup,
+                         CreateTaskCompletionClosure(TracingDataType::kQuota)));
+    }
+#endif
   }
 
   if (remove_mask_ & REMOVE_DATA_MASK_LOCAL_STORAGE) {
@@ -3684,6 +3727,31 @@ void StoragePartitionImpl::GetQuotaSettings(
       storage::GetDefaultDeviceInfoHelper(), std::move(callback));
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+void StoragePartitionImpl::GetCacheQuotaSettings(
+    storage::OptionalQuotaSettingsCallback callback) {
+  if (g_test_cache_quota_settings) {
+    // For debugging tests harness can inject settings.
+    std::move(callback).Run(*g_test_cache_quota_settings);
+    return;
+  }
+
+  base::FilePath cache_path = GetPath();
+  if (!is_in_memory()) {
+    base::FilePath cache_dir;
+    if (base::PathService::Get(base::DIR_CACHE, &cache_dir)) {
+      cache_path = config_.partition_domain().empty()
+                       ? cache_dir
+                       : cache_dir.Append(relative_partition_path_);
+    }
+  }
+
+  storage::GetNominalDynamicSettings(
+      cache_path, browser_context_->IsOffTheRecord(),
+      storage::GetDefaultDeviceInfoHelper(), std::move(callback));
+}
+#endif
+
 void StoragePartitionImpl::InitNetworkContext() {
   network::mojom::NetworkContextParamsPtr context_params =
       network::mojom::NetworkContextParams::New();
@@ -3810,6 +3878,11 @@ void StoragePartitionImpl::CreateURLLoaderFactoryForBrowserProcessInternal(
 void StoragePartition::SetDefaultQuotaSettingsForTesting(
     const storage::QuotaSettings* settings) {
   g_test_quota_settings = settings;
+}
+
+void StoragePartition::SetDefaultCacheQuotaSettingsForTesting(
+    const storage::QuotaSettings* settings) {
+  g_test_cache_quota_settings = settings;
 }
 
 mojo::PendingRemote<network::mojom::CookieAccessObserver>
@@ -3951,8 +4024,7 @@ StoragePartitionImpl::URLLoaderNetworkContext::~URLLoaderNetworkContext() =
 StoragePartitionImpl::URLLoaderNetworkContext
 StoragePartitionImpl::URLLoaderNetworkContext::CreateForRenderFrameHost(
     GlobalRenderFrameHostId render_frame_host_id) {
-  return StoragePartitionImpl::URLLoaderNetworkContext(
-      render_frame_host_id);
+  return StoragePartitionImpl::URLLoaderNetworkContext(render_frame_host_id);
 }
 
 StoragePartitionImpl::URLLoaderNetworkContext
