@@ -1217,10 +1217,6 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   gpu_channel_manager_->OnBackgroundCleanup();
 #if BUILDFLAG(IS_COBALT)
   is_backgrounded_ = true;
-  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
-  if (display && display->IsInitialized()) {
-    display->Shutdown();
-  }
 #endif
 #else
   NOTREACHED();
