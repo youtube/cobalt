@@ -1,0 +1,32 @@
+name: Sync Staging to Rebase Agent Branch
+
+on:
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync staging into experimental/rebase_agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CHERRY_PICK_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Fast-forward / Merge staging into experimental/rebase_agent
+        run: |
+          set -x
+          git config user.name "cobalt-github-releaser-bot"
+          git config user.email "cobalt-github-releaser-bot@google.com"
+
+          git fetch origin experimental/rebase_agent:experimental/rebase_agent || true
+          git checkout experimental/rebase_agent
+          git merge origin/staging --no-edit -m "ci: sync staging into experimental/rebase_agent"
+          git push origin experimental/rebase_agent

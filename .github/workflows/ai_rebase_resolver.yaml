@@ -1,0 +1,160 @@
+name: AI Rebase Resolver
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to resolve (optional, e.g. 12040)'
+        required: false
+        type: string
+      base_branch:
+        description: 'Base/Vendor roll branch to resolve'
+        required: false
+        type: string
+        default: 'autoroll-chromium/main-to-staging'
+      ai_branch_prefix:
+        description: 'Prefix for the isolated AI working branch'
+        required: false
+        type: string
+        default: 'experimental/rebase_agent/'
+      agent_ref:
+        description: 'Branch containing the AI rebase agent scripts'
+        required: false
+        type: string
+        default: 'experimental/rebase_agent'
+      dry_run:
+        description: 'Dry run mode (runs AI resolver but skips pushing commit & creating PR)'
+        type: boolean
+        default: true
+      mode:
+        description: 'Execution mode'
+        type: choice
+        options:
+          - resolve-conflicts
+          - full-pipeline
+          - gn-gen
+        default: resolve-conflicts
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # Required for GCP Workload Identity Federation
+
+jobs:
+  ai_resolve:
+    name: Vertex AI Rebase Healing
+    runs-on: ubuntu-latest
+    env:
+      DEPOT_TOOLS_METRICS: 0
+      GIT_AUTHOR_NAME: "cobalt-github-releaser-bot"
+      GIT_AUTHOR_EMAIL: "cobalt-github-releaser-bot@google.com"
+      GIT_COMMITTER_NAME: "cobalt-github-releaser-bot"
+      GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
+      GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 100
+          token: ${{ env.GITHUB_TOKEN }}
+
+      - name: Setup Working Branch
+        id: branch_setup
+        run: |
+          set -x
+
+          # 1. Checkout the vendor base branch or PR
+          if [[ -n "${{ inputs.pr_number }}" ]]; then
+            echo "Checking out PR #${{ inputs.pr_number }}..."
+            gh pr checkout "${{ inputs.pr_number }}"
+            BASE_NAME=$(git branch --show-current)
+          else
+            BASE_NAME="${{ inputs.base_branch }}"
+            echo "Checking out base branch ${BASE_NAME}..."
+            git fetch origin "${BASE_NAME}:${BASE_NAME}" || true
+            git checkout "${BASE_NAME}"
+          fi
+
+          # 2. Create a separate, isolated AI branch from the base branch
+          AI_BRANCH="${{ inputs.ai_branch_prefix }}${BASE_NAME}"
+          echo "Creating isolated AI branch: ${AI_BRANCH}..."
+          git checkout -B "${AI_BRANCH}"
+
+          # 3. Ensure AI rebase scripts are available from agent_ref if not on branch
+          if [[ ! -d .github/rebase ]]; then
+            echo "Borrowing rebase scripts from ${{ inputs.agent_ref }}..."
+            git fetch origin "${{ inputs.agent_ref }}:${{ inputs.agent_ref }}" || true
+            git checkout "origin/${{ inputs.agent_ref }}" -- .github/rebase || true
+          fi
+
+          echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "ai_branch=${AI_BRANCH}" >> "${GITHUB_OUTPUT}"
+
+      - name: Authenticate to Google Cloud (Vertex AI)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set Up Python & Rebase Dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          if [[ -f .github/rebase/requirements.txt ]]; then
+            pip install -r .github/rebase/requirements.txt
+          fi
+
+      - name: Run AI Conflict Resolver
+        id: run_ai
+        continue-on-error: true
+        env:
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+          GCP_REGION: "us-central1"
+          MODE: ${{ inputs.mode || 'resolve-conflicts' }}
+        run: |
+          set +e
+          echo "::group::Running Vertex AI Pipeline"
+
+          python3 .github/rebase/run_rebase_pipeline.py \
+            --mode "${MODE}"
+
+          EXIT_CODE=$?
+          echo "::endgroup::"
+
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "resolved=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "resolved=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Commit, Push and Create/Update AI PR
+        if: steps.run_ai.outputs.resolved == 'true' && inputs.dry_run != true
+        env:
+          BASE_BRANCH: ${{ steps.branch_setup.outputs.base_branch }}
+          AI_BRANCH: ${{ steps.branch_setup.outputs.ai_branch }}
+        run: |
+          set -x
+          # Check if there are resolved changes
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "RESOLVED: AI automated rebase conflict healing"
+            git push -u origin "${AI_BRANCH}" --force
+
+            # Create or update an isolated Draft PR for AI work
+            PR_TITLE="[AI-Resolved] Experimental roll for ${BASE_BRANCH}"
+            PR_BODY="🤖 **Vertex AI Rebase Agent Resolution**\n\nThis PR contains AI automated conflict healing branched from \`${BASE_BRANCH}\`.\n\nAssigned to @linxinan-yt for review."
+
+            PR_EXISTS=$(gh pr list --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
+            if [[ -n "${PR_EXISTS}" ]]; then
+              gh pr edit "${PR_EXISTS}" --title "${PR_TITLE}" --body "${PR_BODY}"
+            else
+              gh pr create \
+                --draft \
+                --base "${BASE_BRANCH}" \
+                --head "${AI_BRANCH}" \
+                --title "${PR_TITLE}" \
+                --body "${PR_BODY}" \
+                --assignee linxinan-yt
+            fi
+          else
+            echo "No file changes to commit."
+          fi
