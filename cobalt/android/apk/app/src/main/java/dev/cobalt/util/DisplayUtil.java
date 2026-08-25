@@ -73,6 +73,18 @@ public class DisplayUtil {
     return new DisplayDpi(metrics.xdpi, metrics.ydpi);
   }
 
+  /** Return supported hdr types. */
+  @CalledByNative
+  @Nullable
+  public static int[] getSupportedHdrTypes() {
+    Display display = getDefaultDisplay();
+    if (display == null) {
+      return null;
+    }
+    Display.HdrCapabilities hdrCapabilities = display.getHdrCapabilities();
+    return hdrCapabilities != null ? hdrCapabilities.getSupportedHdrTypes() : null;
+  }
+
   /** Returns the default display associated with a context. */
   @Nullable
   public static Display getDefaultDisplay() {

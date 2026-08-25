@@ -23,6 +23,7 @@
 #include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
+#include "starboard/android/shared/display_util.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
@@ -88,18 +89,12 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
   std::set<SbMediaTransferId> GetSupportedHdrTypes() override {
     std::set<SbMediaTransferId> supported_transfer_ids;
 
-    if (!StarboardBridge::GetInstance()->is_initialized()) {
-      return supported_transfer_ids;
-    }
-
     JNIEnv* env = AttachCurrentThread();
     ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
-        StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
+        DisplayUtil::GetSupportedHdrTypes(env);
 
     if (!j_supported_hdr_types) {
-      // Failed to get supported hdr types.
-      SB_LOG(ERROR) << "Failed to load supported hdr types.";
-      return std::set<SbMediaTransferId>();
+      return supported_transfer_ids;
     }
 
     std::vector<int> hdr_types;
@@ -123,9 +118,6 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
     return supported_transfer_ids;
   }
   bool GetIsPassthroughSupported(SbMediaAudioCodec codec) override {
-    if (!StarboardBridge::GetInstance()->is_initialized()) {
-      return false;
-    }
     SbMediaAudioCodingType coding_type;
     switch (codec) {
       case kSbMediaAudioCodecAc3:
@@ -145,9 +137,6 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
   bool GetAudioConfiguration(
       int index,
       SbMediaAudioConfiguration* configuration) override {
-    if (!StarboardBridge::GetInstance()->is_initialized()) {
-      return false;
-    }
     JNIEnv* env = AttachCurrentThread();
     return AudioOutputManager::GetInstance()->GetAudioConfiguration(
         env, index, configuration);
@@ -331,9 +320,6 @@ bool MediaCapabilitiesCache::IsHDRTransferCharacteristicsSupported(
   }
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
-  if (!StarboardBridge::GetInstance()->is_initialized()) {
-    return false;
-  }
   return supported_transfer_ids_.find(transfer_id) !=
          supported_transfer_ids_.end();
 }

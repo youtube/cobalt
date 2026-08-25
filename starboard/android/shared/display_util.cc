@@ -32,6 +32,11 @@ DisplayUtil::Dpi DisplayUtil::GetDisplayDpi() {
           Java_DisplayDpi_getY(env, display_dpi_obj)};
 }
 
+base::android::ScopedJavaLocalRef<jintArray> DisplayUtil::GetSupportedHdrTypes(
+    JNIEnv* env) {
+  return Java_DisplayUtil_getSupportedHdrTypes(env);
+}
+
 void JNI_DisplayUtil_OnDisplayChanged(JNIEnv* env) {
   // Display device change could change hdr capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();

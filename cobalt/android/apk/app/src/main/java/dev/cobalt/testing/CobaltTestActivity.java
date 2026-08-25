@@ -15,6 +15,7 @@
 package dev.cobalt.testing;
 
 import android.os.Bundle;
+import dev.cobalt.util.DisplayUtil;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.JNIUtils;
 import org.chromium.native_test.NativeUnitTestActivity;
@@ -30,6 +31,7 @@ public class CobaltTestActivity extends NativeUnitTestActivity {
   public void onCreate(Bundle savedInstanceState) {
     ContextUtils.initApplicationContext(getApplicationContext());
     JNIUtils.setDefaultClassLoader(getClassLoader());
+    DisplayUtil.cacheDefaultDisplay(this);
     super.onCreate(savedInstanceState);
   }
 }
