@@ -26,11 +26,11 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/ip_protection/common/masked_domain_list_manager.h"        // nogncheck
 #include "components/ip_protection/common/probabilistic_reveal_token_registry.h"// nogncheck
 #include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -337,7 +337,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
     return tpcd_metadata_manager_.get();
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   ip_protection::MaskedDomainListManager* masked_domain_list_manager() const {
     return masked_domain_list_manager_.get();
   }
@@ -346,7 +346,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   probabilistic_reveal_token_registry() const {
     return probabilistic_reveal_token_registry_.get();
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   void set_host_resolver_factory_for_testing(
       std::unique_ptr<net::HostResolver::Factory> host_resolver_factory) {
@@ -518,7 +518,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // this with |owned_network_contexts_|.
   std::set<raw_ptr<NetworkContext, SetExperimental>> network_contexts_;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   std::unique_ptr<ip_protection::MaskedDomainListManager>
       masked_domain_list_manager_;
 
@@ -526,7 +526,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   // Reveal Tokens.
   std::unique_ptr<ip_protection::ProbabilisticRevealTokenRegistry>
       probabilistic_reveal_token_registry_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   // A per-process_id map of origins that are white-listed to allow
   // them to request raw headers for resources they request.
