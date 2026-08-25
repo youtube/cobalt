@@ -210,4 +210,52 @@ public class CommandLineOverrideHelperTest {
     String h5vccSettings = CommandLine.getInstance().getSwitchValue("enable-h5vcc-settings");
     Assert.assertEquals("Setting1=val1;Setting2=val2", h5vccSettings);
   }
+
+  @Test
+  public void testFlagOverrides_TraceStartup() {
+    String[] commandLineArgs = {"--trace-startup=-*;disabled-by-default-memory-infra"};
+    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
+    CommandLineOverrideHelper.getFlagOverrides(params);
+
+    String traceStartup = CommandLine.getInstance().getSwitchValue("trace-startup");
+    Assert.assertEquals("-*,disabled-by-default-memory-infra", traceStartup);
+  }
+
+  @Test
+  public void testFlagOverrides_TraceStartupEmpty() {
+    String[] commandLineArgs = {"--trace-startup"};
+    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
+    CommandLineOverrideHelper.getFlagOverrides(params);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("trace-startup"));
+  }
+
+  @Test
+  public void testFlagOverrides_HeapProfilingAdbArgs() {
+    String[] commandLineArgs = {
+      "--enable-heap-profiling",
+      "--memlog=all",
+      "--memlog-stack-mode=native-with-thread-names",
+      "--trace-startup=-*;disabled-by-default-memory-infra",
+      "--trace-startup-duration=60",
+      "--trace-startup-file=/sdcard/Download/trace_atv.pftrace"
+    };
+    CommandLineOverrideHelper.CommandLineOverrideHelperParams params =
+        new CommandLineOverrideHelper.CommandLineOverrideHelperParams(true, commandLineArgs);
+    CommandLineOverrideHelper.getFlagOverrides(params);
+
+    Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-heap-profiling"));
+    Assert.assertEquals("all", CommandLine.getInstance().getSwitchValue("memlog"));
+    Assert.assertEquals(
+        "native-with-thread-names", CommandLine.getInstance().getSwitchValue("memlog-stack-mode"));
+    Assert.assertEquals(
+        "-*,disabled-by-default-memory-infra",
+        CommandLine.getInstance().getSwitchValue("trace-startup"));
+    Assert.assertEquals("60", CommandLine.getInstance().getSwitchValue("trace-startup-duration"));
+    Assert.assertEquals(
+        "/sdcard/Download/trace_atv.pftrace",
+        CommandLine.getInstance().getSwitchValue("trace-startup-file"));
+  }
 }
