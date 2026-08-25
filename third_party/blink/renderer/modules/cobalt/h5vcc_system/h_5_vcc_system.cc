@@ -75,7 +75,7 @@ void H5vccSystem::OnGetLimitAdTracking(
   resolver->Resolve(result);
 }
 
-absl::optional<bool> H5vccSystem::limitAdTracking() {
+std::optional<bool> H5vccSystem::limitAdTracking() {
   EnsureReceiverIsBound();
   bool limit_ad_tracking;
   remote_h5vcc_system_->GetLimitAdTrackingSync(&limit_ad_tracking);

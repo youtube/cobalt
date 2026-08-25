@@ -14,6 +14,8 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
+#include <optional>
+
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -188,7 +190,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryLong) {
   auto result = ParseSettingsToDictionary(settings);
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(1u, result->size());
-  absl::optional<int> value = result->FindInt("key");
+  std::optional<int> value = result->FindInt("key");
   EXPECT_TRUE(value.has_value());
   EXPECT_EQ(123, value.value());
 }
@@ -200,7 +202,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryDouble) {
   auto result = ParseSettingsToDictionary(settings);
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(1u, result->size());
-  absl::optional<double> value = result->FindDouble("key");
+  std::optional<double> value = result->FindDouble("key");
   EXPECT_TRUE(value.has_value());
   EXPECT_EQ(123.456, value.value());
 }
@@ -212,7 +214,7 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryBoolean) {
   auto result = ParseSettingsToDictionary(settings);
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(1u, result->size());
-  absl::optional<bool> value = result->FindBool("key");
+  std::optional<bool> value = result->FindBool("key");
   EXPECT_TRUE(value.has_value());
   EXPECT_TRUE(value.value());
 }
@@ -236,15 +238,15 @@ TEST(ExperimentsUtilsTest, ParseSettingsToDictionaryMixed) {
   EXPECT_TRUE(string_value);
   EXPECT_EQ("string_value", *string_value);
 
-  absl::optional<int> long_value = result->FindInt("long_key");
+  std::optional<int> long_value = result->FindInt("long_key");
   EXPECT_TRUE(long_value.has_value());
   EXPECT_EQ(123, long_value.value());
 
-  absl::optional<double> double_value = result->FindDouble("double_key");
+  std::optional<double> double_value = result->FindDouble("double_key");
   EXPECT_TRUE(double_value.has_value());
   EXPECT_EQ(123.456, double_value.value());
 
-  absl::optional<bool> bool_value = result->FindBool("bool_key");
+  std::optional<bool> bool_value = result->FindBool("bool_key");
   EXPECT_TRUE(bool_value.has_value());
   EXPECT_TRUE(bool_value.value());
 }
