@@ -736,6 +736,9 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
   }
 
   delete window;
+  if (windows_.empty()) {
+    StopX();
+  }
   return true;
 }
 
