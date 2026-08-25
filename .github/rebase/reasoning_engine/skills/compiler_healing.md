@@ -26,6 +26,17 @@ If you encounter missing identifiers, unknown types, relocated classes/methods, 
    - Use `TOOL_READ_FILE: <caller_path> <start>-<end>` to inspect the caller file that instantiated the template or triggered the include.
    - **Layering Rule**: Foundational libraries (`ipc/`, `base/`, `mojo/`) must NEVER `#include` higher-level domain headers (`media/`, `content/`, `chrome/`, `components/`).
    - If a template specialization (e.g. `ParamTraits<T>`) is missing, place the specialization in the domain component's header (e.g. `media/base/ipc/media_param_traits.h`), NOT in the foundational header.
+5. Generated Headers (JNI, Mojo, Protobuf, AIDL, `gen/` files):
+   - When an error occurs inside a generated header (e.g. `gen/.../*_jni.h`, `gen/.../*.mojom.h`, `out/.../gen/...`):
+   - Generated files are build outputs produced from Java, Mojo, or Proto files and must NEVER be edited directly.
+   - Trace the `In file included from ...` stack trace to find the referencing first-party C++ source file (e.g. `content/browser/web_contents/web_contents_android.cc`).
+   - Use `TOOL_READ_FILE: <caller_header.h>` and `TOOL_READ_FILE: <caller.cc>` to inspect the C++ class declaration.
+   - Update the C++ class declaration and definition (or add missing native methods) to match the signature expected by the generated bindings.
+6. Linker Errors (`ld.lld: error: undefined symbol: Class::Method`):
+   - When encountering an undefined symbol error during linking, do NOT assume it is solely a `BUILD.gn` dependency issue.
+   - Use `TOOL_GREP: Class` or `TOOL_GREP: Method` to locate the class declaration (`.h`) and implementation (`.cc`) files.
+   - Use `TOOL_READ_FILE: <path/to/header.h>` and `TOOL_READ_FILE: <path/to/source.cc>` to verify if the method/constructor was declared in the header but its implementation is missing in the `.cc` file.
+   - If the implementation is missing in `.cc`, provide the definition in the `.cc` file (`FILE: path/to/source.cc`) instead of modifying GN build files.
 
 ## Core Rules
 1. THIRD-PARTY MISSING HEADERS (Fix in BUILD.gn, NOT in third-party C++):

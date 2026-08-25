@@ -146,6 +146,40 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   return True
 
 
+def is_generated_build_artifact(file_path: str, repo_path: str) -> bool:
+  """Checks if a file is an auto-generated build artifact (out/, gen/, obj/)."""
+  rel = os.path.relpath(file_path, repo_path)
+  return (rel.startswith("out/") or rel.startswith("gen/") or
+          rel.startswith("obj/") or "/gen/" in rel)
+
+
+def validate_patch_target(target_file: str,
+                          rel_file: str,
+                          repo_path: str,
+                          operation_name: str = "patch") -> bool:
+  """Validates if target_file is safe for AI patch modifications.
+
+  Returns False (and prints guard warnings to sys.stderr) if target_file is
+  a generated build artifact or an unmodified third-party source file.
+  """
+  if is_generated_build_artifact(target_file, repo_path):
+    print(
+        f"  [GUARD] Rejecting {operation_name} on generated build artifact: "
+        f"{rel_file}. Trace #include stack to patch referencing source.",
+        file=sys.stderr,
+    )
+    return False
+  if (not target_file.endswith((".gn", ".gni", ".star")) and
+      is_unmodified_third_party(target_file, repo_path)):
+    print(
+        f"  [GUARD] Rejecting {operation_name} on unmodified third-party "
+        f"source file: {rel_file}. Patch the referencing BUILD.gn instead.",
+        file=sys.stderr,
+    )
+    return False
+  return True
+
+
 def apply_search_replace(file_path: str, search_block: str,
                          replace_block: str) -> bool:
   """Applies a SEARCH/REPLACE block edit to a file.
@@ -235,13 +269,8 @@ def apply_unified_diff(diff_text: str, repo_path: str) -> List[str]:
   if not os.path.isfile(file_path):
     return []
 
-  if (not file_path.endswith((".gn", ".gni", ".star")) and
-      is_unmodified_third_party(file_path, repo_path)):
-    print(
-        f"  [GUARD] Rejecting unified diff on unmodified third-party source "
-        f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
-        file=sys.stderr,
-    )
+  if not validate_patch_target(
+      file_path, rel_file, repo_path, operation_name="unified diff"):
     return []
 
   with open(file_path, "r", encoding="utf-8") as f:
@@ -312,13 +341,8 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
       modified_files = []
       for rel_file, delete_b in matches:
         target_file = resolve_repo_file_path(rel_file, repo_path)
-        if (not target_file.endswith((".gn", ".gni", ".star")) and
-            is_unmodified_third_party(target_file, repo_path)):
-          print(
-              f"  [GUARD] Rejecting DELETE on unmodified third-party source "
-              f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
-              file=sys.stderr,
-          )
+        if not validate_patch_target(
+            target_file, rel_file, repo_path, operation_name="DELETE"):
           return []
         applied = apply_search_replace(target_file, delete_b, "")
         if applied:
@@ -353,13 +377,8 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
           )
           return []
         target_file = resolve_repo_file_path(rel_file, repo_path)
-        if (not target_file.endswith((".gn", ".gni", ".star")) and
-            is_unmodified_third_party(target_file, repo_path)):
-          print(
-              f"  [GUARD] Rejecting patch on unmodified third-party source "
-              f"file: {rel_file}. Patch the referencing BUILD.gn instead.",
-              file=sys.stderr,
-          )
+        if not validate_patch_target(
+            target_file, rel_file, repo_path, operation_name="patch"):
           return []
         applied = apply_search_replace(target_file, search_b, replace_b)
         if applied:
