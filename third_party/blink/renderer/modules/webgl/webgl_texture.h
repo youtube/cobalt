@@ -60,8 +60,10 @@ class WebGLTexture : public WebGLObject {
                               scoped_refptr<media::VideoFrame> video_frame,
                               bool has_shared_image_access);
   const gpu::Mailbox& GetMailbox() const { return mailbox_; }
-  scoped_refptr<media::VideoFrame> GetVideoFrame() const { return video_frame_; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  scoped_refptr<media::VideoFrame> GetVideoFrame() const { return video_frame_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
  protected:
   // Constructor for WebGLUnownedTexture.

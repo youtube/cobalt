@@ -67,7 +67,7 @@ Vector<float> CobaltVideoTextureTransform::getCurrentFrameTextureTransform(
   // frame has been bound yet, return EMPTY to signal to the client that the
   // texture is not ready and drawing should be suppressed.
   scoped_refptr<media::VideoFrame> frame;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
   if (context->active_texture_unit_ < context->texture_units_.size()) {
     if (WebGLTexture* texture =
             context->texture_units_[context->active_texture_unit_]
@@ -75,7 +75,7 @@ Vector<float> CobaltVideoTextureTransform::getCurrentFrameTextureTransform(
       frame = texture->GetVideoFrame();
     }
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 
   if (!frame || !frame->HasSharedImage()) {
     return Vector<float>();
