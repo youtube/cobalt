@@ -72,9 +72,12 @@ class MediaCodecBridge {
   private long mLastPresentationTimeUs;
   private final String mMime;
   private double mPlaybackRate = 1.0;
+  private long mSeekToTime = 0;
+  private boolean mTunnelModeEnabled = false;
   private int mFps = 30;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
+  private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -447,6 +450,7 @@ class MediaCodecBridge {
     mMediaCodec.set(mediaCodec);
     mMime = mime; // TODO: Delete the unused mMime field
     mLastPresentationTimeUs = 0;
+    mTunnelModeEnabled = (tunnelModeAudioSessionId != -1);
     mFlushed = true;
     mBitrateAdjustmentType = bitrateAdjustmentType;
     mCallback =
@@ -531,6 +535,31 @@ class MediaCodecBridge {
           };
       mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
     }
+
+    if (isFirstTunnelFrameReadyCallbackEnabled() && tunnelModeAudioSessionId != -1) {
+      Bundle b = new Bundle();
+      b.putInt(MediaCodec.PARAMETER_KEY_TUNNEL_PEEK, 1);
+      try {
+        mMediaCodec.get().setParameters(b);
+      } catch (IllegalStateException e) {
+        Log.e(TAG, "Failed to set MediaCodec tunnel-peek", e);
+      }
+
+      mFirstTunnelFrameReadyListener =
+          new MediaCodec.OnFirstTunnelFrameReadyListener() {
+            @Override
+            public void onFirstTunnelFrameReady(MediaCodec codec) {
+              Log.i(TAG, "First output frame is ready to be rendered.");
+              synchronized (this) {
+                if (mNativeMediaCodecBridge == 0) {
+                  return;
+                }
+                nativeOnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+              }
+            }
+          };
+      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+    }
   }
 
   @UsedByNative
@@ -538,6 +567,17 @@ class MediaCodecBridge {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
     return Build.VERSION.SDK_INT >= 34;
+  }
+
+  @UsedByNative
+  public static boolean isFirstTunnelFrameReadyCallbackEnabled() {
+    // OnFirstTunnelFrameReadyListener is added in Android 12
+    return Build.VERSION.SDK_INT >= 31;
+  }
+
+  private boolean isDecodeOnly(long presentationTimeUs) {
+    // BUFFER_FLAG_DECODE_ONLY is added in Android 14
+    return Build.VERSION.SDK_INT >= 34 && mTunnelModeEnabled && (presentationTimeUs < mSeekToTime);
   }
 
   @SuppressWarnings("unused")
@@ -763,6 +803,8 @@ class MediaCodecBridge {
     mMediaCodec.set(null);
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
   public boolean start() {
     return start(null);
   }
@@ -799,6 +841,12 @@ class MediaCodecBridge {
     if (mFrameRateEstimator != null) {
       updateOperatingRate();
     }
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  private void seek(long seekToTime) {
+    mSeekToTime = seekToTime;
   }
 
   private void updateOperatingRate() {
@@ -918,6 +966,9 @@ class MediaCodecBridge {
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      if (((flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) && isDecodeOnly(presentationTimeUs)) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
       mMediaCodec.get().queueInputBuffer(index, offset, size, presentationTimeUs, flags);
     } catch (Exception e) {
       Log.e(TAG, "Failed to queue input buffer", e);
@@ -983,7 +1034,11 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+      int flags = 0;
+      if (isDecodeOnly(presentationTimeUs)) {
+        flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
+      }
+      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
@@ -1228,4 +1283,7 @@ class MediaCodecBridge {
 
   private native void nativeOnMediaCodecFrameRendered(
       long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+
+  private native void nativeOnMediaCodecFirstTunnelFrameReady(
+      long nativeMediaCodecBridge);
 }
