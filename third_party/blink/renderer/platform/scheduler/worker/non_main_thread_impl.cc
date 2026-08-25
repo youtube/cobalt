@@ -55,7 +55,7 @@ NonMainThreadImpl::NonMainThreadImpl(const ThreadCreationParams& params)
   base::SimpleThread::Options options;
   options.thread_type = params.base_thread_type;
 
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   // When "ReduceAndroidThreadStackSize" is enabled, the default stack size for
   // helper threads is reduced to 256KB to save virtual memory. Worker backing
   // threads host their own V8 isolate, and V8Initializer::InitializeWorker()
