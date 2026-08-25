@@ -40,7 +40,7 @@ for i, arg in enumerate(cmd):
 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, encoding='utf-8')
 =======
 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 lines = proc.stdout.readlines()
 
 # Limit output so as to not confuse the model. It generally can work (well) on

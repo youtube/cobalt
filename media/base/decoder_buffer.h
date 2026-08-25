@@ -119,7 +119,7 @@ class MEDIA_EXPORT DecoderBuffer
     DiscardPadding discard_padding;
   };
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the

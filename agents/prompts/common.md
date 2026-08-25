@@ -122,4 +122,4 @@ the user about the reason to skip.
 =======
 9.  **Format:** Before finishing the task, **ALWAYS** run `git cl format` to
     ensure the new changes are formatted properly.
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

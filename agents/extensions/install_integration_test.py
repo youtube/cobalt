@@ -68,7 +68,7 @@ class InstallIntegrationTest(unittest.TestCase):
         # Patch the script's dependencies
         self.mock_mcp_dir = patch('install.Path.resolve',
                                   return_value=self.mcp_dir)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         self.mock_git_root = patch('install.get_git_repo_root',
                                    return_value=Path(self.tmpdir))
         self.mock_home = patch('pathlib.Path.home',
@@ -78,7 +78,7 @@ class InstallIntegrationTest(unittest.TestCase):
         self.mock_mcp_dirs.start()
 =======
         self.mock_mcp_dir.start()
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         self.mock_git_root.start()
         self.mock_home.start()
 
@@ -117,7 +117,7 @@ class InstallIntegrationTest(unittest.TestCase):
         self.mock_git_root.stop()
         self.mock_home.stop()
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     def test_add_remove_sequence(self):
         """Tests adding and then removing a server."""
         with patch('sys.argv', ['install.py', 'add', 'sample_server_1']):
@@ -260,7 +260,7 @@ class InstallIntegrationTest(unittest.TestCase):
         with patch('install.get_mcp_dirs', return_value=[empty_mcp_dir]):
 =======
         with patch('install.Path.resolve', return_value=empty_mcp_dir):
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
             # Test list command
             with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
                 with patch('sys.argv', ['install.py', 'list']):

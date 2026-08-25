@@ -187,7 +187,7 @@ constexpr bool kUseLazyCommit = false;
 // differently with 32-bits pointers (see glossary).
 #define PA_CONFIG_ENABLE_SHADOW_METADATA() 0
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if PA_BUILDFLAG(MOVE_METADATA_OUT_OF_GIGACAGE_FOR_64_BITS_POINTERS) && \
     PA_BUILDFLAG(HAS_64_BIT_POINTERS)
 #define PA_CONFIG_MOVE_METADATA_OUT_OF_GIGACAGE() 1

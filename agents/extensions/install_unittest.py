@@ -59,7 +59,7 @@ class InstallTest(unittest.TestCase):
             f.write('{"name": "sample_server_3", "version": "3.0.0"}')
 
 =======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     def tearDown(self):
         """Tears down the test environment."""
         shutil.rmtree(self.tmpdir)
@@ -100,7 +100,7 @@ class InstallTest(unittest.TestCase):
         self.assertIn(self.internal_mcp_dir, mcp_dirs)
 
 =======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     @patch('subprocess.check_output', side_effect=FileNotFoundError)
     def test_get_dir_hash_fallback(self, mock_check_output):
         """Tests the get_dir_hash function's fallback mechanism."""
@@ -188,7 +188,7 @@ class InstallTest(unittest.TestCase):
         mock_get_extension_dir.return_value = self.global_extension_dir
         with patch('sys.argv', ['install.py', 'add', '-g', 'sample_server_1']):
             install.main()
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         mock_add_server.assert_called_once_with('sample_server_1',
                                                 self.mcp_dir,
                                                 self.global_extension_dir)
@@ -235,7 +235,7 @@ class InstallTest(unittest.TestCase):
             install.main()
             self.assertIn("Error: Server 'invalid_server' not found",
                           mock_stderr.getvalue())
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 
 if __name__ == '__main__':

@@ -107,7 +107,7 @@ int64_t GetSocketRecvTimestamp(int socket) {
 
 #elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC) && !defined(__native_client__)
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 int64_t GetSocketRecvTimestamp(int socket) {
   struct timeval tv_ioctl;
   int ret = ioctl(socket, SIOCGSTAMP, &tv_ioctl);

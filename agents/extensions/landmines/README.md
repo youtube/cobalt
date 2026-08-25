@@ -6,7 +6,7 @@ remove most of these in the future when agents are smart enough to not try them
 in the first place.
 =======
 remove most of these in the future...
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 Also contains a note about using `rg` and `fdfind` as defaults. These are
 available on Debian via:
@@ -74,4 +74,4 @@ Other disables:
 * `read_many_files`
   * The agent tends to echo out file contents when using this tool, which hangs
     the agent for large files (e.g. `tools/metrics/histograms/enums.xml`)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

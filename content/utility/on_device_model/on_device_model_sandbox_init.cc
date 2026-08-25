@@ -30,7 +30,7 @@
     !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
 =======
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/feature_list.h"
 #include "third_party/dawn/include/dawn/dawn_proc.h"          // nogncheck
 #include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
@@ -74,7 +74,7 @@ void UpdateSandboxOptionsForGpu(
     !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
 =======
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // If this feature is enabled, a WebGPU device is created for each valid
 // adapter. This makes sure any relevant drivers or other libs are loaded before
 // enabling the sandbox.
@@ -113,7 +113,7 @@ bool PreSandboxInit() {
     !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
 =======
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)
 #if defined(ENABLE_ML_INTERNAL)
       && !ml::IsGpuBlocked(ml::ChromeML::Get()->api(), /*log_histogram=*/false)

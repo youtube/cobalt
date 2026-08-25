@@ -339,7 +339,7 @@ DbStatus DomStorageDatabaseLevelDB::Commit(
 #endif
 }
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);

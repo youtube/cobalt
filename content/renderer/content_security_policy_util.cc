@@ -108,7 +108,7 @@ blink::WebCSPSourceList ToWebCSPSourceList(
 #else
       source_list->report_hash_algorithm};
 #endif
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::optional<blink::WebCSPTrustedTypes> ToOptionalWebCSPTrustedTypes(

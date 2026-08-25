@@ -222,7 +222,7 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool GpuChannelSharedImageInterface::MakeContextCurrent(bool needs_gl) {
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
   if (!shared_image_stub_) {
     return false;

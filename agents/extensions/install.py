@@ -26,7 +26,7 @@ from pathlib import Path
 def get_mcp_servers_from_dir(mcp_dir: Path) -> list[str]:
 =======
 def get_mcp_servers(mcp_dir: Path) -> list[str]:
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     """Returns a list of all MCP servers in the given directory.
 
     Args:
@@ -39,7 +39,7 @@ def get_mcp_servers(mcp_dir: Path) -> list[str]:
     if not mcp_dir.exists():
         return []
 =======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return [p.parent.name for p in mcp_dir.glob('*/gemini-extension.json')]
 
 
@@ -79,7 +79,7 @@ def find_mcp_dir_for_server(server_name: str,
 
 
 =======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 def get_extension_dir(use_global: bool = False) -> Path:
     """Returns the Gemini CLI extension directory."""
     if use_global:
@@ -90,7 +90,7 @@ def get_extension_dir(use_global: bool = False) -> Path:
 
     repo_root = get_git_repo_root()
     if repo_root:
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         return repo_root / '.gemini' / 'extensions'
     return Path('.gemini/extensions')
 
@@ -192,7 +192,7 @@ def list_servers(mcp_dir: Path) -> None:
         name: get_server_version(mcp_dir / name)
         for name in get_mcp_servers(mcp_dir)
     }
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     local_servers = {
         name: get_server_version(get_extension_dir(use_global=False) / name)
         for name in get_installed_servers(get_extension_dir(use_global=False))
@@ -298,7 +298,7 @@ def main() -> None:
         description='Install and manage MCP server configurations.')
     subparsers = parser.add_subparsers(dest='command',
                                        help='Available commands.')
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     # Add command
     add_parser = subparsers.add_parser('add', help='Add new MCP servers.')
@@ -359,7 +359,7 @@ def main() -> None:
             if not mcp_dir:
 =======
             if not (mcp_dir / server).exists():
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                 print(f"Error: Server '{server}' not found. Skipping.",
                       file=sys.stderr)
                 continue
@@ -384,4 +384,4 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     main()
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
