@@ -88,6 +88,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/decode_target_get_info.cc",
     "//starboard/shared/stub/media_can_change_type.cc",
     "//starboard/shared/stub/storage_write_record.cc",
+    "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "accessibility_extension.cc",
     "accessibility_extension.h",
