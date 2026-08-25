@@ -403,9 +403,8 @@ bool NativeViewGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
                                     window_, &egl_window_attributes[0]);
 
   if (!surface_) {
-    EGLint error = eglGetError();
     LOG(ERROR) << "eglCreateWindowSurface failed with error "
-               << ui::GetEGLErrorString(error);
+               << GetLastEGLErrorString();
     Destroy();
     return false;
   }
