@@ -30,11 +30,8 @@
 namespace media {
 namespace {
 
-// |g_720p_video_buffer_size_clamp_bytes| and
-// |g_video_buffer_size_clamp_bytes| are process-wide, and are currently set by
-// h5vcc flags.
-std::atomic<size_t> g_720p_video_buffer_size_clamp_bytes{
-    std::numeric_limits<size_t>::max()};
+// |g_video_buffer_size_clamp_bytes| is process-wide, and is currently set by
+// a h5vcc flag.
 std::atomic<size_t> g_video_buffer_size_clamp_bytes{
     std::numeric_limits<size_t>::max()};
 
@@ -65,13 +62,6 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 }  // namespace
 
-void Set720pVideoBufferSizeClamp(int size_mb) {
-  CHECK_GE(size_mb, 0);
-  CHECK_LT(size_mb, 4096);
-  g_720p_video_buffer_size_clamp_bytes =
-      static_cast<size_t>(size_mb) * 1024 * 1024;
-}
-
 size_t GetVideoBufferSizeClamp() {
   return g_video_buffer_size_clamp_bytes.load();
 }
@@ -93,14 +83,6 @@ size_t GetDemuxerStreamAudioMemoryLimit(
 size_t GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
-  if (const size_t limit_720p = g_720p_video_buffer_size_clamp_bytes.load();
-      limit_720p != std::numeric_limits<size_t>::max() && video_config) {
-    const gfx::Size resolution = video_config->visible_rect().size();
-    if (resolution.width() <= 1280 && resolution.height() <= 720) {
-      return limit_720p;
-    }
-  }
-
   size_t limit;
   if (!video_config) {
     limit = GetVideoDecoderBufferLimitBytes(

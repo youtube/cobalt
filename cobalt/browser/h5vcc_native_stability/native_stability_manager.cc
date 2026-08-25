@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -29,6 +30,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
+#include "base/synchronization/lock.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "base/uuid.h"
@@ -42,13 +44,41 @@ namespace h5vcc_native_stability {
 
 namespace {
 
+// Schema for |acked_event_uuids.json|:
+// A JSON list of UUID strings representing stability reports that have already
+// been acknowledged by the web application:
+// [
+//   "<uuid_1>",
+//   "<uuid_2>",
+//   ...
+// ]
+//
+// Schema for |hang_attributes.json|:
+// A JSON dictionary mapping hang UUIDs to dictionary objects containing
+// hang-specific attributes (such as whether the hang recovered):
+// {
+//   "<hang_uuid_1>": {
+//     "is_recovered": <bool>
+//   },
+//   "<hang_uuid_2>": {
+//     "is_recovered": <bool>
+//   },
+//   ...
+// }
+
 constexpr char kNativeStabilityDirName[] = "native_stability";
 constexpr char kAckedEventUuidsFileName[] = "acked_event_uuids.json";
+constexpr char kHangAttributesFileName[] = "hang_attributes.json";
+constexpr char kIsRecoveredKey[] = "is_recovered";
 
 // We want a number large enough that we avoid missing any reports in all but
 // the most extreme cases, but not so large that we waste significant memory
 // when allocating the buffer.
 constexpr int kMaxNumReports = 128;
+
+struct HangAttributes {
+  bool is_recovered = false;
+};
 
 // Safely extracts the UUID string from an SbNativeStabilityReport, clamping to
 // the canonical 36-character UUID length and guarding against missing null
@@ -80,6 +110,10 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
     return acked_uuids;
   }
 
+  if (file_content.empty()) {
+    return acked_uuids;
+  }
+
   std::optional<base::Value::List> parsed_list =
       base::JSONReader::ReadList(file_content);
   if (!parsed_list) {
@@ -100,6 +134,20 @@ std::unordered_set<std::string> ReadAckedUuidsFromDisk(
   return acked_uuids;
 }
 
+// We typically expect this directory to already exist but it may not, for
+// example if this code path has never executed on a particular device or the
+// system removed the directory.
+bool EnsureNativeStabilityDirectoryExists(const base::FilePath& dir_path) {
+  base::File::Error error = base::File::FILE_OK;
+  if (!base::CreateDirectoryAndGetError(dir_path, &error)) {
+    LOG(ERROR) << "Failed to create " << kNativeStabilityDirName
+               << " directory: " << dir_path.value()
+               << ", error: " << base::File::ErrorToString(error);
+    return false;
+  }
+  return true;
+}
+
 void WriteAckedUuidsToDisk(const base::FilePath& file_path,
                            const std::unordered_set<std::string>& acked_uuids) {
   if (file_path.empty()) {
@@ -107,15 +155,7 @@ void WriteAckedUuidsToDisk(const base::FilePath& file_path,
     return;
   }
 
-  // We typically expect this directory to already exist but it may not, for
-  // example if this code path has never executed on a particular device or the
-  // system removed the directory.
-  base::FilePath dir_path = file_path.DirName();
-  base::File::Error error = base::File::FILE_OK;
-  if (!base::CreateDirectoryAndGetError(dir_path, &error)) {
-    LOG(ERROR) << "Failed to create " << kNativeStabilityDirName
-               << " directory: " << dir_path.value()
-               << ", error: " << base::File::ErrorToString(error);
+  if (!EnsureNativeStabilityDirectoryExists(file_path.DirName())) {
     return;
   }
 
@@ -133,6 +173,83 @@ void WriteAckedUuidsToDisk(const base::FilePath& file_path,
 
   if (!base::ImportantFileWriter::WriteFileAtomically(file_path, *json)) {
     LOG(ERROR) << "Failed to write acked UUIDs atomically to: "
+               << file_path.value();
+    return;
+  }
+}
+
+std::unordered_map<std::string, HangAttributes> ReadHangAttributesFromDisk(
+    const base::FilePath& file_path) {
+  std::unordered_map<std::string, HangAttributes> hang_attributes;
+  if (file_path.empty() || !base::PathExists(file_path)) {
+    return hang_attributes;
+  }
+
+  std::string file_content;
+  if (!base::ReadFileToString(file_path, &file_content)) {
+    LOG(WARNING) << "Failed to read hang attributes file: "
+                 << file_path.value();
+    return hang_attributes;
+  }
+
+  if (file_content.empty()) {
+    return hang_attributes;
+  }
+
+  std::optional<base::Value::Dict> parsed_dict =
+      base::JSONReader::ReadDict(file_content);
+  if (!parsed_dict) {
+    LOG(WARNING) << "Failed to parse hang attributes JSON dict in: "
+                 << file_path.value();
+    return hang_attributes;
+  }
+
+  for (const auto [uuid, value] : *parsed_dict) {
+    if (!value.is_dict()) {
+      LOG(WARNING) << "Skipping non-dict item for UUID in hang attributes: "
+                   << uuid;
+      continue;
+    }
+    const base::Value::Dict& entry_dict = value.GetDict();
+    std::optional<bool> is_recovered = entry_dict.FindBool(kIsRecoveredKey);
+    if (!is_recovered.has_value()) {
+      LOG(WARNING) << "Missing or invalid '" << kIsRecoveredKey
+                   << "' field for UUID: " << uuid;
+      continue;
+    }
+    hang_attributes[uuid] = HangAttributes{*is_recovered};
+  }
+
+  return hang_attributes;
+}
+
+void WriteHangAttributesToDisk(
+    const base::FilePath& file_path,
+    const std::unordered_map<std::string, HangAttributes>& hang_attributes) {
+  if (file_path.empty()) {
+    LOG(ERROR) << "Failed to write hang attributes: file path is empty.";
+    return;
+  }
+
+  if (!EnsureNativeStabilityDirectoryExists(file_path.DirName())) {
+    return;
+  }
+
+  base::Value::Dict uuid_to_attributes;
+  for (const auto& [uuid, attributes] : hang_attributes) {
+    base::Value::Dict entry_dict;
+    entry_dict.Set(kIsRecoveredKey, attributes.is_recovered);
+    uuid_to_attributes.Set(uuid, std::move(entry_dict));
+  }
+
+  std::optional<std::string> json = base::WriteJson(uuid_to_attributes);
+  if (!json) {
+    LOG(ERROR) << "Failed to serialize hang attributes dict to JSON.";
+    return;
+  }
+
+  if (!base::ImportantFileWriter::WriteFileAtomically(file_path, *json)) {
+    LOG(ERROR) << "Failed to write hang attributes atomically to: "
                << file_path.value();
     return;
   }
@@ -158,10 +275,28 @@ void NativeStabilityManager::SetAckedUuidsFilePathForTesting(
   acked_uuids_file_path_for_testing_ = std::move(file_path);
 }
 
+void NativeStabilityManager::SetHangAttributesFilePathForTesting(
+    base::FilePath file_path) {
+  hang_attributes_file_path_for_testing_ = std::move(file_path);
+}
+
 void NativeStabilityManager::ResetForTesting() {
+  base::AutoLock auto_lock(task_runner_lock_);
   task_runner_ = nullptr;
   get_extension_callback_for_testing_.Reset();
   acked_uuids_file_path_for_testing_.clear();
+  hang_attributes_file_path_for_testing_.clear();
+}
+
+scoped_refptr<base::SequencedTaskRunner>
+NativeStabilityManager::GetOrCreateTaskRunner() {
+  base::AutoLock auto_lock(task_runner_lock_);
+  if (!task_runner_) {
+    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
+  }
+  return task_runner_;
 }
 
 base::FilePath NativeStabilityManager::GetAckedUuidsFilePath() {
@@ -180,6 +315,22 @@ base::FilePath NativeStabilityManager::GetAckedUuidsFilePath() {
   return base::FilePath(cache_dir.data())
       .Append(kNativeStabilityDirName)
       .Append(kAckedEventUuidsFileName);
+}
+
+base::FilePath NativeStabilityManager::GetHangAttributesFilePath() {
+  if (!hang_attributes_file_path_for_testing_.empty()) {
+    return hang_attributes_file_path_for_testing_;
+  }
+
+  std::vector<char> cache_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                       cache_dir.size())) {
+    LOG(ERROR) << "Failed to get kSbSystemPathCacheDirectory";
+    return base::FilePath();
+  }
+  return base::FilePath(cache_dir.data())
+      .Append(kNativeStabilityDirName)
+      .Append(kHangAttributesFileName);
 }
 
 const void* NativeStabilityManager::GetExtension(const char* name) {
@@ -206,15 +357,11 @@ void NativeStabilityManager::GetPendingReports(
     base::OnceCallback<void(std::vector<mojom::NativeStabilityReportPtr>)>
         callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!task_runner_) {
-    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
-  }
+  auto task_runner = GetOrCreateTaskRunner();
   auto* native_stability_extension =
       static_cast<const StarboardExtensionNativeStabilityApi*>(
           GetExtension(kStarboardExtensionNativeStabilityName));
-  task_runner_->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(&NativeStabilityManager::GetPendingReportsOnTaskRunner,
                      base::Unretained(this), native_stability_extension,
@@ -234,9 +381,13 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
     return;
   }
 
-  base::FilePath file_path = GetAckedUuidsFilePath();
+  base::FilePath acked_uuids_file_path = GetAckedUuidsFilePath();
   std::unordered_set<std::string> acked_uuids =
-      ReadAckedUuidsFromDisk(file_path);
+      ReadAckedUuidsFromDisk(acked_uuids_file_path);
+
+  base::FilePath hang_attributes_file_path = GetHangAttributesFilePath();
+  std::unordered_map<std::string, HangAttributes> hang_attributes =
+      ReadHangAttributesFromDisk(hang_attributes_file_path);
 
   std::vector<SbNativeStabilityReport> sb_reports(kMaxNumReports);
   int count = native_stability_extension->ReadReports(sb_reports.data(),
@@ -270,6 +421,14 @@ void NativeStabilityManager::GetPendingReportsOnTaskRunner(
     } else if (sb_report.report_type == kSbNativeStabilityReportHang) {
       auto hang_report = mojom::HangReport::New();
       hang_report->base = CreateBaseReportData(sb_report);
+      auto it = hang_attributes.find(uuid);
+      if (it != hang_attributes.end()) {
+        hang_report->is_recovered = it->second.is_recovered;
+      } else {
+        LOG(WARNING) << "Missing hang attributes for UUID: " << uuid
+                     << ". Defaulting is_recovered to false.";
+        hang_report->is_recovered = false;
+      }
       results.push_back(
           mojom::NativeStabilityReport::NewHangReport(std::move(hang_report)));
     } else {
@@ -285,12 +444,8 @@ void NativeStabilityManager::AcknowledgeReports(
     std::vector<std::string> native_stability_event_uuids,
     base::OnceClosure callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!task_runner_) {
-    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
-  }
-  task_runner_->PostTask(
+  auto task_runner = GetOrCreateTaskRunner();
+  task_runner->PostTask(
       FROM_HERE,
       base::BindOnce(&NativeStabilityManager::AcknowledgeReportsOnTaskRunner,
                      base::Unretained(this),
@@ -322,45 +477,82 @@ void NativeStabilityManager::AcknowledgeReportsOnTaskRunner(
 }
 
 void NativeStabilityManager::RecordHangStarted(const std::string& hang_uuid) {
-  // TODO(b/528362453): Implement persistent storage layer.
-  LOG(INFO) << "Mock NativeStabilityManager::RecordHangStarted for UUID: "
-            << hang_uuid;
+  if (hang_uuid.empty()) {
+    return;
+  }
+  auto task_runner = GetOrCreateTaskRunner();
+  task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(&NativeStabilityManager::RecordHangStartedOnTaskRunner,
+                     base::Unretained(this), hang_uuid));
+}
+
+void NativeStabilityManager::RecordHangStartedOnTaskRunner(
+    std::string hang_uuid) {
+  base::FilePath file_path = GetHangAttributesFilePath();
+  std::unordered_map<std::string, HangAttributes> hang_attributes =
+      ReadHangAttributesFromDisk(file_path);
+
+  if (hang_attributes.contains(hang_uuid)) {
+    LOG(WARNING) << "Hang UUID " << hang_uuid
+                 << " is unexpectedly already recorded.";
+    return;
+  }
+
+  hang_attributes[hang_uuid] = HangAttributes{/*is_recovered=*/false};
+  WriteHangAttributesToDisk(file_path, hang_attributes);
 }
 
 void NativeStabilityManager::RecordHangRecovered(const std::string& hang_uuid) {
-  // TODO(b/528362453): Implement persistent storage layer.
-  LOG(INFO) << "Mock NativeStabilityManager::RecordHangRecovered for UUID: "
-            << hang_uuid;
+  if (hang_uuid.empty()) {
+    return;
+  }
+  auto task_runner = GetOrCreateTaskRunner();
+  task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(&NativeStabilityManager::RecordHangRecoveredOnTaskRunner,
+                     base::Unretained(this), hang_uuid));
 }
 
-void NativeStabilityManager::PruneStorage(base::OnceClosure callback) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!task_runner_) {
-    task_runner_ = base::ThreadPool::CreateSequencedTaskRunner(
-        {base::MayBlock(), base::TaskPriority::USER_VISIBLE,
-         base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
+void NativeStabilityManager::RecordHangRecoveredOnTaskRunner(
+    std::string hang_uuid) {
+  base::FilePath file_path = GetHangAttributesFilePath();
+  std::unordered_map<std::string, HangAttributes> hang_attributes =
+      ReadHangAttributesFromDisk(file_path);
+
+  auto it = hang_attributes.find(hang_uuid);
+  if (it == hang_attributes.end()) {
+    LOG(WARNING) << "Hang UUID " << hang_uuid
+                 << " was unexpectedly not found. The update is skipped.";
+    return;
   }
+
+  if (it->second.is_recovered) {
+    LOG(WARNING) << "Hang UUID " << hang_uuid
+                 << " is unexpectedly already recorded as recovered.";
+    return;
+  }
+
+  it->second.is_recovered = true;
+  WriteHangAttributesToDisk(file_path, hang_attributes);
+}
+
+void NativeStabilityManager::PruneStorage() {
+  auto task_runner = GetOrCreateTaskRunner();
   auto* native_stability_extension =
       static_cast<const StarboardExtensionNativeStabilityApi*>(
           GetExtension(kStarboardExtensionNativeStabilityName));
-  task_runner_->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
-      base::BindOnce(
-          &NativeStabilityManager::PruneStorageOnTaskRunner,
-          base::Unretained(this), native_stability_extension,
-          callback ? base::BindPostTaskToCurrentDefault(std::move(callback))
-                   : base::OnceClosure()));
+      base::BindOnce(&NativeStabilityManager::PruneStorageOnTaskRunner,
+                     base::Unretained(this), native_stability_extension));
 }
 
 void NativeStabilityManager::PruneStorageOnTaskRunner(
-    const StarboardExtensionNativeStabilityApi* native_stability_extension,
-    base::OnceClosure callback) {
+    const StarboardExtensionNativeStabilityApi* native_stability_extension) {
   if (!native_stability_extension || native_stability_extension->version < 1 ||
       !native_stability_extension->ReadReports) {
     VLOG(1) << "NativeStability extension is not supported on this platform.";
-    if (callback) {
-      std::move(callback).Run();
-    }
     return;
   }
 
@@ -370,9 +562,6 @@ void NativeStabilityManager::PruneStorageOnTaskRunner(
   if (count < 0) {
     LOG(WARNING) << "NativeStability extension ReadReports returned error ("
                  << count << "). Aborting storage pruning.";
-    if (callback) {
-      std::move(callback).Run();
-    }
     return;
   }
   if (count > kMaxNumReports) {
@@ -391,23 +580,34 @@ void NativeStabilityManager::PruneStorageOnTaskRunner(
     }
   }
 
-  base::FilePath file_path = GetAckedUuidsFilePath();
+  base::FilePath acked_uuids_file_path = GetAckedUuidsFilePath();
   std::unordered_set<std::string> acked_uuids =
-      ReadAckedUuidsFromDisk(file_path);
+      ReadAckedUuidsFromDisk(acked_uuids_file_path);
 
-  size_t removed = std::erase_if(
+  size_t acked_event_uuids_removed = std::erase_if(
       acked_uuids, [&starboard_report_ids](const std::string& uuid) {
         return !starboard_report_ids.contains(uuid);
       });
 
-  if (removed > 0) {
-    VLOG(1) << "Removed " << removed
-            << " obsolete native stability report UUID(s) from disk.";
-    WriteAckedUuidsToDisk(file_path, acked_uuids);
+  if (acked_event_uuids_removed > 0) {
+    VLOG(1) << "Removed " << acked_event_uuids_removed
+            << " obsolete acknowledged report UUID(s) from disk.";
+    WriteAckedUuidsToDisk(acked_uuids_file_path, acked_uuids);
   }
 
-  if (callback) {
-    std::move(callback).Run();
+  base::FilePath hang_attributes_file_path = GetHangAttributesFilePath();
+  std::unordered_map<std::string, HangAttributes> hang_attributes =
+      ReadHangAttributesFromDisk(hang_attributes_file_path);
+
+  size_t hang_attributes_records_removed =
+      std::erase_if(hang_attributes, [&starboard_report_ids](const auto& item) {
+        return !starboard_report_ids.contains(item.first);
+      });
+
+  if (hang_attributes_records_removed > 0) {
+    VLOG(1) << "Removed " << hang_attributes_records_removed
+            << " obsolete hang attributes report UUID(s) from disk.";
+    WriteHangAttributesToDisk(hang_attributes_file_path, hang_attributes);
   }
 }
 
