@@ -164,8 +164,12 @@ void ShellPlatformDelegate::OnReveal() {
   }
   // Resume hang watching, explicitly ignoring deadlines from during the conceal
   // period.
-  base::HangWatcher::Resume();
+#if !BUILDFLAG(IS_STARBOARD)
+  // Ensure the GPU process is restored for Android/other platforms immediately.
+  // On Starboard (e.g. RDK), we must wait to restore the GPU process until
+  // the platform window (SbWindow) is fully recreated in OnProactiveMapWindow.
   content::RestoreGpuProcessOnUI();
+#endif
   // Used to ensure we only register as observer once, even if there are
   // multiple windows to wait for.
   bool started_waiting = false;
@@ -302,6 +306,7 @@ void ShellPlatformDelegate::OnProactiveMapWindow(
     SetContents(shell);
     MapWindowShell(shell);
   }
+  content::RestoreGpuProcessOnUI();
 }
 #endif
 

@@ -201,20 +201,26 @@ void ApplicationRdk::WakeSystemEventWait() {
 }
 
 SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
+  SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::CreateSbWindow started";
   SB_DCHECK(window_ == nullptr);
   if (window_ != nullptr)
     return kSbWindowInvalid;
   MaterializeNativeWindow();
+  SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::CreateSbWindow Materialize completed";
   window_  = new SbWindowPrivate(options);
+  SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::CreateSbWindow done";
   return window_;
 }
 
 bool ApplicationRdk::DestroySbWindow(SbWindow window) {
+  SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::DestroySbWindow started";
   if (SbWindowIsValid(window)) {
+    SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::DestroySbWindow destroying native window";
     DestroyNativeWindow();
   }
   window_ = nullptr;
   delete window;
+  SB_LOG(INFO) << "[RDK DEPLOY] ApplicationRdk::DestroySbWindow done";
   return true;
 }
 
@@ -289,31 +295,42 @@ void ApplicationRdk::OnDisplaySize(int width, int height) {
 // the Wayland display connection (wl_display) with the Westeros compositor and is
 // preserved across suspend/resume cycles to maintain the compositor client session.
 void ApplicationRdk::MaterializeNativeWindow() {
+  SB_LOG(INFO) << "[RDK DEPLOY] MaterializeNativeWindow started. current native_window_=" << reinterpret_cast<void*>(native_window_) << ", ctx_=" << ctx_;
   if (native_window_ != 0) {
+    SB_LOG(INFO) << "[RDK DEPLOY] MaterializeNativeWindow returning early because already exists";
     return;
   }
 
+  bool is_new_ctx = false;
   if (ctx_ == nullptr) {
+    SB_LOG(INFO) << "[RDK DEPLOY] MaterializeNativeWindow building new Essos ctx";
     BuildEssosContext();
+    is_new_ctx = true;
   }
 
   bool error = false;
 
   if (!EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
+    SB_LOG(ERROR) << "[RDK DEPLOY] EssContextGetDisplaySize failed";
     error = true;
   }
+  SB_LOG(INFO) << "[RDK DEPLOY] Display size: " << window_width_ << "x" << window_height_;
 
   if (resize_pending_) {
     EssContextResizeWindow(ctx_, window_width_, window_height_);
     resize_pending_ = false;
   }
 
+  SB_LOG(INFO) << "[RDK DEPLOY] Calling EssContextCreateNativeWindow";
   if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
                                     &native_window_)) {
+    SB_LOG(ERROR) << "[RDK DEPLOY] EssContextCreateNativeWindow failed";
     error = true;
-  } else if (!EssContextStart(ctx_)) {
+  } else if (is_new_ctx && !EssContextStart(ctx_)) {
+    SB_LOG(ERROR) << "[RDK DEPLOY] EssContextStart failed";
     error = true;
   }
+  SB_LOG(INFO) << "[RDK DEPLOY] MaterializeNativeWindow success, new native_window_=" << reinterpret_cast<void*>(native_window_);
 
   if (error) {
     const char* detail = EssContextGetLastErrorDetail(ctx_);
@@ -327,16 +344,18 @@ void ApplicationRdk::MaterializeNativeWindow() {
 // The Essos display context (ctx_) is deliberately kept open to keep the
 // Wayland IPC channel alive with Westeros and RDKShell.
 void ApplicationRdk::DestroyNativeWindow() {
+  SB_LOG(INFO) << "[RDK DEPLOY] DestroyNativeWindow started. native_window_=" << reinterpret_cast<void*>(native_window_);
   if (native_window_ != 0) {
-    if (ctx_ && !EssContextDestroyNativeWindow(ctx_, native_window_)) {
-      const char* detail = EssContextGetLastErrorDetail(ctx_);
-      SB_LOG(ERROR) << "Essos error destroying native window: '"
-                    << (detail ? detail : "") << '\'';
+    if (ctx_) {
+      SB_LOG(INFO) << "[RDK DEPLOY] Calling EssContextDestroyNativeWindow";
+      if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
+        const char* detail = EssContextGetLastErrorDetail(ctx_);
+        SB_LOG(ERROR) << "Essos error destroying native window: '"
+                      << (detail ? detail : "") << '\'';
+      }
+      SB_LOG(INFO) << "[RDK DEPLOY] EssContextDestroyNativeWindow finished";
     }
     native_window_ = 0;
-  }
-  if (ctx_) {
-    EssContextStop(ctx_);
   }
 }
 
