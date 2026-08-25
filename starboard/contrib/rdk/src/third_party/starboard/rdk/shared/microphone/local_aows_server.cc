@@ -19,6 +19,8 @@
 #include "starboard/common/log.h"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -505,12 +507,15 @@ class LocalAowsServer {
     }
     const int listen_socket_fd = listen_socket_fd_.exchange(-1);
     if (listen_socket_fd >= 0) {
+      shutdown(listen_socket_fd, SHUT_RDWR);
       close(listen_socket_fd);
     }
 
     if (server_thread_.joinable()) {
       server_thread_.join();
     }
+    SB_LOG(INFO) << logtag << ": Local AOWS server stopped.";
+    AOWSLog(kInfo, "Local AOWS server stopped.\n");
   }
 
   void EnsureStarted() {
@@ -582,12 +587,47 @@ class LocalAowsServer {
       return;
     }
 
+    const int flags = fcntl(listen_socket_fd, F_GETFL, 0);
+    if (flags >= 0) {
+      fcntl(listen_socket_fd, F_SETFL, flags | O_NONBLOCK);
+    }
+
     listen_socket_fd_.store(listen_socket_fd);
     SB_LOG(INFO) << logtag << ": Local AOWS server listening on aows://" << kAowsHost << ':'
                  << port_ << "/mic";
     AOWSLog(kInfo, "Local AOWS server listening on aows://%s:%d/mic\n", kAowsHost, port_);
 
     while (!stop_requested_.load()) {
+      pollfd pfd;
+      pfd.fd = listen_socket_fd;
+      pfd.events = POLLIN;
+      pfd.revents = 0;
+      const int poll_result = poll(&pfd, 1, 200);
+      if (stop_requested_.load()) {
+        break;
+      }
+      if (poll_result < 0) {
+        if (errno == EINTR) {
+          continue;
+        }
+        if (errno == EBADF || errno == EINVAL) {
+          break;
+        }
+        SB_LOG(WARNING) << logtag << ": poll failed on local AOWS server socket, errno=" << errno;
+        AOWSLog(kWarning, "poll failed on local AOWS server socket, errno=%d\n", errno);
+        break;
+      }
+      if (poll_result == 0) {
+        continue;
+      }
+
+      if (!(pfd.revents & POLLIN)) {
+        if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+          break;
+        }
+        continue;
+      }
+
       sockaddr_in peer_address;
       socklen_t peer_address_length = sizeof(peer_address);
       const int connection_fd =
@@ -597,7 +637,7 @@ class LocalAowsServer {
         if (stop_requested_.load() || errno == EBADF || errno == EINVAL) {
           break;
         }
-        if (errno == EINTR) {
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
           continue;
         }
         SB_LOG(WARNING) << logtag << ": Local AOWS accept failed, errno=" << errno;
@@ -634,14 +674,15 @@ class LocalAowsServer {
   }
 
   void HandleConnection(int connection_fd) {
+    active_connection_fd_.store(connection_fd);
     if (!PerformWebSocketHandshake(connection_fd)) {
       SB_LOG(WARNING) << logtag << ": Failed websocket handshake on local AOWS socket.";
       AOWSLog(kWarning, "Failed websocket handshake on local AOWS socket.\n");
+      active_connection_fd_.store(-1);
       return;
     }
 
     ClearBufferedAudio();
-    active_connection_fd_.store(connection_fd);
     ws_frames_total_.store(0);
     ws_bytes_total_.store(0);
     read_bytes_total_.store(0);
