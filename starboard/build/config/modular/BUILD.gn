@@ -91,7 +91,7 @@ config("modular") {
       "-Wno-sign-compare",
     ]
 
-    if (!is_official_build || can_unwind_with_frame_pointers) {
+    if (!cobalt_is_release_build || can_unwind_with_frame_pointers) {
       cflags += [ "-fno-omit-frame-pointer" ]
     } else {
       cflags += [ "-fomit-frame-pointer" ]
