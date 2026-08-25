@@ -428,14 +428,6 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
 
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
-  if (!StarboardBridge::GetInstance()->is_initialized()) {
-    if (mime_type.find("mp4a") != std::string::npos ||
-        mime_type.find("opus") != std::string::npos ||
-        mime_type.find("aac") != std::string::npos) {
-      return "fallback_audio_decoder";
-    }
-    return "";
-  }
 
   for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
     // Reject if bitrate is not supported.
@@ -481,18 +473,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
 
   std::lock_guard scoped_lock(mutex_);
   UpdateMediaCapabilities_Locked();
-  if (!StarboardBridge::GetInstance()->is_initialized()) {
-    if (must_support_hdr || must_support_secure) {
-      return "";
-    }
-    if (mime_type.find("avc") != std::string::npos ||
-        mime_type.find("vp9") != std::string::npos ||
-        mime_type.find("av01") != std::string::npos ||
-        mime_type.find("mp4v") != std::string::npos) {
-      return "fallback_video_decoder";
-    }
-    return "";
-  }
 
   for (auto& video_capability : video_codec_capabilities_map_[mime_type]) {
     // Reject if secure decoder is required but codec doesn't support it.
