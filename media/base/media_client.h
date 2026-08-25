@@ -95,6 +95,10 @@ class MEDIA_EXPORT MediaClient {
   uint64_t GetCurrentMemoryCapacity() const;
   uint64_t GetAllocatedMemory() const;
 
+  // Installs |decoder_buffer_allocator_| as the process-wide
+  // DecoderBuffer::Allocator.
+  void InstallDecoderBufferAllocator();
+
  private:
   // TODO(b/326497953): Support Suspend() and Resume().
   DecoderBufferAllocator decoder_buffer_allocator_;
