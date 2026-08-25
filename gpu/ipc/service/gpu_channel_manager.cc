@@ -50,7 +50,6 @@
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gl_surface_egl.h"
-#include "ui/gl/gl_utils.h"
 #include "ui/gl/gl_version_info.h"
 #include "ui/gl/init/gl_factory.h"
 
@@ -935,10 +934,12 @@ scoped_refptr<SharedContextState> GpuChannelManager::GetSharedContextState(
 
 
   scoped_refptr<gl::GLSurface> surface = default_offscreen_surface();
+#if BUILDFLAG(IS_COBALT)
   if (!surface) {
     *result = ContextResult::kTransientFailure;
     return nullptr;
   }
+#endif
   bool use_virtualized_gl_contexts = false;
 #if BUILDFLAG(IS_MAC)
   // Virtualize GpuPreference::kLowPower contexts by default on OS X to prevent
