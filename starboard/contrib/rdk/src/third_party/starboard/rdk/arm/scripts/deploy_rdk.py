@@ -190,9 +190,27 @@ def package_and_deploy(
 
     print(f"Packaging with: {' '.join(tar_cmd)}")
     run_command(tar_cmd)
+    if not remote_dir or remote_dir == "/":
+        print(f"Error: remote_dir '{remote_dir}' is invalid or dangerous for cleanup.")
+        sys.exit(1)
+    print("=== Cleaning previous remote deployment ===")
+    # Remove old app directories and binaries, ignoring errors if they don't exist
+    run_remote_command(
+        f"rm -rf {remote_dir}/app {remote_dir}/*.so {remote_dir}/loader_app {remote_dir}/*.lz4 {remote_dir}/archive.tar.gz || true",
+        device_id, device_ip, check=False)
+
     run_remote_command(f"mkdir -p {remote_dir}", device_id, device_ip)
     push_to_device(archive_name, f"{remote_dir}/", device_id, device_ip)
     Path(archive_name).unlink(missing_ok=True)
+
+    print("=== Extracting archive on device ===")
+    extract_cmds = [
+        f"cd {remote_dir}",
+        "tar -xzf archive.tar.gz",
+        "rm archive.tar.gz",
+        f"chmod -R 777 {remote_dir}",
+    ]
+    run_remote_command(" && ".join(extract_cmds), device_id, device_ip)
 
 
 def ensure_dolby_vision_policy(device_id: Optional[str], device_ip: Optional[str]) -> None:
@@ -252,7 +270,6 @@ def launch_on_device(
     device_id: Optional[str],
     device_ip: Optional[str],
     remote_dir: str,
-    extract_archive: bool,
     test_name: Optional[str],
     devtools: bool = False,
     param: Optional[List[str]] = None,
@@ -261,14 +278,6 @@ def launch_on_device(
     """Executes remote commands to launch Cobalt or tests."""
     print("=== Launching on device ===")
     remote_cmds = [f"cd {remote_dir}"]
-
-    if extract_archive:
-        # Ensure unprivileged container users have access to extracted artifacts.
-        remote_cmds += [
-            "tar -xzf archive.tar.gz",
-            "rm archive.tar.gz",
-            f"chmod -R 777 {remote_dir}",
-        ]
 
     if test_name:
         remote_cmds += ["rdkDisplay remove || true", "sleep 2", "mkdir -p results"]
@@ -418,6 +427,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Force deployment even if up-to-date.",
     )
+
     parser.add_argument(
         "--deeplink",
         type=str,
@@ -797,7 +807,6 @@ def main() -> None:
 
     skip_deployment = args.skip_deploy or (is_up_to_date and not args.force_deploy and remote_dir_exists)
 
-    deployed_archive = False
     if skip_deployment:
         print("=== Skipping deployment ===")
         if not args.run:
@@ -807,7 +816,6 @@ def main() -> None:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
             package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, is_test=bool(args.tests))
-            deployed_archive = True
 
     if args.run:
         ensure_dolby_vision_policy(device_id, device_ip)
@@ -815,7 +823,6 @@ def main() -> None:
             device_id,
             device_ip,
             remote_dir,
-            deployed_archive,
             args.tests,
             devtools=(config != "gold" and not args.tests),
             param=args.param,
