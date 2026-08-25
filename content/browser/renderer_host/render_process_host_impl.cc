@@ -1672,21 +1672,6 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   // Check here to avoid future use-after-free.
   CHECK(render_frame_host_id_set_.empty());
 
-#if BUILDFLAG(IS_COBALT)
-  // Remove the cache handles for the client at teardown if relevant.
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kDisableGpuShaderDiskCache)) {
-    if (GetGpuDiskCacheFactorySingleton() && gpu_client_) {
-      gpu_client_->RemoveDiskCacheHandles();
-    }
-  }
-
-  // Reset `gpu_client_` to reject pending GPU channel requests and unblock
-  // any synchronous EstablishGpuChannelSync() calls before joining the
-  // in-process renderer.
-  gpu_client_.reset();
-#endif
-
   // Make sure to clean up the in-process renderer before the channel, otherwise
   // it may still run and have its IPCs fail, causing asserts.
   in_process_renderer_.reset();
@@ -1698,15 +1683,13 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
 
   UnregisterHost(GetID());
 
-#if !BUILDFLAG(IS_COBALT)
   // Remove the cache handles for the client at teardown if relevant.
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableGpuShaderDiskCache)) {
     if (GetGpuDiskCacheFactorySingleton()) {
-      gpu_client_->RemoveDiskCacheHandles();
+        gpu_client_->RemoveDiskCacheHandles();
     }
   }
-#endif
 
   base::UmaHistogramCounts1000(
       "BrowserRenderProcessHost.MaxOutermostMainFrames",
