@@ -200,12 +200,45 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
   <owner>hwarriner@google.com</owner>
   <owner>cobalt-team@google.com</owner>
   <summary>
-    The time it takes for the ELF dynamic shared library, stored as a compressed
-    file, to be decompressed. This metric is only recorded when the shared
-    library is stored as a compressed file.
+    The time it takes for the ELF dynamic shared library, stored as an LZ4
+    compressed file, to be decompressed. This metric is only recorded when the
+    shared library is stored as an LZ4 compressed file.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    The time it takes for Cobalt's ELF Loader to load the dynamic shared
+    library, which under normal operation is the Cobalt Core library. This
+    metric is only recorded when the shared library is stored as a compressed
+    file, and this metric includes decompression time.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.LoaderApp.ElfLoadUnexplainedDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of ELF load performance. -->
+<!-- TODO(b/537769651): Consider recording this metric for libcobalt.zst
+     installations. -->
+
+  <owner>hwarriner@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt.LoaderApp.ElfLoadDuration minus
+    Cobalt.LoaderApp.ElfDecompressionDuration. This metric is only recorded when
+    the shared library is stored as an LZ4 compressed file.
   </summary>
 </histogram>
 

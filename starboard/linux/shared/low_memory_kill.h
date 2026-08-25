@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-#include "starboard/system.h"
+#ifndef STARBOARD_LINUX_SHARED_LOW_MEMORY_KILL_H_
+#define STARBOARD_LINUX_SHARED_LOW_MEMORY_KILL_H_
 
-void SbSystemHideSplashScreen() {
-  SB_LOG(INFO)
-      << "SbSystemHideSplashScreen(): Platform/system splash screen dismissed.";
-}
+namespace starboard {
+
+const void* GetLowMemoryKillApi();
+
+}  // namespace starboard
+
+#endif  // STARBOARD_LINUX_SHARED_LOW_MEMORY_KILL_H_
