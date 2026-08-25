@@ -125,8 +125,5 @@ the user about the reason to skip.
       any fixes.
 8.  **Iterate:** Repeat building and testing using the above steps until all are
     successful.
-<<<<<<< HEAD
-=======
 9.  **Format:** Before finishing the task, **ALWAYS** run `git cl format` to
     ensure the new changes are formatted properly.
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

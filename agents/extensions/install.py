@@ -22,12 +22,7 @@ import sys
 from pathlib import Path
 
 
-<<<<<<< HEAD
-def get_mcp_servers_from_dir(mcp_dir: Path) -> list[str]:
-=======
-def get_mcp_servers(mcp_dir: Path) -> list[str]:
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    """Returns a list of all MCP servers in the given directory.
+def get_mcp_servers_from_dir(mcp_dir: Path) -> list[str]:    """Returns a list of all MCP servers in the given directory.
 
     Args:
         mcp_dir: The directory containing the MCP server configurations.
@@ -35,11 +30,6 @@ def get_mcp_servers(mcp_dir: Path) -> list[str]:
     Returns:
         A list of server names.
     """
-<<<<<<< HEAD
-    if not mcp_dir.exists():
-        return []
-=======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return [p.parent.name for p in mcp_dir.glob('*/gemini-extension.json')]
 
 
@@ -53,7 +43,6 @@ def get_git_repo_root() -> Path | None:
         return None
 
 
-<<<<<<< HEAD
 def get_mcp_dirs() -> list[Path]:
     """Returns a list of all MCP directories."""
     mcp_dirs = []
@@ -75,23 +64,11 @@ def find_mcp_dir_for_server(server_name: str,
     for mcp_dir in mcp_dirs:
         if (mcp_dir / server_name).exists():
             return mcp_dir
-    return None
-
-
-=======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-def get_extension_dir(use_global: bool = False) -> Path:
+    return Nonedef get_extension_dir(use_global: bool = False) -> Path:
     """Returns the Gemini CLI extension directory."""
     if use_global:
         return Path.home() / '.gemini' / 'extensions'
-<<<<<<< HEAD
-    if repo_root := get_git_repo_root():
-=======
-
-    repo_root = get_git_repo_root()
-    if repo_root:
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-        return repo_root / '.gemini' / 'extensions'
+if repo_root := get_git_repo_root():        return repo_root / '.gemini' / 'extensions'
     return Path('.gemini/extensions')
 
 
@@ -175,25 +152,13 @@ def is_up_to_date(server_name: str, mcp_dir: Path,
     return source_hash == dest_hash
 
 
-<<<<<<< HEAD
 def list_servers(mcp_dirs: list[Path]) -> None:
     """Lists all available and installed MCP servers."""
     # Get available, local, and global servers
     available_servers = {}
     for mcp_dir in mcp_dirs:
         for name in get_mcp_servers_from_dir(mcp_dir):
-            available_servers[name] = get_server_version(mcp_dir / name)
-
-=======
-def list_servers(mcp_dir: Path) -> None:
-    """Lists all available and installed MCP servers."""
-    # Get available, local, and global servers
-    available_servers = {
-        name: get_server_version(mcp_dir / name)
-        for name in get_mcp_servers(mcp_dir)
-    }
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    local_servers = {
+            available_servers[name] = get_server_version(mcp_dir / name)    local_servers = {
         name: get_server_version(get_extension_dir(use_global=False) / name)
         for name in get_installed_servers(get_extension_dir(use_global=False))
     }
@@ -281,8 +246,7 @@ def remove_server(server_name: str, extension_dir: Path) -> None:
 
 def main() -> None:
     """Installs and manages MCP server configurations."""
-<<<<<<< HEAD
-    mcp_dirs = get_mcp_dirs()
+mcp_dirs = get_mcp_dirs()
 
     parser = argparse.ArgumentParser(
         description='Install and manage MCP server configurations.')
@@ -291,15 +255,6 @@ def main() -> None:
         help='Available commands.',
         description='Install and manage MCP server configurations.'
         ' To get help for a specific command, run "install.py <command> -h".')
-=======
-    mcp_dir = Path(__file__).parent.resolve()
-
-    parser = argparse.ArgumentParser(
-        description='Install and manage MCP server configurations.')
-    subparsers = parser.add_subparsers(dest='command',
-                                       help='Available commands.')
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
     # Add command
     add_parser = subparsers.add_parser('add', help='Add new MCP servers.')
     add_parser.add_argument('-g',
@@ -354,13 +309,8 @@ def main() -> None:
             servers_to_process = get_installed_servers(extension_dir)
 
         for server in servers_to_process:
-<<<<<<< HEAD
-            mcp_dir = find_mcp_dir_for_server(server, mcp_dirs)
-            if not mcp_dir:
-=======
-            if not (mcp_dir / server).exists():
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-                print(f"Error: Server '{server}' not found. Skipping.",
+mcp_dir = find_mcp_dir_for_server(server, mcp_dirs)
+            if not mcp_dir:                print(f"Error: Server '{server}' not found. Skipping.",
                       file=sys.stderr)
                 continue
 
@@ -372,16 +322,8 @@ def main() -> None:
                 remove_server(server, extension_dir)
 
     elif args.command == 'list' or args.command is None:
-<<<<<<< HEAD
-        list_servers(mcp_dirs)
+list_servers(mcp_dirs)
 
 
 if __name__ == '__main__':
     main()
-=======
-        list_servers(mcp_dir)
-
-
-if __name__ == '__main__':
-    main()
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

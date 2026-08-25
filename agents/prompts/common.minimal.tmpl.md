@@ -36,8 +36,6 @@ ensure the directory has been specified. -->
 
 Unless otherwise instructed, run tests with:
 `tools/autotest.py --quiet --run-all -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
-<<<<<<< HEAD
-
 ## Coding
 
 <!-- Try to prevent agent from fixing TODOs that appear close to code that it's
@@ -58,5 +56,3 @@ git cl presubmit -u --force
 ```
 * Fix errors / warnings related to your change, but do not fix pre-existing
   warnings (from lines that you did not change).
-=======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

@@ -28,9 +28,7 @@ static_library("common") {
     "//url",
   ]
 
-  if (is_cobalt) {
-    deps -= [ "//components/language_detection/core:core" ]
-  }
+
 }
 
 source_set("unit_tests") {

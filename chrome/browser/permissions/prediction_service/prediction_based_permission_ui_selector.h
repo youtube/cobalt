@@ -18,7 +18,9 @@
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/features/permissions_ai.pb.h"
 #include "components/optimization_guide/proto/models.pb.h"
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/passage_embeddings/passage_embeddings_types.h"
+#endif // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_request_enums.h"
 #include "components/permissions/prediction_service/permission_ui_selector.h"

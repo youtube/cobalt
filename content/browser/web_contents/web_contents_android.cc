@@ -58,7 +58,18 @@
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/browser/android/child_process_importance.h"
+
+// The JNI generator creates a call to WebContentsAndroid::SetPrimaryPageImportance,
+// but that method was moved to WebContents. This macro intercepts the call
+// within the JNI header and redirects it to the underlying WebContents object,
+// performing the necessary type casting for the arguments.
+#define SetPrimaryPageImportance(env, main, sub) \
+  web_contents()->SetPrimaryPageImportance(      \
+      static_cast<content::ChildProcessImportance>(main), \
+      static_cast<content::ChildProcessImportance>(sub))
 #include "content/public/android/content_jni_headers/WebContentsImpl_jni.h"
+#undef SetPrimaryPageImportance
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF16;
@@ -497,27 +508,12 @@ void WebContentsAndroid::ResumeLoadingCreatedWebContents(JNIEnv* env) {
   web_contents_->ResumeLoadingCreatedWebContents();
 }
 
-<<<<<<< HEAD
-void WebContentsAndroid::SetPrimaryPageImportance(JNIEnv* env,
-                                                  jint main_frame_importance,
-                                                  jint subframe_importance) {
-  web_contents_->SetPrimaryPageImportance(
-      static_cast<ChildProcessImportance>(main_frame_importance),
-      static_cast<ChildProcessImportance>(subframe_importance));
-=======
 void WebContentsAndroid::OnFreeze(JNIEnv* env) {
   web_contents_->SetPageFrozen(true);
 }
 
 void WebContentsAndroid::OnResume(JNIEnv* env) {
   web_contents_->SetPageFrozen(false);
-}
-
-void WebContentsAndroid::SetPrimaryMainFrameImportance(JNIEnv* env,
-                                                       jint importance) {
-  web_contents_->SetPrimaryMainFrameImportance(
-      static_cast<ChildProcessImportance>(importance));
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {

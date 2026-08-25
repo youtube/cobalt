@@ -30,7 +30,9 @@
 
 namespace blink {
 
-OESEGLImageExternal::OESEGLImageExternal(WebGLRenderingContextBase* context)
+OESEGLImageExternal::OESEGLImageExternal(
+    WebGLRenderingContextBase* context,
+    ExecutionContext* /*execution_context*/)
     : WebGLExtension(context) {
   context->ExtensionsUtil()->EnsureExtensionEnabled(
       "GL_OES_EGL_image_external");

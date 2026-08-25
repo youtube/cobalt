@@ -10,7 +10,9 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/passage_embeddings/passage_embeddings_types.h"
+#endif // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/permissions/request_type.h"
 
 class OptimizationGuideKeyedService;

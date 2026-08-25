@@ -61,35 +61,15 @@ blink::WebCSPSource ToWebCSPSource(const network::mojom::CSPSourcePtr& source) {
           source->is_port_wildcard};
 }
 
+
 blink::WebCSPSourceList ToWebCSPSourceList(
     network::mojom::CSPSourceListPtr source_list) {
-<<<<<<< HEAD
-  return {base::ToVector(std::move(source_list->sources), ToWebCSPSource),
-          ToVectorOfWebStrings(std::move(source_list->nonces)),
-          base::ToVector(std::move(source_list->hashes)),
-          base::ToVector(std::move(source_list->url_hashes)),
-          base::ToVector(std::move(source_list->eval_hashes)),
-          source_list->allow_self,
-          source_list->allow_star,
-          source_list->allow_inline,
-          source_list->allow_inline_speculation_rules,
-          source_list->allow_eval,
-          source_list->allow_wasm_eval,
-          source_list->allow_wasm_unsafe_eval,
-          source_list->allow_dynamic,
-          source_list->allow_dynamic_url,
-          source_list->allow_unsafe_hashes,
-          source_list->report_sample,
-          source_list->report_hash_algorithm};
-=======
-  return {
+return {
       base::ToVector(std::move(source_list->sources), ToWebCSPSource),
       ToVectorOfWebStrings(std::move(source_list->nonces)),
-      base::ToVector(std::move(source_list->hashes), ToWebIntegrityMetadata),
-      base::ToVector(std::move(source_list->url_hashes),
-                     ToWebIntegrityMetadata),
-      base::ToVector(std::move(source_list->eval_hashes),
-                     ToWebIntegrityMetadata),
+      std::move(source_list->hashes),
+      std::move(source_list->url_hashes),
+      std::move(source_list->eval_hashes),
       source_list->allow_self,
       source_list->allow_star,
       source_list->allow_inline,
@@ -108,7 +88,6 @@ blink::WebCSPSourceList ToWebCSPSourceList(
 #else
       source_list->report_hash_algorithm};
 #endif
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 std::optional<blink::WebCSPTrustedTypes> ToOptionalWebCSPTrustedTypes(

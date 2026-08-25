@@ -49,8 +49,7 @@ class InstallIntegrationTest(unittest.TestCase):
                   encoding='utf-8') as f:
             f.write('{"name": "sample_server_2", "version": "2.0.0"}')
 
-<<<<<<< HEAD
-        self.internal_mcp_dir = Path(
+self.internal_mcp_dir = Path(
             self.tmpdir) / 'internal' / 'agents' / 'extensions'
         self.internal_mcp_dir.mkdir(parents=True)
         self.server3_dir = self.internal_mcp_dir / 'sample_server_3'
@@ -63,30 +62,18 @@ class InstallIntegrationTest(unittest.TestCase):
         # Patch the script's dependencies
         self.mock_mcp_dirs = patch(
             'install.get_mcp_dirs',
-            return_value=[self.mcp_dir, self.internal_mcp_dir])
-=======
-        # Patch the script's dependencies
-        self.mock_mcp_dir = patch('install.Path.resolve',
-                                  return_value=self.mcp_dir)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-        self.mock_git_root = patch('install.get_git_repo_root',
+            return_value=[self.mcp_dir, self.internal_mcp_dir])        self.mock_git_root = patch('install.get_git_repo_root',
                                    return_value=Path(self.tmpdir))
         self.mock_home = patch('pathlib.Path.home',
                                return_value=Path(self.tmpdir) / 'home')
 
-<<<<<<< HEAD
-        self.mock_mcp_dirs.start()
-=======
-        self.mock_mcp_dir.start()
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-        self.mock_git_root.start()
+self.mock_mcp_dirs.start()        self.mock_git_root.start()
         self.mock_home.start()
 
     def tearDown(self):
         """Tears down the test environment."""
         shutil.rmtree(self.tmpdir)
-<<<<<<< HEAD
-        self.mock_mcp_dirs.stop()
+self.mock_mcp_dirs.stop()
         self.mock_git_root.stop()
         self.mock_home.stop()
 
@@ -110,15 +97,7 @@ class InstallIntegrationTest(unittest.TestCase):
         # Add server from the internal_mcp_dir
         with patch('sys.argv', ['install.py', 'add', 'sample_server_3']):
             install.main()
-        self.assertTrue((self.extension_dir / 'sample_server_3').exists())
-
-=======
-        self.mock_mcp_dir.stop()
-        self.mock_git_root.stop()
-        self.mock_home.stop()
-
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    def test_add_remove_sequence(self):
+        self.assertTrue((self.extension_dir / 'sample_server_3').exists())    def test_add_remove_sequence(self):
         """Tests adding and then removing a server."""
         with patch('sys.argv', ['install.py', 'add', 'sample_server_1']):
             install.main()
@@ -256,12 +235,7 @@ class InstallIntegrationTest(unittest.TestCase):
         """Tests behavior with an empty source directory."""
         empty_mcp_dir = Path(self.tmpdir) / 'empty_mcp'
         empty_mcp_dir.mkdir()
-<<<<<<< HEAD
-        with patch('install.get_mcp_dirs', return_value=[empty_mcp_dir]):
-=======
-        with patch('install.Path.resolve', return_value=empty_mcp_dir):
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-            # Test list command
+with patch('install.Path.resolve', return_value=empty_mcp_dir):            # Test list command
             with patch('sys.stdout', new_callable=io.StringIO) as mock_stdout:
                 with patch('sys.argv', ['install.py', 'list']):
                     install.main()

@@ -13,6 +13,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/services/storage/dom_storage/dom_storage_database_leveldb.h"
 #include "components/services/storage/dom_storage/dom_storage_database_leveldb_utils.h"
 #include "storage/common/database/leveldb_status_helper.h"
@@ -90,7 +92,13 @@ DbStatus DomStorageBatchOperationLevelDB::Commit() {
   if (database_->ShouldFailAllCommits()) {
     return DbStatus::IOError("Simulated I/O Error");
   }
+#if BUILDFLAG(IS_COBALT)
+  leveldb::WriteOptions write_options;
+  write_options.sync = true;
+  return FromLevelDBStatus(db->Write(write_options, &write_batch_));
+#else
   return FromLevelDBStatus(db->Write(leveldb::WriteOptions(), &write_batch_));
+#endif
 }
 
 size_t DomStorageBatchOperationLevelDB::ApproximateSizeForMetrics() const {

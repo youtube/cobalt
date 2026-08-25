@@ -103,9 +103,7 @@ class MEDIA_EXPORT DecoderBuffer
 
   using DiscardPadding = DecoderBufferSideData::DiscardPadding;
 
-<<<<<<< HEAD
-=======
-  // TODO(crbug.com/365814210): Remove this structure. It's barely used outside
+// TODO(crbug.com/365814210): Remove this structure. It's barely used outside
   // of unit tests.
   struct MEDIA_EXPORT TimeInfo {
     // Presentation time of the frame.
@@ -117,10 +115,7 @@ class MEDIA_EXPORT DecoderBuffer
     // for the first value indicates the entire frame should be discarded; the
     // second value must be base::TimeDelta() in this case.
     DiscardPadding discard_padding;
-  };
-
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
+  };  // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
   // TODO(crbug.com/365814210): Remove this constructor. Clients should use the
   // FromArray constructor instead asking for a writable DecoderBuffer.

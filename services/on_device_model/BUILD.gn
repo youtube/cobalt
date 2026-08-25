@@ -63,12 +63,7 @@ component("on_device_model_service") {
   if (is_android) {
     deps += [ "//services/on_device_model/android" ]
   }
-<<<<<<< HEAD
-  if (!is_fuchsia && !(is_linux && enable_cast_receiver)) {
-=======
-  if (!is_fuchsia && !is_cobalt_hermetic_build) {
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    deps += [
+if (!is_fuchsia && !(is_linux && enable_cast_receiver) && !is_cobalt_hermetic_build) {    deps += [
       "//third_party/dawn/include/dawn:cpp_headers",
       "//third_party/dawn/src/dawn:proc",
       "//third_party/dawn/src/dawn/native",

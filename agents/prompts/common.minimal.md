@@ -31,8 +31,6 @@ single agentic tool.
 
 Unless otherwise instructed, run tests with:
 `tools/autotest.py --quiet --run-all -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
-<<<<<<< HEAD
-
 ## Coding
 
 * Stay on task: Do not address code health issues or TODOs in code unless it is
@@ -50,5 +48,3 @@ git cl presubmit -u --force
 ```
 * Fix errors / warnings related to your change, but do not fix pre-existing
   warnings (from lines that you did not change).
-=======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

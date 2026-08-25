@@ -956,8 +956,14 @@ void SbPlayerBridge::WriteBuffersInternal(
     if (sample_type == kSbMediaTypeAudio) {
       DCHECK(audio_stream_info);
       SetStreamInfo(*audio_stream_info, &sample_info.audio_sample_info);
-      SetDiscardPadding(buffer->discard_padding(),
-                        &sample_info.audio_sample_info);
+      if (buffer->discard_padding().has_value()) {
+        SetDiscardPadding(*buffer->discard_padding(),
+                          &sample_info.audio_sample_info);
+      } else {
+        // If no discard padding, ensure the fields are zeroed out.
+        sample_info.audio_sample_info.discarded_duration_from_front = 0;
+        sample_info.audio_sample_info.discarded_duration_from_back = 0;
+      }
     } else {
       DCHECK_EQ(sample_type, kSbMediaTypeVideo);
       DCHECK(video_stream_info);

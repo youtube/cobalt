@@ -31,6 +31,8 @@ class HTMLVideoElement;
 // that instantiated it. Managed via Blink's Garbage Collector (oilpan).
 //
 // Threading: Main-thread bound (Blink execution context thread).
+class ExecutionContext;
+
 class OESEGLImageExternal final : public WebGLExtension {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -38,7 +40,7 @@ class OESEGLImageExternal final : public WebGLExtension {
   static bool Supported(WebGLRenderingContextBase*);
   static const char* ExtensionName();
 
-  explicit OESEGLImageExternal(WebGLRenderingContextBase*);
+  OESEGLImageExternal(WebGLRenderingContextBase*, ExecutionContext*);
 
   WebGLExtensionName GetName() const override;
 

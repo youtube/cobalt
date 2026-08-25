@@ -38,11 +38,7 @@
 #include "content/browser/child_process_security_policy_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
-<<<<<<< HEAD
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#include "content/browser/media/browser_feature_provider.h"
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"

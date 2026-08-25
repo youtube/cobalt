@@ -25,13 +25,8 @@
 #include "sandbox/policy/linux/sandbox_linux.h"
 #endif
 
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_FUCHSIA) && \
-    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "base/feature_list.h"
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
+    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))#include "base/feature_list.h"
 #include "third_party/dawn/include/dawn/dawn_proc.h"          // nogncheck
 #include "third_party/dawn/include/dawn/native/DawnNative.h"  // nogncheck
 #include "third_party/dawn/include/dawn/webgpu_cpp.h"         // nogncheck
@@ -69,13 +64,9 @@ void UpdateSandboxOptionsForGpu(
 }
 #endif
 
-<<<<<<< HEAD
 #if !BUILDFLAG(IS_FUCHSIA) && \
-    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-// If this feature is enabled, a WebGPU device is created for each valid
+    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER)) && \
+    !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)// If this feature is enabled, a WebGPU device is created for each valid
 // adapter. This makes sure any relevant drivers or other libs are loaded before
 // enabling the sandbox.
 BASE_FEATURE(kOnDeviceModelWarmDrivers,
@@ -108,13 +99,7 @@ bool PreSandboxInit() {
   }
 #endif
 
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_FUCHSIA) && \
-    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)
+#if !BUILDFLAG(IS_FUCHSIA) && !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)
 #if defined(ENABLE_ML_INTERNAL)
       && !ml::IsGpuBlocked(ml::ChromeML::Get()->api(), /*log_histogram=*/false)
 #endif

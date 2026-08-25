@@ -48,11 +48,7 @@
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 #include "components/network_session_configurator/common/network_features.h"
 #include "components/os_crypt/sync/os_crypt.h"
-<<<<<<< HEAD
-#include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
-=======
 #include "mojo/public/cpp/base/proto_wrapper.h"
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/scoped_message_error_crash_key.h"
@@ -1005,44 +1001,17 @@ void NetworkService::UpdateKeyPinsList(mojom::PinListPtr pin_list,
 }
 
 void NetworkService::UpdateMaskedDomainList(
-<<<<<<< HEAD
-=======
-    mojo_base::ProtoWrapper masked_domain_list,
-    const std::vector<std::string>& exclusion_list) {
-  const base::Time start_time = base::Time::Now();
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-  auto mdl = masked_domain_list.As<masked_domain_list::MaskedDomainList>();
-  if (mdl.has_value()) {
-    ip_protection::Telemetry().MdlSize(mdl->ByteSizeLong());
-    masked_domain_list_manager_->UpdateMaskedDomainList(mdl.value(),
-                                                        exclusion_list);
-  }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-
-  base::UmaHistogramTimes(
-      "NetworkService.IpProtection.ProxyAllowList.UpdateProcessTime",
-      base::Time::Now() - start_time);
-}
-
-void NetworkService::UpdateMaskedDomainListFlatbuffer(
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::File default_file,
     uint64_t default_file_size,
     base::File regular_browsing_file,
     uint64_t regular_browsing_file_size) {
-<<<<<<< HEAD
-  masked_domain_list_manager_->UpdateMaskedDomainList(
-      std::move(default_file), default_file_size,
-      std::move(regular_browsing_file), regular_browsing_file_size);
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   if (masked_domain_list_manager_) {
-    masked_domain_list_manager_->UpdateMaskedDomainListFlatbuffer(
+    masked_domain_list_manager_->UpdateMaskedDomainList(
         std::move(default_file), default_file_size,
         std::move(regular_browsing_file), regular_browsing_file_size);
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void NetworkService::UpdateProbabilisticRevealTokenRegistry(

@@ -12,10 +12,6 @@
     "run_shell_command(grep -R)",
     "run_shell_command(git grep)",
     "run_shell_command(gn ls)",
-<<<<<<< HEAD
-    "run_shell_command(gn clean)",
-=======
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    "read_many_files"
+"run_shell_command(gn clean)",    "read_many_files"
   ]
 }

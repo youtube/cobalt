@@ -61,6 +61,12 @@ source_set("permissions") {
     "//chrome/browser/media/webrtc",
     "//chrome/browser/permissions/system",
     "//chrome/browser/ui:browser_navigator_params_headers",
+
+    # This is needed because prediction_based_permission_ui_selector.h and
+    # prediction_model_handler_provider.h include passage_embeddings headers,
+    # guarded by BUILD_WITH_TFLITE_LIB. gn check requires the dependency to be
+    # present unconditionally.
+    "//components/passage_embeddings",
   ]
 
   deps = [
@@ -163,7 +169,6 @@ source_set("permissions") {
       deps += [ "//third_party/tflite_support" ]
     }
     deps += [
-      "//components/passage_embeddings",
       "//components/segmentation_platform/internal:optimization_guide_segmentation_handler",
     ]
   }
