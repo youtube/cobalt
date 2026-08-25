@@ -28,7 +28,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/linux/rdk/config_variables.gni")
 import("//starboard/build/config/toolchain_variables.gni")
 import("//build/config/linux/pkg_config.gni")
 import("$rdk_starboard_root/third_party/starboard/rdk/shared/build/rdk_toolchain.gni")
@@ -367,8 +366,3 @@ static_library("starboard_platform_sources") {
   }
 }
 
-shared_library("loader_app") {
-  output_dir = root_build_dir
-  deps = [ "//starboard/loader_app:loader_app_sources" ]
-  data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-}
