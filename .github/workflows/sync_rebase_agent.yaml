@@ -1,4 +1,4 @@
-name: Sync Staging to Rebase Agent Branch
+name: Sync Staging to Shadow Branch
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   sync:
-    name: Sync staging into experimental/rebase_agent
+    name: Sync staging into experimental/staging_shadow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,13 +20,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.CHERRY_PICK_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Fast-forward / Merge staging into experimental/rebase_agent
+      - name: Fast-forward / Merge staging into experimental/staging_shadow
         run: |
           set -x
           git config user.name "cobalt-github-releaser-bot"
           git config user.email "cobalt-github-releaser-bot@google.com"
 
-          git fetch origin experimental/rebase_agent:experimental/rebase_agent || true
-          git checkout experimental/rebase_agent
-          git merge origin/staging --no-edit -m "ci: sync staging into experimental/rebase_agent"
-          git push origin experimental/rebase_agent
+          git fetch origin experimental/staging_shadow:experimental/staging_shadow || true
+          git checkout experimental/staging_shadow
+          git merge origin/staging --no-edit -m "ci: sync staging into experimental/staging_shadow"
+          git push origin experimental/staging_shadow

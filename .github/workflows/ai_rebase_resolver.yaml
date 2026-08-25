@@ -11,12 +11,12 @@ on:
         description: 'Base/Vendor roll branch to resolve'
         required: false
         type: string
-        default: 'autoroll-chromium/main-to-staging'
+        default: 'experimental/staging_shadow'
       ai_branch_prefix:
         description: 'Prefix for the isolated AI working branch'
         required: false
         type: string
-        default: 'experimental/rebase_agent/'
+        default: 'experimental/ai_'
       agent_ref:
         description: 'Branch containing the AI rebase agent scripts'
         required: false
