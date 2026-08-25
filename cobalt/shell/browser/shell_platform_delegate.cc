@@ -164,6 +164,7 @@ void ShellPlatformDelegate::OnReveal() {
   }
   // Resume hang watching, explicitly ignoring deadlines from during the conceal
   // period.
+  base::HangWatcher::Resume();
 #if !BUILDFLAG(IS_STARBOARD)
   // Ensure the GPU process is restored for Android/other platforms immediately.
   // On Starboard (e.g. RDK), we must wait to restore the GPU process until
@@ -212,7 +213,9 @@ void ShellPlatformDelegate::OnUnfreeze() {
 
   // Restore GPU process on UI early so that renderer IPCs (e.g.
   // EstablishGpuChannel) are no longer blocked by the backgrounded GPU service.
+#if !BUILDFLAG(IS_STARBOARD)
   content::RestoreGpuProcessOnUI();
+#endif
 
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);
