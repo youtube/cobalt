@@ -74,8 +74,7 @@ class MediaDrmBridge {
 
   static std::unique_ptr<MediaDrmBridge> Create(
       base::raw_ref<MediaDrmBridge::Host> host,
-      std::string_view key_system,
-      bool enable_app_provisioning);
+      std::string_view key_system);
 
   MediaDrmBridge(PassKey<MediaDrmBridge>,
                  base::raw_ref<MediaDrmBridge::Host> host);
@@ -88,10 +87,6 @@ class MediaDrmBridge {
     return j_media_crypto_;
   }
 
-  void CreateSession(int ticket,
-                     std::string_view init_data,
-                     std::string_view mime) const;
-
   OperationResult CreateSessionWithAppProvisioning(int ticket,
                                                    std::string_view init_data,
                                                    std::string_view mime) const;
@@ -103,7 +98,6 @@ class MediaDrmBridge {
                                 std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
   const void* GetMetrics(int* size);
-  bool CreateMediaCryptoSession();
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,
@@ -118,7 +112,7 @@ class MediaDrmBridge {
   static bool IsCbcsSupported(JNIEnv* env);
 
  private:
-  bool Initialize(std::string_view key_system, bool enable_app_provisioning);
+  bool Initialize(std::string_view key_system);
 
   const base::raw_ref<MediaDrmBridge::Host> host_;
   std::vector<uint8_t> metrics_;
@@ -128,8 +122,7 @@ class MediaDrmBridge {
   // member is guaranteed to be valid for the lifetime of the object.
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
 
-  // |j_media_crypto_| is non-null after initialization, but may be reset
-  // via CreateMediaCryptoSession() if a session creation failure occurs.
+  // |j_media_crypto_| is non-null after initialization.
   jni_zero::ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
