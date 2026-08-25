@@ -537,6 +537,13 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
+  if (navigation_handle->IsInPrimaryMainFrame() &&
+      navigation_handle->HasCommitted() &&
+      splash_state_ == STATE_SPLASH_SCREEN_UNINITIALIZED) {
+    if (web_contents_ && web_contents_->GetRenderWidgetHostView()) {
+      web_contents_->GetRenderWidgetHostView()->Focus();
+    }
+  }
 }
 
 void Shell::DidStopLoading() {
