@@ -43,10 +43,18 @@ class PerformanceImpl
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
-  void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
+  void MeasureUsedCpuMemory(MeasureUsedCpuMemoryCallback) override;
   void MeasureUsedSwapMemory(MeasureUsedSwapMemoryCallback) override;
   void MeasureReservedVirtualMemory(
       MeasureReservedVirtualMemoryCallback) override;
+  void MeasureRssHighWaterMarkMemory(
+      MeasureRssHighWaterMarkMemoryCallback) override;
+  void MeasureUsedRssAnonMemory(MeasureUsedRssAnonMemoryCallback) override;
+  void MeasureTotalCpuMemory(MeasureTotalCpuMemoryCallback) override;
+  void MeasureUsedPssMemory(MeasureUsedPssMemoryCallback) override;
+  void MeasureApplicationLimitMemory(
+      MeasureApplicationLimitMemoryCallback) override;
+  void MeasureUsedGpuMemory(MeasureUsedGpuMemoryCallback) override;
   void GetAppStartupTimeStamp(GetAppStartupTimeStampCallback callback) override;
 
  private:

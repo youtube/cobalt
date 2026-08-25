@@ -46,7 +46,6 @@ os.environ.pop("GEMINI_CLI", None)
 # Constants
 PLATFORM = "evergreen-arm-hardfp-rdk"
 DEFAULT_REMOTE_DIR = "/data/out_cobalt"
-EXECUTABLE_REMOTE_DIR = "/data/out_loader_app_executable"
 TEST_REMOTE_DIR = "/data/test"
 MIN_SYSTEM_SOFTWARE_VERSION = "20260420"
 
@@ -140,12 +139,12 @@ def configure_build(platform: str, config: str, out_dir: Path, no_rbe: bool = Fa
     print(f"=== Configuring {platform} ({config}) ===")
     cmd = [
         "python3", "cobalt/build/gn.py", "-p", platform, "-C", config,
-        "--out_directory",
         str(out_dir)
     ]
     if no_rbe:
         cmd.append("--no-rbe")
     run_command(cmd)
+
 
 
 def build_targets(out_dir: Path, targets: List[str]) -> str:
@@ -171,16 +170,14 @@ def package_and_deploy(
     device_ip: Optional[str],
     out_dir: Path,
     remote_dir: str,
-    deps_file: Optional[Path],
-    mode: str,
-) -> None:
+    deps_file: Optional[Path], is_test: bool) -> None:
     """Packages artifacts using runtime_deps and pushes to device."""
     print("=== Packaging & Deploying artifacts ===")
     archive_name = "archive.tar.gz"
 
     if deps_file and deps_file.exists():
         tar_cmd = ["tar", "-czvf", archive_name, "-C", str(out_dir), "-T", str(deps_file)]
-        if mode == "plugin":
+        if not is_test:
             tar_cmd.append("libloader_app.so")
         build_info = out_dir / "gen/build_info.json"
         if build_info.exists():
@@ -274,7 +271,6 @@ def launch_on_device(
     device_ip: Optional[str],
     remote_dir: str,
     test_name: Optional[str],
-    mode: str,
     devtools: bool = False,
     param: Optional[List[str]] = None,
     deeplink: Optional[str] = None,
@@ -302,7 +298,7 @@ def launch_on_device(
             "rdkDisplay remove",
             "sleep 2",
         ]
-    elif mode == "plugin":
+    else:
         if devtools:
             print("[INFO] Enabling DevTools support...")
 
@@ -383,16 +379,7 @@ def launch_on_device(
                 except Exception as e:
                     print(f"[WARNING] Failed to start SSH tunnel: {e}")
             print("[INFO] DevTools is enabled. Please open Chrome and navigate to 'chrome://inspect' (add 'localhost:9222' or the device IP to discover targets).")
-    else:
-        remote_cmds += [
-            "rdkDisplay remove || true",
-            "sleep 2",
-            "rdkDisplay create",
-            "sleep 2",
-            f"XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app {' '.join(param)}" if param else "XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=test-0 ./loader_app",
-            "rdkDisplay remove",
-            "sleep 2",
-        ]
+
 
     full_cmd = " && ".join(remote_cmds)
     output = run_remote_command(f"bash -l -c \"{full_cmd}\"", device_id, device_ip)
@@ -406,12 +393,6 @@ def parse_args() -> argparse.Namespace:
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(
         description="Build and deploy Cobalt to RDK.")
-    parser.add_argument(
-        "--mode",
-        choices=["executable", "plugin"],
-        default="plugin",
-        help="Deploy as standalone executable or plugin (default).",
-    )
     parser.add_argument(
         "--only-lib", action="store_true", help="Deploy only libcobalt.lz4.")
     parser.add_argument(
@@ -451,7 +432,7 @@ def parse_args() -> argparse.Namespace:
         "--deeplink",
         type=str,
         dest="deeplink",
-        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt when launching in plugin mode.",
+        help="Deeplink parameter (e.g. v=dQw4w9WgXcQ) to pass to Cobalt.",
     )
     parser.add_argument(
         "--reset",
@@ -715,8 +696,8 @@ def main() -> None:
     """Main execution flow."""
     args = parse_args()
 
-    if args.deeplink and (args.mode != "plugin" or args.tests):
-        print("Error: --deeplink is only supported when running in plugin mode (without --tests).")
+    if args.deeplink and args.tests:
+        print("Error: --deeplink is only supported when running the Cobalt plugin (not tests).")
         sys.exit(1)
 
     if args.setup_toolchain:
@@ -772,7 +753,7 @@ def main() -> None:
             return
 
     assert_software_version(device_id, device_ip, MIN_SYSTEM_SOFTWARE_VERSION)
-    if args.mode == "plugin" and not args.tests:
+    if not args.tests:
         check_and_switch_cobalt_version(device_id, device_ip)
 
     # Setup Build Paths
@@ -785,18 +766,13 @@ def main() -> None:
         deps_file = out_dir / f"{args.tests}_loader.runtime_deps"
     elif args.only_lib:
         targets = ["cobalt"]
-        remote_dir = DEFAULT_REMOTE_DIR if args.mode == "plugin" else EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
         deps_file = None
     else:
         # Standard deployment uses cobalt_loader to generate the runtime_deps list.
-        targets = ["cobalt_loader", "loader_app"]
+        targets = ["cobalt_loader"]
         deps_file = out_dir / "cobalt_loader.runtime_deps"
-        
-        if args.mode == "plugin":
-            targets.append("loader_app_rdk_plugin")
-            remote_dir = DEFAULT_REMOTE_DIR
-        else:
-            remote_dir = EXECUTABLE_REMOTE_DIR
+        remote_dir = DEFAULT_REMOTE_DIR
 
     if not args.skip_build:
         rdk_home = os.environ.get("RDK_HOME")
@@ -839,7 +815,7 @@ def main() -> None:
         if args.only_lib:
             deploy_only_lib(device_id, device_ip, out_dir, remote_dir)
         else:
-            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, "executable" if args.tests else args.mode)
+            package_and_deploy(device_id, device_ip, out_dir, remote_dir, deps_file, is_test=bool(args.tests))
 
     if args.run:
         ensure_dolby_vision_policy(device_id, device_ip)
@@ -848,10 +824,9 @@ def main() -> None:
             device_ip,
             remote_dir,
             args.tests,
-            "executable" if args.tests else args.mode,
-            config != "gold" and args.mode == "plugin" and not args.tests,
-            args.param,
-            args.deeplink,
+            devtools=(config != "gold" and not args.tests),
+            param=args.param,
+            deeplink=args.deeplink,
         )
 
     print("=== Finished ===")

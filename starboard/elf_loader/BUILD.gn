@@ -74,8 +74,9 @@ static_library("elf_loader") {
 if (current_toolchain == starboard_toolchain) {
   starboard_executable("elf_loader_sandbox") {
     testonly = true
+    target_type = starboard_level_gtest_target_type
     sources = [ "elf_loader_sandbox.cc" ]
-    configs += [ ":elf_loader_config" ]
+    extra_configs = [ ":elf_loader_config" ]
 
     deps = [
       ":constants",
