@@ -613,22 +613,12 @@ fuzzer_test("wav_audio_handler_fuzzer") {
   ]
 }
 
-<<<<<<< HEAD
-fuzzer_test("flac_audio_handler_fuzzer") {
-  sources = [ "flac_audio_handler_fuzzer.cc" ]
-  deps = [
-    "//base",
-    "//media:test_support",
-  ]
-=======
 if (!is_cobalt) {
   fuzzer_test("flac_audio_handler_fuzzer") {
     sources = [ "flac_audio_handler_fuzzer.cc" ]
     deps = [
-      ":audio",
       "//base",
       "//media:test_support",
     ]
   }
->>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
