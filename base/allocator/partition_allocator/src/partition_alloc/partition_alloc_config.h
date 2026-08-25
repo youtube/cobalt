@@ -177,17 +177,6 @@ constexpr bool kUseLazyCommit = false;
    (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || \
    PA_BUILDFLAG(IS_CHROMEOS))
 
-<<<<<<< HEAD
-=======
-// Enable shadow metadata.
-//
-// With this flag, shadow pools will be mapped, on which writable shadow
-// metadatas are placed, and the real metadatas are set to read-only instead.
-// This feature is only enabled with 64-bit environment because pools work
-// differently with 32-bits pointers (see glossary).
-#define PA_CONFIG_ENABLE_SHADOW_METADATA() 0
-
->>>>>>> parent of cfab790ea65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if PA_BUILDFLAG(MOVE_METADATA_OUT_OF_GIGACAGE_FOR_64_BITS_POINTERS) && \
     PA_BUILDFLAG(HAS_64_BIT_POINTERS)
 #define PA_CONFIG_MOVE_METADATA_OUT_OF_GIGACAGE() 1
