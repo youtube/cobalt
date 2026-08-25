@@ -27,6 +27,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/controller/memory_usage_monitor.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
@@ -121,9 +122,17 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
     !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
 #define MAYBE_ReportMetric DISABLED_ReportMetric
 #define MAYBE_ReportMetricForeground DISABLED_ReportMetricForeground
+#define MAYBE_ReportMetricForegroundWithLowerOrFlatMemory \
+  DISABLED_ReportMetricForegroundWithLowerOrFlatMemory
+#define MAYBE_BackgroundCancelsInFlightForegroundReporting \
+  DISABLED_BackgroundCancelsInFlightForegroundReporting
 #else
 #define MAYBE_ReportMetric ReportMetric
 #define MAYBE_ReportMetricForeground ReportMetricForeground
+#define MAYBE_ReportMetricForegroundWithLowerOrFlatMemory \
+  ReportMetricForegroundWithLowerOrFlatMemory
+#define MAYBE_BackgroundCancelsInFlightForegroundReporting \
+  BackgroundCancelsInFlightForegroundReporting
 #endif
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
@@ -152,16 +161,25 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   // At least one of the config models must successfully register an
   // initialization ping.
   EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+
+  auto rss_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprint.1minTest");
+  auto rss_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min");
+
+  EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
 }
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
                        MAYBE_ReportMetricForeground) {
   base::HistogramTester histogram_tester;
 
-  blink::HighestPmfReporter::OnProcessBackgrounded();
+  blink::OnProcessBackgrounded();
   base::RunLoop().RunUntilIdle();
 
-  blink::HighestPmfReporter::OnProcessForegrounded();
+  blink::OnProcessForegrounded();
   base::RunLoop().RunUntilIdle();
 
   memory_usage_monitor_->usage_.private_footprint_bytes =
@@ -190,6 +208,106 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "0to2min");
 
   EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
+                       MAYBE_ReportMetricForegroundWithLowerOrFlatMemory) {
+  base::HistogramTester histogram_tester;
+
+  // 1. Initial startup with high memory usage
+  reporter_->ForceFirstNavigationStarted();
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      3000.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 3500.0 * 1024.0 * 1024.0;
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+
+  // 2. Transition from FG -> BG -> FG
+  blink::OnProcessBackgrounded();
+  base::RunLoop().RunUntilIdle();
+
+  blink::OnProcessForegrounded();
+  base::RunLoop().RunUntilIdle();
+
+  // 3. In the new foreground session, memory usage is LOWER than the previous
+  // peak.
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      500.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 800.0 * 1024.0 * 1024.0;
+
+  // Fast-forward 1 sec for ping, then through the reporting window.
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  // Verify that the foreground metrics still fire with the new session's
+  // values.
+  auto fg_pmf_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto fg_pmf_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+
+  EXPECT_FALSE(fg_pmf_override.empty() && fg_pmf_baseline.empty());
+
+  auto fg_rss_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+      "1minTest");
+  auto fg_rss_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+      "0to2min");
+
+  EXPECT_FALSE(fg_rss_override.empty() && fg_rss_baseline.empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
+                       MAYBE_BackgroundCancelsInFlightForegroundReporting) {
+  base::HistogramTester histogram_tester;
+
+  // 1. Transition to foreground
+  blink::OnProcessForegrounded();
+  base::RunLoop().RunUntilIdle();
+
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1200.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1500.0 * 1024.0 * 1024.0;
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+
+  // 2. Advance 30 seconds (before the 1min/2min reporting interval fires)
+  test_task_runner_->FastForwardBy(base::Seconds(30));
+
+  // 3. App goes to background -> cancels in-flight timer and stops monitor
+  // observation
+  blink::OnProcessBackgrounded();
+  base::RunLoop().RunUntilIdle();
+
+  // 4. Advance time past original interval while in background
+  test_task_runner_->FastForwardBy(base::Minutes(3));
+
+  // 5. Verify NO foreground samples were reported during background
+  auto fg_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  auto fg_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  EXPECT_TRUE(fg_samples_override.empty() && fg_samples_baseline.empty());
+
+  // 6. Resuming foreground restarts the timer cleanly
+  blink::OnProcessForegrounded();
+  base::RunLoop().RunUntilIdle();
+
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+  test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
+
+  fg_samples_override = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
+  fg_samples_baseline = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer."
+      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
+  EXPECT_FALSE(fg_samples_override.empty() && fg_samples_baseline.empty());
 }
 
 }  // namespace metrics
