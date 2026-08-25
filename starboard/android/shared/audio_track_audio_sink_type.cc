@@ -287,10 +287,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     int64_t playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (audio_track_->GetAndResetHasAudioDeviceChanged()) {
-      SB_LOG(INFO) << "Audio device changed, raising a capability changed "
-                      "error to restart playback.";
-      ReportError(true, "Audio device capability changed");
-      break;
+      SB_LOG(INFO) << "Audio device changed; continuing playback without "
+                      "restarting.";
     }
 
     // The audio data at the returned position by
