@@ -46,11 +46,11 @@
 #include "build/chromecast_buildflags.h"
 #include "components/cookie_config/cookie_store_util.h"
 #include "components/domain_reliability/monitor.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/ip_protection/common/ip_protection_core_host_remote.h"  // nogncheck
 #include "components/ip_protection/common/ip_protection_core_impl_mojo.h"    // nogncheck
 #include "components/ip_protection/common/ip_protection_proxy_delegate.h"   // nogncheck
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/network_session_configurator/browser/network_session_configurator.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/os_crypt/async/common/encryptor.h"
@@ -1247,12 +1247,12 @@ void NetworkContext::SetBlockTrustTokens(bool block) {
 
 void NetworkContext::SetTrackingProtectionContentSetting(
     const ContentSettingsForOneType& settings) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (!ip_protection_core_) {
     return;
   }
   ip_protection_core_->SetTrackingProtectionContentSetting(settings);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 void NetworkContext::OnProxyLookupComplete(
@@ -2716,7 +2716,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   // case for any given NetworkContext: either PrefetchProxy, handling its
   // custom proxy configs, or IpProtection, using the proxy allowlist.
   bool requires_ipp_proxy_delegate = false;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   auto* mdl_manager = network_service_->masked_domain_list_manager();
   auto* prt_registry = network_service_->probabilistic_reveal_token_registry();
   requires_ipp_proxy_delegate =
@@ -2742,7 +2742,7 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
             ip_protection_core_impl.get()));
     ip_protection_core_ = std::move(ip_protection_core_impl);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (!requires_ipp_proxy_delegate &&
       (params_->initial_custom_proxy_config ||
        params_->custom_proxy_config_client_receiver)) {

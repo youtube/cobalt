@@ -40,12 +40,12 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/ip_protection/common/ip_protection_telemetry.h"            // nogncheck
 #include "components/ip_protection/common/masked_domain_list_manager.h"        // nogncheck
 #include "components/ip_protection/common/probabilistic_reveal_token_registry.h"// nogncheck
 #include "components/privacy_sandbox/masked_domain_list/masked_domain_list.pb.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/network_session_configurator/common/network_features.h"
 #include "components/os_crypt/sync/os_crypt.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
@@ -503,14 +503,14 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
 
   tpcd_metadata_manager_ = std::make_unique<network::tpcd::metadata::Manager>();
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   masked_domain_list_manager_ =
       std::make_unique<ip_protection::MaskedDomainListManager>(
           params->ip_protection_proxy_bypass_policy);
 
   probabilistic_reveal_token_registry_ =
       std::make_unique<ip_protection::ProbabilisticRevealTokenRegistry>();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
   constexpr size_t kMaxSCTAuditingCacheEntries = 1024;
@@ -1004,22 +1004,22 @@ void NetworkService::UpdateMaskedDomainList(
     uint64_t default_file_size,
     base::File regular_browsing_file,
     uint64_t regular_browsing_file_size) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (masked_domain_list_manager_) {
     masked_domain_list_manager_->UpdateMaskedDomainList(
         std::move(default_file), default_file_size,
         std::move(regular_browsing_file), regular_browsing_file_size);
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 void NetworkService::UpdateProbabilisticRevealTokenRegistry(
     base::Value::Dict registry) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (probabilistic_reveal_token_registry_) {
     probabilistic_reveal_token_registry_->UpdateRegistry(std::move(registry));
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 #if BUILDFLAG(IS_ANDROID)
