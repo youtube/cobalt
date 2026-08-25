@@ -154,11 +154,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 30
         with:
           fetch-depth: 0
           persist-credentials: false
+          filter: 'blob:none'
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -239,12 +240,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@1bf7689f6bce800f108fa5e9f0885fbfcb14ffd6 # v3.5.999
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 30
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
           persist-credentials: false
+          filter: 'blob:none'
       - name: Cache Gradle
         uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         if: startsWith( matrix.target_platform , 'android')
