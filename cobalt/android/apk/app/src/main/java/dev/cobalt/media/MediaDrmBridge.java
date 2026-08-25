@@ -621,7 +621,8 @@ public class MediaDrmBridge {
     }
   }
 
-  private OperationResult createMediaCryptoSession() {
+  @CalledByNative
+  OperationResult createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
       return OperationResult.success();

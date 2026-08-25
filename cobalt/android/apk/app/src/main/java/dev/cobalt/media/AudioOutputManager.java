@@ -488,15 +488,26 @@ public class AudioOutputManager {
 
     Log.i(TAG, "Verify passthrough support by creating an AudioTrack.");
 
+    AudioTrack audioTrack = null;
     try {
-      AudioTrack audioTrack =
+      audioTrack =
           new AudioTrack(
               getDefaultAudioAttributes(/* requireHwAvSync= */ false),
               getAudioFormat(encoding, defaultSurroundSampleRate, defaultSurroundChannelCount),
               AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_5POINT1, encoding),
               AudioTrack.MODE_STREAM,
               AudioManager.AUDIO_SESSION_ID_GENERATE);
-      audioTrack.release();
+      // The AudioTrack constructor doesn't throw when the native track fails to
+      // initialize, it just leaves the object in STATE_UNINITIALIZED. Without this
+      // state check it always succeeds and passthrough gets reported as supported
+      // for unsupported devices.
+      if (audioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
+        Log.w(
+            TAG,
+            "Passthrough on encoding %d is disabled because the AudioTrack is uninitialized.",
+            encoding);
+        return false;
+      }
     } catch (Exception e) {
       // AudioTrack creation can fail if the audio is routed to an unexpected device. For example,
       // when the user has Bluetooth headphones connected, or when the encoding is EAC3 and both
@@ -508,6 +519,10 @@ public class AudioOutputManager {
           encoding,
           e);
       return false;
+    } finally {
+      if (audioTrack != null) {
+        audioTrack.release();
+      }
     }
 
     Log.i(TAG, "AudioTrack creation succeeded, passthrough support verified.");
