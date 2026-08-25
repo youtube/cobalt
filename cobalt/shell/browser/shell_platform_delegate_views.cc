@@ -465,13 +465,8 @@ void ShellPlatformDelegate::DidCreateOrAttachWebContents(
   ShellData& shell_data = it->second;
   if (shell_data.window_widget) {
     // Safely map native views window Show and Restore on initial startup!
-    if (shell_data.window_widget->GetNativeWindow() &&
-        shell_data.window_widget->GetNativeWindow()->GetHost()) {
-      shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
-    }
     shell_data.window_widget->GetNativeWindow()->Show();
     shell_data.window_widget->Restore();
-    shell_data.window_widget->Show();
   }
 }
 void ShellPlatformDelegate::RevealShell(Shell* shell) {
@@ -512,12 +507,8 @@ void ShellPlatformDelegate::MapWindowShell(Shell* shell) {
       native_window->GetHost()->compositor()->SetVisible(true);
     }
     if (native_window) {
-      if (native_window->GetHost()) {
-        native_window->GetHost()->Show();
-      }
       native_window->Show();
       shell_data.window_widget->Restore();
-      shell_data.window_widget->Show();
       shell_data.window_widget->LayoutRootViewIfNecessary();
     }
   }
