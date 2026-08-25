@@ -126,6 +126,10 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
   DISABLED_ReportMetricForegroundWithLowerOrFlatMemory
 #define MAYBE_BackgroundCancelsInFlightForegroundReporting \
   DISABLED_BackgroundCancelsInFlightForegroundReporting
+#define MAYBE_NoForegroundMetricWithoutForegroundTransition \
+  DISABLED_NoForegroundMetricWithoutForegroundTransition
+#define MAYBE_NoForegroundMetricWhenOnlyBackgrounded \
+  DISABLED_NoForegroundMetricWhenOnlyBackgrounded
 #else
 #define MAYBE_ReportMetric ReportMetric
 #define MAYBE_ReportMetricForeground ReportMetricForeground
@@ -133,6 +137,10 @@ class HighestPmfReporterBrowserTest : public content::ContentBrowserTest {
   ReportMetricForegroundWithLowerOrFlatMemory
 #define MAYBE_BackgroundCancelsInFlightForegroundReporting \
   BackgroundCancelsInFlightForegroundReporting
+#define MAYBE_NoForegroundMetricWithoutForegroundTransition \
+  NoForegroundMetricWithoutForegroundTransition
+#define MAYBE_NoForegroundMetricWhenOnlyBackgrounded \
+  NoForegroundMetricWhenOnlyBackgrounded
 #endif
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
@@ -170,6 +178,31 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
       "PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min");
 
   EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+
+  // Verify negative: foreground metrics MUST NOT fire during standard startup
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest")
+                  .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
+  EXPECT_TRUE(
+      histogram_tester
+          .GetAllSamples(
+              "Memory.Experimental.Renderer."
+              "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+              "1minTest")
+          .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "PeakResidentSet."
+                      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
 }
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
@@ -208,6 +241,28 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "0to2min");
 
   EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+
+  // Verify negative: standard startup baseline metrics MUST NOT fire when
+  // foreground-measuring
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples("Memory.Experimental.Renderer."
+                                 "HighestPrivateMemoryFootprint.1minTest")
+                  .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples("Memory.Experimental.Renderer."
+                                 "HighestPrivateMemoryFootprint.0to2min")
+                  .empty());
+  EXPECT_TRUE(
+      histogram_tester
+          .GetAllSamples(
+              "Memory.Experimental.Renderer."
+              "PeakResidentSet.AtHighestPrivateMemoryFootprint.1minTest")
+          .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min")
+                  .empty());
 }
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
@@ -308,6 +363,94 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "Memory.Experimental.Renderer."
       "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
   EXPECT_FALSE(fg_samples_override.empty() && fg_samples_baseline.empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
+                       MAYBE_NoForegroundMetricWithoutForegroundTransition) {
+  base::HistogramTester histogram_tester;
+
+  // Standard startup: First navigation started, process never receives
+  // OnProcessForegrounded
+  reporter_->ForceFirstNavigationStarted();
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1000.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1200.0 * 1024.0 * 1024.0;
+
+  test_task_runner_->FastForwardBy(base::Seconds(1));
+  test_task_runner_->FastForwardBy(base::Minutes(5));
+
+  // Verify baseline metrics DID fire
+  auto baseline_pmf_1min = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.1minTest");
+  auto baseline_pmf_0to2min = histogram_tester.GetAllSamples(
+      "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min");
+  EXPECT_FALSE(baseline_pmf_1min.empty() && baseline_pmf_0to2min.empty());
+
+  // Verify NEGATIVE: WhenForegrounded metrics NEVER fired
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest")
+                  .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
+  EXPECT_TRUE(
+      histogram_tester
+          .GetAllSamples(
+              "Memory.Experimental.Renderer."
+              "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+              "1minTest")
+          .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "PeakResidentSet."
+                      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
+}
+
+IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
+                       MAYBE_NoForegroundMetricWhenOnlyBackgrounded) {
+  base::HistogramTester histogram_tester;
+
+  // Process transitions to background immediately
+  blink::OnProcessBackgrounded();
+  base::RunLoop().RunUntilIdle();
+
+  memory_usage_monitor_->usage_.private_footprint_bytes =
+      1000.0 * 1024.0 * 1024.0;
+  memory_usage_monitor_->usage_.peak_resident_bytes = 1200.0 * 1024.0 * 1024.0;
+
+  // Advance time extensively while remaining backgrounded
+  test_task_runner_->FastForwardBy(base::Minutes(10));
+
+  // Verify NEGATIVE: ZERO foreground metrics recorded
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.1minTest")
+                  .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "HighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
+  EXPECT_TRUE(
+      histogram_tester
+          .GetAllSamples(
+              "Memory.Experimental.Renderer."
+              "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+              "1minTest")
+          .empty());
+  EXPECT_TRUE(histogram_tester
+                  .GetAllSamples(
+                      "Memory.Experimental.Renderer."
+                      "PeakResidentSet."
+                      "AtHighestPrivateMemoryFootprintWhenForegrounded.0to2min")
+                  .empty());
 }
 
 }  // namespace metrics
