@@ -142,6 +142,7 @@ class HighestPmfReporterTest : public PageTestBase {
   HighestPmfReporterTest() = default;
 
   void SetUp() override {
+#if BUILDFLAG(IS_COBALT)
     PageTestBase::SetUp();
     test_task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
     memory_usage_monitor_ = std::make_unique<MockMemoryUsageMonitor>(
@@ -149,13 +150,29 @@ class HighestPmfReporterTest : public PageTestBase {
     MemoryUsageMonitor::SetInstanceForTesting(memory_usage_monitor_.get());
     reporter_ = std::make_unique<MockHighestPmfReporter>(
         test_task_runner_, test_task_runner_->GetMockTickClock());
+#else
+    test_task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>();
+    memory_usage_monitor_ = std::make_unique<MockMemoryUsageMonitor>(
+        test_task_runner_, test_task_runner_->GetMockTickClock());
+    MemoryUsageMonitor::SetInstanceForTesting(memory_usage_monitor_.get());
+    reporter_ = std::make_unique<MockHighestPmfReporter>(
+        test_task_runner_, test_task_runner_->GetMockTickClock());
+    PageTestBase::SetUp();
+#endif
   }
 
   void TearDown() override {
+#if BUILDFLAG(IS_COBALT)
     reporter_.reset();
     MemoryUsageMonitor::SetInstanceForTesting(nullptr);
     memory_usage_monitor_.reset();
     PageTestBase::TearDown();
+#else
+    PageTestBase::TearDown();
+    MemoryUsageMonitor::SetInstanceForTesting(nullptr);
+    memory_usage_monitor_.reset();
+    reporter_.reset();
+#endif
   }
 
   void AdvanceClock(base::TimeDelta delta) {
