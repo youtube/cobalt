@@ -54,11 +54,13 @@ found in the LICENSE file.
             <meta-data android:name="android.app.lib_name"
                        android:value="{{ native_library_name }}" />
         {% else %}
+        {% block activity %}
         <activity android:name=".NativeUnitTestActivity"
                 android:label="NativeTest"
                 android:configChanges="orientation|keyboardHidden"
                 android:process=":test_process"
                 android:exported="true">
+        {% endblock %}
         {% endif %}
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

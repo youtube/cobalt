@@ -19,6 +19,12 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.JNIUtils;
 import org.chromium.native_test.NativeUnitTestActivity;
 
+/**
+ * CobaltTestActivity is a custom NativeUnitTestActivity used to run native unit tests on Android.
+ *
+ * <p>It ensures that the Chromium base library's application context and JNI class loader are
+ * properly initialized before the native test harness starts.
+ */
 public class CobaltTestActivity extends NativeUnitTestActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {

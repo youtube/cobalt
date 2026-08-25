@@ -1,77 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-Copyright 2026 The Cobalt Authors. All Rights Reserved.
--->
+{% extends "//testing/android/native_test/java/AndroidManifest.xml.jinja2" %}
+{#
+  Copyright 2026 The Cobalt Authors. All Rights Reserved.
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="org.chromium.native_test"
-      android:versionCode="1"
-      android:versionName="1.0">
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
 
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.BLUETOOTH"
-            android:maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-            android:maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
-            android:usesPermissionFlags="neverForLocation"/>
-    <uses-permission android:name="android.permission.CHANGE_CONFIGURATION"/>
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.SET_TIME_ZONE"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+      http://www.apache.org/licenses/LICENSE-2.0
 
-    {% if allow_cleartext_traffic == 'true' %}
-    <application android:label="NativeTests"
-            android:usesCleartextTraffic="true"
-            android:requestLegacyExternalStorage="true"
-            android:memtagMode="sync"
-            android:name="org.chromium.native_test.NativeTestApplication">
-    {% else %}
-    <application android:label="NativeTests"
-            android:requestLegacyExternalStorage="true"
-            android:memtagMode="sync"
-            android:name="org.chromium.native_test.NativeTestApplication">
-    {% endif %}
-        {% if use_native_activity == 'true' %}
-        <activity android:name=".NativeUnitTestNativeActivity"
-                android:label="NativeTest"
-                android:configChanges="orientation|keyboardHidden"
-                android:process=":test_process"
-                android:exported="true">
-            <meta-data android:name="android.app.lib_name"
-                       android:value="{{ native_library_name }}" />
-        {% else %}
-        <activity android:name="dev.cobalt.testing.CobaltTestActivity"
-                android:label="NativeTest"
-                android:configChanges="orientation|keyboardHidden"
-                android:process=":test_process"
-                android:exported="true">
-        {% endif %}
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+#}
 
-        {% set num_test_client_services = 10 %}
-        <meta-data android:name="org.chromium.native_test.NUM_TEST_CLIENT_SERVICES"
-                   android:value="{{ num_test_client_services }}"/>
-        {% for i in range(num_test_client_services) %}
-        <service android:name="org.chromium.base.MultiprocessTestClientService{{ i }}"
-                 android:process=":test_client_process{{ i }}"
-                 android:isolatedProcess="false"
-                 android:exported="false" />
-        {% endfor %}
-    </application>
-
-    <instrumentation android:name="org.chromium.build.gtest_apk.NativeTestInstrumentationTestRunner"
-            android:targetPackage="org.chromium.native_test"
-            android:label="Instrumentation entry point for org.chromium.native_test" />
-
-</manifest>
+{% block activity %}
+<activity android:name="dev.cobalt.testing.CobaltTestActivity"
+        android:label="NativeTest"
+        android:configChanges="orientation|keyboardHidden"
+        android:process=":test_process"
+        android:exported="true">
+{% endblock %}
