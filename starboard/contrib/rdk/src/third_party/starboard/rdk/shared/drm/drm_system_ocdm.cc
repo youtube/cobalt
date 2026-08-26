@@ -24,10 +24,10 @@
 
 #include "starboard/shared/starboard/thread_checker.h"
 
-#include <websocket/URL.h>
 #include <opencdm/open_cdm.h>
 #include <opencdm/open_cdm_adapter.h>
 
+#include "third_party/modp_b64/modp_b64.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
 namespace starboard {
@@ -779,9 +779,9 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
 
     auto rc = g_ocdmGetMetricSystemData(ocdm_system_, &buffer_length, tmp.data());
     if ( rc == ERROR_NONE ) {
-      uint16_t out_length = (((buffer_length * 8) / 6) + 4) * sizeof(TCHAR);
+      size_t out_length = modp_b64_encode_len(buffer_length);
       metrics_.resize(out_length, '\0');
-      out_length = WPEFramework::Core::URL::Base64Encode(tmp.data(), buffer_length, reinterpret_cast<char*>(metrics_.data()), out_length, false);
+      out_length = modp_b64_encode(&(metrics_[0]), reinterpret_cast<const char*>(tmp.data()), buffer_length);
       metrics_.resize(out_length);
     } else if ( rc == kBufferTooSmallErrorCode && i < (kMaxRetry - 1) ) {
       SB_LOG(INFO) << "GetMetrics: buffer is too small, rc = " << rc << ", i = " << i;
@@ -802,12 +802,9 @@ const void* DrmSystemOcdm::GetMetrics(int* size) {
     std::string buffer;
     auto rc = g_ocdmGetMetrics(ocdm_system_, buffer);
     if (rc == ERROR_NONE) {
-      uint16_t buffer_length = buffer.size();
-      uint16_t out_length = (((buffer_length * 8) / 6) + 4) * sizeof(TCHAR);
+      size_t out_length = modp_b64_encode_len(buffer.size());
       metrics_.resize(out_length, '\0');
-      out_length = WPEFramework::Core::URL::Base64Encode(
-          reinterpret_cast<const uint8_t*>(buffer.data()), buffer_length,
-          reinterpret_cast<char*>(metrics_.data()), out_length, false);
+      out_length = modp_b64_encode(&(metrics_[0]), buffer.data(), buffer.size());
       metrics_.resize(out_length);
     }
   }

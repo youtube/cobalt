@@ -13,7 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,11 +29,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-#include "starboard/accessibility.h"
-#include "starboard/configuration.h"
+#ifndef THIRD_PARTY_STARBOARD_RDK_SHARED_SYSTEM_SYSTEM_GET_PATH_H_
+#define THIRD_PARTY_STARBOARD_RDK_SHARED_SYSTEM_SYSTEM_GET_PATH_H_
 
-bool SbAccessibilitySetCaptionsEnabled(bool enabled) {
-  return false;
-}
-#endif
+namespace starboard {
+namespace system {
+
+bool GetContentDirectory(char* out_path, int path_size);
+
+}  // namespace system
+}  // namespace starboard
+
+#endif  // THIRD_PARTY_STARBOARD_RDK_SHARED_SYSTEM_SYSTEM_GET_PATH_H_
