@@ -4,7 +4,9 @@
 
 #include "components/update_client/pipeline.h"
 
+#if BUILDFLAG(IS_STARBOARD)
 #include <algorithm>
+#endif
 #include <cstdint>
 #include <optional>
 #include <queue>
