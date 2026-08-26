@@ -326,6 +326,7 @@ std::queue<Operation> MakeOperations(
         void(base::OnceCallback<
              void(base::expected<base::FilePath, UnpackerError>)>)> cache_check,
     const std::string& install_data) {
+#if BUILDFLAG(IS_STARBOARD)
   bool has_crx3 = false;
   for (const ProtocolParser::Operation& operation : pipeline.operations) {
     if (operation.type == "crx3") {
@@ -337,6 +338,7 @@ std::queue<Operation> MakeOperations(
     return MakeErrorOperations(event_adder, kInvalidOperationAttributesError,
                                protocol_request::kEventUnknown);
   }
+#endif
 
   std::queue<Operation> ops;
   for (const ProtocolParser::Operation& operation : pipeline.operations) {
