@@ -54,7 +54,8 @@
 #pragma mark - UIFocusEnvironment
 
 - (BOOL)shouldUpdateFocusInContext:(UIFocusUpdateContext*)context {
-  if ([context.previouslyFocusedView isDescendantOfView:self.view]) {
+  if ([context.previouslyFocusedView isDescendantOfView:self.view] &&
+      ![context.nextFocusedView isDescendantOfView:self.view]) {
     // This condition is entered when e.g. the web contents view is focused in
     // the Search page and the user presses Up: by default, the focus engine
     // will attempt to switch focus from the web contents view to the native
