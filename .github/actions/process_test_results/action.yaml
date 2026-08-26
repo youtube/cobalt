@@ -44,8 +44,9 @@ runs:
         TARGET_NAME: ${{ inputs.target_name }}
         GTEST_SHARDS: ${{ inputs.num_gtest_shards }}
       run: |
+        set -euo pipefail
         # Check test status.
-        if [ "$RUNNER_DEBUG" == "1" ]; then
+        if [ "${RUNNER_DEBUG:-0}" = "1" ]; then
           set -x
         fi
         exit_code=0
@@ -61,8 +62,8 @@ runs:
         result_xmls=(${RESULTS_GLOB})
         result_logs=(${LOG_GLOB})
 
-        if [ ${#result_xmls[@]} -ne ${GTEST_SHARDS} ]; then
-          if [ ${#result_logs[@]} -gt ${#result_xmls[@]} ]; then
+        if [ "${#result_xmls[@]}" -ne "${GTEST_SHARDS}" ]; then
+          if [ "${#result_logs[@]}" -gt "${#result_xmls[@]}" ]; then
             # If there are more log files than test results, test shards probably crashed.
             msg="Some targets likely crashed."
           else
@@ -73,7 +74,7 @@ runs:
           exit_code=1
         fi
 
-        if [ ${TESTS_FAILED:-0} -gt 0 ]; then
+        if [ "${TESTS_FAILED:-0}" -gt 0 ]; then
           # Print failed tests.
           echo
           echo " _____ _____ ____ _____   ____ _____   _   _____ _   _  ____  "
@@ -87,7 +88,12 @@ runs:
             if [ -s test_failures.json ]; then
               jq -r '
                 .failing_tests | to_entries[] |
-                .key + "\n" + ([.value[] | "  [  FAILED  ] \(.name)" + (if .message != "" then "\n" + ("    " + (.message | gsub("\n"; "\n    "))) else "" end)] | join("\n"))
+                .key, (
+                  .value[] |
+                  "  [  FAILED  ] \(.name)",
+                  (.message | select(. != "") | split("\n")[] | "    \(.)")
+                ),
+                ""
               ' test_failures.json || true
             fi
           fi
@@ -110,10 +116,10 @@ runs:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
       run: |
-        set -x
+        set -ex
         download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
-        curl -L --fail ${download_url} --output datadog-ci
-        echo ${DD_SHA256SUM} | sha256sum --check
+        curl -L --fail "${download_url}" --output datadog-ci
+        echo "${DD_SHA256SUM}" | sha256sum --check
         chmod +x datadog-ci
       shell: bash
 
@@ -128,11 +134,11 @@ runs:
         DD_ENV: ci
         RESULTS_GLOB: ${{ inputs.results_glob }}
       run: |
-        set -x
+        set -ex
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
         # globstar is not supported on macOS default bash (3.2), so we only enable it on non-macOS platforms.
         if [[ "$OSTYPE" != "darwin"* ]]; then
           shopt -s globstar
         fi
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_GLOB}
+        ./datadog-ci junit upload --service "${DD_SERVICE}" ${RESULTS_GLOB}
       shell: bash
