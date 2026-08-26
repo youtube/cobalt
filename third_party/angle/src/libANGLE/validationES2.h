@@ -658,16 +658,8 @@ ANGLE_INLINE bool ValidateBindTexture(const Context *context,
     if (!context->getState().isBindGeneratesResourceEnabled() &&
         !context->isTextureGenerated(texture))
     {
-#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
-        if (target != TextureType::External)
-        {
-            ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
-            return false;
-        }
-#else
         ANGLE_VALIDATION_ERROR(GL_INVALID_OPERATION, err::kObjectNotGenerated);
         return false;
-#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     }
 
     return true;

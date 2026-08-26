@@ -65,9 +65,6 @@ ModuleCache::~ModuleCache() {
 }
 
 const ModuleCache::Module* ModuleCache::GetModuleForAddress(uintptr_t address) {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  return nullptr;
-#else
   if (const ModuleCache::Module* module =
           GetExistingModuleForAddress(address)) {
     return module;
@@ -85,7 +82,6 @@ const ModuleCache::Module* ModuleCache::GetModuleForAddress(uintptr_t address) {
   // TODO(crbug.com/40150346): Reintroduce DCHECK(result.second) after
   // fixing the issue that is causing it to fail.
   return result.first->get();
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 std::vector<const ModuleCache::Module*> ModuleCache::GetModules() const {
