@@ -42,6 +42,7 @@
 #endif
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+#include "cobalt/browser/h5vcc_memory/low_memory_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_thread.h"
@@ -270,6 +271,10 @@ class AppEventRunnerImpl : public AppEventRunner,
     CHECK(is_running());
     base::MemoryPressureListener::NotifyMemoryPressure(
         base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+    // Forward event to JavaScript layer via LowMemoryManager before reclaiming
+    // memory.
+    cobalt::browser::LowMemoryManager::GetInstance()->OnLowMemory();
 
     // Chromium internally calls Reclaim/ReclaimNormal at regular interval
     // to claim free memory. Using ReclaimAll is more aggressive.
