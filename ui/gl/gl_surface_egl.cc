@@ -23,6 +23,7 @@
 #include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/gpu_fence.h"
@@ -535,6 +536,7 @@ void NativeViewGLSurfaceEGL::Destroy() {
   vsync_provider_internal_ = nullptr;
 
   if (surface_) {
+#if BUILDFLAG(IS_COBALT)
     if (display_->IsInitialized()) {
       if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
         EGLint error = eglGetError();
@@ -544,6 +546,12 @@ void NativeViewGLSurfaceEGL::Destroy() {
         }
       }
     }
+#else
+    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+      LOG(ERROR) << "eglDestroySurface failed with error "
+                 << GetLastEGLErrorString();
+    }
+#endif
     surface_ = NULL;
   }
   config_ = nullptr;
@@ -1039,6 +1047,7 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
+#if BUILDFLAG(IS_COBALT)
     if (display_->IsInitialized()) {
       if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
         EGLint error = eglGetError();
@@ -1048,6 +1057,12 @@ void PbufferGLSurfaceEGL::Destroy() {
         }
       }
     }
+#else
+    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+      LOG(ERROR) << "eglDestroySurface failed with error "
+                 << GetLastEGLErrorString();
+    }
+#endif
     surface_ = NULL;
   }
   config_ = nullptr;

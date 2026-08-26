@@ -25,6 +25,7 @@
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
 #include "ui/aura/window_tree_host_platform.h"
+#include "ui/compositor/compositor.h"
 #include "ui/platform_window/platform_window.h"
 
 namespace content {
@@ -129,6 +130,9 @@ void ShellPlatformDelegate::ConcealShell(Shell* shell) {
   }
   if (!platform_ || !platform_->aura || !platform_->aura->host()) {
     return;
+  }
+  if (platform_->aura->host()->compositor()) {
+    platform_->aura->host()->compositor()->SetVisible(false);
   }
   platform_->aura->host()->Hide();
 }

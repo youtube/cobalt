@@ -813,10 +813,16 @@ void GpuChannelManager::OnBackgroundCleanup() {
   if (program_cache_)
     program_cache_->Trim(0u);
 
-  // 3. Mark SharedContextState context lost and reset it so Skia GrDirectContext
-  // and the shared EGLContext are completely destroyed.
+  // 3. Mark SharedContextState context lost and destroy the shared GL context
+  // so no active EGLContexts remain before shutting down the EGLDisplay.
   if (shared_context_state_) {
+    shared_context_state_->ReleaseCurrent(nullptr);
     shared_context_state_->MarkContextLost();
+    if (shared_context_state_->real_context()) {
+      shared_context_state_->real_context()->Destroy();
+    } else if (shared_context_state_->context()) {
+      shared_context_state_->context()->Destroy();
+    }
     shared_context_state_.reset();
   }
 

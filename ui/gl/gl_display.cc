@@ -499,7 +499,11 @@ void GLDisplayEGL::Shutdown() {
     gpu_switching_observer_.reset();
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // Ensure the calling thread has released any bound EGL context before
+  // terminating the display.
   eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+#endif
   angle::ResetPlatform(display_);
   DCHECK(g_driver_egl.fn.eglTerminateFn);
   eglTerminate(display_);

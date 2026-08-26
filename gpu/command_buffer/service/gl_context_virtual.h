@@ -58,14 +58,13 @@ class GPU_GLES2_EXPORT GLContextVirtual : public gl::GLContext {
 #endif
 
   gl::GLDisplayEGL* GetGLDisplayEGL() override;
+  void Destroy() override;
 
  protected:
   ~GLContextVirtual() override;
   void ResetExtensions() override;
 
  private:
-  void Destroy();
-
   scoped_refptr<gl::GLContext> shared_context_;
   base::WeakPtr<GLContextVirtualDelegate> delegate_;
 };

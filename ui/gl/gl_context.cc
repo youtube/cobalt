@@ -409,7 +409,9 @@ GLContext* GLContext::GetRealCurrent() {
 }
 
 void GLContext::OnContextWillDestroy() {
-  DCHECK(!has_called_on_destory_);
+  if (has_called_on_destory_) {
+    return;
+  }
   has_called_on_destory_ = true;
 
   observer_list_.Notify(&GLContextObserver::OnGLContextWillDestroy, this);

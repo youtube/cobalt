@@ -169,8 +169,7 @@ GLSurfacePresentationHelper::GLSurfacePresentationHelper(
 GLSurfacePresentationHelper::~GLSurfacePresentationHelper() {
   // Discard pending frames and run presentation callback with empty
   // PresentationFeedback.
-  bool has_context =
-      gl_context_ && surface_ && gl_context_->IsCurrent(surface_);
+  bool has_context = gl_context_ && gl_context_->IsCurrent(surface_);
   for (auto& frame : pending_frames_) {
     frame.Destroy(has_context);
   }
@@ -267,7 +266,7 @@ void GLSurfacePresentationHelper::CheckPendingFrames() {
   if (pending_frames_.empty())
     return;
 
-  if (!gl_context_ || !surface_ || !gl_context_->MakeCurrent(surface_)) {
+  if (!gl_context_->MakeCurrent(surface_)) {
     gl_context_ = nullptr;
     egl_timestamp_client_ = nullptr;
     gpu_timing_client_ = nullptr;

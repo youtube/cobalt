@@ -241,10 +241,9 @@ void PlatformWindowStarboard::Minimize() {
 
 void PlatformWindowStarboard::DestroySbWindowInstance() {
   if (SbWindowIsValid(sb_window_)) {
-    SbWindow window_to_destroy = sb_window_;
+    (*g_destroyed_callback).Run(sb_window_);
+    SbWindowDestroy(sb_window_);
     sb_window_ = kSbWindowInvalid;
-    (*g_destroyed_callback).Run(window_to_destroy);
-    SbWindowDestroy(window_to_destroy);
   }
 }
 
