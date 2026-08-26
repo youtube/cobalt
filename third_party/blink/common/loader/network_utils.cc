@@ -34,7 +34,7 @@ bool AlwaysAccessNetwork(
 }
 
 const char* ImageAcceptHeader() {
-#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+#if BUILDFLAG(ENABLE_AV1_DECODER)
   return "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
 #else
   return "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";

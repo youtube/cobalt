@@ -307,9 +307,6 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::GetCompiled(
 std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
     Isolate* isolate, const CacheKey& cache_key, const CanonicalSig* sig,
     std::shared_ptr<WasmImportWrapperHandle> wrapper_handle) {
-#if !V8_ENABLE_TURBOFAN
-  UNREACHABLE();
-#else
   wasm::WasmCompilationResult result;
   wasm::WasmCode::Kind code_kind;
   switch (cache_key.kind) {
@@ -371,10 +368,8 @@ std::shared_ptr<WasmImportWrapperHandle> WasmImportWrapperCache::CompileWrapper(
   }
 
   return wrapper_handle;
-#endif
 }
 
-#ifdef V8_ENABLE_TURBOFAN
 std::shared_ptr<WasmImportWrapperHandle>
 WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
@@ -408,7 +403,6 @@ WasmImportWrapperCache::CompileWasmJsFastCallWrapper(
 
   return wrapper_handle;
 }
-#endif
 
 WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
   // This can be called from the disassembler via `code->MaybePrint()` in
