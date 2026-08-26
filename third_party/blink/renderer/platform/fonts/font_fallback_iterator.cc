@@ -165,7 +165,7 @@ FontDataForRangeSet* FontFallbackIterator::Next(const HintCharList& hint_list) {
     if (first_candidate_)                                                                                                                  
       return first_candidate_; 
     return MakeGarbageCollected<FontDataForRangeSet>();
-#endif
+#else
     if (!first_candidate_)
       FontCache::CrashWithFontInfo(&font_description_);
     return first_candidate_;
