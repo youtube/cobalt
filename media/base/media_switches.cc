@@ -23,7 +23,6 @@
 #include "base/cpu.h"
 #endif
 
-<<<<<<< HEAD
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif
@@ -31,11 +30,10 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
 #endif
-=======
+
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/player.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace switches {
 

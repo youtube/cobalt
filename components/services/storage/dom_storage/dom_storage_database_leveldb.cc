@@ -280,66 +280,6 @@ DbStatus DomStorageDatabaseLevelDB::GetPrefixed(
       });
 }
 
-<<<<<<< HEAD
-=======
-DbStatus DomStorageDatabaseLevelDB::DeletePrefixed(
-    KeyView prefix,
-    DomStorageBatchOperation& batch) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!db_) {
-    return DbStatus::IOError(kInvalidDatabaseMessage);
-  }
-  DbStatus status = ForEachWithPrefix(
-      db_.get(), prefix,
-      [&](const leveldb::Slice& key, const leveldb::Slice& value) {
-        leveldb::WriteBatch* write_batch = GetAsWriteBatch(batch);
-        write_batch->Delete(key);
-      });
-  return status;
-}
-
-DbStatus DomStorageDatabaseLevelDB::CopyPrefixed(
-    KeyView prefix,
-    KeyView new_prefix,
-    DomStorageBatchOperation& batch) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!db_) {
-    return DbStatus::IOError(kInvalidDatabaseMessage);
-  }
-  Key new_key(new_prefix.begin(), new_prefix.end());
-  DbStatus status = ForEachWithPrefix(
-      db_.get(), prefix,
-      [&](const leveldb::Slice& key, const leveldb::Slice& value) {
-        DCHECK_GE(key.size(), prefix.size());  // By definition.
-        size_t suffix_length = key.size() - prefix.size();
-        new_key.resize(new_prefix.size() + suffix_length);
-        std::copy(UNSAFE_TODO(key.data() + prefix.size()),
-                  UNSAFE_TODO(key.data() + key.size()),
-                  new_key.begin() + new_prefix.size());
-        leveldb::WriteBatch* write_batch = GetAsWriteBatch(batch);
-        write_batch->Put(MakeSlice(new_key), value);
-      });
-  return status;
-}
-
-DbStatus DomStorageDatabaseLevelDB::Commit(
-    DomStorageBatchOperation& batch) const {
-  if (!db_) {
-    return DbStatus::IOError(kInvalidDatabaseMessage);
-  }
-  if (fail_commits_for_testing_) {
-    return DbStatus::IOError("Simulated I/O Error");
-  }
-#if BUILDFLAG(IS_COBALT)
-  return FromLevelDBStatus(
-      db_->Write(CreateSyncWriteOptions(), GetAsWriteBatch(batch)));
-#else
-  return FromLevelDBStatus(
-      db_->Write(leveldb::WriteOptions(), GetAsWriteBatch(batch)));
-#endif
-}
-
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
   if (!db_) {
     return DbStatus::IOError(kInvalidDatabaseMessage);

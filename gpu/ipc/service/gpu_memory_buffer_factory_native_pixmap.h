@@ -5,16 +5,6 @@
 #ifndef GPU_IPC_SERVICE_GPU_MEMORY_BUFFER_FACTORY_NATIVE_PIXMAP_H_
 #define GPU_IPC_SERVICE_GPU_MEMORY_BUFFER_FACTORY_NATIVE_PIXMAP_H_
 
-<<<<<<< HEAD
-#include <vulkan/vulkan_core.h>
-
-=======
-#include <unordered_map>
-#include <utility>
-
-#include "base/hash/hash.h"
-#include "base/synchronization/lock.h"
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "gpu/ipc/service/gpu_ipc_service_export.h"
 #include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "ui/gfx/native_pixmap.h"

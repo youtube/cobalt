@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -956,8 +957,14 @@ void SbPlayerBridge::WriteBuffersInternal(
     if (sample_type == kSbMediaTypeAudio) {
       DCHECK(audio_stream_info);
       SetStreamInfo(*audio_stream_info, &sample_info.audio_sample_info);
-      SetDiscardPadding(buffer->discard_padding(),
-                        &sample_info.audio_sample_info);
+      // `discard_padding()` returns std::nullopt when the buffer carries no
+      // discard padding at all; leave `sample_info.audio_sample_info`'s
+      // already zero-initialized discarded durations alone in that case.
+      const std::optional<::media::DecoderBuffer::DiscardPadding>
+          discard_padding = buffer->discard_padding();
+      if (discard_padding.has_value()) {
+        SetDiscardPadding(*discard_padding, &sample_info.audio_sample_info);
+      }
     } else {
       DCHECK_EQ(sample_type, kSbMediaTypeVideo);
       DCHECK(video_stream_info);

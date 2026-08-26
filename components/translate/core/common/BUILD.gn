@@ -29,7 +29,7 @@ static_library("common") {
   ]
 
   if (is_cobalt) {
-    deps -= [ "//components/language_detection/core:core" ]
+    deps -= [ "//components/language_detection/core" ]
   }
 }
 

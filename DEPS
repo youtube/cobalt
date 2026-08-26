@@ -273,16 +273,12 @@ vars = {
   'screen_ai_windows_386': 'version:140.02',
 
   # siso CIPD package version.
-<<<<<<< HEAD
-  'siso_version': 'git_revision:887a10bc8a038d8e330d06d1ad5ae6ec646f3040',
-=======
   # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
   # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
   # modifications to build/config/siso/configure_siso.py can also be removed
   # in favor of setting the '--reapi_backend_config_path' argument to
   # 'cobalt.star'
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # download libaom test data
   'download_libaom_testdata': False,
@@ -2093,14 +2089,9 @@ deps = {
   'src/third_party/cpu_features/src':
     Var('chromium_git') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
 
-<<<<<<< HEAD
-  'src/third_party/cpuinfo/src':
-    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '33ed0be77d7767d0e2010e2c3cf972ef36c7c307',
-=======
 # Cobalt: imported
 #  'src/third_party/cpuinfo/src':
-#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + 'e4cadd02a8b386c38b84f0a19eddacec3f433baa',
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/pytorch/cpuinfo.git' + '@' + '33ed0be77d7767d0e2010e2c3cf972ef36c7c307',
 
   'src/third_party/crc32c/src':
     Var('chromium_git') + '/external/github.com/google/crc32c.git' + '@' + 'd3d60ac6e0f16780bcfcc825385e1d338801a558',
@@ -2663,14 +2654,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '4ab725613a8ee64e9acd7930eceb8995e24df562',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '197c2ac5ee9fb715ed90d4f89a23a4480bcaba9a',
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '4ab725613a8ee64e9acd7930eceb8995e24df562',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3041,14 +3027,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '9bd64751d9b3b35a820cb72c9029993e218146a1',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '89da73ed13ba4df75d126a963bbbf6e54cd3ce8c',
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + '9bd64751d9b3b35a820cb72c9029993e218146a1',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

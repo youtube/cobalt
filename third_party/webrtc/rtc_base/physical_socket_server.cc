@@ -78,9 +78,6 @@
 typedef void* SockOptArg;
 #endif  // WEBRTC_POSIX
 
-<<<<<<< HEAD
-#if defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC)
-=======
 #if defined(STARBOARD)
 
 int64_t GetSocketRecvTimestamp(int socket) {
@@ -105,9 +102,8 @@ int64_t GetSocketRecvTimestamp(int socket) {
   return -1;
 }
 
-#elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC) && !defined(__native_client__)
+#elif defined(WEBRTC_POSIX) && !defined(WEBRTC_MAC)
 
->>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 int64_t GetSocketRecvTimestamp(int socket) {
   struct timeval tv_ioctl;
   int ret = ioctl(socket, SIOCGSTAMP, &tv_ioctl);

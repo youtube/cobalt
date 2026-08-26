@@ -416,6 +416,7 @@ class CobaltMetricsServiceClientBaseTest : public ::testing::Test {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     mock_media_client_ = std::make_unique<media::MockMediaClient>();
     media::SetMediaClient(mock_media_client_.get());
+    mock_media_client_->InstallDecoderBufferAllocator();
 #endif
   }
 

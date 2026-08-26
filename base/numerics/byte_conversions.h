@@ -12,13 +12,14 @@
 #include <type_traits>
 
 #include "base/numerics/basic_ops_impl.h"
+#include "build/build_config.h"
 
 #if !BUILDFLAG(IS_STARBOARD) || defined(SB_IS_DEFAULT_TC)
 #include <bit>
 #endif
 
 // Chromium only builds and runs on Little Endian machines.
-static_assert(std::endian::native == std::endian::little);
+static_assert(ARCH_CPU_LITTLE_ENDIAN);
 
 namespace base {
 

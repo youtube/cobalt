@@ -20,15 +20,15 @@ MediaClient* GetMediaClient() {
   return g_media_client;
 }
 
-MediaClient::MediaClient() {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
-#endif
-}
+MediaClient::MediaClient() = default;
 
 MediaClient::~MediaClient() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaClient::InstallDecoderBufferAllocator() {
+  DecoderBuffer::Allocator::Set(&decoder_buffer_allocator_);
+}
+
 // static
 uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
   if (g_media_client) {

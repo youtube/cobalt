@@ -39,7 +39,8 @@ ShellSpeechRecognitionManagerDelegate::GetEventListener() {
 
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROID)
 void ShellSpeechRecognitionManagerDelegate::BindSpeechRecognitionContext(
-    mojo::PendingReceiver<media::mojom::SpeechRecognitionContext> receiver) {}
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionContext> receiver,
+    const std::string& language) {}
 #endif
 
 }  // namespace content
