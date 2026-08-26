@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for merge_autoroll_lts.py."""
+"""Tests for merge_autoroll.py."""
 
 import json
 import os
@@ -24,20 +24,20 @@ import unittest
 import urllib.error
 from unittest.mock import MagicMock, patch
 
-# Add the current directory to sys.path to import merge_autoroll_lts
+# Add the current directory to sys.path to import merge_autoroll
 sys.path.append(os.path.dirname(__file__))
 # pylint: disable=wrong-import-position
-import merge_autoroll_lts
+import merge_autoroll
 # pylint: enable=wrong-import-position
 
 
 class TestMergeAutorollLts(unittest.TestCase):
-  """Test cases for merge_autoroll_lts main execution flows."""
+  """Test cases for merge_autoroll main execution flows."""
 
   def setUp(self):
     # Mock get_installation_access_token to return fake token
     self.token_patcher = patch(
-        'merge_autoroll_lts.get_installation_access_token',
+        'merge_autoroll.get_installation_access_token',
         return_value='fake_token')
     self.mock_get_token = self.token_patcher.start()
 
@@ -53,7 +53,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     self.argv_patcher = patch(
         'sys.argv',
         [
-            'merge_autoroll_lts.py',
+            'merge_autoroll.py',
             '--source-branch',
             'main',
             '--target-branch',
@@ -135,11 +135,11 @@ class TestMergeAutorollLts(unittest.TestCase):
     self._setup_mock_run(mock_run)
 
     with patch('sys.stdout'), patch('sys.stderr'):
-      merge_autoroll_lts.main()
+      merge_autoroll.main()
 
     # Verify gh pr list call
     mock_run.assert_any_call([
-        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -152,7 +152,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'fetch',
-        merge_autoroll_lts.REPO_URL, '+27.lts:refs/remotes/origin/27.lts',
+        merge_autoroll.REPO_URL, '+27.lts:refs/remotes/origin/27.lts',
         '+autoroll-main-to-27.lts:refs/remotes/origin/autoroll-main-to-27.lts'
     ],
                              check=True,
@@ -171,7 +171,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'push',
-        merge_autoroll_lts.REPO_URL, 'HEAD:27.lts'
+        merge_autoroll.REPO_URL, 'HEAD:27.lts'
     ],
                              check=True,
                              env=unittest.mock.ANY)
@@ -186,10 +186,10 @@ class TestMergeAutorollLts(unittest.TestCase):
     self._setup_mock_run(mock_run, prs_list=[])
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(SystemExit) as cm:
-        merge_autoroll_lts.main()
+        merge_autoroll.main()
     self.assertEqual(cm.exception.code, 0)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -212,11 +212,11 @@ class TestMergeAutorollLts(unittest.TestCase):
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(SystemExit) as cm:
-        merge_autoroll_lts.main()
+        merge_autoroll.main()
 
     self.assertEqual(cm.exception.code, 1)
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -231,7 +231,7 @@ class TestMergeAutorollLts(unittest.TestCase):
       # Call real mkdtemp before mocking it
       test_tmpdir = tempfile.mkdtemp()
 
-      with patch('merge_autoroll_lts.tempfile.mkdtemp') as mock_mkdtemp:
+      with patch('merge_autoroll.tempfile.mkdtemp') as mock_mkdtemp:
         mock_mkdtemp.return_value = test_tmpdir
 
         os.makedirs(os.path.join(test_tmpdir, '.github'))
@@ -246,7 +246,7 @@ class TestMergeAutorollLts(unittest.TestCase):
         try:
           with patch('sys.stdout'), patch('sys.stderr'):
             with self.assertRaises(SystemExit) as cm:
-              merge_autoroll_lts.main()
+              merge_autoroll.main()
           self.assertEqual(cm.exception.code, 1)
         finally:
           shutil.rmtree(test_tmpdir, ignore_errors=True)
@@ -257,9 +257,9 @@ class TestMergeAutorollLts(unittest.TestCase):
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(subprocess.CalledProcessError):
-        merge_autoroll_lts.main()
+        merge_autoroll.main()
     mock_run.assert_called_once_with([
-        'gh', 'pr', 'list', '--repo', merge_autoroll_lts.REPO_OWNER_PATH,
+        'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
         '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
         'number,headRefName,baseRefName,title'
     ],
@@ -276,12 +276,12 @@ class TestAppCredentialExchange(unittest.TestCase):
 
   # pylint: disable=unused-argument
 
-  @patch('merge_autoroll_lts.openssl')
+  @patch('merge_autoroll.openssl')
   def test_generate_jwt_success(self, mock_openssl):
     mock_openssl.return_value = b'fake_signature'
 
     with patch('time.time', return_value=100000):
-      jwt = merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+      jwt = merge_autoroll.generate_jwt('12345', '/tmp/fake.pem')
 
     self.assertTrue(jwt.startswith('eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.'))
     mock_openssl.assert_called_once_with(
@@ -292,25 +292,25 @@ class TestAppCredentialExchange(unittest.TestCase):
         stdin=unittest.mock.ANY,
         stdout=subprocess.PIPE)
 
-  @patch('merge_autoroll_lts.openssl')
+  @patch('merge_autoroll.openssl')
   def test_generate_jwt_openssl_not_found(self, mock_openssl):
     mock_openssl.side_effect = FileNotFoundError('openssl not found')
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(FileNotFoundError):
-        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+        merge_autoroll.generate_jwt('12345', '/tmp/fake.pem')
 
-  @patch('merge_autoroll_lts.openssl')
+  @patch('merge_autoroll.openssl')
   def test_generate_jwt_openssl_error(self, mock_openssl):
     mock_openssl.side_effect = subprocess.CalledProcessError(
         returncode=1, cmd='openssl')
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(subprocess.CalledProcessError):
-        merge_autoroll_lts.generate_jwt('12345', '/tmp/fake.pem')
+        merge_autoroll.generate_jwt('12345', '/tmp/fake.pem')
 
   @patch('urllib.request.urlopen')
-  @patch('merge_autoroll_lts.generate_jwt', return_value='fake_jwt')
+  @patch('merge_autoroll.generate_jwt', return_value='fake_jwt')
   def test_get_installation_access_token_success(self, mock_generate_jwt,
                                                  mock_urlopen):
     mock_res_tok = MagicMock()
@@ -320,14 +320,14 @@ class TestAppCredentialExchange(unittest.TestCase):
     mock_urlopen.return_value = mock_res_tok
 
     with patch('sys.stdout'), patch('sys.stderr'):
-      token = merge_autoroll_lts.get_installation_access_token(
+      token = merge_autoroll.get_installation_access_token(
           '12345', '/tmp/fake.pem')
 
     self.assertEqual(token, 'app_installed_token')
     mock_generate_jwt.assert_called_once_with('12345', '/tmp/fake.pem')
 
   @patch('urllib.request.urlopen')
-  @patch('merge_autoroll_lts.generate_jwt', return_value='fake_jwt')
+  @patch('merge_autoroll.generate_jwt', return_value='fake_jwt')
   def test_get_installation_access_token_token_error(self, mock_generate_jwt,
                                                      mock_urlopen):
     mock_urlopen.side_effect = urllib.error.HTTPError(
@@ -336,7 +336,7 @@ class TestAppCredentialExchange(unittest.TestCase):
 
     with patch('sys.stdout'), patch('sys.stderr'):
       with self.assertRaises(urllib.error.HTTPError):
-        merge_autoroll_lts.get_installation_access_token(
+        merge_autoroll.get_installation_access_token(
             '12345', '/tmp/fake.pem')
 
   # pylint: enable=unused-argument
@@ -347,34 +347,34 @@ class TestWrappers(unittest.TestCase):
 
   @patch('subprocess.run')
   def test_git_wrapper_default_check(self, mock_run):
-    merge_autoroll_lts.git('status')
+    merge_autoroll.git('status')
     mock_run.assert_called_once_with(['git', 'status'], check=True)
 
   @patch('subprocess.run')
   def test_git_wrapper_custom_check(self, mock_run):
-    merge_autoroll_lts.git('status', check=False)
+    merge_autoroll.git('status', check=False)
     mock_run.assert_called_once_with(['git', 'status'], check=False)
 
   @patch('subprocess.run')
   def test_gh_wrapper_default_check(self, mock_run):
-    merge_autoroll_lts.gh('auth', 'status')
+    merge_autoroll.gh('auth', 'status')
     mock_run.assert_called_once_with(['gh', 'auth', 'status'], check=True)
 
   @patch('subprocess.run')
   def test_gh_wrapper_custom_check(self, mock_run):
-    merge_autoroll_lts.gh('auth', 'status', check=False)
+    merge_autoroll.gh('auth', 'status', check=False)
     mock_run.assert_called_once_with(['gh', 'auth', 'status'], check=False)
 
   @patch('subprocess.run')
   def test_openssl_wrapper_default_check(self, mock_run):
-    merge_autoroll_lts.openssl('status')
+    merge_autoroll.openssl('status')
     mock_run.assert_called_once_with(['openssl', 'status'],
                                      input=None,
                                      check=True)
 
   @patch('subprocess.run')
   def test_openssl_wrapper_custom_stdin_and_check(self, mock_run):
-    merge_autoroll_lts.openssl('status', stdin=b'data', check=False)
+    merge_autoroll.openssl('status', stdin=b'data', check=False)
     mock_run.assert_called_once_with(['openssl', 'status'],
                                      input=b'data',
                                      check=False)
