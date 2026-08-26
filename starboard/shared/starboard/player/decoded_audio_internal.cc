@@ -316,6 +316,8 @@ scoped_refptr<DecodedAudio> DecodedAudio::Clone() const {
       channels(), sample_type(), storage_type(), timestamp(), size_in_bytes());
 
   memcpy(copy->data(), data(), size_in_bytes());
+  copy->set_discarded_durations(discarded_duration_from_front_,
+                                discarded_duration_from_back_);
 
   return copy;
 }
