@@ -267,6 +267,9 @@ AudioOutputManager::AudioOutputManager() {
   SB_DCHECK(env);
   j_audio_output_manager_ =
       StarboardBridge::GetInstance()->GetAudioOutputManager(env);
+  if (j_audio_output_manager_.is_null()) {
+    j_audio_output_manager_ = Java_AudioOutputManager_getInstance(env);
+  }
 }
 
 void JNI_AudioOutputManager_OnAudioDeviceChanged(JNIEnv* env) {

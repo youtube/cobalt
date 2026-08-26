@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.chromium.base.ContextUtils;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -38,11 +39,26 @@ import org.jni_zero.NativeMethods;
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
 @JNINamespace("starboard")
 public class AudioOutputManager {
+  private static AudioOutputManager sInstance;
+
   private List<AudioTrackBridge> mAudioTrackBridgeList;
   private Context mContext;
 
   AtomicBoolean mHasAudioDeviceChanged = new AtomicBoolean(false);
   boolean mHasRegisteredAudioDeviceCallback = false;
+
+  @CalledByNative
+  public static AudioOutputManager getInstance() {
+    synchronized (AudioOutputManager.class) {
+      if (sInstance == null) {
+        Context context = ContextUtils.getApplicationContext();
+        if (context != null) {
+          sInstance = new AudioOutputManager(context);
+        }
+      }
+      return sInstance;
+    }
+  }
 
   public AudioOutputManager(Context context) {
     mContext = context;
