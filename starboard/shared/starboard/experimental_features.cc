@@ -62,7 +62,7 @@ void SetExperimentalFeaturesForCurrentThread(
   experimental_features = ExperimentalFeatures(std::move(map));
 
   if (experimental_features->GetBool(
-          kMediaEnableSimdBasedAudioFormatSwitching)) {
+          kMediaEnableDecodedAudioSimdOptimizations)) {
     DecodedAudio::EnableSimdBasedAudioFormatSwitching();
   }
 }

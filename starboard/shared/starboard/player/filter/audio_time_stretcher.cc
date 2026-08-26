@@ -21,12 +21,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <utility>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
+
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+#include <arm_neon.h>
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
 
 namespace starboard {
 
@@ -62,22 +67,22 @@ namespace starboard {
 // Max/min supported playback rates for fast/slow audio. Audio outside of these
 // ranges are muted.
 // Audio at these speeds would sound better under a frequency domain algorithm.
-static const double kMinPlaybackRate = 0.5;
-static const double kMaxPlaybackRate = 4.0;
+constexpr double kMinPlaybackRate = 0.5;
+constexpr double kMaxPlaybackRate = 4.0;
 
 // Overlap-and-add window size in milliseconds.
-static const int kOlaWindowSizeMs = 20;
+constexpr int kOlaWindowSizeMs = 20;
 
 // Size of search interval in milliseconds. The search interval is
 // [-delta delta] around |output_index_| * |playback_rate|. So the search
 // interval is 2 * delta.
-static const int kWsolaSearchIntervalMs = 30;
+constexpr int kWsolaSearchIntervalMs = 30;
 
 // The maximum size in seconds for the |audio_buffer_|. Arbitrarily determined.
-static const int kMaxCapacityInSeconds = 3;
+constexpr int kMaxCapacityInSeconds = 3;
 
 // The minimum size in ms for the |audio_buffer_|. Arbitrarily determined.
-static const int kStartingCapacityInMs = 200;
+constexpr int kStartingCapacityInMs = 200;
 
 AudioTimeStretcher::AudioTimeStretcher()
     : sample_type_(kSbMediaAudioSampleTypeFloat32),
@@ -101,11 +106,20 @@ AudioTimeStretcher::~AudioTimeStretcher() {}
 
 void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
                                     int channels,
-                                    int samples_per_second) {
+                                    int samples_per_second,
+                                    bool enable_optimized) {
   SB_DCHECK_GT(samples_per_second, 0);
 
   sample_type_ = sample_type;
   channels_ = channels;
+#if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+  // Disable optimizations on x86/x64 because the optimized path is currently
+  // only implemented on ARM (using NEON SIMD). Using it on x86/x64 would fall
+  // back to scalar C++ loops, causing a performance regression for Mono audio.
+  enable_optimized_wsola_ = false;
+#else   // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+  enable_optimized_wsola_ = enable_optimized;
+#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
   bytes_per_frame_ = GetBytesPerSample(sample_type_) * channels_;
   samples_per_second_ = samples_per_second;
   initial_capacity_ = capacity_ =
@@ -142,10 +156,10 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
   search_block_center_offset_ =
       num_candidate_blocks_ / 2 + (ola_window_size_ / 2 - 1);
 
-  ola_window_.reset(new float[ola_window_size_]);
+  ola_window_ = std::make_unique<float[]>(ola_window_size_);
   GetPeriodicHanningWindow(ola_window_size_, ola_window_.get());
 
-  transition_window_.reset(new float[ola_window_size_ * 2]);
+  transition_window_ = std::make_unique<float[]>(ola_window_size_ * 2);
   GetPeriodicHanningWindow(2 * ola_window_size_, transition_window_.get());
 
   wsola_output_ = new DecodedAudio(
@@ -257,6 +271,99 @@ bool AudioTimeStretcher::IsQueueFull() const {
   return audio_buffer_.frames() >= capacity_;
 }
 
+namespace {
+
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+void BlendTransitionMono_NEON(float* opt,
+                              const float* target,
+                              const float* w1,
+                              const float* w2,
+                              int size) {
+  const int last_index = size - (size % 4);
+  for (int n = 0; n < last_index; n += 4) {
+    float32x4_t opt_reg = vld1q_f32(opt + n);
+    float32x4_t target_reg = vld1q_f32(target + n);
+    float32x4_t w1_reg = vld1q_f32(w1 + n);
+    float32x4_t w2_reg = vld1q_f32(w2 + n);
+    vst1q_f32(opt + n,
+              vmlaq_f32(vmulq_f32(opt_reg, w1_reg), target_reg, w2_reg));
+  }
+  for (int n = last_index; n < size; ++n) {
+    opt[n] = opt[n] * w1[n] + target[n] * w2[n];
+  }
+}
+
+void BlendTransitionStereo_NEON(float* opt,
+                                const float* target,
+                                const float* w1,
+                                const float* w2,
+                                int size) {
+  const int last_index = size - (size % 2);
+  for (int n = 0; n < last_index; n += 2) {
+    float32x4_t opt_reg = vld1q_f32(opt + n * 2);
+    float32x4_t target_reg = vld1q_f32(target + n * 2);
+    float32x2_t w1_2 = vld1_f32(w1 + n);
+    float32x2_t w2_2 = vld1_f32(w2 + n);
+    float32x2x2_t w1_zip = vzip_f32(w1_2, w1_2);
+    float32x2x2_t w2_zip = vzip_f32(w2_2, w2_2);
+    float32x4_t w1_reg = vcombine_f32(w1_zip.val[0], w1_zip.val[1]);
+    float32x4_t w2_reg = vcombine_f32(w2_zip.val[0], w2_zip.val[1]);
+    vst1q_f32(opt + n * 2,
+              vmlaq_f32(vmulq_f32(opt_reg, w1_reg), target_reg, w2_reg));
+  }
+  for (int n = last_index; n < size; ++n) {
+    opt[n * 2] = opt[n * 2] * w1[n] + target[n * 2] * w2[n];
+    opt[n * 2 + 1] = opt[n * 2 + 1] * w1[n] + target[n * 2 + 1] * w2[n];
+  }
+}
+
+void OverlapAndAddMono_NEON(const float* opt,
+                            float* output,
+                            const float* w_out,
+                            const float* w_opt,
+                            int size) {
+  const int last_index = size - (size % 4);
+  for (int n = 0; n < last_index; n += 4) {
+    float32x4_t out_reg = vld1q_f32(output + n);
+    float32x4_t opt_reg = vld1q_f32(opt + n);
+    float32x4_t w_out_reg = vld1q_f32(w_out + n);
+    float32x4_t w_opt_reg = vld1q_f32(w_opt + n);
+    vst1q_f32(output + n,
+              vmlaq_f32(vmulq_f32(out_reg, w_out_reg), opt_reg, w_opt_reg));
+  }
+  for (int n = last_index; n < size; ++n) {
+    output[n] = output[n] * w_out[n] + opt[n] * w_opt[n];
+  }
+}
+
+void OverlapAndAddStereo_NEON(const float* opt,
+                              float* output,
+                              const float* w_out,
+                              const float* w_opt,
+                              int size) {
+  const int last_index = size - (size % 2);
+  for (int n = 0; n < last_index; n += 2) {
+    float32x4_t out_reg = vld1q_f32(output + n * 2);
+    float32x4_t opt_reg = vld1q_f32(opt + n * 2);
+    float32x2_t w_out_2 = vld1_f32(w_out + n);
+    float32x2_t w_opt_2 = vld1_f32(w_opt + n);
+    float32x2x2_t w_out_zip = vzip_f32(w_out_2, w_out_2);
+    float32x2x2_t w_opt_zip = vzip_f32(w_opt_2, w_opt_2);
+    float32x4_t w_out_reg = vcombine_f32(w_out_zip.val[0], w_out_zip.val[1]);
+    float32x4_t w_opt_reg = vcombine_f32(w_opt_zip.val[0], w_opt_zip.val[1]);
+    vst1q_f32(output + n * 2,
+              vmlaq_f32(vmulq_f32(out_reg, w_out_reg), opt_reg, w_opt_reg));
+  }
+  for (int n = last_index; n < size; ++n) {
+    output[n * 2] = output[n * 2] * w_out[n] + opt[n * 2] * w_opt[n];
+    output[n * 2 + 1] =
+        output[n * 2 + 1] * w_out[n] + opt[n * 2 + 1] * w_opt[n];
+  }
+}
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+
+}  // namespace
+
 void AudioTimeStretcher::GetOptimalBlock() {
   int optimal_index = 0;
 
@@ -280,7 +387,7 @@ void AudioTimeStretcher::GetOptimalBlock() {
     // |search_block_|.
     optimal_index = OptimalIndex(search_block_.get(), target_block_.get(),
                                  kSbMediaAudioFrameStorageTypeInterleaved,
-                                 exclude_interval);
+                                 exclude_interval, enable_optimized_wsola_);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.
@@ -295,14 +402,53 @@ void AudioTimeStretcher::GetOptimalBlock() {
     // as that of the optimal-block which makes it like a weighting function
     // where target-block has higher weight close to zero (weight of 1 at index
     // 0) and lower weight close the end.
-    for (int k = 0; k < channels_; ++k) {
-      float* ch_opt = reinterpret_cast<float*>(optimal_block_->data()) + k;
-      const float* const ch_target =
-          reinterpret_cast<float*>(target_block_->data()) + k;
+    if (enable_optimized_wsola_ && channels_ == 1) {
+      bool handled = false;
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+      BlendTransitionMono_NEON(
+          optimal_block_->data_as_float32(), target_block_->data_as_float32(),
+          transition_window_.get(), transition_window_.get() + ola_window_size_,
+          ola_window_size_);
+      handled = true;
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+      if (!handled) {
+        float* opt = optimal_block_->data_as_float32();
+        const float* target = target_block_->data_as_float32();
+        const float* w1 = transition_window_.get();
+        const float* w2 = transition_window_.get() + ola_window_size_;
+        for (int n = 0; n < ola_window_size_; ++n) {
+          opt[n] = opt[n] * w1[n] + target[n] * w2[n];
+        }
+      }
+    } else if (enable_optimized_wsola_ && channels_ == 2) {
+      bool handled = false;
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+      BlendTransitionStereo_NEON(
+          optimal_block_->data_as_float32(), target_block_->data_as_float32(),
+          transition_window_.get(), transition_window_.get() + ola_window_size_,
+          ola_window_size_);
+      handled = true;
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+      if (!handled) {
+        float* opt = optimal_block_->data_as_float32();
+        const float* target = target_block_->data_as_float32();
+        const float* w1 = transition_window_.get();
+        const float* w2 = transition_window_.get() + ola_window_size_;
+        for (int n = 0; n < ola_window_size_; ++n) {
+          opt[n * 2] = opt[n * 2] * w1[n] + target[n * 2] * w2[n];
+          opt[n * 2 + 1] = opt[n * 2 + 1] * w1[n] + target[n * 2 + 1] * w2[n];
+        }
+      }
+    } else {
       for (int n = 0; n < ola_window_size_; ++n) {
-        ch_opt[n * channels_] =
-            ch_opt[n * channels_] * transition_window_[n] +
-            ch_target[n * channels_] * transition_window_[ola_window_size_ + n];
+        float* ch_opt = optimal_block_->data_as_float32() + n * channels_;
+        const float* const ch_target =
+            target_block_->data_as_float32() + n * channels_;
+        float w1 = transition_window_[n];
+        float w2 = transition_window_[ola_window_size_ + n];
+        for (int k = 0; k < channels_; ++k) {
+          ch_opt[k] = ch_opt[k] * w1 + ch_target[k] * w2;
+        }
       }
     }
   }
@@ -363,22 +509,62 @@ bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
   GetOptimalBlock();
 
   // Overlap-and-add.
-  for (int k = 0; k < channels_; ++k) {
-    const float* const ch_opt_frame =
-        reinterpret_cast<const float*>(optimal_block_->data()) + k;
-    float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) + k +
-                       num_complete_frames_ * channels_;
+  if (enable_optimized_wsola_ && channels_ == 1) {
+    bool handled = false;
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+    OverlapAndAddMono_NEON(
+        optimal_block_->data_as_float32(),
+        wsola_output_->data_as_float32() + num_complete_frames_,
+        ola_window_.get() + ola_hop_size_, ola_window_.get(), ola_hop_size_);
+    handled = true;
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+    if (!handled) {
+      const float* opt = optimal_block_->data_as_float32();
+      float* output = wsola_output_->data_as_float32() + num_complete_frames_;
+      const float* w_out = ola_window_.get() + ola_hop_size_;
+      const float* w_opt = ola_window_.get();
+      for (int n = 0; n < ola_hop_size_; ++n) {
+        output[n] = output[n] * w_out[n] + opt[n] * w_opt[n];
+      }
+    }
+  } else if (enable_optimized_wsola_ && channels_ == 2) {
+    bool handled = false;
+#if (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+    OverlapAndAddStereo_NEON(
+        optimal_block_->data_as_float32(),
+        wsola_output_->data_as_float32() + num_complete_frames_ * 2,
+        ola_window_.get() + ola_hop_size_, ola_window_.get(), ola_hop_size_);
+    handled = true;
+#endif  // (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+    if (!handled) {
+      const float* opt = optimal_block_->data_as_float32();
+      float* output =
+          wsola_output_->data_as_float32() + num_complete_frames_ * 2;
+      const float* w_out = ola_window_.get() + ola_hop_size_;
+      const float* w_opt = ola_window_.get();
+      for (int n = 0; n < ola_hop_size_; ++n) {
+        output[n * 2] = output[n * 2] * w_out[n] + opt[n * 2] * w_opt[n];
+        output[n * 2 + 1] =
+            output[n * 2 + 1] * w_out[n] + opt[n * 2 + 1] * w_opt[n];
+      }
+    }
+  } else {
     for (int n = 0; n < ola_hop_size_; ++n) {
-      ch_output[n * channels_] =
-          ch_output[n * channels_] * ola_window_[ola_hop_size_ + n] +
-          ch_opt_frame[n * channels_] * ola_window_[n];
+      float* ch_output = wsola_output_->data_as_float32() +
+                         (num_complete_frames_ + n) * channels_;
+      const float* const ch_opt_frame =
+          optimal_block_->data_as_float32() + n * channels_;
+      float w_out = ola_window_[ola_hop_size_ + n];
+      float w_opt = ola_window_[n];
+      for (int k = 0; k < channels_; ++k) {
+        ch_output[k] = ch_output[k] * w_out + ch_opt_frame[k] * w_opt;
+      }
     }
   }
   // Copy the second half to the output.
-  const float* const ch_opt_frame =
-      reinterpret_cast<const float*>(optimal_block_->data());
-  float* ch_output = reinterpret_cast<float*>(wsola_output_->data()) +
-                     num_complete_frames_ * channels_;
+  const float* const ch_opt_frame = optimal_block_->data_as_float32();
+  float* ch_output =
+      wsola_output_->data_as_float32() + num_complete_frames_ * channels_;
   memcpy(&ch_output[ola_hop_size_ * channels_],
          &ch_opt_frame[ola_hop_size_ * channels_],
          sizeof(*ch_opt_frame) * ola_hop_size_ * channels_);

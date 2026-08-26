@@ -372,6 +372,10 @@ vector<vector<const char*>> GetSupportedTests() {
   vector<const char*> supported_files =
       GetSupportedAudioTestFiles(kExcludeHeaac, 6, "audiopassthrough=false");
 
+  if (supported_files.empty()) {
+    return test_params;
+  }
+
   // Generate test cases. For example, we have |supported_files| [A, B, C].
   // Add tests A->A, A->B, A->C, B->A, B->B, B->C, C->A, C->B and C->C.
   for (size_t i = 0; i < supported_files.size(); i++) {

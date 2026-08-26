@@ -24,6 +24,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -73,6 +74,23 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
     size_t index,
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back);
+
+scoped_refptr<DecodedAudio> CreateTestDecodedAudio(int frames,
+                                                   int channels,
+                                                   int sample_rate,
+                                                   float frequency,
+                                                   float amplitude);
+
+scoped_refptr<DecodedAudio> CreateTestDecodedAudioWithData(
+    const std::vector<float>& data_values,
+    int channels);
+
+scoped_refptr<DecodedAudio> CreateTestStereoDecodedAudio(int frames,
+                                                         int sample_rate,
+                                                         float left_frequency,
+                                                         float left_amplitude,
+                                                         float right_frequency,
+                                                         float right_amplitude);
 
 }  // namespace starboard
 
