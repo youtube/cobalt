@@ -216,7 +216,9 @@ void SkiaOutputSurfaceImplOnGpu::PromiseImageAccessHelper::BeginAccess(
 }
 
 void SkiaOutputSurfaceImplOnGpu::PromiseImageAccessHelper::EndAccess() {
-  impl_on_gpu_->EndAccessImages(image_contexts_);
+  if (!impl_on_gpu_->was_context_lost()) {
+    impl_on_gpu_->EndAccessImages(image_contexts_);
+  }
   image_contexts_.clear();
 }
 
@@ -510,6 +512,10 @@ void SkiaOutputSurfaceImplOnGpu::FinishPaintCurrentFrame(
     std::vector<GrBackendSemaphore> end_semaphores;
     promise_image_access_helper_.BeginAccess(
         std::move(image_contexts), &begin_semaphores, &end_semaphores);
+    if (context_is_lost_) {
+      scoped_output_device_paint_.reset();
+      return;
+    }
     if (!begin_semaphores.empty()) {
       auto result = scoped_output_device_paint_->Wait(
           begin_semaphores.size(), begin_semaphores.data(),
@@ -699,6 +705,9 @@ void SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass(
 
   promise_image_access_helper_.BeginAccess(std::move(image_contexts),
                                            &begin_semaphores, &end_semaphores);
+  if (context_is_lost_) {
+    return;
+  }
 
   if (graphite_recording) {
     skgpu::graphite::InsertRecordingInfo info;
@@ -1823,6 +1832,14 @@ void SkiaOutputSurfaceImplOnGpu::BeginAccessImages(
     context->BeginAccessIfNecessary(context_state_.get(),
                                     shared_image_representation_factory_.get(),
                                     begin_semaphores, end_semaphores);
+    if (context->promise_image_textures().empty() &&
+        context->graphite_textures().empty() &&
+        !context->paint_op_buffer()) {
+      LOG(ERROR) << "Failed to fulfill promise image textures for mailbox: "
+                 << context->mailbox().ToDebugString();
+      MarkContextLost(CONTEXT_LOST_UNKNOWN);
+      return;
+    }
     if (context->HasAccessEndState()) {
       image_contexts_to_apply_end_state_.emplace(context);
     }
@@ -2291,6 +2308,9 @@ void SkiaOutputSurfaceImplOnGpu::SwapBuffersInternal(
   DCHECK(output_device_);
 
   if (context_is_lost_) {
+    promise_image_access_helper_.EndAccess();
+    scoped_output_device_paint_.reset();
+    overlay_pass_accesses_.clear();
     return;
   }
 
@@ -2529,11 +2549,18 @@ void SkiaOutputSurfaceImplOnGpu::MarkContextLost(ContextLostReason reason) {
   // Release all ongoing AsyncReadResults.
   ReleaseAsyncReadResultHelpers();
 
+  image_contexts_to_apply_end_state_.clear();
+  promise_image_access_helper_.EndAccess();
+
   for (auto& [mailbox, representation] : skia_representations_) {
     if (representation) {
       representation->OnContextLost();
     }
   }
+
+  presenter_ = nullptr;
+  scoped_output_device_paint_.reset();
+  output_device_.reset();
 
   context_state_->MarkContextLost();
   if (context_lost_callback_) {

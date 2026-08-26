@@ -175,13 +175,14 @@ void ImageContextImpl::SetPromiseImageTextures(
 
 void ImageContextImpl::DeleteFallbackTextures() {
   if (fallback_context_state_) {
-    if (fallback_context_state_->gr_context()) {
+    if (fallback_context_state_->gr_context() &&
+        !fallback_context_state_->context_lost()) {
       CHECK(graphite_fallback_textures_.empty());
       for (auto& fallback_texture : fallback_textures_) {
         gpu::DeleteGrBackendTexture(fallback_context_state_, &fallback_texture);
       }
-    } else {
-      CHECK(fallback_context_state_->gpu_main_graphite_recorder());
+    } else if (fallback_context_state_->gpu_main_graphite_recorder() &&
+               !fallback_context_state_->context_lost()) {
       CHECK(fallback_textures_.empty());
       for (auto& fallback_texture : graphite_fallback_textures_) {
         fallback_context_state_->gpu_main_graphite_recorder()
@@ -196,6 +197,9 @@ void ImageContextImpl::DeleteFallbackTextures() {
 
 void ImageContextImpl::CreateFallbackImage(
     gpu::SharedContextState* context_state) {
+  if (!context_state || context_state->context_lost()) {
+    return;
+  }
   const int num_planes = format().NumberOfPlanes();
   TRACE_EVENT_BEGIN("viz", "ImageContextImpl::CreateFallbackImage");
 
@@ -297,7 +301,9 @@ void ImageContextImpl::CreateFallbackImage(
   // allocated. Skia will skip drawing a null GrPromiseImageTexture, do nothing
   // and leave it null.
   const auto& formats = backend_formats();
-  if (formats.empty() || formats[0].textureType() == GrTextureType::kExternal) {
+  if (formats.size() < static_cast<size_t>(num_planes) ||
+      formats[0].textureType() == GrTextureType::kExternal ||
+      !context_state->gr_context()) {
     result = CreateFallbackImageResult::kFailedExternalTexture;
     return;
   }
@@ -334,6 +340,9 @@ void ImageContextImpl::BeginAccessIfNecessary(
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores) {
   if (representation_raster_scoped_access_)
+    return;
+
+  if (!context_state || context_state->context_lost())
     return;
 
   if (!BeginAccessIfNecessaryInternal(context_state, representation_factory,

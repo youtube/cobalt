@@ -499,6 +499,7 @@ void GLDisplayEGL::Shutdown() {
     gpu_switching_observer_.reset();
   }
 
+  eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   angle::ResetPlatform(display_);
   DCHECK(g_driver_egl.fn.eglTerminateFn);
   eglTerminate(display_);

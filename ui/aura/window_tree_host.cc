@@ -338,8 +338,8 @@ void WindowTreeHost::Show() {
 }
 
 void WindowTreeHost::Hide() {
-  HideImpl();
   OnAcceleratedWidgetMadeVisible(false);
+  HideImpl();
 }
 
 gfx::Rect WindowTreeHost::GetBoundsInDIP() const {

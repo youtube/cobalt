@@ -37,6 +37,7 @@
 #include "ui/gl/scoped_make_current.h"
 #include "ui/gl/sync_control_vsync_provider.h"
 
+using ui::GetEGLErrorString;
 using ui::GetLastEGLErrorString;
 
 namespace gl {
@@ -534,12 +535,18 @@ void NativeViewGLSurfaceEGL::Destroy() {
   vsync_provider_internal_ = nullptr;
 
   if (surface_) {
-    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
-      LOG(ERROR) << "eglDestroySurface failed with error "
-                 << GetLastEGLErrorString();
+    if (display_->IsInitialized()) {
+      if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+        EGLint error = eglGetError();
+        if (error != EGL_BAD_SURFACE && error != EGL_BAD_DISPLAY) {
+          LOG(ERROR) << "eglDestroySurface failed with error "
+                     << GetEGLErrorString(error);
+        }
+      }
     }
     surface_ = NULL;
   }
+  config_ = nullptr;
 }
 
 bool NativeViewGLSurfaceEGL::IsOffscreen() {
@@ -1032,12 +1039,18 @@ bool PbufferGLSurfaceEGL::Initialize(GLSurfaceFormat format) {
 
 void PbufferGLSurfaceEGL::Destroy() {
   if (surface_) {
-    if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
-      LOG(ERROR) << "eglDestroySurface failed with error "
-                 << GetLastEGLErrorString();
+    if (display_->IsInitialized()) {
+      if (!eglDestroySurface(display_->GetDisplay(), surface_)) {
+        EGLint error = eglGetError();
+        if (error != EGL_BAD_SURFACE && error != EGL_BAD_DISPLAY) {
+          LOG(ERROR) << "eglDestroySurface failed with error "
+                     << GetEGLErrorString(error);
+        }
+      }
     }
     surface_ = NULL;
   }
+  config_ = nullptr;
 }
 
 bool PbufferGLSurfaceEGL::IsOffscreen() {

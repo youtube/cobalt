@@ -247,8 +247,14 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
     gl::GLDisplay* display,
     const gfx::Size& size) {
-  return gl::InitializeGLSurface(
-      new gl::PbufferGLSurfaceEGL(display->GetAs<gl::GLDisplayEGL>(), size));
+  gl::GLDisplayEGL* egl_display = display->GetAs<gl::GLDisplayEGL>();
+  if (egl_display->IsEGLSurfacelessContextSupported() && size.width() == 0 &&
+      size.height() == 0) {
+    return gl::InitializeGLSurface(new gl::SurfacelessEGL(egl_display, size));
+  } else {
+    return gl::InitializeGLSurface(new gl::PbufferGLSurfaceEGL(
+        egl_display, size.IsZero() ? gfx::Size(1, 1) : size));
+  }
 }
 
 gl::EGLDisplayPlatform GLOzoneEGLStarboard::GetNativeDisplay() {
