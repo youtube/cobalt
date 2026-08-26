@@ -1249,7 +1249,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
   // Update the stack state.
   wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
-  std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter> target_stack =
+  std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
   target_stack->jmpbuf()->parent = active_stack;
   target_stack->jmpbuf()->stack_limit = target_stack->jslimit();
@@ -1274,8 +1274,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
   DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
-  active_stack->jmpbuf()->state = wasm::JumpBuffer::Inactive;
-
   return *suspender;
 }
 
@@ -1309,7 +1307,7 @@ class PrototypesSetup : public wasm::Decoder {
       : Decoder(data_begin, data_end), isolate_(isolate) {}
 
   Tagged<Object> SetupPrototypes(DirectHandle<JSObject> constructors) {
-    WHILE_WITH_HANDLE_SCOPE(isolate(), more(), {
+    WHILE_WITH_HANDLE_SCOPE(isolate(), more()) {
       DirectHandle<JSObject> prototype = NextPrototype();
       if (prototype.is_null()) return ReadOnlyRoots(isolate()).exception();
       uint32_t num_methods = consume_u32v("number of methods");
@@ -1363,7 +1361,7 @@ class PrototypesSetup : public wasm::Decoder {
         }
       }
       if (!ok()) break;
-    });
+    }
     if (!ok()) {
       DirectHandle<String> message =
           isolate()

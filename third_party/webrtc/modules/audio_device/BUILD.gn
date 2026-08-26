@@ -114,7 +114,7 @@ rtc_library("windows_core_audio_utility") {
       "../../rtc_base:platform_thread_types",
       "../../rtc_base:stringutils",
       "../../rtc_base/win:windows_version",
-      "//third_party/abseil-cpp/absl/strings:strings",
+      "//third_party/abseil-cpp/absl/strings",
     ]
 
     libs = [ "oleaut32.lib" ]
@@ -159,7 +159,7 @@ rtc_library("audio_device_module_from_input_and_output") {
       "../../rtc_base:timeutils",
       "../../rtc_base/win:scoped_com_initializer",
       "../../rtc_base/win:windows_version",
-      "//third_party/abseil-cpp/absl/strings:strings",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
 }

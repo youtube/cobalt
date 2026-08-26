@@ -256,9 +256,6 @@ class HttpStreamPool::AttemptManager
   void SetOnCompleteCallbackForTesting(base::OnceClosure callback);
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HttpStreamPoolAttemptManagerTest,
-                           GetIPEndPointToAttempt);
-
   // Represents the availability of this instance. If not kAvailable, `this`
   // can't handle new Jobs and this should not have in-flight attempts.
   enum class AvailabilityState {
@@ -371,8 +368,9 @@ class HttpStreamPool::AttemptManager
   // limits.
   bool ShouldRespectLimits() const;
 
-  // Returns true only when there are no jobs that disable IP based pooling.
-  bool IsIpBasedPoolingEnabled() const;
+  // Returns true only when there are no jobs that disable IP based pooling for
+  // HTTP/2. Note that this does nothing with QUIC.
+  bool IsIpBasedPoolingEnabledForH2() const;
 
   // Returns true only when there are no jobs that disable alternative services.
   bool IsAlternativeServiceEnabled() const;

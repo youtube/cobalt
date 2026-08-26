@@ -36,13 +36,6 @@ BASE_FEATURE(kWebViewDisableCHIPS,
              "WebViewDisableCHIPS",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Disables MSAA and default sharpening when rendering scaled elements. This is
-// often preferable when rendering images/video but can have adverse effects for
-// text on some displays.
-BASE_FEATURE(kWebViewDisableSharpeningAndMSAA,
-             "WebViewDisableSharpeningAndMSAA",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables draining the WebView prefetch queue (for prefetches triggered from
 // background thread) during WebView instance initialization and before
 // WebView#loadUrl().
@@ -96,12 +89,6 @@ BASE_FEATURE(kWebViewMixedContentAutoupgrades,
 BASE_FEATURE(kWebViewMuteAudio,
              "WebViewMuteAudio",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Whether to record size of the embedding app's data directory to the UMA
-// histogram Android.WebView.AppDataDirectorySize.
-BASE_FEATURE(kWebViewRecordAppDataDirectorySize,
-             "WebViewRecordAppDataDirectorySize",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A Feature used for WebView variations tests. Not used in production. Please
 // do not clean up this stale feature: we intentionally keep this feature flag
@@ -238,12 +225,26 @@ BASE_FEATURE(kWebViewRenderDocument,
              "WebViewRenderDocument",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// This enables getViewportInsetBottom which is used to resize the visual
+// viewport according to both the visible area of the WebView and any IME
+// overlap.
+BASE_FEATURE(kWebViewReportImeInsets,
+             "WebViewReportImeInsets",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, if the developer hasn't overridden shouldInterceptRequest
 // (or provided the async version), we short circuit (return no response)
 // on the IO thread instead of calling the (empty) method on a background
 // thread.
 BASE_FEATURE(kWebViewShortCircuitShouldInterceptRequest,
              "WebViewShortCircuitShouldInterceptRequest",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, WebView disables MSAA and doesn't auto sharpen mip-mapped
+// textures on very large screen devices (such as TVs). The exact criteria for
+// what qualifies for this can be found in AwGrContextOptionsProvider.java.
+BASE_FEATURE(kWebViewUseRenderingHeuristic,
+             "WebViewUseRenderingHeuristic",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, webview chromium initialization uses the startup tasks logic

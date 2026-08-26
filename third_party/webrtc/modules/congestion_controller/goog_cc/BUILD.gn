@@ -25,7 +25,6 @@ rtc_library("goog_cc") {
     "../../../api:field_trials_view",
     "../../../api:network_state_predictor_api",
     "../../../api/environment",
-    "../../../api/rtc_event_log",
     "../../../api/transport:bandwidth_usage",
     "../../../api/transport:network_control",
     "../../../api/units:data_rate",
@@ -33,15 +32,11 @@ rtc_library("goog_cc") {
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
     "../../../logging:rtc_event_bwe",
-    "../../../logging:rtc_event_pacing",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
-    "../../../rtc_base/experiments:alr_experiment",
     "../../../rtc_base/experiments:field_trial_parser",
     "../../../rtc_base/experiments:rate_control_settings",
-    "../../../system_wrappers",
     "../../remote_bitrate_estimator",
-    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -78,6 +73,7 @@ rtc_library("alr_detector") {
   ]
   deps = [
     "../../../api:field_trials_view",
+    "../../../api/environment",
     "../../../api/rtc_event_log",
     "../../../api/units:data_rate",
     "../../../api/units:data_size",
@@ -85,7 +81,6 @@ rtc_library("alr_detector") {
     "../../../api/units:timestamp",
     "../../../logging:rtc_event_pacing",
     "../../../rtc_base:checks",
-    "../../../rtc_base:safe_conversions",
     "../../../rtc_base:timeutils",
     "../../../rtc_base/experiments:alr_experiment",
     "../../../rtc_base/experiments:field_trial_parser",

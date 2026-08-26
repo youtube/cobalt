@@ -220,10 +220,16 @@ String CookieJar::Cookies() {
   }
 
   base::TimeDelta elapsed = timer.Elapsed();
+  constexpr int kMinTimeMicros = 10;
+  constexpr int kMaxTimeMicros = 1 * 1000 * 1000;  // 1 second
   if (ipc_needed) {
-    base::UmaHistogramTimes("Blink.CookiesTime.IpcNeeded", elapsed);
+    base::UmaHistogramCustomCounts("Blink.CookiesTime.IpcNeeded2",
+                                   elapsed.InMicroseconds(), kMinTimeMicros,
+                                   kMaxTimeMicros, 50);
   } else {
-    base::UmaHistogramTimes("Blink.CookiesTime.IpcNotNeeded", elapsed);
+    base::UmaHistogramCustomCounts("Blink.CookiesTime.IpcNotNeeded2",
+                                   elapsed.InMicroseconds(), kMinTimeMicros,
+                                   kMaxTimeMicros, 50);
   }
 
   // We should run the ablation study only for scenarios with ipc.
@@ -231,7 +237,11 @@ String CookieJar::Cookies() {
     base::TimeDelta delay = elapsed * kCookieJarAblationDelayFactor.Get() +
                             kCookieJarAblationDelayOffset.Get();
     base::UmaHistogramMediumTimes("Blink.CookiesTime.AblationDelay2", delay);
+
     if (delay.is_positive()) {
+      // Report the actual delay caused by PlatformThread::Sleep(). See
+      // https://crbug.com/412532502 for more details.
+      SCOPED_UMA_HISTOGRAM_TIMER_MICROS("Blink.Cookies.Time.AblationSleepTime");
       base::PlatformThread::Sleep(delay);
     }
   }

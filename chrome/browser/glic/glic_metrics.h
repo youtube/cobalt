@@ -133,7 +133,11 @@ enum class ResponseSegmentation {
   kAfterSignInAttachedAudio = 42,
   kAfterSignInDetachedText = 43,
   kAfterSignInDetachedAudio = 44,
-  kMaxValue = kAfterSignInDetachedAudio,
+  kSharedTabAttachedText = 45,
+  kSharedTabAttachedAudio = 46,
+  kSharedTabDetachedText = 47,
+  kSharedTabDetachedAudio = 48,
+  kMaxValue = kSharedTabDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
@@ -204,6 +208,7 @@ class GlicMetrics {
     virtual bool IsWindowAttached() const = 0;
     virtual content::WebContents* GetContents() = 0;
     virtual ActiveTabSharingState GetActiveTabSharingState() = 0;
+    virtual int32_t GetNumPinnedTabs() const = 0;
   };
 
   GlicMetrics(Profile* profile, GlicEnabling* enabling);

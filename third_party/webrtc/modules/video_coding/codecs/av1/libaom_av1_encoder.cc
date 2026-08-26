@@ -784,7 +784,7 @@ int32_t LibaomAv1Encoder::Encode(
             /*data=*/static_cast<const uint8_t*>(pkt->data.frame.buf),
             /*size=*/pkt->data.frame.sz));
 
-        if ((pkt->data.frame.flags & AOM_EFLAG_FORCE_KF) != 0) {
+        if ((pkt->data.frame.flags & AOM_FRAME_IS_KEY) != 0) {
           layer_frame->Keyframe();
         }
 

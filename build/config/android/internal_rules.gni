@@ -2520,7 +2520,7 @@ if (enable_java_templates) {
       if (!defined(deps)) {
         deps = []
       }
-      deps += [ "//build/android/unused_resources:unused_resources" ]
+      deps += [ "//build/android/unused_resources" ]
       _rebased_build_config = rebase_path(invoker.build_config, root_build_dir)
       args = [
         "--script",
@@ -3893,6 +3893,7 @@ if (enable_java_templates) {
           "*/AsyncTabParamsManagerImpl.kt",
           "//third_party/androidx/*",
           "*/webengine_shell_apk/*",
+          "local_modifications/pdf/java/androidx/pdf/viewer/fragment/PdfViewerFragment.kt",
         ]
         _found_kt = filter_exclude(_abs_kt_files, _kt_allowlist)
         assert(

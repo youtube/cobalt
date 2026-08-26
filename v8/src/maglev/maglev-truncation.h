@@ -34,6 +34,16 @@ class PropagateTruncationProcessor {
 
   template <IsValueNodeT NodeT>
   ProcessResult Process(NodeT* node) {
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
+        UnsetCanTruncateToInt32ForDeoptFrameInput(node);
+      });
+    }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      node->lazy_deopt_info()->ForEachInput([&](ValueNode* node) {
+        UnsetCanTruncateToInt32ForDeoptFrameInput(node);
+      });
+    }
     // If the output is not a Float64, then it cannot (or doesn't need)
     // to be truncated. Just propagate that all inputs should not be
     // truncated.
@@ -56,6 +66,16 @@ class PropagateTruncationProcessor {
   ProcessResult Process(NodeT* node) {
     // Non value nodes does not need to be truncated, but we should
     // propagate that we do not want to truncate its inputs.
+    if constexpr (NodeT::kProperties.can_eager_deopt()) {
+      node->eager_deopt_info()->ForEachInput([&](ValueNode* node) {
+        UnsetCanTruncateToInt32ForDeoptFrameInput(node);
+      });
+    }
+    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+      node->lazy_deopt_info()->ForEachInput([&](ValueNode* node) {
+        UnsetCanTruncateToInt32ForDeoptFrameInput(node);
+      });
+    }
     UnsetCanTruncateToInt32Inputs(node);
     return ProcessResult::kContinue;
   }
@@ -97,12 +117,24 @@ class PropagateTruncationProcessor {
       return UnsetCanTruncateToInt32ForFixedInputNodes<NodeT, 0>(node);
     }
 #ifdef DEBUG
-    // Non-fixed input nodes don't expect float64 as inputs.
+    // Non-fixed input nodes don't expect float64 as inputs, except
+    // ReturnedValue.
+    if constexpr (std::is_same_v<NodeT, ReturnedValue>) {
+      return;
+    }
     for (Input& input : *node) {
       DCHECK_NE(input.node()->value_representation(),
                 ValueRepresentation::kFloat64);
     }
 #endif  // DEBUG
+  }
+
+  void UnsetCanTruncateToInt32ForDeoptFrameInput(ValueNode* node) {
+    // TODO(victorgomes): Technically if node is in the int32 range, this use
+    // would still allow truncation.
+    if (node->is_float64_or_holey_float64()) {
+      node->set_can_truncate_to_int32(false);
+    }
   }
 };
 
@@ -159,7 +191,6 @@ class TruncationProcessor {
     if (!node->can_truncate_to_int32() || !AllInputsAreValid(node)) return;
     UnwrapInputs(node);
     node->OverwriteWith<NodeT>();
-    node->InitializeRegisterData();
   }
 
   ValueNode* GetTruncatedInt32Constant(double constant);

@@ -96,11 +96,6 @@ inline constexpr char kEmptyProfileStoreLoginDatabase[] =
 // mapped to `kCredentialEnableService` will be applied.
 inline constexpr char kOfferToSavePasswordsEnabledGMS[] =
     "profile.save_passwords_enabed_gms";
-
-// Integer value which indicates the version used to migrate passwords from
-// built in storage to Google Mobile Services.
-inline constexpr char kCurrentMigrationVersionToGoogleMobileServices[] =
-    "current_migration_version_to_google_mobile_services";
 #endif
 
 // The total amount of passwords available in Password Manager account store.
@@ -124,33 +119,6 @@ inline constexpr char kPasswordRemovalReasonForProfile[] =
     "password_removal_reason_for_profile";
 
 #if BUILDFLAG(IS_ANDROID)
-// Integer pref indicating whether the client is ready to use UPM for local
-// passwords and settings and split password stores for syncing users.
-// The preconditions for the pref to be set to true:
-// - M2: For users syncing passwords, the profile store contents have been
-// moved to the account store. For the users who are not syncing passwords, the
-// login database is empty and prefs are default.
-// - M3: For the users who are not syncing passwords, the passwords have been
-// successfully copied to GMS Core. The settings will be migrated as well, but
-// their migration doesn't impact this pref.
-//
-// Do not renumber UseUpmLocalAndSeparateStoresState, values are persisted.
-// Values are also used for metrics recording.
-enum class UseUpmLocalAndSeparateStoresState {
-  kOff = 0,
-  kOffAndMigrationPending = 1,
-  kOn = 2,
-  kMaxValue = kOn
-};
-inline constexpr char kPasswordsUseUPMLocalAndSeparateStores[] =
-    "passwords_use_upm_local_and_separate_stores";
-
-// Boolean value indicating if the user should not get UPM experience because
-// of user-unresolvable errors received on communication with Google Mobile
-// Services.
-inline constexpr char kUnenrolledFromGoogleMobileServicesDueToErrors[] =
-    "unenrolled_from_google_mobile_services_due_to_errors";
-
 // Timestamp at which the last UPM error message was shown to the user in
 // milliseconds since UNIX epoch (used in Java).
 // This is needed to ensure that the UI is prompted only once per given
@@ -171,10 +139,6 @@ inline constexpr char kLocalPasswordHashDataList[] =
 // in a row. The counter resets when the user applies password generation.
 inline constexpr char kPasswordGenerationBottomSheetDismissCount[] =
     "password_generation_bottom_sheet_dismiss_count";
-
-// Whether the post password migration sheet should be shown at startup.
-inline constexpr char kShouldShowPostPasswordMigrationSheetAtStartup[] =
-    "should_show_post_password_migration_sheet_at_startup";
 
 // Whether the auto-exported CSV should be deleted. Normally, it's deleted
 // immediately after export, but if that fails, this pref is used as a signal
@@ -340,6 +304,13 @@ inline constexpr char kProfileStoreMigratedToOSCryptAsync[] =
     "password_manager.profile_store_migrated_to_os_crypt_async";
 inline constexpr char kAccountStoreMigratedToOSCryptAsync[] =
     "password_manager.account_store_migrated_to_os_crypt_async";
+
+// Timestamp when the last cleaning of backup passwords was performed for a
+// respective password store.
+inline constexpr char kAccountStoreBackupPasswordCleaningLastTimestamp[] =
+    "password_manager.account_store_backup_password_cleaning_last_timestamp";
+inline constexpr char kProfileStoreBackupPasswordCleaningLastTimestamp[] =
+    "password_manager.profile_store_backup_password_cleaning_last_timestamp";
 
 }  // namespace password_manager::prefs
 

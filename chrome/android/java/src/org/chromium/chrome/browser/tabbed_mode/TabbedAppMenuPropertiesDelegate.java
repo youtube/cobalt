@@ -40,6 +40,7 @@ import org.chromium.chrome.browser.feed.webfeed.WebFeedMainMenuItem;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedSnackbarController;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.image_descriptions.ImageDescriptionsController;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.multiwindow.MultiWindowModeStateDispatcher;
@@ -501,7 +502,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowAddToGroup() {
-        return ChromeFeatureList.sTabGroupParityBottomSheetAndroid.isEnabled();
+        return ChromeFeatureList.sTabGroupParityBottomSheetAndroid.isEnabled()
+                && (!ChromeFeatureList.sTabModelInitFixes.isEnabled()
+                        || mTabModelSelector.isTabStateInitialized());
     }
 
     private MVCListAdapter.ListItem buildAddToGroupItem(Tab currentTab) {
@@ -680,7 +683,9 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
     }
 
     private boolean shouldShowReaderModeItem(@Nullable Tab currentTab) {
-        return currentTab != null && DomDistillerFeatures.showAlwaysOnEntryPoint();
+        return currentTab != null
+                && (DomDistillerFeatures.showAlwaysOnEntryPoint()
+                        || DomDistillerFeatures.sReaderModeDistillInApp.isEnabled());
     }
 
     private MVCListAdapter.ListItem buildReaderModeItem(Tab currentTab) {
@@ -977,9 +982,7 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
      */
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     public boolean shouldShowNewIncognitoWindow() {
-        // TODO(crbug.com/433789957): A new helper function should be created to consolidate this,
-        // with form factors being checked.
-        if (!ChromeFeatureList.sAndroidOpenIncognitoAsWindow.isEnabled()) {
+        if (!IncognitoUtils.shouldOpenIncognitoAsWindow()) {
             return false;
         }
 
@@ -1047,15 +1050,13 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
         return footer;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     protected boolean shouldShowManagedByMenuItem(@Nullable Tab currentTab) {
         return currentTab != null && ManagedBrowserUtils.isBrowserManaged(currentTab.getProfile());
     }
 
     protected boolean shouldShowContentFilterHelpCenterMenuItem(@Nullable Tab currentTab) {
         return currentTab != null
-                && ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.PROPAGATE_DEVICE_CONTENT_FILTERS_TO_SUPERVISED_USER)
                 && SupervisedUserServiceBridge.isSupervisedLocally(currentTab.getProfile());
     }
 

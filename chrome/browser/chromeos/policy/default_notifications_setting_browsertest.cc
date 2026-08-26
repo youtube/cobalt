@@ -96,6 +96,7 @@ IN_PROC_BROWSER_TEST_P(DefaultNotificationsSettingBrowserTest, Policy) {
       "let radios = "
       "  document.querySelector('settings-ui').shadowRoot."
       "  querySelector('settings-main').shadowRoot."
+      "  querySelector('settings-privacy-page-index').shadowRoot."
       "  querySelector('settings-basic-page').shadowRoot."
       "  querySelector('settings-privacy-page').shadowRoot."
       "  querySelector('settings-notifications-page').shadowRoot."
@@ -107,7 +108,7 @@ IN_PROC_BROWSER_TEST_P(DefaultNotificationsSettingBrowserTest, Policy) {
                                   "radiosChecked.push(radios[2].checked);"
                                   "radiosChecked;";
   base::Value::List radios_checked_list =
-      content::EvalJs(web_contents, kGetRadiosChecked).ExtractList();
+      content::EvalJs(web_contents, kGetRadiosChecked).TakeValue().TakeList();
 
   std::string kGetRadiosEnabled = kGetRadios +
                                   "let radiosEnabled = [];"
@@ -116,7 +117,7 @@ IN_PROC_BROWSER_TEST_P(DefaultNotificationsSettingBrowserTest, Policy) {
                                   "radiosEnabled.push(!radios[2].disabled);"
                                   "radiosEnabled;";
   base::Value::List radios_enabled_list =
-      content::EvalJs(web_contents, kGetRadiosEnabled).ExtractList();
+      content::EvalJs(web_contents, kGetRadiosEnabled).TakeValue().TakeList();
 
   switch (GetParam()) {
     case 0:

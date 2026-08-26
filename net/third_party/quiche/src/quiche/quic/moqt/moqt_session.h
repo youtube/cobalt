@@ -62,7 +62,8 @@ class MoqtPublishingMonitorInterface {
  public:
   virtual ~MoqtPublishingMonitorInterface() = default;
 
-  virtual void OnObjectAckSupportKnown(bool supported) = 0;
+  virtual void OnObjectAckSupportKnown(
+      std::optional<quic::QuicTimeDelta> time_window) = 0;
   virtual void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };
@@ -268,6 +269,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
     void OnFetchErrorMessage(const MoqtFetchError& message) override;
     void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
+    void OnPublishMessage(const MoqtPublish& message) override;
+    void OnPublishOkMessage(const MoqtPublishOk& message) override {};
+    void OnPublishErrorMessage(const MoqtPublishError& message) override {};
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -290,8 +294,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
     void SendSubscribeError(uint64_t request_id, RequestErrorCode error_code,
-                            absl::string_view reason_phrase,
-                            uint64_t track_alias);
+                            absl::string_view reason_phrase);
 
    private:
     friend class test::MoqtSessionPeer;
@@ -362,7 +365,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
-    uint64_t track_alias() const { return track_alias_; }
+    std::optional<uint64_t> track_alias() const { return track_alias_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
     MoqtPriority subscriber_priority() const { return subscriber_priority_; }
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
@@ -446,6 +449,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t streams_opened() const { return streams_opened_; }
 
    private:
+    friend class test::MoqtSessionPeer;
     SendStreamMap& stream_map();
     quic::Perspective perspective() const {
       return session_->parameters_.perspective;
@@ -461,7 +465,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
-    uint64_t track_alias_;
+    std::optional<const uint64_t> track_alias_;
     MoqtFilterType filter_type_;
     bool forward_;
     // If window_ is nullopt, any arriving objects are ignored. This could be
@@ -710,10 +714,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
 
-  // Returns false if the SUBSCRIBE isn't sent. |provided_track_alias| has a
-  // value only if this call is due to a SUBSCRIBE_ERROR.
-  bool Subscribe(MoqtSubscribe& message, SubscribeRemoteTrack::Visitor* visitor,
-                 std::optional<uint64_t> provided_track_alias = std::nullopt);
+  // Returns false if the SUBSCRIBE isn't sent.
+  bool Subscribe(MoqtSubscribe& message,
+                 SubscribeRemoteTrack::Visitor* visitor);
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
@@ -792,8 +795,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;
   // All SUBSCRIBEs, indexed by track name.
   absl::flat_hash_map<FullTrackName, SubscribeRemoteTrack*> subscribe_by_name_;
-  // The next track alias to guess on a SUBSCRIBE.
-  uint64_t next_remote_track_alias_ = 0;
+
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_request_id_ = 0;
   // The local endpoint can send subscribe IDs less than this value.

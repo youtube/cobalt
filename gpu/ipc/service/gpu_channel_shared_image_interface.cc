@@ -154,7 +154,8 @@ GpuChannelSharedImageInterface::CreateSharedImageForD3D11Video(
 }
 #endif
 
-SharedImageFactory* GpuChannelSharedImageInterface::GetSharedImageFactory() {
+SharedImageFactory*
+GpuChannelSharedImageInterface::GetSharedImageFactoryOnGpuThread() {
   if (!shared_image_stub_) {
     return nullptr;
   }
@@ -216,7 +217,8 @@ GpuChannelSharedImageInterface::CreateSharedImageForStarboardGLTexture(
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-bool GpuChannelSharedImageInterface::MakeContextCurrent(bool needs_gl) {
+bool GpuChannelSharedImageInterface::MakeContextCurrentOnGpuThread(
+    bool needs_gl) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
   if (!shared_image_stub_) {
     return false;
@@ -225,7 +227,7 @@ bool GpuChannelSharedImageInterface::MakeContextCurrent(bool needs_gl) {
   return shared_image_stub_->MakeContextCurrent(needs_gl);
 }
 
-void GpuChannelSharedImageInterface::MarkContextLost() {
+void GpuChannelSharedImageInterface::MarkContextLostOnGpuThread() {
   shared_image_stub_->shared_context_state()->MarkContextLost();
 }
 

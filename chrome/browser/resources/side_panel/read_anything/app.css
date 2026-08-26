@@ -101,9 +101,7 @@
   letter-spacing: var(--letter-spacing);
   line-height: var(--line-height);
   margin: 0 auto;
-  /* LINT.IfChange(MaxLineWidth) */
-  max-width: 60ch;
-  /* LINT.ThenChange(//chrome/renderer/accessibility/read_anything/read_anything_node_utils.cc:MaxLineWidth) */
+  max-width: var(--max-width);
   overflow-wrap: break-word;
   padding-left: 20px;
   width: 100%; /* Wrap text to width even with horizontal scroll bar */
@@ -120,6 +118,12 @@
 #appFlexParent sp-empty-state {
   display: flex;
   margin: 0 auto 16px auto;
+  font-family: var(--font-family);
+  --sp-empty-state-heading-font-size: calc(var(--font-size) * 1.2);
+  --sp-empty-state-body-font-size: var(--font-size);
+
+  --sp-empty-state-heading-line-height: var(--line-height);
+  --sp-empty-state-body-line-height: var(--line-height);
 }
 
 #appFlexParent ::selection {
@@ -133,8 +137,8 @@
 
 @media (forced-colors: active) {
   #appFlexParent .current-read-highlight {
-    background-color: SelectedItem;
-    color: SelectedItemText;
+    background-color: Highlight;
+    color: HighlightText;
   }
 }
 

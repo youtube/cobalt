@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 #define V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 
+#include <type_traits>
+
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -166,8 +168,9 @@ class LoopOptimizationProcessor {
       if (auto j = current_block->predecessor_at(0)
                        ->control_node()
                        ->TryCast<CheckpointedJump>()) {
-        maps->SetEagerDeoptInfo(zone, j->eager_deopt_info()->top_frame(),
-                                maps->eager_deopt_info()->feedback_to_update());
+        maps->SetEagerDeoptInfo(
+            zone, zone->New<DeoptFrame>(j->eager_deopt_info()->top_frame()),
+            maps->eager_deopt_info()->feedback_to_update());
         return ProcessResult::kHoist;
       }
     }
@@ -214,6 +217,9 @@ class AnyUseMarkingProcessor {
       if (!node->is_used()) {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
+        }
+        if constexpr (std::is_same_v<NodeT, InitialValue>) {
+          node->mark_unused();
         }
         return ProcessResult::kRemove;
       }

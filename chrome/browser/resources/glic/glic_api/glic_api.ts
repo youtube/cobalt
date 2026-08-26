@@ -101,6 +101,11 @@ export declare interface GlicWebClient {
    * as unresponsive and displaying an error state to the user.
    */
   checkResponsive?(): Promise<void>;
+
+  // !!! ATTENTION !!!
+  // Avoid adding new methods to this interface! Instead, to push information to
+  // the web client it's much more preferable to add new functions to
+  // GlicBrowserHost that return an Observable or ObservableValue instances.
 }
 
 /**
@@ -194,7 +199,8 @@ export declare interface GlicBrowserHost {
   setMaximumNumberOfPinnedTabs?(numTabs: number): Promise<number>;
 
   /**
-   * @deprecated Use CreateTask and PerformActions instead.
+   * @deprecated Use CreateTask and PerformActions instead. This method
+   * is undefined in Chrome and calling it is not supported.
    *
    * Inform Chrome about an action. Chrome Takes an action based on the
    * action proto and returns new context based on the tab context options.
@@ -212,7 +218,6 @@ export declare interface GlicBrowserHost {
    *
    * @throws {ActInFocusedTabError} on failure.
    *
-   * @todo Not yet implemented. https://crbug.com/425681926
    */
   createTask?(): Promise<number>;
 
@@ -224,7 +229,6 @@ export declare interface GlicBrowserHost {
    *
    * The output corresponds to the ActionsResult proto.
    *
-   * @todo Not yet implemented. https://crbug.com/425681926
    */
   performActions?(actions: ArrayBuffer): Promise<ArrayBuffer>;
 
@@ -603,11 +607,6 @@ export declare interface GlicBrowserHost {
    *
    * Dynamic updates can be a costly operation so the observable value should be
    * released/destroyed as soon as it's not useful anymore.
-   *
-   * TODO(b/432258121): A race condition can occur when a consumer
-   * unsubscribes and a new one subscribes. An update from the first
-   * subscription that is already in-flight may be delivered to the second
-   * consumer.
    */
   getPinCandidates?
       (options: GetPinCandidatesOptions): ObservableValue<PinCandidate[]>;
@@ -627,6 +626,22 @@ export declare interface GlicBrowserHost {
    * Returns the list of capabilities of the glic host.
    */
   getHostCapabilities?(): Set<HostCapability>;
+
+  /**
+   * Emits when the browser wants the web client to change its view to match
+   * a requested change (e.g., because the user clicked a UI element to toggle
+   * to a different view).
+   *
+   * The web client should update its view to match the requested change.
+   */
+  getViewChangeRequests?(): Observable<ViewChangeRequest>;
+
+  /**
+   * Notifies the browser that the web client has changed the view shown to the
+   * user. This is used to trigger updates to browser UI which shows the current
+   * state of the web client, such as toggle controls.
+   */
+  onViewChanged?(notification: ViewChangedNotification): void;
 }
 /** Fields of interest from the system settings page. */
 export type OsPermissionType = 'media'|'geolocation';
@@ -671,7 +686,7 @@ export declare interface CreateTabOptions {
  * Provides measurement-related functionality to the Glic web client.
  *
  * The typical sequence of events should be either:
- *  (onUserInputSubmitted -> (onRequestStarted -> onResponseStarted ->
+ *  (onUserInputSubmitted -> (onResponseStarted ->
  *                            onResponseStopped)*
  *  )*
  * or
@@ -686,12 +701,6 @@ export declare interface CreateTabOptions {
 export declare interface GlicBrowserHostMetrics {
   /** Called when the user has submitted input via the web client. */
   onUserInputSubmitted?(mode: WebClientMode): void;
-
-  /**
-   * Called when the web client has submitted a request to the server
-   * awaiting a response.
-   */
-  onRequestStarted?(): void;
 
   /**
    * Called when the web client has sufficiently processed the input such that
@@ -908,6 +917,8 @@ export enum InvocationSource {
   WHATS_NEW = 9,
   /** User clicks sign-in and then signs in. */
   AFTER_SIGN_IN = 10,
+  /** User shared a tab. */
+  SHARED_TAB = 11,
 }
 
 /** The default value of TabContextOptions.pdfSizeLimit. */
@@ -1109,9 +1120,28 @@ export declare interface TabData {
    * Whether the tab is audible or visible. Specifically this is the visibility
    * of the WebContents as returned by: `WebContents::GetVisibility`. If the
    * visibility is either VISIBLE or OCCLUDED, we consider the web contents to
-   * be visible.
+   * be visible. @todo: This field is being added as a temporary solution.
+   * b/433995475
    */
   isObservable?: boolean;
+
+  /**
+   * Whether the tab has active audio or video playing, used for showing tab UI.
+   * This is a best effort signal, and may not be accurate/stale due to not
+   * observing media events directly. @todo: This field is being added as a
+   * temporary solution. b/433995475
+   */
+  isMediaActive?: boolean;
+
+
+  /**
+   * Whether the tab content is being captured by another functionality (e.g.,
+   * screen share in video chat). This is a best effort signal, and may not be
+   * accurate/stale due to not observing tab content capture events
+   * directly. @todo: This field is being added as a temporary solution.
+   * b/433995475
+   */
+  isTabContentCaptured?: boolean;
 }
 
 /** A candidate for pinning. */
@@ -1456,6 +1486,46 @@ export declare interface DraggableArea {
 }
 
 /**
+ * Top-level views of the glic web client.
+ */
+export enum ClientView {
+  ACTUATION = 'actuation',
+  CONVERSATION = 'conversation',
+}
+
+/**
+ * A request to change the glic web client to a view suitable for tracking the
+ * progress of actuation, if possible.
+ */
+export declare interface ViewChangeRequestActuation {
+  readonly desiredView: ClientView.ACTUATION;
+}
+
+/**
+ * A request to change the glic web client to a view which shows a
+ * conversational interface of some type (whether textual, aural or other).
+ */
+export declare interface ViewChangeRequestConversation {
+  readonly desiredView: ClientView.CONVERSATION;
+}
+
+/**
+ * A request to change the glic web client to a view of some type. These all
+ * specify what the desired view is, but some may carry additional information
+ * about the request.
+ */
+export declare type ViewChangeRequest =
+    ViewChangeRequestActuation | ViewChangeRequestConversation;
+
+/**
+ * A notification that the view has changed to the specified view.
+ */
+export declare interface ViewChangedNotification {
+  /** The view that was changed to. */
+  currentView: ClientView;
+}
+
+/**
  * A generic interface for observing a stream of values.
  *
  * Subscriptions should be kept only while necessary, as they incur some cost.
@@ -1578,6 +1648,8 @@ export declare interface SuggestionContent {
 export enum HostCapability {
   /** Glic host supports scrollTo() on PDF documents. */
   SCROLL_TO_PDF = 0,
+  /** Glic host will reset panel size and location on open. */
+  RESET_SIZE_AND_LOCATION_ON_OPEN = 1,
 }
 
 //

@@ -638,7 +638,7 @@ rtc_library("port_interface") {
     "../api:candidate",
     "../api:field_trials_view",
     "../api:packet_socket_factory",
-    "../api/task_queue:task_queue",
+    "../api/task_queue",
     "../rtc_base:async_packet_socket",
     "../rtc_base:callback_list",
     "../rtc_base:dscp",
@@ -649,26 +649,6 @@ rtc_library("port_interface") {
     "../rtc_base/network:sent_packet",
     "../rtc_base/third_party/sigslot",
     "//third_party/abseil-cpp/absl/strings:string_view",
-  ]
-}
-
-rtc_library("pseudo_tcp") {
-  sources = [
-    "base/pseudo_tcp.cc",
-    "base/pseudo_tcp.h",
-  ]
-  deps = [
-    "../api:array_view",
-    "../rtc_base:byte_buffer",
-    "../rtc_base:byte_order",
-    "../rtc_base:checks",
-    "../rtc_base:logging",
-    "../rtc_base:macromagic",
-    "../rtc_base:safe_minmax",
-    "../rtc_base:socket",
-    "../rtc_base:timeutils",
-    "../rtc_base/synchronization:mutex",
-    "../rtc_base/system:rtc_export",
   ]
 }
 
@@ -1172,7 +1152,6 @@ if (rtc_include_tests) {
       "base/packet_transport_internal_unittest.cc",
       "base/port_allocator_unittest.cc",
       "base/port_unittest.cc",
-      "base/pseudo_tcp_unittest.cc",
       "base/regathering_controller_unittest.cc",
       "base/stun_dictionary_unittest.cc",
       "base/stun_port_unittest.cc",
@@ -1219,7 +1198,6 @@ if (rtc_include_tests) {
       ":port",
       ":port_allocator",
       ":port_interface",
-      ":pseudo_tcp",
       ":regathering_controller",
       ":relay_port_factory_interface",
       ":stun_dictionary",

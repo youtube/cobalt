@@ -10,12 +10,16 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasToString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.FopSelectorProperties.SCREEN_ITEMS;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.BANK_ACCOUNT;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.CONTINUE_BUTTON;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.EWALLET;
+import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.ItemType.PAYMENT_APP;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SCREEN_VIEW_MODEL;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.SURVIVES_NAVIGATION;
@@ -29,6 +33,10 @@ import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymen
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.VisibleState.SHOWN;
 import static org.chromium.chrome.browser.facilitated_payments.FacilitatedPaymentsPaymentMethodsProperties.VisibleState.SWAPPING_SCREEN;
 
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -145,6 +153,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                                     .setIsFidoEnrolled(false)
                                     .build())
                     .build();
+    private static final String PAYMENT_APP_1_NAME = "Payment App";
+    private static final ResolveInfo PAYMENT_APP_1 = createPaymentApp(PAYMENT_APP_1_NAME);
+    private static final String PAYMENT_APP_2_NAME = "Another Payment App";
+    private static final ResolveInfo PAYMENT_APP_2 = createPaymentApp(PAYMENT_APP_2_NAME);
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
@@ -314,6 +326,28 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
 
     @Test
     @MediumTest
+    public void testPaymentAppShown() {
+        runOnUiThreadBlocking(
+                () -> {
+                    mModel.set(SCREEN, FOP_SELECTOR);
+                    mModel.get(SCREEN_VIEW_MODEL)
+                            .get(SCREEN_ITEMS)
+                            .add(new ListItem(PAYMENT_APP, createPaymentAppModel(PAYMENT_APP_1)));
+                    mModel.get(SCREEN_VIEW_MODEL)
+                            .get(SCREEN_ITEMS)
+                            .add(new ListItem(PAYMENT_APP, createPaymentAppModel(PAYMENT_APP_2)));
+                    mModel.set(VISIBLE_STATE, SHOWN);
+                });
+
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        assertThat(getSheetItems().getChildCount(), is(2));
+        assertThat(getPaymentAppNameAt(0).getText(), is(PAYMENT_APP_1_NAME));
+        assertThat(getPaymentAppNameAt(1).getText(), is(PAYMENT_APP_2_NAME));
+    }
+
+    @Test
+    @MediumTest
     public void testPixHeaderProductIconContentDescription() {
         runOnUiThreadBlocking(
                 () -> {
@@ -363,8 +397,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                     mModel.get(SCREEN_VIEW_MODEL)
                             .get(SCREEN_ITEMS)
                             .add(
-                                    mMediator.buildEwalletHeader(
-                                            mActivityTestRule.getActivity(), List.of(EWALLET_1)));
+                                    mMediator.buildPaymentLinkHeader(
+                                            mActivityTestRule.getActivity(),
+                                            List.of(EWALLET_1),
+                                            List.of()));
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
 
@@ -385,8 +421,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                     mModel.get(SCREEN_VIEW_MODEL)
                             .get(SCREEN_ITEMS)
                             .add(
-                                    mMediator.buildEwalletHeader(
-                                            mActivityTestRule.getActivity(), List.of(EWALLET_3)));
+                                    mMediator.buildPaymentLinkHeader(
+                                            mActivityTestRule.getActivity(),
+                                            List.of(EWALLET_3),
+                                            List.of()));
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
 
@@ -409,9 +447,10 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                     mModel.get(SCREEN_VIEW_MODEL)
                             .get(SCREEN_ITEMS)
                             .add(
-                                    mMediator.buildEwalletHeader(
+                                    mMediator.buildPaymentLinkHeader(
                                             mActivityTestRule.getActivity(),
-                                            List.of(EWALLET_3, EWALLET_4)));
+                                            List.of(EWALLET_3, EWALLET_4),
+                                            List.of()));
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
 
@@ -451,7 +490,9 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
                     mModel.set(SCREEN, FOP_SELECTOR);
                     mModel.get(SCREEN_VIEW_MODEL)
                             .get(SCREEN_ITEMS)
-                            .add(mMediator.buildEwalletAdditionalInfo(List.of(EWALLET_1)));
+                            .add(
+                                    mMediator.buildPaymentLinkAdditionalInfo(
+                                            List.of(EWALLET_1), List.of()));
                     mModel.set(VISIBLE_STATE, SHOWN);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
@@ -716,6 +757,14 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
         return getSheetItems().getChildAt(index).findViewById(R.id.ewallet_name);
     }
 
+    private PropertyModel createPaymentAppModel(ResolveInfo app) {
+        return mMediator.createPaymentAppModel(mActivityTestRule.getActivity(), app);
+    }
+
+    private TextView getPaymentAppNameAt(int index) {
+        return getSheetItems().getChildAt(index).findViewById(R.id.payment_app_name);
+    }
+
     private TextView getAccountDisplayNameAt(int index) {
         return getSheetItems().getChildAt(index).findViewById(R.id.account_display_name);
     }
@@ -760,5 +809,17 @@ public final class FacilitatedPaymentsPaymentMethodsViewTest {
             }
         }
         return false;
+    }
+
+    private static ResolveInfo createPaymentApp(String appLabel) {
+        ActivityInfo activityInfo = new ActivityInfo();
+        activityInfo.packageName = "some.payment.app";
+        activityInfo.name = "RandomActivity";
+
+        ResolveInfo resolveInfo = mock(ResolveInfo.class);
+        resolveInfo.activityInfo = activityInfo;
+        when(resolveInfo.loadLabel(any(PackageManager.class))).thenReturn(appLabel);
+        when(resolveInfo.loadIcon(any(PackageManager.class))).thenReturn(mock(Drawable.class));
+        return resolveInfo;
     }
 }

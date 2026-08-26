@@ -20,7 +20,6 @@ struct DistantSession;
 @protocol SettingsCommands;
 @protocol RecentTabsMenuProvider;
 @protocol RecentTabsPresentationDelegate;
-@protocol RecentTabsTableViewControllerUIDelegate;
 @protocol TableViewFaviconDataSource;
 
 @interface RecentTabsTableViewController
@@ -35,15 +34,9 @@ struct DistantSession;
 
 // Opaque instructions on how to open urls.
 @property(nonatomic) UrlLoadStrategy loadStrategy;
-// Delegate for UI-related events.
-@property(nonatomic, weak) id<RecentTabsTableViewControllerUIDelegate>
-    UIDelegate;
 // Whether the updates of the RecentTabs should be ignored. Setting this to NO
 // would trigger a reload of the TableView.
 @property(nonatomic, assign) BOOL preventUpdates;
-// Search term for filtering displayed items to those which match `searchTerm`.
-// Setting as null clears any search results and resets to showing all tabs.
-@property(nonatomic, copy) NSString* searchTerms;
 
 // Delegate to present the tab UI.
 @property(nonatomic, weak) id<RecentTabsPresentationDelegate>
@@ -58,11 +51,6 @@ struct DistantSession;
 
 // Multi-window session for this vc's recent tabs.
 @property(nonatomic, weak) UISceneSession* session;
-
-// Whether the grid is scrolled to the top.
-@property(nonatomic, readonly, getter=isScrolledToTop) BOOL scrolledToTop;
-// Whether the grid is scrolled to the bottom.
-@property(nonatomic, readonly, getter=isScrolledToBottom) BOOL scrolledToBottom;
 
 // Initializers.
 - (instancetype)init NS_DESIGNATED_INITIALIZER;

@@ -1573,7 +1573,7 @@ angle::Result GetAndDecompressPipelineCacheVk(vk::ErrorContext *context,
 constexpr char kEnableDebugMarkersVarName[]      = "ANGLE_ENABLE_DEBUG_MARKERS";
 constexpr char kEnableDebugMarkersPropertyName[] = "debug.angle.markers";
 
-ANGLE_INLINE gl::ShadingRate GetShadingRateFromVkExtent(const VkExtent2D &extent)
+ANGLE_INLINE gl::ShadingRate GetShadingRateEXTFromVkExtent(const VkExtent2D &extent)
 {
     if (extent.width == 1)
     {
@@ -1584,6 +1584,10 @@ ANGLE_INLINE gl::ShadingRate GetShadingRateFromVkExtent(const VkExtent2D &extent
         else if (extent.height == 2)
         {
             return gl::ShadingRate::_1x2;
+        }
+        else if (extent.height == 4)
+        {
+            return gl::ShadingRate::_1x4;
         }
     }
     else if (extent.width == 2)
@@ -1596,10 +1600,18 @@ ANGLE_INLINE gl::ShadingRate GetShadingRateFromVkExtent(const VkExtent2D &extent
         {
             return gl::ShadingRate::_2x2;
         }
+        else if (extent.height == 4)
+        {
+            return gl::ShadingRate::_2x4;
+        }
     }
     else if (extent.width == 4)
     {
-        if (extent.height == 2)
+        if (extent.height == 1)
+        {
+            return gl::ShadingRate::_4x1;
+        }
+        else if (extent.height == 2)
         {
             return gl::ShadingRate::_4x2;
         }
@@ -4697,17 +4709,18 @@ void Renderer::queryAndCacheFragmentShadingRates()
     ASSERT(result == VK_SUCCESS);
 
     // Cache supported fragment shading rates
-    mSupportedFragmentShadingRates.reset();
-    mSupportedFragmentShadingRateSampleCounts.fill(0u);
+    mSupportedFragmentShadingRatesEXT.reset();
+    mSupportedFragmentShadingRateEXTSampleCounts.fill(0u);
     for (const VkPhysicalDeviceFragmentShadingRateKHR &shadingRate : shadingRates)
     {
         if (shadingRate.sampleCounts == 0)
         {
             continue;
         }
-        const gl::ShadingRate rate = GetShadingRateFromVkExtent(shadingRate.fragmentSize);
-        mSupportedFragmentShadingRates.set(rate);
-        mSupportedFragmentShadingRateSampleCounts[rate] = shadingRate.sampleCounts;
+        const gl::ShadingRate rate = GetShadingRateEXTFromVkExtent(shadingRate.fragmentSize);
+        mSupportedFragmentShadingRatesEXT.set(rate);
+        mSupportedFragmentShadingRateEXTSampleCounts[rate] =
+            static_cast<uint16_t>(shadingRate.sampleCounts);
     }
 }
 
@@ -4726,18 +4739,25 @@ bool Renderer::canSupportFragmentShadingRate() const
         return false;
     }
 
-    ASSERT(mSupportedFragmentShadingRates.any());
+    ASSERT(mSupportedFragmentShadingRatesEXT.any());
 
-    // To implement GL_QCOM_shading_rate extension the Vulkan ICD needs to support at least the
-    // following shading rates -
-    //     {1, 1}
-    //     {1, 2}
-    //     {2, 1}
-    //     {2, 2}
-    return mSupportedFragmentShadingRates.test(gl::ShadingRate::_1x1) &&
-           mSupportedFragmentShadingRates.test(gl::ShadingRate::_1x2) &&
-           mSupportedFragmentShadingRates.test(gl::ShadingRate::_2x1) &&
-           mSupportedFragmentShadingRates.test(gl::ShadingRate::_2x2);
+    // To implement GL_EXT_fragment_shading_rate and GL_QCOM_shading_rate extension
+    // the Vulkan ICD needs to support at least the following shading rates
+    // VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT    {1, 1}
+    // VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT    {1, 2}
+    // VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT    {2, 1}
+    // VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT    {2, 2}
+    constexpr VkSampleCountFlags krequiredSampleCounts =
+        VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_4_BIT;
+
+    return (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_1x1] &
+            krequiredSampleCounts) == krequiredSampleCounts &&
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_1x2] &
+            krequiredSampleCounts) == krequiredSampleCounts &&
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_2x1] &
+            krequiredSampleCounts) == krequiredSampleCounts &&
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_2x2] &
+            krequiredSampleCounts) == krequiredSampleCounts;
 }
 
 bool Renderer::canSupportFoveatedRendering() const
@@ -4748,8 +4768,8 @@ bool Renderer::canSupportFoveatedRendering() const
         return false;
     }
 
-    ASSERT(mSupportedFragmentShadingRates.any());
-    ASSERT(!mSupportedFragmentShadingRateSampleCounts.empty());
+    ASSERT(mSupportedFragmentShadingRatesEXT.any());
+    ASSERT(!mSupportedFragmentShadingRateEXTSampleCounts.empty());
 
     // To implement QCOM foveated rendering extensions the Vulkan ICD needs to support all sample
     // count bits listed in VkPhysicalDeviceLimits::framebufferColorSampleCounts for these shading
@@ -4762,13 +4782,13 @@ bool Renderer::canSupportFoveatedRendering() const
         getPhysicalDeviceProperties().limits.framebufferColorSampleCounts &
         vk_gl::kSupportedSampleCounts;
 
-    return (mSupportedFragmentShadingRateSampleCounts[gl::ShadingRate::_1x1] &
+    return (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_1x1] &
             framebufferSampleCounts) == framebufferSampleCounts &&
-           (mSupportedFragmentShadingRateSampleCounts[gl::ShadingRate::_1x2] &
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_1x2] &
             framebufferSampleCounts) == framebufferSampleCounts &&
-           (mSupportedFragmentShadingRateSampleCounts[gl::ShadingRate::_2x1] &
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_2x1] &
             framebufferSampleCounts) == framebufferSampleCounts &&
-           (mSupportedFragmentShadingRateSampleCounts[gl::ShadingRate::_2x2] &
+           (mSupportedFragmentShadingRateEXTSampleCounts[gl::ShadingRate::_2x2] &
             framebufferSampleCounts) == framebufferSampleCounts;
 }
 
@@ -5938,12 +5958,9 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     // Only enable VK_EXT_host_image_copy on hardware where identicalMemoryTypeRequirements is set.
     // That lets ANGLE avoid having to fallback to non-host-copyable image allocations if the
     // host-copyable one fails due to out-of-that-specific-kind-of-memory.
-    //
-    // Disabled on Fuchsia until they upgrade their version of VVL.
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsHostImageCopy,
                             mHostImageCopyFeatures.hostImageCopy == VK_TRUE &&
-                                mHostImageCopyProperties.identicalMemoryTypeRequirements &&
-                                !IsFuchsia());
+                                mHostImageCopyProperties.identicalMemoryTypeRequirements);
 
     // 1) host vk driver does not natively support ETC format.
     // 2) host vk driver supports BC format.
@@ -6051,14 +6068,9 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
                             mExternalFormatResolveFeatures.externalFormatResolve == VK_TRUE);
 
     // We can fully support GL_EXT_YUV_target iff we have support for
-    // VK_ANDROID_external_format_resolve and Vulkan ICD supports
-    // nullColorAttachmentWithExternalFormatResolve. ANGLE cannot yet support vendors that lack
-    // support for nullColorAttachmentWithExternalFormatResolve.
-    ANGLE_FEATURE_CONDITION(
-        &mFeatures, supportsYuvTarget,
-        mFeatures.supportsExternalFormatResolve.enabled &&
-            mExternalFormatResolveProperties.nullColorAttachmentWithExternalFormatResolve ==
-                VK_TRUE);
+    // VK_ANDROID_external_format_resolve.
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsYuvTarget,
+                            mFeatures.supportsExternalFormatResolve.enabled);
 
 #else
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsExternalFormatResolve, false);
@@ -6178,6 +6190,11 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsUniformBufferStandardLayout,
         mUniformBufferStandardLayoutFeatures.uniformBufferStandardLayout == VK_TRUE);
+
+    // http://anglebug.com/42264006
+    // GL_EXT_clip_cull_distance also adds features to geometry and tessellation shaders, which are
+    // currently disabled.
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsClipCullDistanceInGSAndTS, false);
 
     // Disable memory report feature overrides if extension is not supported.
     if ((mFeatures.logMemoryReportCallbacks.enabled || mFeatures.logMemoryReportStats.enabled) &&

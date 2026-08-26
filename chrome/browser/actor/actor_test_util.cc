@@ -21,6 +21,7 @@
 #include "chrome/browser/actor/tools/move_mouse_tool_request.h"
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
 #include "chrome/browser/actor/tools/page_tool_request.h"
+#include "chrome/browser/actor/tools/script_tool_request.h"
 #include "chrome/browser/actor/tools/scroll_tool_request.h"
 #include "chrome/browser/actor/tools/select_tool_request.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
@@ -46,7 +47,7 @@ namespace actor {
 using ::content::RenderFrameHost;
 using ::content::WebContents;
 using ::optimization_guide::DocumentIdentifierUserData;
-using ::optimization_guide::proto::BrowserAction;
+using ::optimization_guide::proto::Actions;
 using ::optimization_guide::proto::ClickAction;
 using ::optimization_guide::proto::Coordinate;
 using ::optimization_guide::proto::CreateTabAction;
@@ -62,9 +63,9 @@ using ::optimization_guide::proto::TypeAction_TypeMode;
 using tabs::TabHandle;
 using tabs::TabInterface;
 
-BrowserAction MakeClick(RenderFrameHost& rfh, int content_node_id) {
-  BrowserAction action;
-  ClickAction* click = action.add_actions()->mutable_click();
+Actions MakeClick(RenderFrameHost& rfh, int content_node_id) {
+  Actions actions;
+  ClickAction* click = actions.add_actions()->mutable_click();
   click->mutable_target()->set_content_node_id(content_node_id);
   click->mutable_target()->mutable_document_identifier()->set_serialized_token(
       *DocumentIdentifierUserData::GetDocumentIdentifier(
@@ -76,77 +77,76 @@ BrowserAction MakeClick(RenderFrameHost& rfh, int content_node_id) {
       content::WebContents::FromRenderFrameHost(&rfh));
   click->set_tab_id(tab->GetHandle().raw_value());
 
-  return action;
+  return actions;
 }
 
-BrowserAction MakeClick(TabHandle tab_handle, const gfx::Point& click_point) {
-  BrowserAction action;
-  ClickAction* click = action.add_actions()->mutable_click();
+Actions MakeClick(TabHandle tab_handle, const gfx::Point& click_point) {
+  Actions actions;
+  ClickAction* click = actions.add_actions()->mutable_click();
   Coordinate* coordinate = click->mutable_target()->mutable_coordinate();
   coordinate->set_x(click_point.x());
   coordinate->set_y(click_point.y());
   click->set_click_type(ClickAction::LEFT);
   click->set_click_count(ClickAction::SINGLE);
   click->set_tab_id(tab_handle.raw_value());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeHistoryBack(TabHandle tab_handle) {
-  BrowserAction action;
-  HistoryBackAction* back = action.add_actions()->mutable_back();
+Actions MakeHistoryBack(TabHandle tab_handle) {
+  Actions actions;
+  HistoryBackAction* back = actions.add_actions()->mutable_back();
   back->set_tab_id(tab_handle.raw_value());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeHistoryForward(TabHandle tab_handle) {
-  BrowserAction action;
-  HistoryForwardAction* forward = action.add_actions()->mutable_forward();
+Actions MakeHistoryForward(TabHandle tab_handle) {
+  Actions actions;
+  HistoryForwardAction* forward = actions.add_actions()->mutable_forward();
   forward->set_tab_id(tab_handle.raw_value());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeMouseMove(RenderFrameHost& rfh, int content_node_id) {
-  BrowserAction action;
-  MoveMouseAction* move = action.add_actions()->mutable_move_mouse();
+Actions MakeMouseMove(RenderFrameHost& rfh, int content_node_id) {
+  Actions actions;
+  MoveMouseAction* move = actions.add_actions()->mutable_move_mouse();
   move->mutable_target()->set_content_node_id(content_node_id);
   move->mutable_target()->mutable_document_identifier()->set_serialized_token(
       *DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
-  return action;
+  return actions;
 }
 
-BrowserAction MakeMouseMove(const gfx::Point& move_point) {
-  BrowserAction action;
-  MoveMouseAction* move = action.add_actions()->mutable_move_mouse();
+Actions MakeMouseMove(const gfx::Point& move_point) {
+  Actions actions;
+  MoveMouseAction* move = actions.add_actions()->mutable_move_mouse();
   Coordinate* coordinate = move->mutable_target()->mutable_coordinate();
   coordinate->set_x(move_point.x());
   coordinate->set_y(move_point.y());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeNavigate(tabs::TabHandle tab_handle,
-                           std::string_view target_url) {
-  BrowserAction action;
-  NavigateAction* navigate = action.add_actions()->mutable_navigate();
+Actions MakeNavigate(tabs::TabHandle tab_handle, std::string_view target_url) {
+  Actions actions;
+  NavigateAction* navigate = actions.add_actions()->mutable_navigate();
   navigate->mutable_url()->assign(target_url);
   navigate->set_tab_id(tab_handle.raw_value());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeCreateTab(SessionID window_id, bool foreground) {
-  BrowserAction action;
-  CreateTabAction* create_tab = action.add_actions()->mutable_create_tab();
+Actions MakeCreateTab(SessionID window_id, bool foreground) {
+  Actions actions;
+  CreateTabAction* create_tab = actions.add_actions()->mutable_create_tab();
   create_tab->set_foreground(foreground);
   create_tab->set_window_id(window_id.id());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeType(RenderFrameHost& rfh,
-                       int content_node_id,
-                       std::string_view text,
-                       bool follow_by_enter) {
-  BrowserAction action;
-  TypeAction* type_action = action.add_actions()->mutable_type();
+Actions MakeType(RenderFrameHost& rfh,
+                 int content_node_id,
+                 std::string_view text,
+                 bool follow_by_enter) {
+  Actions actions;
+  TypeAction* type_action = actions.add_actions()->mutable_type();
   type_action->mutable_target()->set_content_node_id(content_node_id);
   type_action->mutable_target()
       ->mutable_document_identifier()
@@ -157,14 +157,14 @@ BrowserAction MakeType(RenderFrameHost& rfh,
   type_action->set_mode(
       TypeAction_TypeMode::TypeAction_TypeMode_UNKNOWN_TYPE_MODE);
   type_action->set_follow_by_enter(follow_by_enter);
-  return action;
+  return actions;
 }
 
-BrowserAction MakeType(const gfx::Point& type_point,
-                       std::string_view text,
-                       bool follow_by_enter) {
-  BrowserAction action;
-  TypeAction* type_action = action.add_actions()->mutable_type();
+Actions MakeType(const gfx::Point& type_point,
+                 std::string_view text,
+                 bool follow_by_enter) {
+  Actions actions;
+  TypeAction* type_action = actions.add_actions()->mutable_type();
   Coordinate* coordinate = type_action->mutable_target()->mutable_coordinate();
   coordinate->set_x(type_point.x());
   coordinate->set_y(type_point.y());
@@ -173,17 +173,17 @@ BrowserAction MakeType(const gfx::Point& type_point,
   type_action->set_mode(
       TypeAction_TypeMode::TypeAction_TypeMode_UNKNOWN_TYPE_MODE);
   type_action->set_follow_by_enter(follow_by_enter);
-  return action;
+  return actions;
 }
 
-BrowserAction MakeScroll(RenderFrameHost& rfh,
-                         std::optional<int> content_node_id,
-                         float scroll_offset_x,
-                         float scroll_offset_y) {
+Actions MakeScroll(RenderFrameHost& rfh,
+                   std::optional<int> content_node_id,
+                   float scroll_offset_x,
+                   float scroll_offset_y) {
   CHECK(!scroll_offset_x || !scroll_offset_y)
       << "Scroll action supports only one axis at a time.";
-  BrowserAction action;
-  ScrollAction* scroll = action.add_actions()->mutable_scroll();
+  Actions actions;
+  ScrollAction* scroll = actions.add_actions()->mutable_scroll();
 
   if (content_node_id.has_value()) {
     scroll->mutable_target()->set_content_node_id(content_node_id.value());
@@ -211,28 +211,28 @@ BrowserAction MakeScroll(RenderFrameHost& rfh,
     scroll->set_direction(ScrollAction::UP);
     scroll->set_distance(-scroll_offset_y);
   }
-  return action;
+  return actions;
 }
 
-BrowserAction MakeSelect(RenderFrameHost& rfh,
-                         int content_node_id,
-                         std::string_view value) {
-  BrowserAction action;
-  SelectAction* select_action = action.add_actions()->mutable_select();
+Actions MakeSelect(RenderFrameHost& rfh,
+                   int content_node_id,
+                   std::string_view value) {
+  Actions actions;
+  SelectAction* select_action = actions.add_actions()->mutable_select();
   select_action->mutable_target()->set_content_node_id(content_node_id);
   select_action->mutable_target()
       ->mutable_document_identifier()
       ->set_serialized_token(*DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
   select_action->set_value(value);
-  return action;
+  return actions;
 }
 
-BrowserAction MakeDragAndRelease(const gfx::Point& from_point,
-                                 const gfx::Point& to_point) {
-  BrowserAction action;
+Actions MakeDragAndRelease(const gfx::Point& from_point,
+                           const gfx::Point& to_point) {
+  Actions actions;
   DragAndReleaseAction* drag_and_release =
-      action.add_actions()->mutable_drag_and_release();
+      actions.add_actions()->mutable_drag_and_release();
   drag_and_release->mutable_from_target()->mutable_coordinate()->set_x(
       from_point.x());
   drag_and_release->mutable_from_target()->mutable_coordinate()->set_y(
@@ -241,18 +241,41 @@ BrowserAction MakeDragAndRelease(const gfx::Point& from_point,
       to_point.x());
   drag_and_release->mutable_to_target()->mutable_coordinate()->set_y(
       to_point.y());
-  return action;
+  return actions;
 }
 
-BrowserAction MakeWait() {
-  BrowserAction action;
-  action.add_actions()->mutable_wait();
-  return action;
+Actions MakeWait() {
+  Actions actions;
+  actions.add_actions()->mutable_wait();
+  return actions;
 }
 
-BrowserAction MakeAttemptLogin() {
-  BrowserAction action;
-  action.add_actions()->mutable_attempt_login();
+Actions MakeAttemptLogin() {
+  Actions actions;
+  actions.add_actions()->mutable_attempt_login();
+  return actions;
+}
+
+TabHandle GetTab(content::RenderFrameHost& rfh) {
+  auto* tab = TabInterface::GetFromContents(
+      content::WebContents::FromRenderFrameHost(&rfh));
+  CHECK(tab);
+  return tab->GetHandle();
+}
+
+Actions MakeScriptTool(content::RenderFrameHost& rfh,
+                       const std::string& name,
+                       const std::string& input_arguments) {
+  Actions action;
+  auto* script_tool = action.add_actions()->mutable_script_tool();
+  script_tool->mutable_document_identifier()->set_serialized_token(
+      *DocumentIdentifierUserData::GetDocumentIdentifier(
+          rfh.GetGlobalFrameToken()));
+  script_tool->set_tool_name(name);
+  script_tool->set_input_arguments(input_arguments);
+
+  script_tool->set_tab_id(GetTab(rfh).raw_value());
+
   return action;
 }
 
@@ -266,13 +289,6 @@ PageTarget MakeTarget(content::RenderFrameHost& rfh, int content_node_id) {
 
 PageTarget MakeTarget(const gfx::Point& point) {
   return PageTarget(point);
-}
-
-TabHandle GetTab(content::RenderFrameHost& rfh) {
-  auto* tab = TabInterface::GetFromContents(
-      content::WebContents::FromRenderFrameHost(&rfh));
-  CHECK(tab);
-  return tab->GetHandle();
 }
 
 std::unique_ptr<ToolRequest> MakeClickRequest(content::RenderFrameHost& rfh,
@@ -394,6 +410,15 @@ std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(TabInterface& tab) {
   return std::make_unique<AttemptLoginToolRequest>(tab.GetHandle());
 }
 
+std::unique_ptr<ToolRequest> MakeScriptToolRequest(
+    content::RenderFrameHost& rfh,
+    const std::string& name,
+    const std::string& input_arguments) {
+  return std::make_unique<ScriptToolRequest>(
+      GetTab(rfh), MakeTarget(rfh, kRootElementDomNodeId), name,
+      input_arguments);
+}
+
 std::vector<std::unique_ptr<ToolRequest>> ToRequestList(
     std::unique_ptr<ToolRequest> request) {
   std::vector<std::unique_ptr<ToolRequest>> vec;
@@ -404,6 +429,11 @@ std::vector<std::unique_ptr<ToolRequest>> ToRequestList(
 void ExpectOkResult(const mojom::ActionResult& result) {
   EXPECT_TRUE(IsOk(result))
       << "Expected OK result, got " << ToDebugString(result);
+}
+
+void ExpectOkResult(base::test::TestFuture<mojom::ActionResultPtr>& future) {
+  const auto& result = *(future.Get<0>());
+  ExpectOkResult(result);
 }
 
 void ExpectOkResult(base::test::TestFuture<mojom::ActionResultPtr,

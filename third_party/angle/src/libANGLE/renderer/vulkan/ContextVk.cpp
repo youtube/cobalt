@@ -54,6 +54,9 @@ namespace
 // If the total size of copyBufferToImage commands in the outside command buffer reaches the
 // threshold below, the latter is flushed.
 static constexpr VkDeviceSize kMaxBufferToImageCopySize = 64 * 1024 * 1024;
+// If the number of render passes in a command buffer reaches the threshold below, it will be
+// flushed and submitted.
+static constexpr VkDeviceSize kMaxRenderPassCountPerCommandBuffer = 128;
 // The number of queueSerials we will reserve for outsideRenderPassCommands when we generate one for
 // RenderPassCommands.
 static constexpr size_t kMaxReservedOutsideRenderPassQueueSerials = 15;
@@ -825,6 +828,7 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
       mAllowRenderPassToReactivate(true),
       mTotalBufferToImageCopySize(0),
       mEstimatedPendingImageGarbageSize(0),
+      mRenderPassCountSinceSubmit(0),
       mHasWaitSemaphoresPendingSubmission(false),
       mGpuClockSync{std::numeric_limits<double>::max(), std::numeric_limits<double>::max()},
       mGpuEventTimestampOrigin(0),
@@ -928,7 +932,9 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
     }
     if (getFeatures().supportsFragmentShadingRate.enabled)
     {
-        mDynamicStateDirtyBits.set(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE);
+        mDynamicStateDirtyBits.set(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM);
+        // EXT_fragment_shading_rate
+        mDynamicStateDirtyBits.set(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT);
     }
 
     mNewGraphicsCommandBufferDirtyBits |= mDynamicStateDirtyBits;
@@ -1019,8 +1025,10 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, vk::Rendere
         &ContextVk::handleDirtyGraphicsDynamicLogicOp;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_PRIMITIVE_RESTART_ENABLE] =
         &ContextVk::handleDirtyGraphicsDynamicPrimitiveRestartEnable;
-    mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE] =
-        &ContextVk::handleDirtyGraphicsDynamicFragmentShadingRate;
+    mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM] =
+        &ContextVk::handleDirtyGraphicsDynamicFragmentShadingRateQCOM;
+    mGraphicsDirtyBitHandlers[DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT] =
+        &ContextVk::handleDirtyGraphicsDynamicFragmentShadingRateEXT;
 
     mComputeDirtyBitHandlers[DIRTY_BIT_MEMORY_BARRIER] =
         &ContextVk::handleDirtyComputeMemoryBarrier;
@@ -1615,7 +1623,7 @@ angle::Result ContextVk::setupIndexedDraw(const gl::Context *context,
     }
 
     VertexArrayVk *vertexArrayVk         = getVertexArray();
-    const gl::Buffer *elementArrayBuffer = vertexArrayVk->getState().getElementArrayBuffer();
+    const gl::Buffer *elementArrayBuffer = vertexArrayVk->getElementArrayBuffer();
     if (!elementArrayBuffer)
     {
         BufferBindingDirty bindingDirty;
@@ -1772,6 +1780,10 @@ angle::Result ContextVk::setupLineLoopIndirectDraw(const gl::Context *context,
 
     vk::BufferHelper *indexBufferHelperOut    = nullptr;
     vk::BufferHelper *indirectBufferHelperOut = nullptr;
+
+    // Reset the index buffer offset
+    mGraphicsDirtyBits.set(DIRTY_BIT_INDEX_BUFFER);
+    mCurrentIndexBufferOffset = 0;
 
     VertexArrayVk *vertexArrayVk = getVertexArray();
     ANGLE_TRY(vertexArrayVk->handleLineLoopIndirectDraw(context, indirectBuffer,
@@ -3203,7 +3215,7 @@ angle::Result ContextVk::handleDirtyGraphicsDynamicPrimitiveRestartEnable(
     return angle::Result::Continue;
 }
 
-angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRate(
+angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRateQCOM(
     DirtyBits::Iterator *dirtyBitsIterator,
     DirtyBits dirtyBitMask)
 {
@@ -3211,7 +3223,7 @@ angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRate(
     const bool isFoveationEnabled    = drawFramebufferVk->isFoveationEnabled();
 
     gl::ShadingRate shadingRate =
-        isFoveationEnabled ? gl::ShadingRate::_1x1 : getState().getShadingRate();
+        isFoveationEnabled ? gl::ShadingRate::_1x1 : getState().getShadingRateQCOM();
     if (shadingRate == gl::ShadingRate::Undefined)
     {
         // Shading rate has not been set. Since this is dynamic state, set it to 1x1
@@ -3283,6 +3295,70 @@ angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRate(
     {
         shadingRateCombinerOp[1] = VK_FRAGMENT_SHADING_RATE_COMBINER_OP_REPLACE_KHR;
     }
+
+    ASSERT(hasActiveRenderPass());
+    mRenderPassCommandBuffer->setFragmentShadingRate(&fragmentSize, shadingRateCombinerOp);
+
+    return angle::Result::Continue;
+}
+
+angle::Result ContextVk::handleDirtyGraphicsDynamicFragmentShadingRateEXT(
+    DirtyBits::Iterator *dirtyBitsIterator,
+    DirtyBits dirtyBitMask)
+{
+    gl::ShadingRate shadingRateEXT = getState().getShadingRateEXT();
+
+    const bool shadingRateSupported = mRenderer->isShadingRateSupported(shadingRateEXT);
+    ASSERT(shadingRateSupported);
+
+    VkExtent2D fragmentSize = {};
+
+    switch (shadingRateEXT)
+    {
+        case gl::ShadingRate::_1x1:
+            fragmentSize.width  = 1;
+            fragmentSize.height = 1;
+            break;
+        case gl::ShadingRate::_1x2:
+            fragmentSize.width  = 1;
+            fragmentSize.height = 2;
+            break;
+        case gl::ShadingRate::_1x4:
+            fragmentSize.width  = 1;
+            fragmentSize.height = 4;
+            break;
+        case gl::ShadingRate::_2x1:
+            fragmentSize.width  = 2;
+            fragmentSize.height = 1;
+            break;
+        case gl::ShadingRate::_2x2:
+            fragmentSize.width  = 2;
+            fragmentSize.height = 2;
+            break;
+        case gl::ShadingRate::_2x4:
+            fragmentSize.width  = 2;
+            fragmentSize.height = 4;
+            break;
+        case gl::ShadingRate::_4x1:
+            fragmentSize.width  = 4;
+            fragmentSize.height = 1;
+            break;
+        case gl::ShadingRate::_4x2:
+            fragmentSize.width  = 4;
+            fragmentSize.height = 2;
+            break;
+        case gl::ShadingRate::_4x4:
+            fragmentSize.width  = 4;
+            fragmentSize.height = 4;
+            break;
+        default:
+            UNREACHABLE();
+            return angle::Result::Stop;
+    }
+
+    VkFragmentShadingRateCombinerOpKHR shadingRateCombinerOp[2] = {
+        VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR,
+        VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR};
 
     ASSERT(hasActiveRenderPass());
     mRenderPassCommandBuffer->setFragmentShadingRate(&fragmentSize, shadingRateCombinerOp);
@@ -5294,7 +5370,7 @@ angle::Result ContextVk::invalidateProgramExecutableHelper(const gl::Context *co
         invalidateCurrentGraphicsPipeline();
         // No additional work is needed here. We will update the pipeline desc
         // later.
-        invalidateDefaultAttributes(context->getStateCache().getActiveDefaultAttribsMask());
+        invalidateDefaultAttributes(context->getActiveDefaultAttribsMask());
         invalidateVertexAndIndexBuffers();
         // If VK_EXT_vertex_input_dynamic_state is enabled then vkCmdSetVertexInputEXT must be
         // called in the current command buffer prior to the draw command, even if there are no
@@ -5713,7 +5789,7 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                 break;
             case gl::state::DIRTY_BIT_VERTEX_ARRAY_BINDING:
             {
-                invalidateDefaultAttributes(context->getStateCache().getActiveDefaultAttribsMask());
+                invalidateDefaultAttributes(context->getActiveDefaultAttribsMask());
                 ANGLE_TRY(vertexArrayVk->updateActiveAttribInfo(this));
                 ANGLE_TRY(onIndexBufferChange(vertexArrayVk->getCurrentElementArrayBuffer()));
                 break;
@@ -5937,10 +6013,17 @@ angle::Result ContextVk::syncState(const gl::Context *context,
                                     gl_vk::GetLogicOp(gl::ToGLenum(glState.getLogicOp())));
                             }
                             break;
-                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE:
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_QCOM:
                             if (getFeatures().supportsFragmentShadingRate.enabled)
                             {
-                                mGraphicsDirtyBits.set(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE);
+                                mGraphicsDirtyBits.set(
+                                    DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM);
+                            }
+                            break;
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_EXT:
+                            if (getFeatures().supportsFragmentShadingRate.enabled)
+                            {
+                                mGraphicsDirtyBits.set(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT);
                             }
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_BLEND_ADVANCED_COHERENT:
@@ -6145,6 +6228,11 @@ gl::Caps ContextVk::getNativeCaps() const
     return mRenderer->getNativeCaps();
 }
 
+const angle::ShadingRateMap &ContextVk::getSupportedFragmentShadingRateEXTSampleCounts() const
+{
+    return mRenderer->getSupportedFragmentShadingRateEXTSampleCounts();
+}
+
 const gl::TextureCapsMap &ContextVk::getNativeTextureCaps() const
 {
     return mRenderer->getNativeTextureCaps();
@@ -6205,9 +6293,10 @@ BufferImpl *ContextVk::createBuffer(const gl::BufferState &state)
     return new BufferVk(state);
 }
 
-VertexArrayImpl *ContextVk::createVertexArray(const gl::VertexArrayState &state)
+VertexArrayImpl *ContextVk::createVertexArray(const gl::VertexArrayState &state,
+                                              const gl::VertexArrayBuffers &vertexArrayBuffers)
 {
-    return new VertexArrayVk(this, state);
+    return new VertexArrayVk(this, state, vertexArrayBuffers);
 }
 
 QueryImpl *ContextVk::createQuery(gl::QueryType type)
@@ -7681,6 +7770,7 @@ angle::Result ContextVk::flushAndSubmitCommands(const vk::Semaphore *signalSemap
     prepareToSubmitAllCommands();
     ANGLE_TRY(submitCommands(signalSemaphore, externalFence));
     mCommandsPendingSubmissionCount = 0;
+    mRenderPassCountSinceSubmit     = 0;
 
     ASSERT(mOutsideRenderPassCommands->getQueueSerial() > mLastSubmittedQueueSerial);
 
@@ -7914,6 +8004,7 @@ angle::Result ContextVk::beginNewRenderPass(
         this, std::move(framebuffer), renderArea, renderPassDesc, renderPassAttachmentOps,
         colorAttachmentCount, depthStencilAttachmentIndex, clearValues, renderPassQueueSerial,
         commandBufferOut));
+    mRenderPassCountSinceSubmit++;
 
     // By default all render pass should allow to be reactivated.
     mAllowRenderPassToReactivate = true;
@@ -8108,16 +8199,31 @@ angle::Result ContextVk::flushCommandsAndEndRenderPass(RenderPassClosureReason r
 
     ANGLE_TRY(flushCommandsAndEndRenderPassWithoutSubmit(reason));
 
-    if (mHasDeferredFlush || hasExcessPendingGarbage())
+    // In some cases, it is recommended to flush and submit the command buffer to boost performance
+    // or avoid too much memory allocation.
+    RenderPassClosureReason submitReason;
+    if (mHasDeferredFlush)
     {
-        // If we have deferred glFlush call in the middle of render pass, or if there is too much
-        // pending garbage, perform a flush now.
-        RenderPassClosureReason flushImplReason =
-            (hasExcessPendingGarbage()) ? RenderPassClosureReason::ExcessivePendingGarbage
-                                        : RenderPassClosureReason::AlreadySpecifiedElsewhere;
-        ANGLE_TRY(flushAndSubmitCommands(nullptr, nullptr, flushImplReason));
+        // If we have deferred glFlush call in the middle of render pass, perform a flush now.
+        submitReason = RenderPassClosureReason::AlreadySpecifiedElsewhere;
     }
-    return angle::Result::Continue;
+    else if (hasExcessPendingGarbage())
+    {
+        // If there is too much pending garbage, perform a flush now.
+        submitReason = RenderPassClosureReason::ExcessivePendingGarbage;
+    }
+    else if (mRenderPassCountSinceSubmit >= kMaxRenderPassCountPerCommandBuffer)
+    {
+        // If there are too many render passes in the command buffer, perform a flush now.
+        submitReason = RenderPassClosureReason::RenderPassCountLimitReached;
+    }
+    else
+    {
+        // Let more commands accumulate before submitting the command buffer.
+        return angle::Result::Continue;
+    }
+
+    return flushAndSubmitCommands(nullptr, nullptr, submitReason);
 }
 
 angle::Result ContextVk::flushDirtyGraphicsRenderPass(DirtyBits::Iterator *dirtyBitsIterator,

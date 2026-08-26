@@ -335,41 +335,33 @@ std::tuple<SkPoint*, SkScalar*> SkPathRef::growForVerbsInPath(const SkPathRef& p
     return {pts, weights};
 }
 
-SkPoint* SkPathRef::growForRepeatedVerb(int /*SkPath::Verb*/ verb,
+SkPoint* SkPathRef::growForRepeatedVerb(SkPathVerb verb,
                                         int numVbs,
                                         SkScalar** weights) {
     SkDEBUGCODE(this->validate();)
-    int pCnt;
+    int pCnt = 0;
     switch (verb) {
-        case SkPath::kMove_Verb:
+        case SkPathVerb::kMove:
             pCnt = numVbs;
             break;
-        case SkPath::kLine_Verb:
+        case SkPathVerb::kLine:
             fSegmentMask |= SkPath::kLine_SegmentMask;
             pCnt = numVbs;
             break;
-        case SkPath::kQuad_Verb:
+        case SkPathVerb::kQuad:
             fSegmentMask |= SkPath::kQuad_SegmentMask;
             pCnt = 2 * numVbs;
             break;
-        case SkPath::kConic_Verb:
+        case SkPathVerb::kConic:
             fSegmentMask |= SkPath::kConic_SegmentMask;
             pCnt = 2 * numVbs;
             break;
-        case SkPath::kCubic_Verb:
+        case SkPathVerb::kCubic:
             fSegmentMask |= SkPath::kCubic_SegmentMask;
             pCnt = 3 * numVbs;
             break;
-        case SkPath::kClose_Verb:
-            SkDEBUGFAIL("growForRepeatedVerb called for kClose_Verb");
-            pCnt = 0;
-            break;
-        case SkPath::kDone_Verb:
-            SkDEBUGFAIL("growForRepeatedVerb called for kDone");
-            pCnt = 0;
-            break;
-        default:
-            SkDEBUGFAIL("default should not be reached");
+        case SkPathVerb::kClose:
+            SkDEBUGFAIL("growForRepeatedVerb called for kClose");
             pCnt = 0;
             break;
     }
@@ -377,8 +369,8 @@ SkPoint* SkPathRef::growForRepeatedVerb(int /*SkPath::Verb*/ verb,
     fBoundsIsDirty = true;  // this also invalidates fIsFinite
     fType = PathType::kGeneral;
 
-    memset(fVerbs.push_back_n(numVbs), verb, numVbs);
-    if (SkPath::kConic_Verb == verb) {
+    memset(fVerbs.push_back_n(numVbs), (uint8_t)verb, numVbs);
+    if (SkPathVerb::kConic == verb) {
         SkASSERT(weights);
         *weights = fConicWeights.push_back_n(numVbs);
     }
@@ -388,39 +380,31 @@ SkPoint* SkPathRef::growForRepeatedVerb(int /*SkPath::Verb*/ verb,
     return pts;
 }
 
-SkPoint* SkPathRef::growForVerb(int /* SkPath::Verb*/ verb, SkScalar weight) {
+SkPoint* SkPathRef::growForVerb(SkPathVerb verb, SkScalar weight) {
     SkDEBUGCODE(this->validate();)
-    int pCnt;
+    int pCnt = 0;
     unsigned mask = 0;
     switch (verb) {
-        case SkPath::kMove_Verb:
+        case SkPathVerb::kMove:
             pCnt = 1;
             break;
-        case SkPath::kLine_Verb:
+        case SkPathVerb::kLine:
             mask = SkPath::kLine_SegmentMask;
             pCnt = 1;
             break;
-        case SkPath::kQuad_Verb:
+        case SkPathVerb::kQuad:
             mask = SkPath::kQuad_SegmentMask;
             pCnt = 2;
             break;
-        case SkPath::kConic_Verb:
+        case SkPathVerb::kConic:
             mask = SkPath::kConic_SegmentMask;
             pCnt = 2;
             break;
-        case SkPath::kCubic_Verb:
+        case SkPathVerb::kCubic:
             mask = SkPath::kCubic_SegmentMask;
             pCnt = 3;
             break;
-        case SkPath::kClose_Verb:
-            pCnt = 0;
-            break;
-        case SkPath::kDone_Verb:
-            SkDEBUGFAIL("growForVerb called for kDone");
-            pCnt = 0;
-            break;
-        default:
-            SkDEBUGFAIL("default is not reached");
+        case SkPathVerb::kClose:
             pCnt = 0;
             break;
     }
@@ -430,7 +414,7 @@ SkPoint* SkPathRef::growForVerb(int /* SkPath::Verb*/ verb, SkScalar weight) {
     fType = PathType::kGeneral;
 
     fVerbs.push_back(verb);
-    if (SkPath::kConic_Verb == verb) {
+    if (SkPathVerb::kConic == verb) {
         fConicWeights.push_back(weight);
     }
     SkPoint* pts = fPoints.push_back_n(pCnt);
@@ -474,40 +458,54 @@ void SkPathRef::callGenIDChangeListeners() {
     fGenIDChangeListeners.changed();
 }
 
-SkRRect SkPathRef::getRRect() const {
-    const SkRect& bounds = this->getBounds();
+SkRRect SkPathPriv::DeduceRRectFromContour(const SkRect& bounds, SkSpan<const SkPoint> pts,
+                                           SkSpan<const SkPathVerb> vbs) {
+    SkASSERT(!vbs.empty());
+    SkASSERT(vbs.front() == SkPathVerb::kMove);
+
     SkVector radii[4] = {{0, 0}, {0, 0}, {0, 0}, {0, 0}};
-    Iter iter(*this);
-    SkPoint pts[4];
-    uint8_t verb = iter.next(pts);
-    SkASSERT(SkPath::kMove_Verb == verb);
-    while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
-        if (SkPath::kConic_Verb == verb) {
-            SkVector v1_0 = pts[1] - pts[0];
-            SkVector v2_1 = pts[2] - pts[1];
-            SkVector dxdy;
-            if (v1_0.fX) {
-                SkASSERT(!v2_1.fX && !v1_0.fY);
-                dxdy.set(SkScalarAbs(v1_0.fX), SkScalarAbs(v2_1.fY));
-            } else if (!v1_0.fY) {
-                SkASSERT(!v2_1.fX || !v2_1.fY);
-                dxdy.set(SkScalarAbs(v2_1.fX), SkScalarAbs(v2_1.fY));
-            } else {
-                SkASSERT(!v2_1.fY);
-                dxdy.set(SkScalarAbs(v2_1.fX), SkScalarAbs(v1_0.fY));
-            }
-            SkRRect::Corner corner =
-                    pts[1].fX == bounds.fLeft ?
-                        pts[1].fY == bounds.fTop ?
+
+    size_t ptIndex = 0;
+    for (const SkPathVerb verb : vbs) {
+        switch (verb) {
+            case SkPathVerb::kMove:
+                SkASSERT(ptIndex == 0); // we only expect 1 move
+                ptIndex += 1;
+                break;
+            case SkPathVerb::kLine: {
+                // we only expect horizontal or vertical lines
+                SkDEBUGCODE(const SkVector delta = pts[ptIndex] - pts[ptIndex-1];)
+                SkASSERT(delta.fX == 0 || delta.fY == 0);
+                ptIndex += 1;
+            } break;
+            case SkPathVerb::kQuad:  SkASSERT(false); break;
+            case SkPathVerb::kCubic: SkASSERT(false); break;
+            case SkPathVerb::kConic: {
+                SkVector v1_0 = pts[ptIndex] - pts[ptIndex - 1];
+                SkVector v2_1 = pts[ptIndex + 1] - pts[ptIndex];
+                SkVector dxdy;
+                if (v1_0.fX) {
+                    SkASSERT(!v2_1.fX && !v1_0.fY);
+                    dxdy.set(SkScalarAbs(v1_0.fX), SkScalarAbs(v2_1.fY));
+                } else if (!v1_0.fY) {
+                    SkASSERT(!v2_1.fX || !v2_1.fY);
+                    dxdy.set(SkScalarAbs(v2_1.fX), SkScalarAbs(v2_1.fY));
+                } else {
+                    SkASSERT(!v2_1.fY);
+                    dxdy.set(SkScalarAbs(v2_1.fX), SkScalarAbs(v1_0.fY));
+                }
+                SkRRect::Corner corner =
+                    pts[ptIndex].fX == bounds.fLeft ?
+                        pts[ptIndex].fY == bounds.fTop ?
                             SkRRect::kUpperLeft_Corner : SkRRect::kLowerLeft_Corner :
-                    pts[1].fY == bounds.fTop ?
+                        pts[ptIndex].fY == bounds.fTop ?
                             SkRRect::kUpperRight_Corner : SkRRect::kLowerRight_Corner;
-            SkASSERT(!radii[corner].fX && !radii[corner].fY);
-            radii[corner] = dxdy;
-        } else {
-            SkASSERT((verb == SkPath::kLine_Verb
-                    && (!(pts[1].fX - pts[0].fX) || !(pts[1].fY - pts[0].fY)))
-                    || verb == SkPath::kClose_Verb);
+                SkASSERT(!radii[corner].fX && !radii[corner].fY);
+                radii[corner] = dxdy;
+                ptIndex += 2;
+            } break;
+            case SkPathVerb::kClose:
+                break;
         }
     }
     SkRRect rrect;
@@ -515,107 +513,20 @@ SkRRect SkPathRef::getRRect() const {
     return rrect;
 }
 
-bool SkPathRef::isRRect(SkRRect* rrect, bool* isCCW, unsigned* start) const {
+std::optional<SkPathRRectInfo> SkPathRef::isRRect() const {
     if (fType == PathType::kRRect) {
-        if (rrect) {
-            *rrect = this->getRRect();
-        }
-        if (isCCW) {
-            *isCCW = SkToBool(fRRectOrOvalIsCCW);
-        }
-        if (start) {
-            *start = fRRectOrOvalStartIdx;
-        }
+        return {{
+            SkPathPriv::DeduceRRectFromContour(this->getBounds(),
+                                               this->pointSpan(),
+                                               this->verbs()),
+            fRRectOrOvalIsCCW ? SkPathDirection::kCCW : SkPathDirection::kCW,
+            fRRectOrOvalStartIdx,
+        }};
     }
-    return fType == PathType::kRRect;
+    return {};
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-SkPathRef::Iter::Iter() {
-#ifdef SK_DEBUG
-    fPts = nullptr;
-    fConicWeights = nullptr;
-#endif
-    // need to init enough to make next() harmlessly return kDone_Verb
-    fVerbs = nullptr;
-    fVerbStop = nullptr;
-}
-
-SkPathRef::Iter::Iter(const SkPathRef& path) {
-    this->setPathRef(path);
-}
-
-void SkPathRef::Iter::setPathRef(const SkPathRef& path) {
-    fPts = path.points();
-    fVerbs = path.verbsBegin();
-    fVerbStop = path.verbsEnd();
-    fConicWeights = path.conicWeights();
-    if (fConicWeights) {
-        fConicWeights -= 1;  // begin one behind
-    }
-
-    // Don't allow iteration through non-finite points.
-    if (!path.isFinite()) {
-        fVerbStop = fVerbs;
-    }
-}
-
-uint8_t SkPathRef::Iter::next(SkPoint pts[4]) {
-    SkASSERT(pts);
-
-    SkDEBUGCODE(unsigned peekResult = this->peek();)
-
-    if (fVerbs == fVerbStop) {
-        SkASSERT(peekResult == SkPath::kDone_Verb);
-        return (uint8_t) SkPath::kDone_Verb;
-    }
-
-    // fVerbs points one beyond next verb so decrement first.
-    unsigned verb = *fVerbs++;
-    const SkPoint* srcPts = fPts;
-
-    switch (verb) {
-        case SkPath::kMove_Verb:
-            pts[0] = srcPts[0];
-            srcPts += 1;
-            break;
-        case SkPath::kLine_Verb:
-            pts[0] = srcPts[-1];
-            pts[1] = srcPts[0];
-            srcPts += 1;
-            break;
-        case SkPath::kConic_Verb:
-            fConicWeights += 1;
-            [[fallthrough]];
-        case SkPath::kQuad_Verb:
-            pts[0] = srcPts[-1];
-            pts[1] = srcPts[0];
-            pts[2] = srcPts[1];
-            srcPts += 2;
-            break;
-        case SkPath::kCubic_Verb:
-            pts[0] = srcPts[-1];
-            pts[1] = srcPts[0];
-            pts[2] = srcPts[1];
-            pts[3] = srcPts[2];
-            srcPts += 3;
-            break;
-        case SkPath::kClose_Verb:
-            break;
-        case SkPath::kDone_Verb:
-            SkASSERT(fVerbs == fVerbStop);
-            break;
-    }
-    fPts = srcPts;
-    SkASSERT(peekResult == verb);
-    return (uint8_t) verb;
-}
-
-uint8_t SkPathRef::Iter::peek() const {
-    return fVerbs < fVerbStop ? *fVerbs : (uint8_t) SkPath::kDone_Verb;
-}
-
 
 bool SkPathRef::isValid() const {
     switch (fType) {

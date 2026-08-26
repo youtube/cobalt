@@ -43,15 +43,6 @@ namespace webrtc {
 
 namespace {
 
-#ifdef __native_client__
-int ResolveHostname(absl::string_view hostname,
-                    int family,
-                    std::vector<IPAddress>* addresses) {
-  RTC_DCHECK_NOTREACHED();
-  RTC_LOG(LS_WARNING) << "ResolveHostname() is not implemented for NaCl";
-  return -1;
-}
-#else   // notdef(__native_client__)
 int ResolveHostname(absl::string_view hostname,
                     int family,
                     std::vector<IPAddress>& addresses) {
@@ -94,7 +85,6 @@ int ResolveHostname(absl::string_view hostname,
   freeaddrinfo(result);
   return 0;
 }
-#endif  // !__native_client__
 
 // Special task posting for Mac/iOS
 #if defined(WEBRTC_MAC) || defined(WEBRTC_IOS)

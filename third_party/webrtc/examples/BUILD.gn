@@ -823,7 +823,7 @@ if (is_linux || is_chromeos || is_win) {
       "../rtc_base:socket_address",
       "../rtc_base:socket_server",
       "../rtc_base:threading",
-      "//third_party/abseil-cpp/absl/strings:strings",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
   rtc_executable("stunserver") {

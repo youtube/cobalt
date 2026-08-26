@@ -11,11 +11,15 @@
 #ifndef PC_STREAM_COLLECTION_H_
 #define PC_STREAM_COLLECTION_H_
 
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/make_ref_counted.h"
+#include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
 
 namespace webrtc {
 

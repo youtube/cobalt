@@ -54,7 +54,7 @@ scoped_refptr<I420Buffer> Scale(scoped_refptr<I420Buffer> buffer,
   }
   scoped_refptr<I420Buffer> scaled(
       I420Buffer::Create(resolution.width, resolution.height));
-  scaled->ScaleFrom(*buffer.get());
+  scaled->ScaleFrom(*buffer);
   return scaled;
 }
 }  // namespace

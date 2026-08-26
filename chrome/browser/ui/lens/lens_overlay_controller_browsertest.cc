@@ -74,9 +74,11 @@
 #include "chrome/browser/ui/lens/test_lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/test_lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/test_lens_overlay_side_panel_coordinator.h"
+#include "chrome/browser/ui/lens/test_lens_search_contextualization_controller.h"
 #include "chrome/browser/ui/lens/test_lens_search_controller.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -563,13 +565,7 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
   explicit LensSearchControllerFake(tabs::TabInterface* tab)
       : lens::TestLensSearchController(tab) {}
 
-  ~LensSearchControllerFake() override { ResetPageContextEligibilityAPI(); }
-
-  // Sets the context eligibility of the page and creates the new API.
-  void SetContextEligible(bool eligible) {
-    is_context_eligible_ = eligible;
-    CreatePageContextEligibilityAPI();
-  }
+  ~LensSearchControllerFake() override = default;
 
   // Helper function to force the fake query controller to return errors in its
   // responses to full image requests. This should be called before ShowUI.
@@ -649,37 +645,7 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
     return std::make_unique<lens::TestLensOverlaySidePanelCoordinator>(this);
   }
 
-  void CreatePageContextEligibilityAPI() override {
-    // Reset any old API pointers that could be dangling from a previous
-    // creation of the API.
-    ResetPageContextEligibilityAPI();
-
-    page_context_eligibility_api_ =
-        std::make_unique<optimization_guide::PageContextEligibilityAPI>();
-
-    page_context_eligibility_api_->IsPageContextEligible =
-        is_context_eligible_
-            ? [](const std::string& host, const std::string& path,
-                 const std::vector<
-                     optimization_guide::FrameMetadata>&) { return true; }
-            : [](const std::string& host, const std::string& path,
-                 const std::vector<optimization_guide::FrameMetadata>&) {
-                return false;
-              };
-
-    page_context_eligibility_ =
-        std::make_unique<optimization_guide::PageContextEligibility>(
-            page_context_eligibility_api_.get());
-    set_page_context_eligibility_for_testing(page_context_eligibility_.get());
-  }
-
  private:
-  void ResetPageContextEligibilityAPI() {
-    set_page_context_eligibility_for_testing(nullptr);
-    page_context_eligibility_.reset();
-    page_context_eligibility_api_.reset();
-  }
-
   // A url response callback that records the url sent to the callback.
   void RecordUrlResponseCallback(lens::proto::LensOverlayUrlResponse response) {
     last_search_url_ = response.url();
@@ -692,11 +658,6 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
   std::string last_search_url_;
   lens::LensOverlayUrlResponseCallback url_callback_;
   bool full_image_request_should_return_error_ = false;
-  bool is_context_eligible_ = true;
-  std::unique_ptr<optimization_guide::PageContextEligibilityAPI>
-      page_context_eligibility_api_;
-  std::unique_ptr<optimization_guide::PageContextEligibility>
-      page_context_eligibility_;
 };
 
 namespace {
@@ -7703,11 +7664,14 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, ProtectedPageShows) {
   histogram_tester.ExpectTotalCount("Lens.Overlay.SidePanelResultStatus",
                                     /*expected_count=*/0);
 
-  // Set the search controller to return the page as not context eligible.
-  auto* fake_controller =
-      static_cast<LensSearchControllerFake*>(GetLensSearchController());
-  ASSERT_TRUE(fake_controller);
-  fake_controller->SetContextEligible(true);
+  // Set the contextualization controller to return the page as not context
+  // eligible.
+  auto* fake_contextualization_controller =
+      static_cast<lens::TestLensSearchContextualizationController*>(
+          GetLensSearchController()
+              ->lens_search_contextualization_controller());
+  ASSERT_TRUE(fake_contextualization_controller);
+  fake_contextualization_controller->SetContextEligible(true);
 
   // State should start in off.
   auto* controller = GetLensOverlayController();
@@ -8171,11 +8135,14 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerInnerTextAndApc,
   histogram_tester.ExpectTotalCount("Lens.Overlay.SidePanelResultStatus",
                                     /*expected_count=*/0);
 
-  // Set the search controller to return the page as not context eligible.
-  auto* fake_controller =
-      static_cast<LensSearchControllerFake*>(GetLensSearchController());
-  ASSERT_TRUE(fake_controller);
-  fake_controller->SetContextEligible(false);
+  // Set the contextualization controller to return the page as not context
+  // eligible.
+  auto* fake_contextualization_controller =
+      static_cast<lens::TestLensSearchContextualizationController*>(
+          GetLensSearchController()
+              ->lens_search_contextualization_controller());
+  ASSERT_TRUE(fake_contextualization_controller);
+  fake_contextualization_controller->SetContextEligible(false);
 
   // State should start in off.
   auto* controller = GetLensOverlayController();
@@ -8755,4 +8722,74 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserSimplifiedSelectionTest,
   EXPECT_TRUE(text);
   EXPECT_TRUE(kTestOverlayObject->Equals(*object));
   EXPECT_EQ(kTestText->content_language, text->content_language);
+}
+
+class LensOverlayControllerSideBySideBrowserTest
+    : public LensOverlayControllerBrowserTest {
+ protected:
+  void SetupFeatureList() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        {{lens::features::kLensOverlay, {{"use-blur", "true"}}},
+         {features::kSideBySide, {}}},
+        {});
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
+                       BackgroundBlurNotLiveInitially) {
+  WaitForPaint();
+
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+
+  // Wait until AddBackgroundBlur is called.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->GetOverlayWebViewForTesting()->layer(); }));
+
+  // In a normal tab, the screenshot is not resized initially, so background
+  // image capturing should not have been started.
+  EXPECT_FALSE(controller->GetLensOverlayBlurLayerDelegateForTesting()
+                   ->IsCapturingBackgroundImageForTesting());
+}
+
+// TODO(crbug.com/422479353): Flaky on Linux MSan.
+#if BUILDFLAG(IS_LINUX) && defined(MEMORY_SANITIZER)
+#define MAYBE_BackgroundBlurLiveInitiallyInSplitTab \
+  DISABLED_BackgroundBlurLiveInitiallyInSplitTab
+#else
+#define MAYBE_BackgroundBlurLiveInitiallyInSplitTab \
+  BackgroundBlurLiveInitiallyInSplitTab
+#endif
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerSideBySideBrowserTest,
+                       MAYBE_BackgroundBlurLiveInitiallyInSplitTab) {
+  chrome::NewSplitTab(browser(),
+                      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  WaitForPaint();
+
+  // State should start in off.
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Showing UI should change the state to screenshot and eventually to overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+
+  // Wait until AddBackgroundBlur is called.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->GetOverlayWebViewForTesting()->layer(); }));
+
+  // In a split tab, the screenshot is initially resized, so background image
+  // capturing should have been started.
+  EXPECT_TRUE(controller->GetLensOverlayBlurLayerDelegateForTesting()
+                  ->IsCapturingBackgroundImageForTesting());
 }

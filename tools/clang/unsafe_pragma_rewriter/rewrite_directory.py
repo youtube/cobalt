@@ -36,6 +36,14 @@ def main():
 
   print("Checking GN build arg configuration ...")
   try:
+    dcheck_cmd = [
+        "gn", "args", "-C", build_dir, "--short", "--list=dcheck_always_on"
+    ]
+    dcheck = subprocess.check_output(dcheck_cmd, text=True)
+    if "true" not in dcheck:
+      print("Set GN arg dcheck_always_on = true", file=sys.stderr)
+      sys.exit(1)
+
     diag_cmd = [
         "gn", "args", "-C", build_dir, "--short",
         "--list=diagnostics_print_source_range_info"
@@ -62,8 +70,13 @@ def main():
   tmpdir = tempfile.mkdtemp(None, "unsafe_pragma_rewriter.")
   print(f"Temporary files will be written to {tmpdir}\n")
 
-  grep_cmd = ["git", "grep", "-l", "^#pragma allow_unsafe_", directory]
-  grep = subprocess.check_output(grep_cmd, text=True).strip()
+  try:
+    grep_cmd = ["git", "grep", "-l", "^#pragma allow_unsafe_", directory]
+    grep = subprocess.check_output(grep_cmd, text=True).strip()
+  except Exception as e:
+    print("No candidates found")
+    sys.exit(1)
+
   grep_lines = grep.splitlines() if grep else []
   source_files = [x for x in grep_lines if re.match(r".*\.cc$", x)]
   if not source_files:
@@ -74,7 +87,7 @@ def main():
     print("Files containing unsafe pragmas:")
     print("\n".join(source_files), "\n")
 
-  iffy_cmd = ["grep", "-c", "^#if"] + source_files
+  iffy_cmd = ["grep", "-Pc", "^#if(?! DCHECK_IS_ON\\(\\))"] + source_files
   iffy = subprocess.check_output(iffy_cmd, text=True).strip()
   iffy_lines = iffy.splitlines() if iffy else []
   iffy_files = [x.split(":")[0] for x in iffy_lines if x.split(":")[1] != "1"]
@@ -89,7 +102,7 @@ def main():
     sys.exit(1)
 
   if verbose:
-    print("Remaing files:")
+    print("Remaining files after excluding #ifdefs:")
     print("\n".join(source_files), "\n")
 
   # Starting with all files in the directory, find the ones that are
@@ -105,7 +118,7 @@ def main():
     ]
 
   if verbose:
-    print("Remaing files:")
+    print("Remaining files after excluding unbuildable:")
     print("\n".join(source_files), "\n")
 
   subprocess.run(
@@ -166,9 +179,14 @@ def main():
                    check=True)
 
   if source_files:
-    needs_header = subprocess.check_output(
-        ["git", "grep", "-l", "UNSAFE_TODO"] + source_files, text=True).strip()
-    needs_header_files = needs_header.splitlines() if needs_header else []
+    try:
+      needs_header_cmd = ["git", "grep", "-l", "UNSAFE_TODO"] + source_files
+      needs_header = subprocess.check_output(needs_header_cmd,
+                                             text=True).strip()
+      needs_header_files = needs_header.splitlines() if needs_header else []
+    except Exception as e:
+      needs_header_files = []
+
     if needs_header_files:
       subprocess.run(
           ["tools/add_header.py", "--header", '"base/compiler_specific.h"'] +

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_DCHECK_HELPER_H_
 #define PARTITION_ALLOC_PARTITION_DCHECK_HELPER_H_
 
@@ -59,7 +64,7 @@ void DCheckRootLockIsAcquired(PartitionRoot* root)
 // `partition_page.h`, and so can't be moved into the latter (layering
 // violation).
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
-bool DeducedRootIsValid(SlotSpanMetadata* slot_span);
+bool DeducedRootIsValid(const SlotSpanMetadata* slot_span);
 
 }  // namespace partition_alloc::internal
 

@@ -205,7 +205,7 @@ void AudioBuffer::CopyTo(AudioBuffer* buffer) const {
 void AudioBuffer::RestoreNumChannels() {
   num_channels_ = buffer_num_channels_;
   data_->set_num_channels(buffer_num_channels_);
-  if (split_data_.get()) {
+  if (split_data_) {
     split_data_->set_num_channels(buffer_num_channels_);
   }
 }
@@ -214,7 +214,7 @@ void AudioBuffer::set_num_channels(size_t num_channels) {
   RTC_DCHECK_GE(buffer_num_channels_, num_channels);
   num_channels_ = num_channels;
   data_->set_num_channels(num_channels);
-  if (split_data_.get()) {
+  if (split_data_) {
     split_data_->set_num_channels(num_channels);
   }
 }

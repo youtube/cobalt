@@ -13,6 +13,7 @@
 #include <optional>
 
 #include "absl/base/nullability.h"
+#include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
@@ -68,9 +69,9 @@ class SimulateOutgoingTrafficIn {
 }  // namespace
 
 TEST(AlrDetectorTest, AlrDetection) {
-  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(Timestamp::Seconds(1));
-  AlrDetector alr_detector(&field_trials);
+  AlrDetector alr_detector(
+      CreateEnvironment(CreateTestFieldTrialsPtr(), &clock));
   alr_detector.SetEstimatedBitrate(kEstimatedBitrate);
 
   // Start in non-ALR state.
@@ -96,9 +97,9 @@ TEST(AlrDetectorTest, AlrDetection) {
 }
 
 TEST(AlrDetectorTest, ShortSpike) {
-  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(Timestamp::Seconds(1));
-  AlrDetector alr_detector(&field_trials);
+  AlrDetector alr_detector(
+      CreateEnvironment(CreateTestFieldTrialsPtr(), &clock));
   alr_detector.SetEstimatedBitrate(kEstimatedBitrate);
   // Start in non-ALR state.
   EXPECT_FALSE(alr_detector.GetApplicationLimitedRegionStartTime());
@@ -123,9 +124,9 @@ TEST(AlrDetectorTest, ShortSpike) {
 }
 
 TEST(AlrDetectorTest, BandwidthEstimateChanges) {
-  FieldTrials field_trials = CreateTestFieldTrials();
   SimulatedClock clock(Timestamp::Seconds(1));
-  AlrDetector alr_detector(&field_trials);
+  AlrDetector alr_detector(
+      CreateEnvironment(CreateTestFieldTrialsPtr(), &clock));
   alr_detector.SetEstimatedBitrate(kEstimatedBitrate);
 
   // Start in non-ALR state.
@@ -174,11 +175,11 @@ TEST(AlrDetectorTest, ParseActiveFieldTrial) {
 }
 
 TEST(AlrDetectorTest, ParseAlrSpecificFieldTrial) {
-  FieldTrials field_trials = CreateTestFieldTrials(
-      "WebRTC-AlrDetectorParameters/"
-      "bw_usage:90%,start:0%,stop:-10%/");
-  AlrDetector alr_detector(&field_trials);
   SimulatedClock clock(Timestamp::Seconds(1));
+  AlrDetector alr_detector(CreateEnvironment(
+      CreateTestFieldTrialsPtr(
+          "WebRTC-AlrDetectorParameters/bw_usage:90%,start:0%,stop:-10%/"),
+      &clock));
   alr_detector.SetEstimatedBitrate(kEstimatedBitrate);
 
   // Start in non-ALR state.

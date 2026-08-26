@@ -168,8 +168,6 @@ void CompileOptimized(DirectHandle<JSFunction> function, ConcurrencyMode mode,
 
   if (mode == ConcurrencyMode::kConcurrent) {
     // No need to start another compile job.
-    // Also, various fuzzing flags like --always-turbofan might already compile
-    // this function in the above Compiler::Compile function.
     if (function->tiering_in_progress() ||
         function->GetActiveTier(isolate) >= target_kind) {
       static_assert(kTieringStateInProgressBlocksTierup);
@@ -620,7 +618,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
           ? ConcurrencyMode::kConcurrent
           : ConcurrencyMode::kSynchronous;
 
-  if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() &&
+  if (V8_UNLIKELY(isolate->EfficiencyModeEnabled() &&
                   min_opt_level == CodeKind::MAGLEV)) {
     mode = ConcurrencyMode::kSynchronous;
   }
@@ -708,7 +706,7 @@ Tagged<Object> CompileOptimizedOSRFromMaglev(Isolate* isolate,
     return Smi::zero();
   }
 
-  if (V8_UNLIKELY(isolate->EfficiencyModeEnabledForTiering() ||
+  if (V8_UNLIKELY(isolate->EfficiencyModeEnabled() ||
                   isolate->BatterySaverModeEnabled())) {
     function->feedback_vector()->reset_osr_urgency();
     function->SetInterruptBudget(isolate, BudgetModification::kRaise);

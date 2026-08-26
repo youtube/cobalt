@@ -121,8 +121,6 @@
 #include "components/fingerprinting_protection_filter/common/prefs.h"
 #include "components/history_clusters/core/history_clusters_prefs.h"
 #include "components/image_fetcher/core/cache/image_cache.h"
-#include "components/invalidation/impl/fcm_invalidation_service.h"
-#include "components/invalidation/impl/invalidator_registrar_with_memory.h"
 #include "components/invalidation/impl/per_user_topic_subscription_manager.h"
 #include "components/language/content/browser/geo_language_provider.h"
 #include "components/language/content/browser/ulp_language_code_locator/ulp_language_code_locator.h"
@@ -1032,6 +1030,12 @@ constexpr char kObsoleteTimeOfLastMigrationAttempt[] =
     "time_of_last_migration_attempt";
 constexpr char kObsoleteSettingsMigratedToUPMLocal[] =
     "profile.settings_migrated_to_upm_local";
+constexpr char kObsoleteShouldShowPostPasswordMigrationSheetAtStartup[] =
+    "should_show_post_password_migration_sheet_at_startup";
+constexpr char kObsoleteUnenrolledFromGoogleMobileServicesDueToErrors[] =
+    "unenrolled_from_google_mobile_services_due_to_errors";
+constexpr char kObsoleteCurrentMigrationVersionToGoogleMobileServices[] =
+    "current_migration_version_to_google_mobile_services";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Deprecated 07/2025.
@@ -1078,11 +1082,27 @@ constexpr char kOptGuideModelFetcherLastFetchAttempt[] =
 constexpr char kOptGuideModelFetcherLastFetchSuccess[] =
     "optimization_guide.predictionmodelfetcher.last_fetch_success";
 
+// Deprecated 07/2025
+inline constexpr char kSodaScheduledDeletionTime[] =
+    "accessibility.captions.soda_scheduled_deletion_time";
+
 #if BUILDFLAG(IS_CHROMEOS)
 // Deprecated 07/2025.
 inline constexpr char kTimeOfFirstFilesAppChipPress[] =
     "ash.holding_space.time_of_first_files_app_chip_press";
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+// Deprecated 07/2025.
+inline constexpr char kSyncPromoIdentityPillShownCount[] =
+    "ChromeSigninSyncPromoIdentityPillShownCount";
+inline constexpr char kSyncPromoIdentityPillUsedCount[] =
+    "ChromeSigninSyncPromoIdentityPillUsedCount";
+
+// Deprecated 08/2025.
+inline constexpr char kInvalidationClientIDCache[] =
+    "invalidation.per_sender_client_id_cache";
+inline constexpr char kInvalidationTopicsToHandler[] =
+    "invalidation.per_sender_topics_to_handler";
 
 // Register local state used only for migration (clearing or moving to a new
 // key).
@@ -1185,6 +1205,10 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kDeviceNativeClientForceAllowedCache, false);
   registry->RegisterBooleanPref(kIsFirstBootForNacl, true);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Deprecated 08/2025.
+  registry->RegisterDictionaryPref(kInvalidationClientIDCache);
+  registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1493,6 +1517,12 @@ void RegisterProfilePrefsForMigration(
                              base::Time());
   registry->RegisterDoublePref(kObsoleteTimeOfLastMigrationAttempt, 0.0);
   registry->RegisterBooleanPref(kObsoleteSettingsMigratedToUPMLocal, false);
+  registry->RegisterBooleanPref(
+      kObsoleteShouldShowPostPasswordMigrationSheetAtStartup, false);
+  registry->RegisterBooleanPref(
+      kObsoleteUnenrolledFromGoogleMobileServicesDueToErrors, false);
+  registry->RegisterIntegerPref(
+      kObsoleteCurrentMigrationVersionToGoogleMobileServices, 0);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Deprecated 07/2025.
@@ -1523,10 +1553,20 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchAttempt, 0);
   registry->RegisterInt64Pref(kOptGuideModelFetcherLastFetchSuccess, 0);
 
+  // Deprecated 07/2025
+  registry->RegisterTimePref(kSodaScheduledDeletionTime, base::Time());
+
 #if BUILDFLAG(IS_CHROMEOS)
   // Deprecated 07/2025.
   registry->RegisterTimePref(kTimeOfFirstFilesAppChipPress, base::Time());
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  registry->RegisterIntegerPref(kSyncPromoIdentityPillShownCount, 0);
+  registry->RegisterIntegerPref(kSyncPromoIdentityPillUsedCount, 0);
+
+  // Deprecated 08/2025.
+  registry->RegisterDictionaryPref(kInvalidationClientIDCache);
+  registry->RegisterDictionaryPref(kInvalidationTopicsToHandler);
 }
 
 }  // namespace
@@ -1568,8 +1608,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   flags_ui::PrefServiceFlagsStorage::RegisterPrefs(registry);
   GpuModeManager::RegisterPrefs(registry);
   signin::IdentityManager::RegisterLocalStatePrefs(registry);
-  invalidation::FCMInvalidationService::RegisterPrefs(registry);
-  invalidation::InvalidatorRegistrarWithMemory::RegisterPrefs(registry);
   invalidation::PerUserTopicSubscriptionManager::RegisterPrefs(registry);
   language::GeoLanguageProvider::RegisterLocalStatePrefs(registry);
   language::UlpLanguageCodeLocator::RegisterLocalStatePrefs(registry);
@@ -1884,7 +1922,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   site_engagement::ImportantSitesUtil::RegisterProfilePrefs(registry);
   IncognitoModePrefs::RegisterProfilePrefs(registry);
   invalidation::PerUserTopicSubscriptionManager::RegisterProfilePrefs(registry);
-  invalidation::InvalidatorRegistrarWithMemory::RegisterProfilePrefs(registry);
   language::LanguagePrefs::RegisterProfilePrefs(registry);
   login_detection::prefs::RegisterProfilePrefs(registry);
   lookalikes::RegisterProfilePrefs(registry);
@@ -2440,6 +2477,10 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   local_state->ClearPref(kIsFirstBootForNacl);
 #endif
 
+  // Added 08/2025.
+  local_state->ClearPref(kInvalidationClientIDCache);
+  local_state->ClearPref(kInvalidationTopicsToHandler);
+
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
 
@@ -2491,14 +2532,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
 #if BUILDFLAG(IS_ANDROID)
   // Added 11/2023, but DO NOT REMOVE after the usual year!
-  // TODO(crbug.com/40268177): The pref kPasswordsUseUPMLocalAndSeparateStores
-  // and this call (to compute said pref) should be removed once
-  // kUnifiedPasswordManagerLocalPasswordsAndroidWithMigration is launched and
-  // enough clients have migrated. UsesSplitStoresAndUPMForLocal() should be
-  // updated to check the GmsCoreVersion directly instead of the pref, or
-  // might be removed entirely, depending how the outdated GmsCore case is
-  // handled.
-  password_manager_android_util::SetUsesSplitStoresAndUPMForLocal(
+  // TODO(crbug.com/378653046): This call should be removed once enough time
+  // has passed.
+  password_manager_android_util::MaybeDeleteLoginDatabases(
       profile_prefs, profile_path,
       std::make_unique<
           password_manager_android_util::PasswordManagerUtilBridge>());
@@ -2783,6 +2819,12 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kObsoletePasswordAccessLossWarningShownTimestamp);
   profile_prefs->ClearPref(kObsoleteTimeOfLastMigrationAttempt);
   profile_prefs->ClearPref(kObsoleteSettingsMigratedToUPMLocal);
+  profile_prefs->ClearPref(
+      kObsoleteShouldShowPostPasswordMigrationSheetAtStartup);
+  profile_prefs->ClearPref(
+      kObsoleteUnenrolledFromGoogleMobileServicesDueToErrors);
+  profile_prefs->ClearPref(
+      kObsoleteCurrentMigrationVersionToGoogleMobileServices);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Added 07/2025.
@@ -2816,6 +2858,13 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 07/2025.
   profile_prefs->ClearPref(kTimeOfFirstFilesAppChipPress);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  profile_prefs->ClearPref(kSyncPromoIdentityPillShownCount);
+  profile_prefs->ClearPref(kSyncPromoIdentityPillUsedCount);
+
+  // Added 08/2025.
+  profile_prefs->ClearPref(kInvalidationClientIDCache);
+  profile_prefs->ClearPref(kInvalidationTopicsToHandler);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

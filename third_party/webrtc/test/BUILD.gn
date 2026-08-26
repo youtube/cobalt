@@ -784,7 +784,7 @@ if (rtc_include_tests) {
         "pc/e2e/analyzer/video/dvqa:dvqa_unittests",
         "peer_scenario/tests",
         "scenario:scenario_unittests",
-        "time_controller:time_controller",
+        "time_controller",
         "time_controller:time_controller_unittests",
         "//third_party/abseil-cpp/absl/flags:flag",
         "//third_party/abseil-cpp/absl/strings:string_view",
@@ -1395,7 +1395,7 @@ if (!build_with_chromium && is_android) {
       ":native_test_jni",
       "//testing/gtest",
       "//third_party/abseil-cpp/absl/strings",
-      "//third_party/jni_zero:jni_zero",
+      "//third_party/jni_zero",
     ]
   }
 
@@ -1460,7 +1460,7 @@ rtc_library("video_codec_tester") {
     "../api:scoped_refptr",
     "../api/environment",
     "../api/environment:environment_factory",
-    "../api/numerics:numerics",
+    "../api/numerics",
     "../api/test/metrics:metric",
     "../api/test/metrics:metrics_logger",
     "../api/test/video:video_frame_writer",

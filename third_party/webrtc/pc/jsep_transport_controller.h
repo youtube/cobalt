@@ -210,7 +210,6 @@ class JsepTransportController : public PayloadTypeSuggester,
   void MaybeStartGathering();
   RTCError AddRemoteCandidates(const std::string& mid,
                                const std::vector<Candidate>& candidates);
-  RTCError RemoveRemoteCandidates(const std::vector<Candidate>& candidates);
   bool RemoveRemoteCandidate(const IceCandidate* candidate);
 
   /**********************

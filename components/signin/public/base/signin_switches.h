@@ -158,8 +158,24 @@ BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kInterceptBubblesDismissibleByAvatarButton);
 
+// When enabled, an implicitly signed-in user will be offered a dialog to
+// migrate to explicit browser sign-in.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kOfferMigrationToDiceUsers);
+
+// The minimum delay after a browser startup before the dialog can be shown.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kOfferMigrationToDiceUsersMinDelay);
+
+// The maximum delay after a browser startup before the dialog can be shown.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kOfferMigrationToDiceUsersMaxDelay);
+
+// The minimum time from the last time the dialog was shown before it can be
+// shown again.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kOfferMigrationToDiceUsersMinTimeBetweenDialogs);
 
 #if BUILDFLAG(IS_IOS)
 
@@ -234,7 +250,14 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfileMenu);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfilePicker);
-// LINT.ThenChange(//chrome/browser/signin/signin_util.cc)
+// LINT.ThenChange(//chrome/browser/signin/signin_hats_util.cc)
+
+// Controls the duration for which the launch of an identity survey is delayed.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kChromeIdentitySurveyLaunchWithDelay);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kChromeIdentitySurveyLaunchWithDelayDuration);
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
@@ -242,6 +265,21 @@ BASE_DECLARE_FEATURE(kChromeIdentitySurveySwitchProfileFromProfilePicker);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kEnforceManagementDisclaimer);
 #endif
+
+#if BUILDFLAG(IS_WIN)
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kAvatarButtonSyncPromo);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kAvatarButtonSyncPromoMinimumCookieAgeParam);
+#endif
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kAvatarButtonSyncPromoForTesting);
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+bool IsAvatarSyncPromoFeatureEnabled();
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+base::TimeDelta GetAvatarSyncPromoFeatureMinimumCookeAgeParam();
 
 }  // namespace switches
 
@@ -262,8 +300,5 @@ BASE_DECLARE_FEATURE(kIgnoreMirrorHeadersInBackgoundTabs);
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kNonDefaultGaiaOriginCheck);
-
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kUseAccountCapabilityToDetermineAccountManagement);
 
 #endif  // COMPONENTS_SIGNIN_PUBLIC_BASE_SIGNIN_SWITCHES_H_

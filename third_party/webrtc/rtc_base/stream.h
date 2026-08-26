@@ -21,7 +21,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/system/rtc_export.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
@@ -101,10 +100,6 @@ class RTC_EXPORT StreamInterface {
     callback_ = std::move(callback);
   }
 
-  // TODO(bugs.webrtc.org/11943): Remove after updating downstream code.
-  sigslot::signal3<StreamInterface*, int, int> SignalEvent
-      [[deprecated("Use SetEventCallback instead")]];
-
   // Return true if flush is successful.
   virtual bool Flush();
 
@@ -131,12 +126,6 @@ class RTC_EXPORT StreamInterface {
     if (callback_) {
       callback_(stream_events, err);
     }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    // TODO(tommi): This is for backwards compatibility only while `SignalEvent`
-    // is being replaced by `SetEventCallback`.
-    SignalEvent(this, stream_events, err);
-#pragma clang diagnostic pop
   }
 
   RTC_NO_UNIQUE_ADDRESS SequenceChecker callback_sequence_{

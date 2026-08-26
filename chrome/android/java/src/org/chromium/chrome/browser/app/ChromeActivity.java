@@ -43,7 +43,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.DeviceInfo;
 import org.chromium.base.InputHintChecker;
 import org.chromium.base.Log;
 import org.chromium.base.PowerMonitor;
@@ -101,6 +100,8 @@ import org.chromium.chrome.browser.download.DownloadManagerService;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.download.items.OfflineContentAggregatorNotificationBridgeUiFactory;
 import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
+import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
+import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinatorSupplier;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherImpl;
 import org.chromium.chrome.browser.firstrun.ForcedSigninProcessor;
@@ -296,6 +297,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     /** Used to access the {@link TabModelSelector} from {@link WindowAndroid}. */
     private final UnownedUserDataSupplier<TabModelSelector> mTabModelSelectorSupplier =
             new TabModelSelectorSupplier();
+
+    /** Used to access the {@link EphemeralTabCoordinator} from {@link WindowAndroid}. */
+    private final UnownedUserDataSupplier<EphemeralTabCoordinator>
+            mEphemeralTabCoordinatorSupplier = new EphemeralTabCoordinatorSupplier();
 
     /** Used to hold a mutable reference to a {@link TabCreatorManager}. */
     private final ObservableSupplierImpl<TabCreatorManager> mTabCreatorManagerSupplier =
@@ -574,6 +579,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     private void setupUnownedUserDataSuppliers() {
         mShareDelegateSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
         mTabModelSelectorSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
+        mEphemeralTabCoordinatorSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
         mManualFillingComponentSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
         mBrowserControlsManagerSupplier.attach(getWindowAndroid().getUnownedUserDataHost());
         // BrowserControlsManager is ready immediately.
@@ -1656,6 +1662,10 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             mTabModelSelectorSupplier.destroy();
         }
 
+        if (mEphemeralTabCoordinatorSupplier != null) {
+            mEphemeralTabCoordinatorSupplier.destroy();
+        }
+
         if (mBottomContainer != null) {
             mBottomContainer.destroy();
             mBottomContainer = null;
@@ -1954,6 +1964,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return mTabModelSelectorSupplier;
     }
 
+    /** Returns an {@link ObservableSupplierImpl} for {@link EphemeralTabCoordinatorSupplier}. */
+    public final ObservableSupplierImpl<EphemeralTabCoordinator>
+            getEphemeralTabCoordinatorSupplier() {
+        return mEphemeralTabCoordinatorSupplier;
+    }
+
     /**
      * @return The provider of the visible tab in the current activity.
      */
@@ -1967,12 +1983,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * TODO: remove this method after InfoBar is deprecated.
+     * TODO: this method no longer needs to be public after InfoBar is deprecated.
      *
-     * @return a supplier for the {@link EdgeToEdgeController} that supports drawing to the edge of
-     *     the screen.
+     * <p>Returns a supplier for the {@link EdgeToEdgeController} that supports drawing to the edge
+     * of the screen.
      */
-    public final ObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
+    @Override
+    public ObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
         return mEdgeToEdgeControllerSupplier;
     }
 
@@ -2549,7 +2566,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             null,
                             OpenedFromSource.MENU,
                             mRootUiCoordinator.getMerchantTrustSignalsCoordinatorSupplier()::get,
-                            mRootUiCoordinator.getEphemeralTabCoordinatorSupplier(),
+                            getEphemeralTabCoordinatorSupplier(),
                             getTabCreator(currentTab.isIncognito()));
             pageInfo.show(currentTab, ChromePageInfoHighlight.noHighlight());
             return true;
@@ -2636,7 +2653,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return true;
         }
 
-        if (id == R.id.dev_tools && DeviceInfo.isDesktop()) {
+        if (id == R.id.dev_tools) {
             DevToolsWindowAndroid.openDevTools(currentTab.getWebContents());
             return true;
         }

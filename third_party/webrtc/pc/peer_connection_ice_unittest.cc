@@ -106,7 +106,6 @@ class PeerConnectionWrapperForIceTest : public PeerConnectionWrapper {
     const auto* desc = pc()->remote_description()->description();
     RTC_DCHECK(!desc->contents().empty());
     const auto& first_content = desc->contents()[0];
-    candidate->set_transport_name(first_content.mid());
     return CreateIceCandidate(first_content.mid(), -1, *candidate);
   }
 
@@ -307,7 +306,6 @@ class PeerConnectionIceBaseTest : public ::testing::Test {
     auto* desc = sdesc->description();
     RTC_DCHECK(!desc->contents().empty());
     const auto& first_content = desc->contents()[0];
-    candidate->set_transport_name(first_content.mid());
     std::unique_ptr<IceCandidate> jsep_candidate =
         CreateIceCandidate(first_content.mid(), 0, *candidate);
     return sdesc->AddCandidate(jsep_candidate.get());
@@ -1617,9 +1615,7 @@ TEST_P(PeerConnectionIceTest, PrefersMidOverMLineIndex) {
   ASSERT_TRUE(
       caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal()));
 
-  // `candidate.transport_name()` is empty.
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
-  ASSERT_THAT(candidate.transport_name(), IsEmpty());
   auto* audio_content =
       GetFirstAudioContent(caller->pc()->local_description()->description());
   std::unique_ptr<IceCandidate> ice_candidate =

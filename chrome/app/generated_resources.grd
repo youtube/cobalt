@@ -5175,7 +5175,7 @@ are declared in tools/grit/grit_args.gni.
         <ph name="EXTENSION_NAME">$1<ex>Adblock</ex></ph> is disabled
       </message>
 
-      <if expr="enable_extensions">
+      <if expr="enable_extensions_core">
         <!-- Extension blocked action bubble -->
         <message name="IDS_EXTENSION_SITE_RELOAD_PAGE_BUBBLE_HEADING" desc="Heading of the bubble to tell users that in order to run or not run an extension, they'll need to refresh the page. Deliberately similar to IDS_PAGE_INFO_INFOBAR_TEXT, but used for an different permission setting so they are not combined. If updating the one, please update the other or consult the extensions and privacy teams.">
           Reload this page to apply your updated settings on this site
@@ -8493,10 +8493,10 @@ Keep your key file in a safe place. You will need it to create new versions of y
           Reset to default
         </message>
       </if>
-      <message name="IDS_NTP_COMPOSE_ENTRYPOINT" desc="The text for the compose entrypoint in the searchbox on the New Tab Page." translateable="true">
+      <message name="IDS_NTP_COMPOSE_ENTRYPOINT" desc="The text for the compose entrypoint in the searchbox on the New Tab Page.">
         AI Mode
       </message>
-      <message name="IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL" desc="The accessibility label for the compose entrypoint in the searchbox on the New Tab Page." translateable="false">
+      <message name="IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL" desc="The accessibility label for the compose entrypoint in the searchbox on the New Tab Page.">
         Ask Google AI Mode
       </message>
       <message name="IDS_NTP_COMPOSE_PLACEHOLDER_TEXT" desc="The placeholder for the input in the compose box.">
@@ -8505,43 +8505,43 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL" desc="The accessibility label for the cancel button on the compose box when there is no input.">
         Dismiss
       </message>
-      <message name="IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL_INPUT" desc="The accessibility label for the cancel button on the compose box when there is input." translateable="false">
-        Dismiss entry
+      <message name="IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL_INPUT" desc="The accessibility label for the cancel button on the compose box when there is input.">
+        Clear
       </message>
       <message name="IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL" desc="The accessibility label for the image upload button on the compose box.">
         Upload an image
       </message>
-      <message name="IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL" desc="The accessibility label for the file upload button on the compose box." translateable="false">
+      <message name="IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL" desc="The accessibility label for the file upload button on the compose box.">
         Upload a PDF
       </message>
       <message name="IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL" desc="The accessibility label for the submit button on the compose box.">
         Send
       </message>
-      <message name="IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL" desc="The accessibility label for the delete button shown on hover for uploaded files." translateable="false">
+      <message name="IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL" desc="The accessibility label for the delete button shown on hover for uploaded files.">
         <ph name="FILE_NAME">$1<ex>recipe.pdf</ex></ph> press enter to delete file
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_STARTED_A11Y_TEXT" desc="Text for a screenreader to read aloud when the user starts uploading a file." translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_STARTED_A11Y_TEXT" desc="Text for a screenreader to read aloud when the user starts uploading a file.">
         Uploading file
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_COMPLETE_A11Y_TEXT" desc="Text for a screenreader to read aloud when the user's file upload completes successfully." translateable="false">>
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_COMPLETE_A11Y_TEXT" desc="Text for a screenreader to read aloud when the user's file upload completes successfully.">>
         File upload complete
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_EMPTY_SIZE" desc="The text to display when a file upload is empty." translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_EMPTY_SIZE" desc="The text to display when a file upload is empty.">
         Can't upload. File appears to be empty.
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE" desc="The text to display when a file upload exceeds the allowed size" translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE" desc="The text to display when a file upload exceeds the allowed size">
         Can't upload. File exceeds maximum supported size.
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR" desc="The text to display when an file upload image can't be processed." translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR" desc="The text to display when an file upload image can't be processed.">
         Can't upload. Failed to process image file.
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED" desc="The generic text to display when a file upload fails a validation step." translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED" desc="The generic text to display when a file upload fails a validation step.">
         Can't upload. File upload failed validation checks.
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED"  translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED">
         Unexpected error, file upload failed.
       </message>
-      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED" translateable="false">
+      <message name="IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED">
         File upload has expired and been removed.
       </message>
 
@@ -8833,6 +8833,12 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_MODULES_TAB_GROUPS_TITLE" desc="Title for Tab Groups NTP module on the new tab page.">
         Your tab groups
+      </message>
+      <message name="IDS_NTP_MODULES_TAB_GROUPS_ZERO_STATE_TITLE" desc="Title shown in the zero state tab groups module.">
+        Stay organized with tab groups
+      </message>
+      <message name="IDS_NTP_MODULES_TAB_GROUPS_ZERO_STATE_TEXT" desc="Text shown in the zero state tab groups module.">
+        You can group tabs to keep related pages together and saved across your devices
       </message>
       <message name="IDS_NTP_MICROSOFT_AUTHENTICATION_DISABLE_BUTTON_TEXT" desc="Text shown on the disable button of the Microsoft Authentication module.">
        Don't show this card
@@ -9427,8 +9433,8 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_VOICE_HIGHLIGHT" desc="Accessibility label for button that opens a dropdown with options for changing the highlight granularity for following along with speech in Read Aloud.">
         Voice highlight
       </message>
-      <message name="IDS_READING_MODE_AUTO_HIGHLIGHT_LABEL" desc="Dropdown option for setting the automatic highlight granularity in Read Aloud.">
-        Auto
+      <message name="IDS_READING_MODE_AUTO_HIGHLIGHT_LABEL" desc="Dropdown option that makes read aloud highlight words, phrases or sentences, depending on the voice speed.">
+        Adaptive highlighting
       </message>
       <message name="IDS_READING_MODE_WORD_HIGHLIGHT_LABEL" desc="Dropdown option for setting the word highlight granularity in Read Aloud.">
         Word
@@ -17791,7 +17797,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
 
       <message name="IDS_WEB_DIGITAL_CREDENTIALS_QR_BODY">
-        Safely use an ID from your Android device
+        Safely use an ID from your mobile device
       </message>
 
       <message name="IDS_WEB_DIGITAL_CREDENTIALS_QR_CODE_ALT_TEXT">
@@ -18774,6 +18780,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
        <message name="IDS_GEMINI_WORKING_ON_TASK_BODY" desc="Text on a toast notification that is shown when gemini is working in the background">
         Gemini will keep working on your task
       </message>
+      <message name="IDS_NON_MILESTONE_UPDATE_TOAST_BODY" desc="Text on a toast notification that is shown when a non milestone update is complete.">
+        Chrome was updated
+      </message>
     </if>
 
     <if expr="is_android">
@@ -19082,7 +19091,7 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Got it
       </message>
       <message name="IDS_MULTI_CAPTURE_NOTIFICATION_BUTTON_TEXT" desc="Text for the notification button to reach the details view.">
-        View details
+        Details
       </message>
     </if>
 
@@ -19126,6 +19135,34 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
     </if>
 
+    <!-- Protected content identifiers permission -->
+    <if expr="is_win">
+      <message name="IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_TITLE" desc="Title of the info bubble shown when a site has been allowed to use identifiers to play protected content.">
+        Protected content identifiers allowed
+      </message>
+      <message name="IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_TITLE" desc="Title of the info bubble shown when a site has been denied to to use identifiers to play protected content.">
+        Protected content identifiers denied
+      </message>
+      <message name="IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_MESSAGE" desc="Info bubble message and location bar icon tooltip text shown when a site has been allowed to use identifiers to play protected content.">
+        This site can use identifiers to play protected content.
+      </message>
+      <message name="IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_BLOCK" desc="Radio button to block to use identifiers to play protected content">
+        Always block <ph name="HOST">$1<ex>example.com</ex></ph> from using identifiers to play protected content
+      </message>
+      <message name="IDS_ALLOWED_PROTECTED_CONTENT_IDENTIFIERS_NO_ACTION" desc="Radio button to keep allowing to use identifiers to play protected content">
+        Continue allowing this site to use identifiers to play protected content
+      </message>
+      <message name="IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_MESSAGE" desc="Info bubble message and location bar icon tooltip text shown when a site has been denied to use identifiers to play protected content.">
+        This site has been blocked from using identifiers to play protected content.
+      </message>
+      <message name="IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_UNBLOCK" desc="Radio button choice to unblock a site from using identifiers to play protected content.">
+        Always allow <ph name="HOST">$1<ex>mail.google.com</ex></ph> to use identifiers to play protected content
+      </message>
+      <message name="IDS_BLOCKED_PROTECTED_CONTENT_IDENTIFIERS_NO_ACTION" desc="Radio button choice to continue blocking a site from using identifiers to play protected content.">
+        Continue blocking this site from using identifiers to play protected content
+      </message>
+    </if>
+
     <!-- New Tab Page browser feature promotions. -->
     <if expr="not is_android">
       <message name="IDS_NTP_CUSTOMIZATION_PROMO" desc="The text shown in the body of the New Tab Page browser customization promotion">
@@ -19133,6 +19170,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_NTP_EXTENSIONS_PROMO" desc="The text shown in the body of the New Tab Page extensions promotion">
         Add extensions to stay organized, simplify tasks, and enhance your browsing
+      </message>
+      <message name="IDS_NTP_EXTENSIONS_PROMO_ACTION_BUTTON" is_accessibility_with_no_ui="true" desc="The screenreader text for the action button on the Extensions New Tab Page promo">
+        Add extensions
       </message>
       <message name="IDS_NTP_SIGN_IN_PROMO" desc="The text shown in the body of the New Tab Page sign in promotion">
         Sign in to Chrome to get your passwords and more on all your devices
@@ -19144,6 +19184,26 @@ Please help our engineers fix this problem. Tell us what happened right before y
         Sign in
       </message>
     </if>
+
+    <!-- Save to Drive -->
+    <message name="IDS_ACCOUNT_CHOOSER_SINGLE_ACCOUNT_TITLE" desc="Text to prompt a user to save a file to their account.">
+      Save to your account
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_MULTI_ACCOUNT_TITLE" desc="Text to prompt a user to choose an account to save a file to.">
+      Choose your account
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_SUBTITLE" desc="Text description for saving files to Drive via Chrome PDF viewer.">
+      Find your file in the <ph name="FEATURE_NAME">$1<ex>Saved from Chrome</ex></ph> folder
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_SAVED_FROM_CHROME" desc="Text to describe the feature.">
+      Saved from Chrome
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_DRIVE" desc="Google Drive product name.">
+      Drive
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_ADD_ACCOUNT" desc="Text for the button to add an account.">
+      Use a different account
+    </message>
 
   </messages>
 </release>

@@ -400,6 +400,7 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
     RasterInterface()->WritePixels(client_si->mailbox(), x, y,
                                    client_si->GetTextureTarget(),
                                    SkPixmap(orig_info, pixels, row_bytes));
+    resource()->GetSyncToken();
 
     // If the overdraw optimization kicked in, we need to indicate that the
     // pixels do not need to be cleared, otherwise the subsequent
@@ -671,6 +672,7 @@ class CanvasResourceProviderSharedImage : public CanvasResourceProvider,
     is_cleared_ = true;
     RasterRecordOOP(std::move(last_recording), needs_clear,
                     resource()->GetClientSharedImage()->mailbox());
+    resource()->GetSyncToken();
   }
 
   bool ShouldReplaceTargetBuffer(
@@ -1272,11 +1274,21 @@ CanvasResourceProvider::CreateSharedImageProvider(
   // Overriding the info to use RGBA instead of N32 is needed because code
   // elsewhere assumes RGBA. OTOH the software path seems to be assuming N32
   // somewhere in the later pipeline but for offscreen canvas only.
-  if (!shared_image_usage_flags.HasAny(gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
-                                       gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE)) {
-    if (is_accelerated && format != viz::SinglePlaneFormat::kRGBA_F16) {
-      format = viz::SinglePlaneFormat::kRGBA_8888;
-    }
+  bool should_force_bgra8_to_rgba =
+      !shared_image_usage_flags.HasAny(gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                                       gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE);
+#if BUILDFLAG(IS_WIN)
+  // Concurrent read/write on Windows results in a swapchain backing, which
+  // supports BGRA; hence there is no need to force to RGBA in this case.
+  should_force_bgra8_to_rgba =
+      should_force_bgra8_to_rgba &&
+      !shared_image_usage_flags.Has(
+          gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
+#endif
+
+  if (is_accelerated && format != viz::SinglePlaneFormat::kRGBA_F16 &&
+      should_force_bgra8_to_rgba) {
+    format = viz::SinglePlaneFormat::kRGBA_8888;
   }
 
   // TODO(crbug.com/404887530) : Remove or Rename IsGMBAllowed() since
@@ -1295,7 +1307,22 @@ CanvasResourceProvider::CreateSharedImageProvider(
   bool is_overlay_supported_via_gmb =
       is_gpu_memory_buffer_image_allowed &&
       (!is_accelerated || shared_image_caps.supports_scanout_shared_images);
-  if (!is_overlay_supported_via_gmb) {
+  bool is_overlay_supported = is_overlay_supported_via_gmb;
+
+#if BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(kUseCRPSIForLowLatencyOnWindows)) {
+    // On Windows, SCANOUT usage is additionally supported in the special case
+    // of the swapchain being used on the service side to implement concurrent
+    // read/write.
+    is_overlay_supported =
+        is_overlay_supported ||
+        (shared_image_usage_flags.Has(
+             gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE) &&
+         shared_image_caps.shared_image_swap_chain);
+  }
+#endif
+
+  if (!is_overlay_supported) {
     shared_image_usage_flags.RemoveAll(
         gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE |
         gpu::SHARED_IMAGE_USAGE_SCANOUT);
@@ -1381,6 +1408,18 @@ CanvasResourceProvider::CreateSwapChainProvider(
       !shared_image_capabilities.shared_image_swap_chain) {
     return nullptr;
   }
+
+#if BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(kUseCRPSIForLowLatencyOnWindows)) {
+    gpu::SharedImageUsageSet shared_image_usage_flags =
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT |
+        gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
+    return CanvasResourceProvider::CreateSharedImageProvider(
+        size, format, alpha_type, color_space, should_initialize,
+        context_provider_wrapper, RasterMode::kGPU, shared_image_usage_flags,
+        delegate);
+  }
+#endif
 
   auto provider = std::make_unique<CanvasResourceProviderSwapChain>(
       size, format, alpha_type, color_space, context_provider_wrapper,
@@ -1503,6 +1542,12 @@ bool CanvasResourceProvider::CanvasImageProvider::IsHardwareDecodeCache()
     const {
   return raster_mode_ != cc::PlaybackImageProvider::RasterMode::kSoftware;
 }
+
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kUseCRPSIForLowLatencyOnWindows,
+             "UseCRPSIForLowLatencyOnWindows",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kCanvas2DAutoFlushParams,
              "Canvas2DAutoFlushParams",

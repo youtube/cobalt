@@ -319,6 +319,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     const gl::Limitations &getNativeLimitations() const override;
     const ShPixelLocalStorageOptions &getNativePixelLocalStorageOptions() const override;
 
+    // FragmentShadingRateEXT
+    const angle::ShadingRateMap &getSupportedFragmentShadingRateEXTSampleCounts() const override;
+
     // Shader creation
     CompilerImpl *createCompiler() override;
     ShaderImpl *createShader(const gl::ShaderState &state) override;
@@ -339,7 +342,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     BufferImpl *createBuffer(const gl::BufferState &state) override;
 
     // Vertex Array creation
-    VertexArrayImpl *createVertexArray(const gl::VertexArrayState &state) override;
+    VertexArrayImpl *createVertexArray(const gl::VertexArrayState &state,
+                                       const gl::VertexArrayBuffers &vertexArrayBuffers) override;
 
     // Query and Fence creation
     QueryImpl *createQuery(gl::QueryType type) override;
@@ -963,7 +967,8 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
         DIRTY_BIT_DYNAMIC_LOGIC_OP,
         DIRTY_BIT_DYNAMIC_PRIMITIVE_RESTART_ENABLE,
         // - In VK_KHR_fragment_shading_rate
-        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE,
+        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM,
+        DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT,
 
         DIRTY_BIT_MAX,
     };
@@ -1056,7 +1061,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
     static_assert(DIRTY_BIT_DYNAMIC_PRIMITIVE_RESTART_ENABLE > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
-    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE > DIRTY_BIT_RENDER_PASS,
+    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_QCOM > DIRTY_BIT_RENDER_PASS,
+                  "Render pass using dirty bit must be handled after the render pass dirty bit");
+    static_assert(DIRTY_BIT_DYNAMIC_FRAGMENT_SHADING_RATE_EXT > DIRTY_BIT_RENDER_PASS,
                   "Render pass using dirty bit must be handled after the render pass dirty bit");
 
     using DirtyBits = angle::BitSet<DIRTY_BIT_MAX>;
@@ -1289,7 +1296,11 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     angle::Result handleDirtyGraphicsDynamicPrimitiveRestartEnable(
         DirtyBits::Iterator *dirtyBitsIterator,
         DirtyBits dirtyBitMask);
-    angle::Result handleDirtyGraphicsDynamicFragmentShadingRate(
+    angle::Result handleDirtyGraphicsDynamicFragmentShadingRateQCOM(
+        DirtyBits::Iterator *dirtyBitsIterator,
+        DirtyBits dirtyBitMask);
+    // EXT_fragment_shading_rate
+    angle::Result handleDirtyGraphicsDynamicFragmentShadingRateEXT(
         DirtyBits::Iterator *dirtyBitsIterator,
         DirtyBits dirtyBitMask);
 
@@ -1665,6 +1676,9 @@ class ContextVk : public ContextImpl, public vk::Context, public MultisampleText
     // buffer for the outside render pass.
     VkDeviceSize mTotalBufferToImageCopySize;
     VkDeviceSize mEstimatedPendingImageGarbageSize;
+
+    // The number of render passes since the last submission of all commands.
+    VkDeviceSize mRenderPassCountSinceSubmit;
 
     // Semaphores that must be flushed before the current commands. Flushed semaphores will be
     // waited on in the next submission.

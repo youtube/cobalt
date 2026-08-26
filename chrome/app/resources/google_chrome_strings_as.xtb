@@ -86,6 +86,7 @@
 <translation id="2091012649849228750">Google Chromeৰ ভৱিষ্যতৰ আপডে’টসমূহ পাবলৈ আপোনাক Windows 10 অথবা তাৰ পাছৰ সংস্কৰণৰ আৱশ্যক হ’ব। এই কম্পিউটাৰটোৱে Windows 8 ব্যৱহাৰ কৰি আছে।</translation>
 <translation id="2094648590148273905">ChromeOS Flexৰ চৰ্তাৱলী</translation>
 <translation id="2094919256425865063">যিকোনো প্ৰকাৰে Chrome বন্ধ কৰিবনে?</translation>
+<translation id="2096213354152647998">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION" /> আঁতৰাইছে।</translation>
 <translation id="2106831557840787829"><ph name="BEGIN_LINK_LINUX_OSS" />Linux বিকাশৰ পৰিৱেশ<ph name="END_LINK_LINUX_OSS" />ৰ দৰে ChromeOS Flexক অতিৰিক্ত <ph name="BEGIN_LINK_CROS_OSS" />মুক্ত উৎসৰ ছফ্টৱেৰ<ph name="END_LINK_CROS_OSS" />ৰ দ্বাৰা তৈয়াৰ কৰা হৈছে।</translation>
 <translation id="2108778574543343055">এপৰ বাবে পটভূমিত চলি থকা Chrome অক্ষম কৰক</translation>
 <translation id="2120620239521071941">ইয়াৰ ফলত এই ডিভাইচৰ পৰা <ph name="ITEMS_COUNT" />টা বস্তু মচা হ'ব। আপোনাৰ ডেটা পাছত পুনৰুদ্ধাৰ কৰিবলৈ Chromeত <ph name="USER_EMAIL" /> হিচাপে ছাইন ইন কৰক।</translation>
@@ -197,6 +198,7 @@
 <translation id="3282568296779691940">Chromeত ছাইন-ইন কৰক</translation>
 <translation id="3286538390144397061">এতিয়াই ৰিষ্টাৰ্ট কৰক</translation>
 <translation id="3292333338048274092">আপুনি তাৰ পাছত Chrome ৰিষ্টাৰ্ট কৰিব লাগিব।</translation>
+<translation id="3324218984287646518">Google Lensক এই ভিডিঅ’টোৰ বিষয়ে সোধক</translation>
 <translation id="3327226547491422998">পাছত, Chromeএ আপোনাৰ বাবে স্বয়ংক্ৰিয়ভাৱে ফৰ্ম পূৰ কৰিবলৈ আপুনি ছেভ কৰি থোৱা তথ্য ব্যৱহাৰ কৰিব বিচাৰে নেকি সুধিব পাৰে</translation>
 <translation id="3352986031709923790">সন্ধান এলেকাৰ ওপৰৰ সোঁফালৰ কোণ: <ph name="RIGHT" />% সোঁফালে, <ph name="TOP" />% ওপৰলৈ</translation>
 <translation id="3360895254066713204">Chromeৰ সহায়ক</translation>
@@ -215,11 +217,11 @@
 <translation id="3576528680708590453">আপোনাৰ ছিষ্টেমৰ প্ৰশাসকে <ph name="TARGET_URL_HOSTNAME" /> এক্সেছ কৰিবলৈ Google Chromeক এটা বিকল্প ব্ৰাউজাৰ খুলিবলৈ কনফিগাৰ কৰিছে।</translation>
 <translation id="3582972582564653026">আপোনাৰ সমগ্ৰ ডিভাইচতে Chromeক ছিংক কৰি ব্যক্তিকৃত কৰক</translation>
 <translation id="3583751698304738917">আপুনি আন এটা Chrome প্ৰ’ফাইলত ইতিমধ্যে <ph name="USER_EMAIL_ADDRESS" /> হিচাপে ছাইন ইন কৰিছে</translation>
+<translation id="358381413217813387">Google Lensৰ জৰিয়তে এই পৃষ্ঠাখন সন্ধান কৰক</translation>
 <translation id="3589519427766620380">এই পৃষ্ঠাখন সম্পৰ্কে Google Lensক সোধক</translation>
 <translation id="3595784445906693824">এটা নতুন প্ৰ’ফাইলত Chromeত ছাইন ইন কৰক?</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{আপোনাৰ প্ৰশাসকে কোনো আপডে’ট প্ৰয়োগ কৰিবলৈ আপুনি Chrome পুনৰ লঞ্চ কৰাটো বিচাৰে}=1{আপোনাৰ প্ৰশাসকে কোনো আপডে’ট প্ৰয়োগ কৰিবলৈ আপুনি Chrome পুনৰ লঞ্চ কৰাটো বিচাৰে। আপোনাৰ.ইনক’গনিট' ৱিণ্ড'খন পুনৰ খুলিব নোৱাৰিব।}one{আপোনাৰ প্ৰশাসকে কোনো আপডে’ট প্ৰয়োগ কৰিবলৈ আপুনি Chrome পুনৰ লঞ্চ কৰাটো বিচাৰে। আপোনাৰ #খন.ইনক’গনিট' ৱিণ্ড' পুনৰ খুলিব নোৱাৰিব।}other{আপোনাৰ প্ৰশাসকে কোনো আপডে’ট প্ৰয়োগ কৰিবলৈ আপুনি Chrome পুনৰ লঞ্চ কৰাটো বিচাৰে। আপোনাৰ #খন.ইনক’গনিট' ৱিণ্ড' পুনৰ খুলিব নোৱাৰিব।}}</translation>
 <translation id="3597003331831379823">উচ্চখাপৰ বিশেষাধিকাৰৰ সৈতে ছেটআপ চলাব কৰিব পৰা নগ’ল। <ph name="METAINSTALLER_ERROR" /></translation>
-<translation id="3609788354808247807">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> আঁতৰাইছে</translation>
 <translation id="3622716124581627104">বস্তু বা স্থান চিনাক্ত কৰক আৰু পাঠ প্ৰতিলিপি বা অনুবাদ কৰক। আপুনি Google Lens ব্যৱহাৰ কৰিলে পৃষ্ঠাখনৰ এটা স্ক্ৰীনশ্বট Googleলৈ প্ৰেৰণ কৰা হয়। <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">বর্তমান আপোনাৰ Google একাউণ্টৰ জৰিয়তে আৰু শ্বেয়াৰ কৰা কম্পিউটাৰসমূহ সহজে Chrome ব্যৱহাৰ কৰিব পৰা যায়।</translation>
 <translation id="3635073343384702370">আপুনি আপোনাৰ পাছৱৰ্ডসমূহ ছেভ কৰিলে Chromeএ সেইবোৰ পৰীক্ষা কৰিব পাৰে</translation>
@@ -269,6 +271,7 @@
 <translation id="4205939740494406371">Chromeএ আপোনাৰ পাছৱর্ডসমূহ পৰীক্ষা কৰিব নোৱাৰে। ২৪ ঘণ্টাৰ পাছত পুনৰ চেষ্টা কৰক অথবা <ph name="BEGIN_LINK" />আপোনাৰ Google একাউণ্টত পাছৱর্ডসমূহ পৰীক্ষা কৰক<ph name="END_LINK" />।</translation>
 <translation id="4222932583846282852">বাতিল কৰি থকা হৈছে...</translation>
 <translation id="4224210481850767180">ইনষ্টল কৰাটো বাতিল কৰা হৈছে।</translation>
+<translation id="4230631012078055975">আপুনি Chromeত ছাইন ইন কৰোঁতে আন বহুত সুবিধা লাভ কৰক</translation>
 <translation id="4242034826641750751">Chromeক এই ছাইটটোৰ বাবে মাইক্ৰ’ফ’ন আৰু কেমেৰাৰ অনুমতিৰ আৱশ্যক</translation>
 <translation id="424864128008805179">Chromeৰ পৰা ছাইন আউট কৰিবনে?</translation>
 <translation id="4251615635259297716">এই একাউণ্টত আপোনাৰ Chrome ডেটা লিংক কৰিবনে?</translation>
@@ -295,9 +298,11 @@
 <translation id="4501471624619070934">এই দেশখনত এক্সেছ প্ৰতিবন্ধিত হোৱাৰ বাবে ইনষ্টল কৰাটো বিফল হৈছে।</translation>
 <translation id="4567424176335768812">আপুনি <ph name="USER_EMAIL_ADDRESS" /> হিচাপে ছাইন ইন হৈ আছে। আপুনি এতিয়া আপোনাৰ বুকমাৰ্ক, ইতিহাস আৰু আন ছেটিং আপুনি ছাইন ইন কৰি ৰখা সকলো ডিভাইচত এক্সেছ কৰিব পাৰিব।</translation>
 <translation id="4571503333518166079">Chromeৰ জাননী ছেটিংসমূহ-লৈ যাওক</translation>
+<translation id="4592634244097223647">Googleক এই প্ৰতিচ্ছবিৰ বিষয়ে সোধক</translation>
 <translation id="459622048091363950">Chromeএ এক্সেছ পোৱাৰ পাছতেই ৱেবছাইটসমূহে আপোনাক এক্সেছৰ বাবে অনুমতি বিচাৰিব পাৰিব।</translation>
 <translation id="4598116752460667024">সূচীখনৰ পৰা যিকোনো প্ৰক্ৰিয়া সন্ধান কৰক।</translation>
 <translation id="4600710005438004015">Chromeক শেহতীয়া সংস্কৰণলৈ আপডে'ট কৰিব পৰা নগ'ল, গতিকে আপুনি নতুন সুবিধা আৰু সমস্যা সমাধানৰ উপায়সমূহ লাভ কৰা নাই।</translation>
+<translation id="4608435347866444037">Google Lensৰ জৰিয়তে এই প্ৰতিচ্ছবি সন্ধান কৰক</translation>
 <translation id="4624065194742029982">Chrome ইনক’গনিট’</translation>
 <translation id="4627412468266359539">ঐচ্ছিক: Googleলৈ স্বয়ংক্ৰিয়ভাৱে ডায়েগন’ষ্টিক আৰু ব্যৱহাৰৰ ডেটা পঠিয়াই ChromeOS Flexৰ সুবিধা আৰু কাৰ্যক্ষমতা উন্নত কৰাত সহায় কৰক।</translation>
 <translation id="4633000520311261472">আমি Chromeক অধিক সুৰক্ষিত কৰিবলৈ <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />ত সূচীভুক্ত কিছুমান এক্সটেনশ্বন অক্ষম কৰিছোঁ যিবোৰ হয়তো আপোনাৰ অজ্ঞাতে যোগ কৰা হৈছিল।</translation>
@@ -331,7 +336,6 @@
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">“Google Password Manager”ত ক্লিক কৰক</translation>
 <translation id="504867494566807945">যিকোনো এপৰ পৰা Chromeত লিংক খোলক। লগতে সহজে এক্সেছ পাবলৈ, এইটো আপোনাৰ টাস্কবাৰত পিন কৰি থোৱা থাকে।</translation>
-<translation id="5049567194145991071">আপুনি ’বুজি পালোঁ’ত ক্লিক কৰিলে, আপুনি যিকোনো সময়তে Chromeত ছাইন ইন কৰিলে আপোনাৰ Google একাউণ্টত পাছৱৰ্ড ছেভ আৰু ব্যৱহাৰ কৰিব আৰু অন্য বহুতো কাৰ্য কৰিব পাৰে। <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644">আপোনাৰ একাউণ্টত Chromeৰ ডেটা ব্যৱহাৰ আৰু ছেভ কৰিবলৈ নিজৰ পাছফ্ৰে’জ দিয়ক, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">আপুনি অন্য Google সেৱাসমূহত ছাইন ইন কৰাৰ সময়ত Chromeত ছাইন ইন কৰক</translation>
 <translation id="5126049312684316860">Chromeএ আপুনি চোৱাৰ সম্ভাৱনা থকা অধিক পৃষ্ঠা আগতীয়াকৈ ল’ড কৰে, যাতে আপুনি সেইবোৰ চালে সেইবোৰ অধিক ক্ষিপ্ৰতাৰে ল’ড হয়</translation>
@@ -399,7 +403,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="5941711191222866238">সৰু কৰক</translation>
 <translation id="5941830788786076944">Google Chromeক ডিফ'ল্ট ব্ৰাউজাৰ হিচাপে ছেট কৰক</translation>
 <translation id="5947104538377036631">Chromeৰ শ্বৰ্টকাট</translation>
-<translation id="5953954252731207958">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION" /> আঁতৰাইছে</translation>
+<translation id="5968400720580217226">AI ম’ড</translation>
 <translation id="5980111191913430208">অজ্ঞাত উৎসৰ এক্সটেনশ্বন, এপ্‌ আৰু থীমে আপোনাৰ ডিভাইচৰ ক্ষতি কৰিব পাৰে। Chromeএ সেয়া কেৱল <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />ৰ পৰাহে ইনষ্টল কৰিবলৈ চুপাৰিছ কৰে</translation>
 <translation id="6003112304606738118">ডাউনল’ড হৈ আছে... <ph name="HOURS" /> ঘণ্টা বাকী আছে</translation>
 <translation id="6008161919456049856">আপুনি নিজৰ Google একাউণ্টত ছেভ কৰি থোৱা আপোনাৰ পাছৱৰ্ড, পৰিশোধ পদ্ধতি আৰু ঠিকনাসমূহ এই ডিভাইচটোৰ পৰা আঁতৰোৱা হ’ব। সেইসমূহ পুনৰ Chromeত ব্যৱহাৰ কৰিবলৈ, পুনৰ ছাইন ইন কৰক।</translation>
@@ -424,7 +428,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome বিটা</translation>
 <translation id="6180522807229584611">এই টেবটোৱে অতিৰিক্ত সম্পদ ব্যৱহাৰ কৰি আছে। আপোনাৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ Chromeক এইটো নিষ্ক্ৰিয় কৰিবলৈ দিয়ক।</translation>
 <translation id="6182736845697986886">আপডে’ট ছাৰ্ভাৰৰ অভ্যন্তৰীণ আসোঁৱাহৰ বাবে ইনষ্টলেশ্বন কৰিব পৰা নগ’ল।</translation>
-<translation id="6200139057479872438">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আঁতৰাইছে</translation>
 <translation id="6235018212288296708">mDNS ট্ৰেফিকক অনুমতি দিবলৈ Google Chromeৰ অন্তৰ্গামী নিয়ম</translation>
 <translation id="624230925347970731">Chrome শীঘ্ৰেই বন্ধ হ’ব</translation>
 <translation id="6247557882553405851">Google পাছৱৰ্ড পৰিচালক</translation>
@@ -462,6 +465,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="6696915334902295848">Chromeক এই ছাইটটোৰ বাবে মাইক্ৰ’ফ’নৰ অনুমতিৰ আৱশ্যক</translation>
 <translation id="6712881677154121168">ডাউনল’ড সম্পর্কীয় আসোঁৱাহ: <ph name="DOWNLOAD_ERROR" /></translation>
 <translation id="6718739135284199302">Chromeক দ্ৰুত কৰক</translation>
+<translation id="6734827584173583205">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু লগতে <ph name="COUNT" /> টা আঁতৰাইছে।</translation>
 <translation id="6735387454586646204">ChromeOS Flex ছিষ্টেম</translation>
 <translation id="6750954913813541382">Chromeএ বানানৰ আসোঁৱাহসমূহ আঁতৰাবলৈ আপুনি ব্ৰাউজাৰত টাইপ কৰা পাঠ Googleলৈ পঠিয়ায়</translation>
 <translation id="6760235774835597023">Chromeৰ V8 ইঞ্জিনৰ সৈতে ছাইটবোৰ খৰতকীয়া কৰি তোলে কিন্তু Chromeক আক্ৰমণৰ পৰা সামান্য কম প্ৰতিৰোধী কৰে। এই ছেটিংটো অন হৈ আছে।</translation>
@@ -487,7 +491,9 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7024536598735240744">আনপেক আসোঁৱাহ: <ph name="UNPACK_ERROR" />।</translation>
 <translation id="7025789849649390912">ইনষ্টল কৰাটো বন্ধ হৈছে।</translation>
 <translation id="7025800014283535195">ইয়াত আপুনি Chromeৰ প্ৰ’ফাইলসমূহৰ মাজত সালসলনি কৰিব পাৰে</translation>
+<translation id="7051685429025310665">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> আঁতৰাইছে।</translation>
 <translation id="7059914902409643750">আপুনি Chromeত ছাইন ইন কৰক</translation>
+<translation id="7060643578009939353">Google Lensৰ জৰিয়তে এই ভিডিঅ’টো সন্ধান কৰক</translation>
 <translation id="7071827361006050863">Chromeএ শীঘ্ৰেই ব্ৰাউজিঙৰ ডেটা মচি পেলাব</translation>
 <translation id="7085332316435785646">Google সেৱাসমূহত অধিক ব্যক্তিগতকৃত অভিজ্ঞতা লাভ কৰিবলৈ Chromeৰ ইতিহাস অন্তৰ্ভুক্ত কৰিবনে নকৰে সেয়া বাছনি কৰক</translation>
 <translation id="7088681679121566888">Chrome আপ টু ডে’ট আছে</translation>
@@ -541,13 +547,13 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7655455401911432608">আপোনাৰ ব্ৰাউজিঙৰ ইতিহাস, আপুনি এই ডিভাইচটোত Chrome ব্যৱহাৰ কৰি চোৱা ছাইটৰ ৰেকৰ্ড।</translation>
 <translation id="7655472416356262023">Chromeৰ পৰা একাউণ্ট আঁতৰাওক</translation>
 <translation id="7658239707568436148">বাতিল কৰক</translation>
-<translation id="7661924425853052955">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আৰু <ph name="COUNT" /> টা অনুমতি আঁতৰাইছে</translation>
 <translation id="7670287553302121848">Chrome একাউণ্টৰ বাবে পুনৰ বিশ্বাসযোগ্যতা প্ৰমাণীকৰণৰ আৱশ্যক</translation>
 <translation id="769538538642757151">ক’ৰবাত আপোনাৰ পৰ্যালোচনাৰ প্ৰয়োজন হ’লে Chromeএ আপোনাক জনাব</translation>
 <translation id="7716950018788545737">কাৰ্যটো(সমূহ) সমাপ্ত হৈছে।</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" />ৰ বাবে ছিষ্টেম ট্ৰে’চ কৰাৰ সেৱা প্ৰদান কৰে। যদি এই সেৱাটো অক্ষম কৰা হয়, তেন্তে ব্ৰাউজাৰে সৃষ্টি কৰা কাৰ্যদক্ষতাৰ ট্রে’চত প্ৰসংগ সলনি আৰু সাজু থ্ৰেড অনুষ্ঠানসমূহৰ দৰে সমগ্ৰ ছিষ্টেমৰ অনুষ্ঠানসমূহ অন্তৰ্ভুক্ত নহ’ব।</translation>
 <translation id="7736869414036750079">আপোনাৰ প্ৰতিষ্ঠানৰ বাবে আপুনি Chromeত ছাইন ইন কৰাৰ আৱশ্যক</translation>
 <translation id="7747138024166251722">ইনষ্টলাৰটোৱে কোনো অস্থায়ী ডাইৰেক্ট'ৰী সৃষ্টি কৰিব নোৱাৰিলে। ছফ্টৱেৰ ইনষ্টল কৰিবলৈ অনুগ্ৰহ কৰি খালী ঠাই আৰু লগতে অনুমতি আছেনে নাই পৰীক্ষা কৰক।</translation>
+<translation id="7748969056734910029">আপুনি শেহতীয়াকৈ চোৱা নাই। Chromeএ <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> আঁতৰাইছে।</translation>
 <translation id="7761834446675418963">Chrome খুলিবলৈ আপোনাৰ নামত ক্লিক কৰক আৰু ব্ৰাউজিং আৰম্ভ কৰক।</translation>
 <translation id="7777080907402804672">যদি কোনো প্ৰতিচ্ছবিত উপযোগী বিৱৰণ নাই তেন্তে Chromeএ আপোনাক সেয়া প্ৰদান কৰিবলৈ চেষ্টা কৰিব। বিৱৰণ সৃষ্টি কৰিবলৈ প্ৰতিচ্ছবি Googleলৈ প্ৰেৰণ কৰা হয়। আপুনি যিকোনো সময়তে ছেটিঙলৈ গৈ ইয়াক অফ কৰিব পাৰে।</translation>
 <translation id="778331955594035129">Chromeক এই ছাইটটোৰ বাবে অৱস্থানৰ অনুমতিৰ আৱশ্যক</translation>
@@ -555,7 +561,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="7801699035218095297">Google Chromeএ পাছৱর্ডসমূহ প্ৰতিলিপি কৰিবলৈ চেষ্টা কৰি আছে। ইয়াৰ অনুমতি দিবলৈ আপোনাৰ Windowsৰ পাছৱৰ্ডটো টাইপ কৰক।</translation>
 <translation id="7808348361785373670">Chromeৰ পৰা আঁতৰাওক...</translation>
 <translation id="7825851276765848807">অনির্দিষ্ট আসোঁৱাহৰ বাবে ইনষ্টল কৰিব পৰা নগ’ল। অনুগ্ৰহ কৰি Google Chrome পুনৰ ডাউনল'ড কৰক।</translation>
-<translation id="7826342993930002256">আপোনাৰ Chrome, সকলোতে ব্যৱহাৰ কৰক</translation>
 <translation id="7827099906024714326">আপোনাৰ Google একাউণ্টত কিছুমান ডেটা ছেভ কৰা আৰু আপোনাৰ আটাইবোৰ ডিভাইচত ব্যৱহাৰ কৰাৰ আগতে Chromeএ এয়া আপুনিয়েই বুলি সত্যাপন কৰিব লাগিব। যদি আপুনি এতিয়াই ছাইন আউট কৰে, এই ডেটা মচি পেলোৱা হ’ব।</translation>
 <translation id="7845233973568007926">ইনষ্টল কৰাৰ বাবে ধন্যবাদ। আপুনি <ph name="BUNDLE_NAME" /> ব্যৱহাৰ কৰাৰ পূৰ্বে আপোনাৰ কম্পিউটাৰটো ৰিষ্টাৰ্ট কৰিবই লাগিব।</translation>
 <translation id="7872446069773932638">ডাউনল’ড হৈ আছে... <ph name="SECONDS" /> ছেকেণ্ড বাকী আছে</translation>
@@ -594,6 +599,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8321888067342493336">প্ৰতিচ্ছবি হিচাপে ছেভ কৰক</translation>
 <translation id="8336463659890584292">কোনো ছাইটে নিজৰ পৃষ্ঠাত থকা লিংকসমূহ গোপনে আগতীয়াকৈ ল’ড কৰিবলৈ বিচাৰিলে, Chromeএ Googleৰ ছাৰ্ভাৰসমূহ ব্যৱহাৰ কৰে। এইটোৱে আগতীয়াকৈ ল’ড কৰা ছাইটৰ পৰা আপোনাৰ পৰিচয় লুকুৱায়, কিন্তু কোনবোৰ ছাইট আগতীয়াকৈ ল’ড হয় সেয়া Googleএ জানে।</translation>
 <translation id="8342675569599923794">এই ফাইলটো বিপজ্জনক, সেয়েহে Chromeএ সেইটো অৱৰোধ কৰিছে।</translation>
+<translation id="8349094670477064572">আপুনি যেতিয়াই Chromeত ছাইন ইন কৰিব তেতিয়াই আপোনাৰ Google একাউণ্টত পাছৱৰ্ড আৰু আন বহুতো ছেভ আৰু ব্যৱহাৰ কৰিব। <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">এই ভাষাটোলৈ অনুবাদ কৰক</translation>
 <translation id="8370517070665726704">স্বত্বাধিকাৰ <ph name="YEAR" /> Google LLC। সর্বস্বত্ব সংৰক্ষিত।</translation>
 <translation id="8387459386171870978">Chrome ব্যৱহাৰ কৰাটো অব্যাহত ৰাখক</translation>
@@ -623,6 +629,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8712637175834984815">বুজি পালোঁ</translation>
 <translation id="8712767363896337380">প্ৰায় আপ টু ডে’ট হৈছে! আপডে’ট হোৱাটো সম্পূৰ্ণ কৰিবলৈ Chrome পুনৰ লঞ্চ কৰক।</translation>
 <translation id="8718062187489036808">Chromeৰ পৰা ছাইন আউট কৰক</translation>
+<translation id="8725440680697264016">Googleক এই ভিডিঅ’টোৰ বিষয়ে সোধক</translation>
 <translation id="873133009373065397">Google Chromeএ ডিফ’ল্ট ব্ৰাউজাৰ নির্ধাৰণ বা ছেট কৰিব নোৱাৰে</translation>
 <translation id="8747073452963259673">সন্ধান এলেকাৰ তলৰ বাওঁফালৰ কোণ: <ph name="LEFT" />% বাওঁফালে, <ph name="BOTTOM" />% তললৈ</translation>
 <translation id="8748735421235723888">Chromeএ নিষ্ক্ৰিয় টেবসমূহৰ পৰা মেম’ৰী খালী কৰে। এইটোৱে সক্ৰিয় টেব আৰু অন্য এপক কম্পিউটাৰৰ অধিক সম্পদ দিয়ে আৰু Chromeক দ্ৰুত কৰি ৰাখে। আপুনি নিজৰ নিষ্ক্ৰিয় টেবসমূহলৈ গ’লে সেইবোৰ স্বয়ংক্ৰিয়ভাৱে পুনৰ সক্ৰিয় হয়। <ph name="BEGIN_LINK" />মেম’ৰী সঞ্চয়কাৰীৰ বিষয়ে অধিক জানক<ph name="END_LINK" /></translation>
@@ -631,7 +638,6 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8781673607513845160">আপোনাৰ কেমেৰা ব্যৱহাৰ কৰিবলৈ, <ph name="BEGIN_LINK" />ছিষ্টেমৰ ছেটিঙ<ph name="END_LINK" />ত Chromeক এক্সেছ দিয়ক</translation>
 <translation id="878572486461146056">ইনষ্টল কৰোঁতে আসোঁৱাহ হৈছে: আপোনাৰ নেটৱৰ্কৰ প্ৰশাসকে এটা গোটৰ নীতি প্ৰয়োগ কৰিছে, যিটোৱে ইনষ্টলেশ্বনৰ ক্ষেত্ৰত বাধা দিছে: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8798550110818026746">আপোনাৰ প্ৰতিষ্ঠানে আপোনাৰ বুকমাৰ্ক, ইতিহাস আৰু পাছৱৰ্ডৰ দৰে ব্ৰাউজিঙৰ ডেটা চাব আৰু পৰিচালনা কৰিব পাৰে। ই আন Chrome প্ৰ’ফাইলত থকা ব্ৰাউজিঙৰ ডেটা চাব নোৱাৰে</translation>
-<translation id="8801657293260363985">V8 হৈছে Chromeৰ JavaScript আৰু ছাইটৰ কাৰ্যদক্ষতা উন্নত কৰিবলৈ WebAssembly ইঞ্জিন ব্যৱহাৰ কৰা হয়</translation>
 <translation id="8821043148920470810">Google Chromeৰ ভৱিষ্যতৰ আপডে’টসমূহ পাবলৈ আপোনাক Windows 10 অথবা তাৰ পাছৰ সংস্কৰণৰ আৱশ্যক হ’ব। এই কম্পিউটাৰটোৱে Windows 7 ব্যৱহাৰ কৰি আছে।</translation>
 <translation id="8823341990149967727">Chromeটো অতি পুৰণি</translation>
 <translation id="8825634023950448068">আপোনাৰ গোপনীয়তা সুৰক্ষিত কৰিবলৈ, আমি ৪ সপ্তাহতকৈ পুৰণি হোৱা আপোনাৰ আগ্ৰহসমূহ স্বয়ংক্ৰিয়ভাৱে মচোঁ। আপুনি ব্ৰাউজ কৰি থাকিলে, সূচীখনত পুনৰ কোনো এটা আগ্ৰহ প্ৰদৰ্শিত হ’ব পাৰে। যদি Chromeএ ভুলকৈ এইটো কৰে অথবা আপুনি নিৰ্দিষ্ট কিছুমান বিজ্ঞাপন চাবলৈ নিবিচাৰে, তেন্তে আপুনি কোনো আগ্ৰহ আঁতৰাব পাৰে।</translation>
@@ -639,6 +645,7 @@ Google Chromeএ আপোনাৰ ছেটিংসমূহ পুনৰু�
 <translation id="8843516219908676469">Chromeএ ফৰ্মসমূহ ভালদৰে বুজি পায় আৰু আপোনাৰ বাবে সেয়া দ্ৰুততাৰে স্বয়ংক্ৰিয়ভাৱে পূৰ কৰিব পাৰে</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chromeএ আপোনাক এইটো আঁতৰাবলৈ চুপাৰিছ কৰে}one{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে}other{Chromeএ আপোনাক এইসমূহ আঁতৰাবলৈ চুপাৰিছ কৰে}}</translation>
 <translation id="8862326446509486874">ছিষ্টেম-পৰ্যায়ৰ ইনষ্টলৰ বাবে আপোনাৰ সঠিক অধিকাৰ নাই। প্রশাসক হিচাপে ইনষ্টলাৰটো পুনৰ চলাই চাওক।</translation>
+<translation id="8883862939660515976">Google Lensক এই প্ৰতিচ্ছবিৰ বিষয়ে সোধক</translation>
 <translation id="8914504000324227558">Chrome পুনৰ লঞ্চ কৰক</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" />ৰ পৰা এটা নম্বৰ আপোনাৰ Android ফ’নলৈ পঠিয়াবলৈ দুয়োটা ডিভাইচত Chromeত ছাইন ইন কৰক।</translation>
 <translation id="8948460679427074738">এই এক্সটেনশ্বনে গোপনীয়তাৰ ব্যৱস্থাসমূহ প্ৰকাশ কৰা নাই, যেনে ই কেনেকৈ ডেটা সংগ্ৰহ আৰু ব্যৱহাৰ কৰে। Chromeএ আপুনি এইটো আঁতৰোৱাটো চুপাৰিছ কৰে।</translation>

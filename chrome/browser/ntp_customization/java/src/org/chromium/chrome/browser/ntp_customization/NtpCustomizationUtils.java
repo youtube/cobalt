@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ntp_customization;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.FEED;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.MAIN;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.MVT;
@@ -19,6 +20,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.Browser;
 
 import androidx.annotation.IntDef;
@@ -33,8 +35,12 @@ import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.BackgroundOnlyAsyncTask;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
+import org.chromium.ui.base.WindowAndroid;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -276,6 +282,45 @@ public class NtpCustomizationUtils {
         }
 
         return BitmapFactory.decodeFile(file.getPath(), null);
+    }
+
+    /** Returns whether all flags are enabled to allow edge-to-edge for customized theme. */
+    public static boolean canEnableEdgeToEdgeForCustomizedTheme(
+            WindowAndroid windowAndroid, boolean isTablet) {
+        return !isTablet
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()
+                && EdgeToEdgeStateProvider.isEdgeToEdgeEnabledForWindow(windowAndroid);
+    }
+
+    /**
+     * Returns whether the given Tab supports to remove the top Status bar to make it truly edge to
+     * edge.
+     */
+    public static boolean supportsEnableEdgeToEdgeOnTop(@Nullable Tab tab) {
+        if (tab == null || !tab.isNativePage()) {
+            return false;
+        }
+
+        return assumeNonNull(tab.getNativePage()).supportsEdgeToEdgeOnTop();
+    }
+
+    /**
+     * Returns whether to skip a layout change from the given systemTopInset and consumeTopInset
+     * status.
+     *
+     * @param appliedTopPadding The value of currently applied top padding.
+     * @param systemTopInset The system's top inset, i.e., the height of Status bar.
+     * @param consumeTopInset Whether should consume the system's top inset.
+     */
+    public static boolean shouldSkipTopInsetsChange(
+            int appliedTopPadding, int systemTopInset, boolean consumeTopInset) {
+        // We skip a layout change if the top padding doesn't need adjusting. This occurs in two
+        // scenarios:
+        // 1) Top padding was already added and should remain.
+        // 2) No top padding was added and none is needed now.
+        return ((appliedTopPadding == systemTopInset) && consumeTopInset)
+                || ((appliedTopPadding == 0) && !consumeTopInset);
     }
 
     public static void resetSharedPreferenceForTesting() {

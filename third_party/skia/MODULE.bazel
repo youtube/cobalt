@@ -58,7 +58,6 @@ use_repo(
     "com_github_stretchr_testify",
     "com_github_trietmn_go_wiki",
     "com_github_vektra_mockery_v2",
-    "com_google_cloud_go_pubsub",
     "com_google_cloud_go_storage",
     "org_chromium_go_luci",
     "org_golang_google_api",
@@ -102,8 +101,9 @@ crate.spec(
     version = "1.16.0",
 )
 crate.spec(
+    # If this is updated, be sure to update BUILD.gn also
     package = "cxx",
-    version = "1.0.158",
+    version = "1.0.161",
 )
 crate.annotation(
     # We want a custom build rule so we can use a different include path
@@ -130,7 +130,7 @@ crate.spec(
 )
 crate.spec(
     package = "png",
-    version = "0.18.0-rc",
+    version = "=0.18.0-rc",
 )
 crate.spec(
     features = [
@@ -146,7 +146,7 @@ crate.spec(
 )
 crate.spec(
     package = "read-fonts",
-    version = "0.29.2",
+    version = "0.31.1",
 )
 crate.spec(
     package = "regex",
@@ -154,7 +154,7 @@ crate.spec(
 )
 crate.spec(
     package = "skrifa",
-    version = "0.31.3",
+    version = "0.33.1",
 )
 crate.spec(
     package = "thiserror",

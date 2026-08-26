@@ -83,7 +83,7 @@
 #include "components/sync/protocol/web_app_specifics.pb.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
@@ -1143,6 +1143,14 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
       idb.SetUpdateManifestUrl(GURL("https://update-manifest.com"));
       idb.SetUpdateChannel(UpdateChannel::default_channel());
     }
+    if (random.next_bool()) {
+      proto::IsolationData::OpenedTabsCounterNotificationState proto_state;
+      proto_state.set_acknowledged(random.next_bool());
+      proto_state.set_times_shown(random.next_uint(3));
+      idb.SetOpenedTabsCounterNotificationState(
+          IsolationData::OpenedTabsCounterNotificationState(
+              std::move(proto_state)));
+    }
     app->SetIsolationData(std::move(idb).Build());
   }
 
@@ -1188,6 +1196,14 @@ std::unique_ptr<WebApp> CreateRandomWebApp(CreateRandomWebAppParams params) {
   }
 
   app->SetTrustedIcons(CreateRandomIconMetadata(random, params.base_url));
+  if (random.next_bool()) {
+    app->SetStoredTrustedIconSizes(IconPurpose::ANY,
+                                   {icon_sizes[random.next_uint(8)]});
+  }
+  if (random.next_bool()) {
+    app->SetStoredTrustedIconSizes(IconPurpose::MASKABLE,
+                                   {icon_sizes[random.next_uint(8)]});
+  }
 
   return app;
 }

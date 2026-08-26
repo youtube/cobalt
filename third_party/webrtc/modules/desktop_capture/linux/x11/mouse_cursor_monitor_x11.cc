@@ -133,7 +133,7 @@ void MouseCursorMonitorX11::Capture() {
   x_display_->ProcessPendingXEvents();
 
   // cursor_shape_| is set only if we were notified of a cursor shape change.
-  if (cursor_shape_.get())
+  if (cursor_shape_)
     callback_->OnMouseCursor(cursor_shape_.release());
 
   // Get cursor position if necessary.

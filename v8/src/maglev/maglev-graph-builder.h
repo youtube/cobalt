@@ -193,11 +193,11 @@ class MaglevGraphBuilder {
     return caller_details_->is_eager_inline;
   }
 
-  DeoptFrame GetLatestCheckpointedFrame();
-  DeoptFrame GetDeoptFrameForEagerDeopt() {
+  DeoptFrame* GetLatestCheckpointedFrame();
+  DeoptFrame* GetDeoptFrameForEagerDeopt() {
     return GetLatestCheckpointedFrame();
   }
-  std::tuple<DeoptFrame, interpreter::Register, int>
+  std::tuple<DeoptFrame*, interpreter::Register, int>
   GetDeoptFrameForLazyDeopt();
 
   bool need_checkpointed_loop_entry() {
@@ -287,6 +287,11 @@ class MaglevGraphBuilder {
     } else {
       return v8_flags.max_maglev_hard_inline_depth;
     }
+  }
+
+  bool is_inline_api_calls_enabled() const {
+    // TODO(victorgomes): Inline API calls are still not supported by Turbolev.
+    return !is_turbolev() && v8_flags.maglev_inline_api_calls;
   }
 
   bool is_tracing_enabled() const {
@@ -834,10 +839,10 @@ class MaglevGraphBuilder {
   DeoptFrame* GetDeoptFrameForEagerCall(const MaglevCompilationUnit* unit,
                                         ValueNode* closure,
                                         base::Vector<ValueNode*> args);
-  DeoptFrame GetDeoptFrameForLazyDeoptHelper(
+  DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
       interpreter::Register result_location, int result_size,
       LazyDeoptFrameScope* scope, bool mark_accumulator_dead);
-  InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
+  InterpretedDeoptFrame* GetDeoptFrameForEntryStackCheck();
 
   int next_offset() const {
     return iterator_.current_offset() + iterator_.current_bytecode_size();
@@ -1249,20 +1254,21 @@ class MaglevGraphBuilder {
                                              StoreTaggedMode store_mode);
 
   ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, int index);
-  ValueNode* BuildLoadFixedArrayElement(ValueNode* elements, ValueNode* index);
+  ReduceResult BuildLoadFixedArrayElement(ValueNode* elements,
+                                          ValueNode* index);
   ReduceResult BuildStoreFixedArrayElement(ValueNode* elements,
                                            ValueNode* index, ValueNode* value);
 
   ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements, int index);
-  ValueNode* BuildLoadFixedDoubleArrayElement(ValueNode* elements,
-                                              ValueNode* index);
+  ReduceResult BuildLoadFixedDoubleArrayElement(ValueNode* elements,
+                                                ValueNode* index);
   ReduceResult BuildStoreFixedDoubleArrayElement(ValueNode* elements,
                                                  ValueNode* index,
                                                  ValueNode* value);
 
-  ValueNode* BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
-                                                   ValueNode* index,
-                                                   bool convert_hole);
+  ReduceResult BuildLoadHoleyFixedDoubleArrayElement(ValueNode* elements,
+                                                     ValueNode* index,
+                                                     bool convert_hole);
 
   ReduceResult GetInt32ElementIndex(interpreter::Register reg) {
     ValueNode* index_object = current_interpreter_frame_.get(reg);
@@ -1940,8 +1946,10 @@ class MaglevGraphBuilder {
 
   // Current block information.
   bool in_prologue_ = true;
-  std::optional<InterpretedDeoptFrame> entry_stack_check_frame_;
-  std::optional<DeoptFrame> latest_checkpointed_frame_;
+  // TODO(victorgomes): I think we can merge entry_stack_check_frame_ into
+  // latest_checkpointed_frame_.
+  InterpretedDeoptFrame* entry_stack_check_frame_ = nullptr;
+  DeoptFrame* latest_checkpointed_frame_ = nullptr;
   struct ForInState {
     ValueNode* receiver = nullptr;
     ValueNode* cache_type = nullptr;
@@ -2017,7 +2025,7 @@ class MaglevGraphBuilder {
 
 template <bool is_possible_map_change>
 void MaglevGraphBuilder::ResetBuilderCachedState() {
-  latest_checkpointed_frame_.reset();
+  latest_checkpointed_frame_ = nullptr;
 
   // If a map might have changed, then we need to re-check it for for-in.
   // TODO(leszeks): Track this on merge states / known node aspects, rather

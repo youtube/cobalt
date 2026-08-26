@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<webrtc::RtpPacketReceived> packet;
   while (true) {
     packet = file_source->NextPacket();
-    if (!packet.get()) {
+    if (!packet) {
       // End of file reached.
       break;
     }

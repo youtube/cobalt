@@ -407,54 +407,6 @@ RTCError JsepTransportController::AddRemoteCandidates(
   return jsep_transport->AddRemoteCandidates(candidates);
 }
 
-RTCError JsepTransportController::RemoveRemoteCandidates(
-    const Candidates& candidates) {
-  if (!network_thread_->IsCurrent()) {
-    return network_thread_->BlockingCall(
-        [&] { return RemoveRemoteCandidates(candidates); });
-  }
-
-  RTC_DCHECK_RUN_ON(network_thread_);
-
-  // Verify each candidate before passing down to the transport layer.
-  RTCError error = VerifyCandidates(candidates);
-  if (!error.ok()) {
-    return error;
-  }
-
-  std::map<std::string, Candidates> candidates_by_transport_name;
-  for (const Candidate& cand : candidates) {
-    if (!cand.transport_name().empty()) {
-      candidates_by_transport_name[cand.transport_name()].push_back(cand);
-    } else {
-      RTC_LOG(LS_ERROR) << "Not removing candidate because it does not have a "
-                           "transport name set: "
-                        << cand.ToSensitiveString();
-    }
-  }
-
-  for (const auto& kv : candidates_by_transport_name) {
-    const std::string& transport_name = kv.first;
-    const Candidates& transport_candidates = kv.second;
-    JsepTransport* jsep_transport = GetJsepTransportByName(transport_name);
-    if (!jsep_transport) {
-      RTC_LOG(LS_WARNING)
-          << "Not removing candidate because the JsepTransport doesn't exist.";
-      continue;
-    }
-    for (const Candidate& candidate : transport_candidates) {
-      DtlsTransportInternal* dtls =
-          candidate.component() == ICE_CANDIDATE_COMPONENT_RTP
-              ? jsep_transport->rtp_dtls_transport()
-              : jsep_transport->rtcp_dtls_transport();
-      if (dtls) {
-        dtls->ice_transport()->RemoveRemoteCandidate(candidate);
-      }
-    }
-  }
-  return RTCError::OK();
-}
-
 bool JsepTransportController::RemoveRemoteCandidate(const IceCandidate* c) {
   if (!network_thread_->IsCurrent()) {
     return network_thread_->BlockingCall(

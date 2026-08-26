@@ -526,7 +526,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.FetchEvent.{Resource}.RaceNetworkRequest.Redirect"
-    enum="Boolean" expires_after="2025-11-23">
+    enum="Boolean" expires_after="2026-01-25">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1336,7 +1336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.RegisteredStorageKeyCount" units="origins"
-    expires_after="2025-11-20">
+    expires_after="2026-01-25">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
@@ -1344,6 +1344,50 @@ chromium-metrics-reviews@google.com.
     The number of StorageKeys that have a service worker registration. Recorded
     near browser startup, when the service worker storage system is initialized.
   </summary>
+</histogram>
+
+<histogram name="ServiceWorker.Registration.Delete.Initiator"
+    enum="ServiceWorkerRegistrationDeleteInitiator" expires_after="2026-01-25">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    The initiator of a service worker registration deletion. This is recorded
+    when a deletion is triggered.
+  </summary>
+</histogram>
+
+<histogram name="ServiceWorker.Registration.Delete.Result.{DeleteInitiator}"
+    enum="ServiceWorkerStatusCode" expires_after="2026-01-23">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    The result of deleting a service worker registration. This is recorded when
+    the deletion from the database is complete. The histogram is broken down by
+    the initiator of the deletion.
+  </summary>
+  <token key="DeleteInitiator">
+    <variant name="ByContentPublicApi"
+        summary="Triggered via the public C++ API
+                 (ServiceWorkerContext::UnregisterServiceWorker and
+                 ServiceWorkerContext::UnregisterServiceWorkerImmediately),
+                 typically by extensions or DevTools."/>
+    <variant name="ByDeleteForStorageKey"
+        summary="Triggered by clearing site data."/>
+    <variant name="ByForceDelete"
+        summary="Triggered by an emergency force-delete mechanism (e.g., when
+                 the script can't be read from the disk)."/>
+    <variant name="ByRegistrationFailure"
+        summary="Triggered by a registration failure (e.g., when a
+                 resurrected uninstalling registration fails to be
+                 re-registered)."/>
+    <variant name="ByTest" summary="Triggered from a test."/>
+    <variant name="ByUnregister"
+        summary="Triggered by an explicit call to
+                 navigator.serviceWorker.unregister()."/>
+    <variant name="ByWebUI"
+        summary="Triggered by a user action on the
+                 chrome://serviceworker-internals page."/>
+  </token>
 </histogram>
 
 <histogram name="ServiceWorker.RouterEvaluator.ConditionDepth" units="count"
@@ -1385,7 +1429,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.RouterEvaluator.MatchedFirstSourceType"
-    enum="ServiceWorkerRouterSourceType" expires_after="2025-08-24">
+    enum="ServiceWorkerRouterSourceType" expires_after="2026-01-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1917,6 +1961,20 @@ chromium-metrics-reviews@google.com.
 
     This is recorded in navigation, when the browser receives the response from
     the network, while committed the navigation with locally stored headers.
+  </summary>
+</histogram>
+
+<histogram name="ServiceWorker.SyntheticResponse.ReloadReason"
+    enum="SyntheticResponseReloadReason" expires_after="2025-08-31">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Records the reason why the browser reloads the page when a synthetic
+    response is about to be served.
+
+    This is recorded in navigation, when the browser receives the response from
+    the network, but the browser tell the custom response to reload the page to
+    the renderer for some fallback case e.g. header mismatch.
   </summary>
 </histogram>
 

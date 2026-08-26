@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/content_setting_bubble_contents.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/permissions/chip/chip_controller.h"
@@ -402,6 +403,31 @@ IN_PROC_BROWSER_TEST_F(ConfirmationChipEnabledInteractiveTest,
 
   ASSERT_FALSE(GetChip()->GetVisible());
 }
+
+IN_PROC_BROWSER_TEST_F(ConfirmationChipEnabledInteractiveTest,
+                       HideChipWhenOmniboxIsEdited) {
+  RequestPermission(permissions::RequestType::kGeolocation);
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(GetChip()->GetVisible());
+  EXPECT_TRUE(GetChip()->GetText() ==
+              l10n_util::GetStringUTF16(IDS_GEOLOCATION_PERMISSION_CHIP));
+
+  test_api_->manager()->Accept();
+  EXPECT_TRUE(GetChip()->GetVisible());
+  EXPECT_TRUE(GetChip()->GetText() ==
+              l10n_util::GetStringUTF16(
+                  IDS_PERMISSIONS_PERMISSION_ALLOWED_CONFIRMATION));
+  EXPECT_EQ(GetChip()->theme(), PermissionChipTheme::kNormalVisibility);
+
+  // Simulate the user editing the omnibox.
+  OmniboxView* omnibox_view = GetLocationBarView()->GetOmniboxView();
+  omnibox_view->SetFocus(/*is_user_initiated=*/true);
+  omnibox_view->SetUserText(u"Typing in the Omnibox...");
+  views::test::RunScheduledLayout(GetLocationBarView());
+  EXPECT_TRUE(GetLocationBarView()->IsEditingOrEmpty());
+  EXPECT_FALSE(GetChip()->GetVisible());
+}
+
 
 class PageInfoChangedWithin1mUmaTest : public PermissionChipInteractiveUITest {
  public:
@@ -1243,7 +1269,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
 
   // Init global `PermissionStatus` variable and add API for assigning and
   // removing event listeners.
-  ASSERT_EQ("", content::EvalJs(main_rfh, R"(
+  ASSERT_TRUE(content::EvalJs(main_rfh, R"(
     var PermissionStatus;
 
     function onChangeListener(event) {}
@@ -1264,7 +1290,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
       PermissionStatus.removeEventListener("change", onChangeListener);
     }
     )")
-                    .error);
+                  .is_ok());
 
   // Initialize global JS variable `PermissionStatus`.
   EXPECT_EQ(true, content::EvalJs(main_rfh, R"(
@@ -1292,7 +1318,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
         run_loop.QuitClosure());
 
     // Set PermissionState.onchange listener.
-    ASSERT_EQ("", content::EvalJs(main_rfh, "addOnChange()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "addOnChange()").is_ok());
 
     // `kAddNotificationsEventListener` execution is async. To informing that an
     // event listener has been added for a permission we should wait otherwise
@@ -1314,7 +1340,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
         main_rfh->GetBrowserContext()->GetPermissionController(),
         run_loop.QuitClosure());
 
-    ASSERT_EQ("", content::EvalJs(main_rfh, "removeOnchange()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "removeOnchange()").is_ok());
 
     run_loop.Run();
 
@@ -1334,7 +1360,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
         run_loop.QuitClosure());
 
     // Add `change` event listener.
-    ASSERT_EQ("", content::EvalJs(main_rfh, "addEventListener()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "addEventListener()").is_ok());
 
     run_loop.Run();
 
@@ -1353,7 +1379,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
         main_rfh->GetBrowserContext()->GetPermissionController(),
         run_loop.QuitClosure());
     // Add the second lisener.
-    ASSERT_EQ("", content::EvalJs(main_rfh, "addOnChange()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "addOnChange()").is_ok());
     run_loop.Run();
   }
 
@@ -1361,7 +1387,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
     // Removing the first listener should not endup in disablign
     // `IsPermissionStatusSubscribed`. Do not need to call `run_loop.Run()` as
     // that event will not be processed.
-    ASSERT_EQ("", content::EvalJs(main_rfh, "removeEventListener()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "removeEventListener()").is_ok());
     // run_loop.Run();
 
     IsPermissionStatusSubscribed =
@@ -1377,7 +1403,7 @@ IN_PROC_BROWSER_TEST_F(QuietChipFailFastInteractiveTest,
         main_rfh->GetBrowserContext()->GetPermissionController(),
         run_loop.QuitClosure());
     // This will remove the internal listener.
-    ASSERT_EQ("", content::EvalJs(main_rfh, "removeOnchange()").error);
+    ASSERT_TRUE(content::EvalJs(main_rfh, "removeOnchange()").is_ok());
     run_loop.Run();
 
     IsPermissionStatusSubscribed =
@@ -1542,6 +1568,23 @@ IN_PROC_BROWSER_TEST_F(PermissionChipInteractiveUITest,
 
   GetChipController()->GetBubbleWidget()->Close();
   permission_prompt_waiter->WaitForHide();
+}
+
+IN_PROC_BROWSER_TEST_F(PermissionChipInteractiveUITest,
+                       IgnoreRequestWhenOmniboxIsEdited) {
+  RequestPermission(permissions::RequestType::kGeolocation);
+  EXPECT_TRUE(GetChip()->GetVisible());
+  EXPECT_TRUE(test_api_->manager()->IsRequestInProgress());
+
+  // Simulate the user editing the omnibox.
+  OmniboxView* omnibox_view = GetLocationBarView()->GetOmniboxView();
+  omnibox_view->SetFocus(/*is_user_initiated=*/true);
+  omnibox_view->SetUserText(u"Typing in the Omnibox...");
+  views::test::RunScheduledLayout(GetLocationBarView());
+  ASSERT_TRUE(GetLocationBarView()->IsEditingOrEmpty());
+
+  EXPECT_FALSE(test_api_->manager()->IsRequestInProgress());
+  EXPECT_FALSE(GetChip()->GetVisible());
 }
 
 class TestWebContentsObserver : content::WebContentsObserver {

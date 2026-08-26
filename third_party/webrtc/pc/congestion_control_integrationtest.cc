@@ -113,14 +113,11 @@ TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
               Not(Contains(Field("uri", &RtpExtension::uri,
                                  RtpExtension::kTransportSequenceNumberUri))))
       << " in caller sender parameters";
-  /* Caller receivers are not fixed yet.
-     TODO: issues.webrtc.org/383078466 - enable
   parameters = caller()->pc()->GetReceivers()[0]->GetParameters();
   EXPECT_THAT(parameters.header_extensions,
               Not(Contains(Field("uri", &RtpExtension::uri,
                                  RtpExtension::kTransportSequenceNumberUri))))
       << " in caller receiver parameters";
-  */
   /* Callee senders are not fixed yet.
      TODO: issues.webrtc.org/383078466 - enable
   parameters = callee()->pc()->GetSenders()[0]->GetParameters();

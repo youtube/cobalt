@@ -174,25 +174,49 @@ public interface TabGroupModelFilter extends SupportsTabModelObserver {
      * @param destinationTab The destination {@link Tab} to be append to.
      * @param notify Whether or not to notify observers about the merging events.
      */
-    void mergeListOfTabsToGroup(List<Tab> tabs, Tab destinationTab, boolean notify);
+    default void mergeListOfTabsToGroup(List<Tab> tabs, Tab destinationTab, boolean notify) {
+        mergeListOfTabsToGroup(tabs, destinationTab, /* index=InGroup */ null, notify);
+    }
+
+    /**
+     * This method merges a list of {@link Tab}s into the destination group that contains the
+     * {@code} destinationTab.
+     *
+     * @param tabs List of {@link Tab}s to be merged. The ordering of this list is preserved.
+     * @param destinationTab The destination {@link Tab}. If not in a group, a new group will be
+     *     created.
+     * @param indexInGroup The index within the destination group to insert the tabs.
+     *     <ul>
+     *       <li>0 - inserts at the front.
+     *       <li>`null` or an index >= group size - inserts at the back.
+     *       <li>Any other value is clamped to the valid range [0, group_size].
+     *     </ul>
+     *
+     * @param notify Whether or not to notify observers about the merging events.
+     */
+    void mergeListOfTabsToGroup(
+            List<Tab> tabs, Tab destinationTab, @Nullable Integer indexInGroup, boolean notify);
 
     /** Returns a utility interface to help with that ungrouping tabs from a tab group. */
     TabUngrouper getTabUngrouper();
 
     // TODO(crbug.com/372068933): This method should probably have more restricted access.
     /**
-     * This method undo the given grouped {@link Tab}.
+     * Undoes a group operation performed by this TabGroupModelFilter.
      *
-     * @param tab undo this grouped {@link Tab}.
-     * @param originalIndex The tab index before grouped.
-     * @param originalRootId The rootId before grouped.
-     * @param originalTabGroupId The tabGroupId before grouped.
+     * @param undoGroupMetadata Metadata to undo the operation provided by {@link
+     *     TabGroupModelFilterObserver#showUndoGroupSnackbar}.
      */
-    void undoGroupedTab(
-            Tab tab,
-            int originalIndex,
-            @TabId int originalRootId,
-            @Nullable Token originalTabGroupId);
+    void performUndoGroupOperation(UndoGroupMetadata undoGroupMetadata);
+
+    /**
+     * Notifies that the undo window for a group operation performed by this TabGroupModelFilter has
+     * expired.
+     *
+     * @param undoGroupMetadata Metadata to undo the operation provided by {@link
+     *     TabGroupModelFilterObserver#showUndoGroupSnackbar}.
+     */
+    void undoGroupOperationExpired(UndoGroupMetadata undoGroupMetadata);
 
     /** Get all tab group IDs that are associated with tab groups. */
     Set<Token> getAllTabGroupIds();

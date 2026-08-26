@@ -54,7 +54,11 @@ class PasswordChangeDelegate {
     // present on a main page.
     kNoState = 9,
 
-    kMaxValue = kNoState,
+    // Login form was detected on a page during an ongoing password change flow.
+    // The flow is not stopped, but the user action is required.
+    kLoginFormDetected = 10,
+
+    kMaxValue = kLoginFormDetected,
   };
   // LINT.ThenChange(/tools/metrics/histograms/metadata/password/enums.xml:PasswordChangeFlowState)
 
@@ -102,8 +106,6 @@ class PasswordChangeDelegate {
   virtual void OnPasswordFormSubmission(content::WebContents* web_contents) = 0;
 
   virtual void OnPrivacyNoticeAccepted() = 0;
-
-  virtual void OnOtpFieldDetected(content::WebContents* web_contents) = 0;
 
   // Called when the user declines the initial dialog offering password change.
   virtual void OnPasswordChangeDeclined() = 0;

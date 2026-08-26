@@ -36,7 +36,7 @@ size_t PushSincResampler::Resample(const int16_t* source,
                                    size_t source_length,
                                    int16_t* destination,
                                    size_t /* destination_capacity */) {
-  if (!float_buffer_.get())
+  if (!float_buffer_)
     float_buffer_.reset(new float[destination_frames_]);
 
   source_ptr_int_ = source;

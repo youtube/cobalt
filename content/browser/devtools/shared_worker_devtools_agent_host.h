@@ -46,6 +46,7 @@ class SharedWorkerDevToolsAgentHost : public DevToolsAgentHostImpl {
   BrowserContext* GetBrowserContext() override;
   std::string GetType() override;
   std::string GetTitle() override;
+  std::string GetDescription() override;
   GURL GetURL() override;
   bool Activate() override;
   void Reload() override;

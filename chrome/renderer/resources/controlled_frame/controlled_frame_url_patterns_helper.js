@@ -5,14 +5,18 @@
 const WebUrlPatternNatives = requireNative('WebUrlPatternNatives');
 
 function convertURLPatternsToMatchPatterns(urlPatternsStrsOrObjs) {
+  if (urlPatternsStrsOrObjs === undefined) {
+    return undefined;
+  }
+
   let matchPatterns = [];
   for (const urlPatternStrOrObj of urlPatternsStrsOrObjs) {
     matchPatterns = $Array.concat(
-      matchPatterns,
-      WebUrlPatternNatives.URLPatternToMatchPatterns(
-        new URLPattern(urlPatternStrOrObj))
+        matchPatterns,
+        WebUrlPatternNatives.URLPatternToMatchPatterns(
+            new URLPattern(urlPatternStrOrObj)),
     );
-  };
+  }
   return matchPatterns;
 }
 

@@ -1429,11 +1429,11 @@ void RTCStatsCollector::ProduceCertificateStats_n(
   for (const auto& transport_cert_stats_pair : transport_cert_stats) {
     if (transport_cert_stats_pair.second.local) {
       ProduceCertificateStatsFromSSLCertificateStats(
-          timestamp, *transport_cert_stats_pair.second.local.get(), report);
+          timestamp, *transport_cert_stats_pair.second.local, report);
     }
     if (transport_cert_stats_pair.second.remote) {
       ProduceCertificateStatsFromSSLCertificateStats(
-          timestamp, *transport_cert_stats_pair.second.remote.get(), report);
+          timestamp, *transport_cert_stats_pair.second.remote, report);
     }
   }
 }
@@ -1622,7 +1622,7 @@ void RTCStatsCollector::ProduceMediaSourceStats_s(
         // Audio processor may be attached to either the track or the send
         // stream, so look in both places.
         auto audio_processor(audio_track->GetAudioProcessor());
-        if (audio_processor.get()) {
+        if (audio_processor) {
           // The `has_remote_tracks` argument is obsolete; makes no difference
           // if it's set to true or false.
           AudioProcessorInterface::AudioProcessorStatistics ap_stats =

@@ -113,8 +113,10 @@ class WgcCapturerWin : public DesktopCapturer {
 
   // Used in WgcCapturerTests.
   bool IsSourceBeingCaptured(SourceId id);
-  void SetUpFullScreenDetectorForTest(bool use_heuristic,
-                                      DesktopCapturer::SourceId source_id);
+  void SetUpFullScreenDetectorForTest(
+      bool use_heuristic,
+      DesktopCapturer::SourceId source_id,
+      bool fullscreen_slide_show_started_after_capture_start = true);
 
  private:
   typedef HRESULT(WINAPI* CreateDispatcherQueueControllerFunc)(

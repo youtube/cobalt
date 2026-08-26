@@ -252,6 +252,7 @@
   // nothing.
   [self disconnectMediatorWithResult:SigninCoordinatorResultInterrupted];
   [self stopAccountChooserCoordinator];
+  [self stopReauthCoordinator];
   [super stopAnimated:animated];
 }
 
@@ -317,6 +318,7 @@
 }
 
 - (void)stopReauthCoordinator {
+  self.reauthCoordinator.delegate = nil;
   [self.reauthCoordinator stop];
   self.reauthCoordinator = nil;
 }
@@ -570,6 +572,15 @@
   [self dismissViewControllerAnimated:YES];
   [self runCompletionWithSigninResult:SigninCoordinatorResultSuccess
                    completionIdentity:completionIdentity];
+}
+
+- (void)consistencyPromoSigninMediatorSignInIsImpossible:
+    (ConsistencyPromoSigninMediator*)mediator {
+  CHECK_EQ(self.consistencyPromoSigninMediator, mediator,
+           base::NotFatalUntil::M143);
+  [self dismissViewControllerAnimated:YES];
+  [self runCompletionWithSigninResult:SigninCoordinatorResultInterrupted
+                   completionIdentity:nil];
 }
 
 - (void)consistencyPromoSigninMediatorSignInCancelled:

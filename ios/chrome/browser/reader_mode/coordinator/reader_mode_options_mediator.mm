@@ -37,9 +37,15 @@
 - (void)setConsumer:(id<ReaderModeOptionsConsumer>)consumer {
   _consumer = consumer;
   if (_consumer) {
-    [self onChangeFontFamily:_distilledPagePrefs->GetFontFamily()];
-    [self onChangeTheme:_distilledPagePrefs->GetTheme()];
-    [self onChangeFontScaling:_distilledPagePrefs->GetFontScaling()];
+    // Initialize consumer with current state of `_distilledPagePrefs`.
+    [self.consumer setSelectedFontFamily:_distilledPagePrefs->GetFontFamily()];
+    [self.consumer setSelectedTheme:_distilledPagePrefs->GetTheme()];
+    std::vector<double> multipliers = ReaderModeFontScaleMultipliers();
+    const float scaling = _distilledPagePrefs->GetFontScaling();
+    [self.consumer
+        setDecreaseFontSizeButtonEnabled:(scaling > multipliers.front())];
+    [self.consumer
+        setIncreaseFontSizeButtonEnabled:(scaling < multipliers.back())];
   }
 }
 
@@ -70,14 +76,11 @@
 }
 
 - (void)setTheme:(dom_distiller::mojom::Theme)theme {
-  _distilledPagePrefs->SetTheme(theme);
+  _distilledPagePrefs->SetUserPrefTheme(theme);
 }
 
 - (void)hideReaderMode {
-  web::WebState* webState = _webStateList->GetActiveWebState();
-  if (webState) {
-    ReaderModeTabHelper::FromWebState(webState)->SetActive(false);
-  }
+  [self.readerModeHandler hideReaderMode];
 }
 
 #pragma mark - Public
@@ -105,6 +108,7 @@
       setDecreaseFontSizeButtonEnabled:(scaling > multipliers.front())];
   [self.consumer
       setIncreaseFontSizeButtonEnabled:(scaling < multipliers.back())];
+  [self.consumer announceFontSizeMultiplier:scaling];
 }
 
 @end

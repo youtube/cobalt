@@ -187,12 +187,4 @@ class AndroidNetworkMonitorFactory : public NetworkMonitorFactory {
 }  // namespace jni
 }  // namespace webrtc
 
-// TODO(magjed): Remove once external clients are updated.
-namespace webrtc_jni {
-
-using webrtc::jni::AndroidNetworkMonitor;
-using webrtc::jni::AndroidNetworkMonitorFactory;
-
-}  // namespace webrtc_jni
-
 #endif  // SDK_ANDROID_SRC_JNI_ANDROID_NETWORK_MONITOR_H_

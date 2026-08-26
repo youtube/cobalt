@@ -11,20 +11,13 @@
       background-color: var(--cr-hover-background-color);
     }
 
-    #address-row-icon {
-      --iron-icon-fill-color: var(--google-grey-700);
-      padding-inline-end: var(--cr-icon-button-margin-start);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      #address-row-icon {
-        --iron-icon-fill-color: var(--google-grey-500);
-      }
-    }
-
     #addressList .start {
       display: flex;
       overflow: hidden;
+    }
+
+    .dropdown-item.row-item {
+      padding: var(--cr-section-vertical-padding) var(--cr-section-padding);
     }
 
     #addressSummary {
@@ -81,11 +74,6 @@
         <template is="dom-repeat" items="[[addresses]]">
           <div class="list-item" role="listitem">
             <div class="start">
-              <cr-icon id="address-row-icon" icon="[[getAddressIcon_(item)]]"
-                  hidden="[[!shouldShowAddressRowIcon_]]"
-                  role="img">
-              </cr-icon>
-
               <span id="addressSummary">
                 <span class="ellipses">
                   [[item.metadata.summaryLabel]]
@@ -94,16 +82,17 @@
                   [[item.metadata.summarySublabel]]
                 </span>
               </span>
-              <cr-icon icon="cr20:cloud-off"
-                  hidden$="[[!isCloudOffVisible_(item, accountInfo_)]]"
-                  aria-label="$i18n{localAddressIconA11yLabel}"
+              <cr-icon
+                  id="address-row-icon"
+                  icon="[[getAddressIcon_(item, accountInfo_)]]"
+                  hidden$="[[!shouldShowAddressIcon_(item, accountInfo_)]]"
+                  aria-label="[[getA11yLabelForIcon_(item, accountInfo_)]]"
                   role="img">
               </cr-icon>
             </div>
             <cr-icon-button class="icon-more-vert address-menu"
                 on-click="onAddressMenuClick_"
-                title="[[moreActionsTitle_(item.metadata.summaryLabel,
-                    item.metadata.summarySublabel)]]">
+                title="[[moreActionsTitle_(item)]]">
             </cr-icon-button>
           </div>
         </template>
@@ -114,14 +103,31 @@
       </div>
     </div>
     <cr-action-menu id="addressSharedMenu" role-description="$i18n{menu}">
-      <button id="menuEditAddress" class="dropdown-item"
-          on-click="onMenuEditAddressClick_">
-        [[getMenuEditAddressLabel_(activeAddress)]]
-      </button>
-      <button id="menuRemoveAddress" class="dropdown-item"
-          on-click="onMenuRemoveAddressClick_">
-        [[getMenuRemoveAddressLabel_(activeAddress)]]
-      </button>
+      <template is="dom-if" if="[[isHomeOrWorkAddress]]" restamp>
+        <cr-link-row
+            id="menuEditAddress"
+            label="$i18n{edit}"
+            on-click="onMenuEditAddressClick_"
+            role-description="$i18n{homeWorkAddressAccessiblityLabel}"
+            external>
+        </cr-link-row>
+
+        <button id="menuRemoveAddress"
+            class="dropdown-item row-item"
+            on-click="onMenuRemoveAddressClick_">
+          [[getMenuRemoveAddressLabel_(activeAddress)]]
+        </button>
+      </template>
+
+      <template is="dom-if" if="[[!isHomeOrWorkAddress]]" restamp>
+        <button id="menuEditAddress" class="dropdown-item"
+            on-click="onMenuEditAddressClick_">$i18n{edit}</button>
+
+        <button id="menuRemoveAddress" class="dropdown-item"
+            on-click="onMenuRemoveAddressClick_">
+          [[getMenuRemoveAddressLabel_(activeAddress)]]
+        </button>
+      </template>
     </cr-action-menu>
     <template is="dom-if" if="[[showAddressDialog_]]" restamp>
       <settings-address-edit-dialog address="[[activeAddress]]"

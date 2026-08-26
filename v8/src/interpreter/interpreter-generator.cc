@@ -3284,97 +3284,10 @@ IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
 
-  Label slow_path(this), reach_end(this), dispatch(this);
+  auto [done_value, value] = ForOfNextHelper(context, object, next);
+  SetAccumulator(done_value);
+  StoreRegisterAtOperandIndex(value, 2);
 
-  // object has already been checked to be an JSReceiver when building
-  // the iterator record in bytecode generator (BuildGetIterator).
-  TNode<BoolT> is_array_iterator = IsJSArrayIterator(CAST(object));
-  GotoIfNot(is_array_iterator, &slow_path);
-
-  // Fast path for JSArrayIterator.
-  {
-    TNode<JSArrayIterator> array_iterator = CAST(object);
-    TNode<JSArray> iterated_array = CAST(LoadObjectField(
-        array_iterator, JSArrayIterator::kIteratedObjectOffset));
-
-    TNode<Map> map = LoadMap(iterated_array);
-    TNode<Int32T> elements_kind = LoadMapElementsKind(map);
-    GotoIfNot(IsFastElementsKind(elements_kind), &slow_path);
-
-    TNode<Smi> length = LoadFastJSArrayLength(iterated_array);
-    TNode<Number> current_index = LoadObjectField<Number>(
-        array_iterator, JSArrayIterator::kNextIndexOffset);
-    TNode<Smi> smi_index = CAST(current_index);
-    GotoIf(SmiGreaterThanOrEqual(smi_index, length), &reach_end);
-
-    TNode<Smi> iteration_kind =
-        LoadObjectField<Smi>(array_iterator, JSArrayIterator::kKindOffset);
-
-    TVARIABLE(Object, var_element_value);
-    TNode<FixedArrayBase> elements = LoadElements(iterated_array);
-
-    Label load_key(this), load_entry(this);
-    GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kKeys)),
-           &load_key);
-
-    Label if_double(this), if_smi_or_object(this), done(this);
-    Branch(IsDoubleElementsKind(elements_kind), &if_double, &if_smi_or_object);
-    BIND(&if_smi_or_object);
-    {
-      var_element_value = LoadFixedArrayElement(CAST(elements), smi_index);
-      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
-             &load_entry);
-      Goto(&done);
-    }
-    BIND(&if_double);
-    {
-      TNode<Float64T> value = LoadFixedDoubleArrayElement(
-          CAST(elements), SmiToIntPtr(smi_index), &slow_path, &slow_path);
-      var_element_value = AllocateHeapNumberWithValue(value);
-      GotoIf(SmiEqual(iteration_kind, SmiConstant(IterationKind::kEntries)),
-             &load_entry);
-      Goto(&done);
-    }
-
-    BIND(&load_key);
-    {
-      var_element_value = smi_index;
-      Goto(&done);
-    }
-
-    BIND(&load_entry);
-    {
-      var_element_value = AllocateJSIteratorResultValueForEntry(
-          context, smi_index, var_element_value.value());
-      Goto(&done);
-    }
-
-    BIND(&done);
-    {
-      StoreObjectFieldNoWriteBarrier(array_iterator,
-                                     JSArrayIterator::kNextIndexOffset,
-                                     SmiAdd(smi_index, SmiConstant(1)));
-      SetAccumulator(FalseConstant());
-      StoreRegisterAtOperandIndex(var_element_value.value(), 2);
-      Goto(&dispatch);
-    }
-
-    BIND(&reach_end);
-    {
-      SetAccumulator(TrueConstant());
-      Goto(&dispatch);
-    }
-  }
-
-  BIND(&slow_path);
-  {
-    auto [value, done_value] = CallIteratorNext(object, next, context);
-    SetAccumulator(done_value);
-    StoreRegisterAtOperandIndex(value, 2);
-    Goto(&dispatch);
-  }
-
-  BIND(&dispatch);
   Dispatch();
 }
 
@@ -3523,6 +3436,29 @@ void BitwiseNotAssemblerTS_Generate(compiler::turboshaft::PipelineData* data,
                                     compiler::turboshaft::Graph& graph,
                                     Zone* zone);
 
+#define UNEXPECTED_BYTECODE(Name, ...) \
+  case Bytecode::k##Name:              \
+    UNREACHABLE();  // This is not expected in this configuration.
+
+void GenerateBytecodeHandlerTSA(compiler::turboshaft::PipelineData* data,
+                                Isolate* isolate,
+                                compiler::turboshaft::Graph& graph, Zone* zone,
+                                Bytecode bytecode, OperandScale operand_scale) {
+  switch (bytecode) {
+#define CALL_GENERATOR_TSA(Name, ...)                       \
+  case Bytecode::k##Name:                                   \
+    Name##AssemblerTS_Generate(data, isolate, graph, zone); \
+    break;
+    BYTECODE_LIST_WITH_UNIQUE_HANDLERS(UNEXPECTED_BYTECODE, CALL_GENERATOR_TSA)
+#undef CALL_GENERATOR_TS
+    default:
+      // Others (the rest of the short stars, and the rest of the illegal range)
+      // must not get their own handler generated. Rather, multiple entries in
+      // the jump table point to those handlers.
+      UNREACHABLE();
+  }
+}
+
 void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
                              Bytecode bytecode, OperandScale operand_scale) {
   switch (bytecode) {
@@ -3530,18 +3466,8 @@ void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
   case Bytecode::k##Name:                            \
     Name##Assembler::Generate(state, operand_scale); \
     break;
-#define CALL_GENERATOR_TS(Name, ...)                                       \
-  /* FIXME(348031042): This doesn't compile since the                      \
-   * CodeAssemblerCompilationJob refactor. */                              \
-  case Bytecode::k##Name:                                                  \
-    code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(         \
-        isolate, builtin, &Name##AssemblerTS_Generate, descriptor_builder, \
-        debug_name, options, CodeKind::BYTECODE_HANDLER,                   \
-        BytecodeHandlerData(bytecode, operand_scale));                     \
-    break;
-    BYTECODE_LIST_WITH_UNIQUE_HANDLERS(CALL_GENERATOR, CALL_GENERATOR_TS);
+    BYTECODE_LIST_WITH_UNIQUE_HANDLERS(CALL_GENERATOR, UNEXPECTED_BYTECODE);
 #undef CALL_GENERATOR
-#undef CALL_GENERATOR_TS
     case Bytecode::kIllegal:
       IllegalAssembler::Generate(state, operand_scale);
       break;
@@ -3555,6 +3481,8 @@ void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
       UNREACHABLE();
   }
 }
+
+#undef UNEXPECTED_BYTECODE
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

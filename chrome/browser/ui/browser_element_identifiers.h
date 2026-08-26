@@ -18,6 +18,7 @@
 // These should gradually replace values in view_ids.h.
 // Please keep this list alphabetized.
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kAddCurrentTabToReadingListElementId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kAiModePageActionIconElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(
     kAnonymizedUrlCollectionPersonalizationSettingId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kAppUninstallDialogOkButtonId);
@@ -99,6 +100,7 @@ DECLARE_ELEMENT_IDENTIFIER_VALUE(kSavedTabGroupBarElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kSavedTabGroupButtonElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kSavedTabGroupOverflowButtonElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kSavedTabGroupOverflowMenuId);
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kSharedTabGroupCommentsActionElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kSharedTabGroupFeedbackElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(
     kCollaborationMessagingPageActionIconElementId);

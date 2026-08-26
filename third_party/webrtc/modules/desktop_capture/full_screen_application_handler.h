@@ -51,6 +51,9 @@ class FullScreenApplicationHandler {
     return use_heuristic_fullscreen_powerpoint_windows_;
   }
 
+  virtual void SetSlideShowCreationStateForTest(
+      bool fullscreen_slide_show_started_after_capture_start) {}
+
  private:
   // `use_heuristic_fullscreen_powerpoint_windows_` is used to implement a
   // killswitch.

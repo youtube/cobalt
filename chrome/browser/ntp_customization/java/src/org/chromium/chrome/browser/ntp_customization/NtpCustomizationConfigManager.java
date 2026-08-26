@@ -29,12 +29,14 @@ public class NtpCustomizationConfigManager {
     private static final Executor EXECUTOR =
             (Runnable r) -> PostTask.postTask(TaskTraits.USER_BLOCKING_MAY_BLOCK, r);
     private boolean mIsInitialized;
+    private @NtpBackgroundImageType int mBackgroundImageType;
     private @Nullable BitmapDrawable mBackgroundImageDrawable;
+    private boolean mIsMvtToggleOn;
 
     /** An interface to get NewTabPage's configuration updates. */
     public interface HomepageStateListener {
-        /** Called when the Most Visited Tiles section's visibility is changed. */
-        default void onMvtVisibilityChanged(boolean isMvtVisible) {}
+        /** Called when the state of the toggle for the Most Visited Tiles section changes. */
+        default void onMvtToggleChanged() {}
 
         /** Called when the homepage background is changed. */
         default void onBackgroundChanged(@Nullable Drawable backgroundDrawable) {}
@@ -59,19 +61,22 @@ public class NtpCustomizationConfigManager {
 
     private NtpCustomizationConfigManager() {
         mHomepageStateListeners = new ObserverList<>();
-        maybeInitializeBackgroundImage();
+        maybeInitialize();
     }
 
     @VisibleForTesting
-    void maybeInitializeBackgroundImage() {
+    void maybeInitialize() {
         if (mIsInitialized) return;
 
         mIsInitialized = true;
-        @NtpBackgroundImageType int imageType = NtpCustomizationUtils.getNtpBackgroundImageType();
-        if (imageType == NtpBackgroundImageType.IMAGE_FROM_DISK) {
+        mBackgroundImageType = NtpCustomizationUtils.getNtpBackgroundImageType();
+        if (mBackgroundImageType == NtpBackgroundImageType.IMAGE_FROM_DISK) {
             NtpCustomizationUtils.readNtpBackgroundImage(
                     (bitmap) -> notifyBackgroundImageChanged(bitmap), EXECUTOR);
         }
+        mIsMvtToggleOn =
+                ChromeSharedPreferences.getInstance()
+                        .readBoolean(ChromePreferenceKeys.IS_MVT_VISIBLE, true);
     }
 
     /**
@@ -111,10 +116,11 @@ public class NtpCustomizationConfigManager {
      * @param bitmap : The NTP's background image.
      */
     public void onBackgroundChanged(@Nullable Bitmap bitmap) {
-        NtpCustomizationUtils.setNtpBackgroundImageType(
+        mBackgroundImageType =
                 bitmap == null
                         ? NtpBackgroundImageType.DEFAULT
-                        : NtpBackgroundImageType.IMAGE_FROM_DISK);
+                        : NtpBackgroundImageType.IMAGE_FROM_DISK;
+        NtpCustomizationUtils.setNtpBackgroundImageType(mBackgroundImageType);
 
         notifyBackgroundImageChanged(bitmap);
 
@@ -145,25 +151,30 @@ public class NtpCustomizationConfigManager {
         return mBackgroundImageDrawable;
     }
 
-    /** Gets the user preference for whether the Most Visited Tiles section is visible. */
-    public boolean getPrefIsMvtVisible() {
-        return ChromeSharedPreferences.getInstance()
-                .readBoolean(ChromePreferenceKeys.IS_MVT_VISIBLE, true);
+    /** Returns the user's preference for whether the Most Visited Tiles section is visible. */
+    public boolean getPrefIsMvtToggleOn() {
+        return mIsMvtToggleOn;
     }
 
     /**
      * Sets the user preference for whether the Most Visited Tiles section is visible.
      *
-     * @param isMvtVisible True to show the section, false to hide it.
+     * @param isMvtToggleOn True to show the section, false to hide it.
      */
-    public void setPrefIsMvtVisible(boolean isMvtVisible) {
+    public void setPrefIsMvtToggleOn(boolean isMvtToggleOn) {
+        mIsMvtToggleOn = isMvtToggleOn;
         ChromeSharedPreferences.getInstance()
-                .writeBoolean(ChromePreferenceKeys.IS_MVT_VISIBLE, isMvtVisible);
+                .writeBoolean(ChromePreferenceKeys.IS_MVT_VISIBLE, isMvtToggleOn);
 
         // Notifies all the listeners.
         for (HomepageStateListener listener : mHomepageStateListeners) {
-            listener.onMvtVisibilityChanged(isMvtVisible);
+            listener.onMvtToggleChanged();
         }
+    }
+
+    /** Gets the NTP's background image type. */
+    public @NtpBackgroundImageType int getBackgroundImageType() {
+        return mBackgroundImageType;
     }
 
     public void setBackgroundImageDrawableForTesting(@Nullable BitmapDrawable bitmapDrawable) {

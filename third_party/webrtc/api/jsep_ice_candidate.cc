@@ -73,18 +73,6 @@ bool IceCandidateCollection::HasCandidate(const IceCandidate* candidate) const {
       });
 }
 
-size_t JsepCandidateCollection::remove(const Candidate& candidate) {
-  auto iter =
-      absl::c_find_if(candidates_, [&](const std::unique_ptr<IceCandidate>& c) {
-        return candidate.MatchesForRemoval(c->candidate());
-      });
-  if (iter != candidates_.end()) {
-    candidates_.erase(iter);
-    return 1;
-  }
-  return 0;
-}
-
 size_t JsepCandidateCollection::remove(const IceCandidate* candidate) {
   RTC_DCHECK(candidate);
   auto iter =

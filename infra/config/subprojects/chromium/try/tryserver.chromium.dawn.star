@@ -5,7 +5,7 @@
 
 load("@chromium-luci//branches.star", "branches")
 load("@chromium-luci//builder_config.star", "builder_config")
-load("@chromium-luci//builders.star", "cpu", "os")
+load("@chromium-luci//builders.star", "builders", "cpu", "os")
 load("@chromium-luci//consoles.star", "consoles")
 load("@chromium-luci//try.star", "try_")
 load("//lib/gpu.star", "gpu")
@@ -50,7 +50,10 @@ def dawn_mac_builder(*, name, **kwargs):
     )
 
 def dawn_win_builderless_builder(*, name, **kwargs):
-    kwargs.setdefault("ssd", None)
+    kwargs.setdefault(
+        "ssd",
+        builders.with_expiration(True, expiration = 5 * time.minute),
+    )
     kwargs.setdefault("max_concurrent_builds", 1)
     kwargs.setdefault("free_space", None)
     return try_.builder(
@@ -58,14 +61,6 @@ def dawn_win_builderless_builder(*, name, **kwargs):
         builderless = True,
         os = os.WINDOWS_ANY,
         pool = "luci.chromium.gpu.try",
-        **kwargs
-    )
-
-def dawn_win_builderful_builder(*, name, **kwargs):
-    return try_.builder(
-        name = name,
-        builderless = False,
-        os = os.WINDOWS_ANY,
         **kwargs
     )
 
@@ -120,6 +115,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -155,6 +151,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -191,6 +188,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -227,6 +225,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -263,6 +262,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -294,6 +294,7 @@ dawn_win_builderless_builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -327,6 +328,7 @@ dawn_win_builderless_builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -338,15 +340,15 @@ dawn_win_builderless_builder(
     ),
 )
 
-try_.builder(
+dawn_win_builderless_builder(
     name = "dawn-win11-arm64-deps-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
     mirrors = [
         "ci/Dawn Win11 arm64 DEPS Builder",
     ],
     gn_args = "ci/Dawn Win11 arm64 DEPS Builder",
-    os = os.WINDOWS_ANY,
     main_list_view = "try",
+    max_concurrent_builds = 5,
     test_presentation = resultdb.test_presentation(
         grouping_keys = ["status", "v.test_suite", "v.gpu"],
     ),
@@ -356,6 +358,7 @@ try_.builder(
             cq.location_filter(path_regexp = "gpu/.+"),
             cq.location_filter(path_regexp = "testing/buildbot/chromium.dawn.json"),
             cq.location_filter(path_regexp = "third_party/blink/renderer/modules/webgpu/.+"),
+            cq.location_filter(path_regexp = "third_party/blink/renderer/platform/graphics/gpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/external/wpt/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/wpt_internal/webgpu/.+"),
             cq.location_filter(path_regexp = "third_party/blink/web_tests/WebGPUExpectations"),
@@ -716,12 +719,13 @@ dawn_win_builderless_builder(
     ),
 )
 
-dawn_win_builderful_builder(
+dawn_win_builderless_builder(
     name = "win11-arm64-dawn-rel",
     mirrors = [
         "ci/Dawn Win11 arm64 Builder",
     ],
     gn_args = "ci/Dawn Win11 arm64 Builder",
+    max_concurrent_builds = 6,
     test_presentation = resultdb.test_presentation(
         grouping_keys = ["status", "v.test_suite", "v.gpu"],
     ),

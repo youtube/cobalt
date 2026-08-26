@@ -762,7 +762,7 @@ if (rtc_include_tests) {
 
       deps = [
         "../../api/video_codecs:video_codecs_api",
-        "../../modules/utility:utility",
+        "../../modules/utility",
         "../../rtc_base:checks",
         "../../sdk/android:internal_jni",
         "../../sdk/android:native_api_base",
@@ -869,7 +869,7 @@ if (rtc_include_tests) {
       "../../api:videocodec_test_stats_api",
       "../../api/environment",
       "../../api/environment:environment_factory",
-      "../../api/numerics:numerics",
+      "../../api/numerics",
       "../../api/task_queue",
       "../../api/task_queue:default_task_queue_factory",
       "../../api/test/metrics:global_metrics_logger_and_exporter",
@@ -1329,8 +1329,8 @@ if (rtc_include_tests) {
       "../../test:test_support",
       "../../test:video_test_common",
       "../../test:video_test_support",
-      "../../test/time_controller:time_controller",
-      "../../third_party/libyuv:libyuv",
+      "../../test/time_controller",
+      "../../third_party/libyuv",
       "../../video/config:encoder_config",
       "../rtp_rtcp",
       "../rtp_rtcp:rtp_rtcp_format",

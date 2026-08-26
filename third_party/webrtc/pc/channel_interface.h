@@ -19,7 +19,6 @@
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "media/base/media_channel.h"
-#include "media/base/media_config.h"
 #include "media/base/stream_params.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"

@@ -667,7 +667,7 @@ class AcmSenderBitExactnessOldApi : public ::testing::Test,
     audio_source_.reset(new test::InputAudioFile(input_file_name));
     send_test_.reset(new test::AcmSendTestOldApi(audio_source_.get(),
                                                  source_rate, kTestDurationMs));
-    return send_test_.get() != nullptr;
+    return send_test_ != nullptr;
   }
 
   // Registers a send codec in the test::AcmSendTest object. Returns true on

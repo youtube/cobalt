@@ -558,7 +558,10 @@ both_builders(
             # Pick one builder to build with the C++ runtime allowed. The default
             # configuration does not check pure virtuals
             "BORINGSSL_ALLOW_CXX_RUNTIME": "1",
+            "RUST_BINDINGS": "x86_64-unknown-linux-gnu",
         },
+        # Also build and test the Rust code.
+        "rust": True,
     },
 )
 both_builders(
@@ -586,7 +589,10 @@ both_builders(
             "CMAKE_ASM_FLAGS": "-m32 -msse2",
             "CMAKE_CXX_FLAGS": "-m32 -msse2",
             "CMAKE_C_FLAGS": "-m32 -msse2",
+            "RUST_BINDINGS": "i686-unknown-linux-gnu",
         },
+        # Also build and test the Rust code.
+        "rust": True,
     },
 )
 both_builders(
@@ -828,19 +834,6 @@ both_builders(
         },
     },
 )
-
-# TODO(crbug.com/42290446): Enable on both CQ and CI.
-cq_builder(
-    "linux_rust",
-    LINUX_HOST,
-    cq_enabled = False,
-    properties = {
-        "cmake_args": {
-            "RUST_BINDINGS": "x86_64-unknown-linux-gnu",
-        },
-        "rust": True,
-    },
-)
 both_builders(
     "linux_sde",
     LINUX_HOST,
@@ -901,7 +894,19 @@ both_builders(
     short_name = "bzl",
     recipe = "boringssl_bazel",
 )
-both_builders("mac", MAC_X86_64_HOST, category = "mac", short_name = "dbg")
+both_builders(
+    "mac",
+    MAC_X86_64_HOST,
+    category = "mac",
+    short_name = "dbg",
+    properties = {
+        "cmake_args": {
+            "RUST_BINDINGS": "x86_64-apple-darwin",
+        },
+        # Also build and test the Rust code.
+        "rust": True,
+    },
+)
 both_builders(
     "mac_rel",
     MAC_X86_64_HOST,
@@ -925,7 +930,19 @@ both_builders(
         },
     },
 )
-both_builders("mac_arm64", MAC_ARM64_HOST, category = "mac", short_name = "arm64")
+both_builders(
+    "mac_arm64",
+    MAC_ARM64_HOST,
+    category = "mac",
+    short_name = "arm64",
+    properties = {
+        "cmake_args": {
+            "RUST_BINDINGS": "aarch64-apple-darwin",
+        },
+        # Also build and test the Rust code.
+        "rust": True,
+    },
+)
 both_builders(
     "mac_arm64_bazel",
     MAC_ARM64_HOST,
@@ -1016,6 +1033,7 @@ both_builders(
         "msvc_target": "x64",
     },
 )
+
 both_builders(
     "win64_rel",
     WIN_HOST,
@@ -1024,8 +1042,11 @@ both_builders(
     properties = {
         "cmake_args": {
             "CMAKE_BUILD_TYPE": "Release",
+            "RUST_BINDINGS": "x86_64-pc-windows-msvc",
         },
         "msvc_target": "x64",
+        # Also build and test the Rust code.
+        "rust": True,
     },
 )
 both_builders(

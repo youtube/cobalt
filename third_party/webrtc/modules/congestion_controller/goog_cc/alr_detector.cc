@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional>
 
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/units/data_rate.h"
@@ -27,50 +28,37 @@
 
 namespace webrtc {
 
-namespace {
-AlrDetectorConfig GetConfigFromTrials(const FieldTrialsView* key_value_config) {
-  RTC_CHECK(AlrExperimentSettings::MaxOneFieldTrialEnabled(*key_value_config));
+AlrDetector::AlrDetectorConfig::AlrDetectorConfig(
+    const FieldTrialsView& key_value_config) {
+  RTC_CHECK(AlrExperimentSettings::MaxOneFieldTrialEnabled(key_value_config));
   std::optional<AlrExperimentSettings> experiment_settings =
       AlrExperimentSettings::CreateFromFieldTrial(
-          *key_value_config,
+          key_value_config,
           AlrExperimentSettings::kScreenshareProbingBweExperimentName);
   if (!experiment_settings) {
     experiment_settings = AlrExperimentSettings::CreateFromFieldTrial(
-        *key_value_config,
+        key_value_config,
         AlrExperimentSettings::kStrictPacingAndProbingExperimentName);
   }
-  AlrDetectorConfig conf;
   if (experiment_settings) {
-    conf.bandwidth_usage_ratio =
+    bandwidth_usage_ratio =
         experiment_settings->alr_bandwidth_usage_percent / 100.0;
-    conf.start_budget_level_ratio =
+    start_budget_level_ratio =
         experiment_settings->alr_start_budget_level_percent / 100.0;
-    conf.stop_budget_level_ratio =
+    stop_budget_level_ratio =
         experiment_settings->alr_stop_budget_level_percent / 100.0;
   }
-  conf.Parser()->Parse(
-      key_value_config->Lookup("WebRTC-AlrDetectorParameters"));
-  return conf;
-}
-}  //  namespace
-
-std::unique_ptr<StructParametersParser> AlrDetectorConfig::Parser() {
-  return StructParametersParser::Create(   //
+  StructParametersParser::Create(          //
       "bw_usage", &bandwidth_usage_ratio,  //
       "start", &start_budget_level_ratio,  //
-      "stop", &stop_budget_level_ratio);
+      "stop", &stop_budget_level_ratio)
+      ->Parse(key_value_config.Lookup("WebRTC-AlrDetectorParameters"));
 }
 
-AlrDetector::AlrDetector(AlrDetectorConfig config, RtcEventLog* event_log)
-    : conf_(config), alr_budget_(0, true), event_log_(event_log) {}
+AlrDetector::AlrDetector(const Environment& env)
+    : env_(env), conf_(env_.field_trials()), alr_budget_(0, true) {}
 
-AlrDetector::AlrDetector(const FieldTrialsView* key_value_config)
-    : AlrDetector(GetConfigFromTrials(key_value_config), nullptr) {}
-
-AlrDetector::AlrDetector(const FieldTrialsView* key_value_config,
-                         RtcEventLog* event_log)
-    : AlrDetector(GetConfigFromTrials(key_value_config), event_log) {}
-AlrDetector::~AlrDetector() {}
+AlrDetector::~AlrDetector() = default;
 
 void AlrDetector::OnBytesSent(DataSize bytes_sent, Timestamp send_time) {
   if (!last_send_time_.has_value()) {
@@ -94,8 +82,8 @@ void AlrDetector::OnBytesSent(DataSize bytes_sent, Timestamp send_time) {
     state_changed = true;
     alr_started_time_ = std::nullopt;
   }
-  if (event_log_ && state_changed) {
-    event_log_->Log(
+  if (state_changed) {
+    env_.event_log().Log(
         std::make_unique<RtcEventAlrState>(alr_started_time_.has_value()));
   }
 }

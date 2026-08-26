@@ -86,7 +86,7 @@ TEST_F(WindowCapturerTest, MAYBE_Capture) {
     }
 
     // If we failed to capture a window make sure it no longer exists.
-    if (!frame_.get()) {
+    if (!frame_) {
       DesktopCapturer::SourceList new_list;
       EXPECT_TRUE(capturer_->GetSourceList(&new_list));
       for (auto new_list_it = new_list.begin(); new_list_it != new_list.end();

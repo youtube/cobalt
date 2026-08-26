@@ -188,6 +188,8 @@ b/273271471 WIN INTEL VULKAN : ShaderAlgorithmTest.rgb_to_hsl_vertex_shader/* = 
 373818282 WIN INTEL OPENGL : ClearTest.ChangeFramebufferAttachmentFromRGBAtoRGB/* = SKIP
 388144480 WIN INTEL VULKAN : OcclusionQueriesTest.WrongSkippedQuery/* = SKIP
 
+434453468 WIN INTEL VULKAN : LineLoopIndirectTest.TwoIndirectDrawsInDifferentIndirectBuffer/* = SKIP
+
 // Texture border clamp ES 3.2 test failures
 b/390710636 PIXEL4ORXL VULKAN : TextureBorderClampTestES32.CustomBorderColorWithStencil/* = SKIP
 b/390710636 LINUX NVIDIA VULKAN : TextureBorderClampTestES32.CustomBorderColorWithStencil/* = SKIP
@@ -723,6 +725,7 @@ b/346650202 PIXEL4ORXL : GeometryShaderTest.CreateAndAttachGeometryShaderOES/* =
 42266163 PIXEL4ORXL VULKAN : FramebufferTest_ES31.RenderingLimitToDefaultFBOSizeWithNoAttachments/* = SKIP
 42266173 PIXEL4ORXL GLES : FramebufferTest_ES31.ChangeFBOSizeWithNoAttachments/* = SKIP
 42266381 PIXEL4ORXL GLES : DepthStencilFormatsTestES31.DrawReadDrawDispatch/* = SKIP
+433331119 PIXEL4ORXL GLES : ValidationStateChangeTest.MapBufferWithAttribDisabledThenEnableAndDraw/* = SKIP
 
 // Internal driver failures on both GLES and Vulkan
 42262483 NEXUS5X : GLSLTest_ES31.TypesUsedInDifferentBlockStorages/* = SKIP
@@ -1751,12 +1754,18 @@ b/292285899 PIXEL4ORXL GLES : EGLSurfaceTest.DestroyAndRecreateWhileCurrent/* = 
 42264022 IOS : EGLSurfaceTest.ResizeAfterDraw/* = SKIP
 42264022 IOS : EGLSurfaceTest.ResizeLargeWindow/* = SKIP
 42264022 IOS : EGLSurfaceTest.ResizeInvisibleWindow/* = SKIP
+42264022 IOS : EGLSurfaceTest.ResizeBeforeMakeCurrent/* = SKIP
+42264022 IOS : EGLSurfaceTest.ResizeBeforeMakeCurrentPostSizeQuery/* = SKIP
+42264022 IOS : EGLSurfaceTest.ResizeAndReadPixelsRobustANGLE/* = SKIP
+42264022 IOS : EGLSurfaceTest.ResizeAndBlitFramebufferANGLE/* = SKIP
 373659619 MAC METAL : EGLSurfaceTest.ResizeAfterSwap/* = SKIP
-373659619 MAC METAL : EGLSurfaceTest.ResizeBeforeDraw/* = SKIP
-373659619 MAC OPENGL : EGLSurfaceTest.ResizeBeforeDraw/* = SKIP
+373659619 MAC METAL : EGLSurfaceTest.ResizeAndBlitFramebufferANGLE/* = SKIP
 373659619 MAC OPENGL : EGLSurfaceTest.ResizeBeforeDrawPostSizeQuery/* = SKIP
 373659619 MAC OPENGL : EGLSurfaceTest.ResizeAfterDraw/* = SKIP
+373659619 MAC : EGLSurfaceTest.ResizeBeforeDraw/* = SKIP
 373659619 MAC : EGLSurfaceTest.ResizeLargeWindow/* = SKIP
+373659619 MAC : EGLSurfaceTest.ResizeBeforeMakeCurrent/* = SKIP
+373659619 MAC : EGLSurfaceTest.ResizeBeforeMakeCurrentPostSizeQuery/* = SKIP
 397848903 LINUX NVIDIA OPENGL : EGLSurfaceTest.ResizeBeforeDraw/* = SKIP
 397848903 LINUX NVIDIA OPENGL : EGLSurfaceTest.ResizeBeforeDrawPostSizeQuery/* = SKIP
 397848903 LINUX NVIDIA OPENGL : EGLSurfaceTest.ResizeAfterDraw/* = SKIP

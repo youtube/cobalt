@@ -193,7 +193,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base:macromagic",
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:timeutils",
-      "../system_wrappers:system_wrappers",
+      "../system_wrappers",
       "../test:fileutils",
       "../test:frame_utils",
       "../test:test_main",

@@ -42,6 +42,7 @@ export interface FilterAttrs {
   readonly onFiltersChanged?: (
     filters: ReadonlyArray<FilterDefinition>,
   ) => void;
+  readonly onchange?: () => void;
 }
 
 export class FilterOperation implements m.ClassComponent<FilterAttrs> {
@@ -72,6 +73,7 @@ export class FilterOperation implements m.ClassComponent<FilterAttrs> {
     if (this.editingFilter === undefined) {
       attrs.onFiltersChanged?.(this.uiFilters.filter(isFilterDefinitionValid));
     }
+    attrs.onchange?.();
     m.redraw();
   }
 
@@ -102,12 +104,11 @@ export class FilterOperation implements m.ClassComponent<FilterAttrs> {
             },
           });
 
-    return m(
-      '.pf-query-operations',
-      m('.section', [
+    return m('.pf-exp-query-operations', [
+      m('.pf-exp-section', [
         m(
-          '.pf-filters-header',
-          m('h2.pf-filters-title', 'Filters'),
+          '.pf-exp-filters-header',
+          m('h2.pf-exp-filters-title', 'Filters'),
           m(TextInput, {
             placeholder: 'e.g. ts > 1000',
             onkeydown: (e: KeyboardEvent) => {
@@ -135,7 +136,7 @@ export class FilterOperation implements m.ClassComponent<FilterAttrs> {
             },
           }),
         ),
-        this.error && m('.pf-error-message', this.error),
+        this.error && m('.pf-exp-error-message', this.error),
         m(
           ChipBar,
           this.uiFilters.map((filter) => {
@@ -181,9 +182,9 @@ export class FilterOperation implements m.ClassComponent<FilterAttrs> {
             },
           }),
         ),
-        editor && m('.pf-filter-editor-box', editor),
+        editor && m('.pf-exp-filter-editor-box', editor),
       ]),
-    );
+    ]);
   }
 }
 
@@ -222,7 +223,7 @@ class FilterEditor implements m.ClassComponent<FilterEditorAttrs> {
     });
 
     return m(
-      '.pf-filter-editor',
+      '.pf-exp-filter-editor',
       {className: isValid ? 'is-valid' : 'is-invalid'},
       [
         m(
@@ -268,11 +269,16 @@ class FilterEditor implements m.ClassComponent<FilterEditorAttrs> {
             oninput: (e: Event) => {
               const target = e.target as HTMLInputElement;
               const value = parseFilterValue(target.value);
-              onUpdate({...filter, value});
+              const {value: _value, ...rest} = filter;
+              if (value !== undefined) {
+                onUpdate({...rest, value});
+              } else {
+                onUpdate(rest);
+              }
             },
           }),
         m(Button, {
-          className: 'delete-button',
+          className: 'pf-exp-delete-button',
           icon: 'delete',
           onclick: onRemove,
         }),

@@ -98,7 +98,9 @@ class CONTENT_EXPORT WebContentsAndroid {
 
   void ResumeLoadingCreatedWebContents(JNIEnv* env);
 
-  void SetPrimaryMainFrameImportance(JNIEnv* env, jint importance);
+  void SetPrimaryPageImportance(JNIEnv* env,
+                                jint main_frame_importance,
+                                jint subframe_importance);
 
   void OnFreeze(JNIEnv* env);
   void OnResume(JNIEnv* env);
@@ -205,12 +207,6 @@ class CONTENT_EXPORT WebContentsAndroid {
                                 int left,
                                 int bottom,
                                 int right);
-
-  void SetContextMenuInsets(JNIEnv* env,
-                            int top,
-                            int left,
-                            int bottom,
-                            int right);
 
   void ShowInterestInElement(JNIEnv* env, int nodeID);
 

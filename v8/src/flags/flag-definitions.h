@@ -839,14 +839,11 @@ DEFINE_MAYBE_BOOL(
     "Memory saver tries to keep memory footprint low at the expense of extra "
     "cpu cycles.")
 
-// Flags to experiment with the new efficiency mode
-DEFINE_BOOL(efficiency_mode_for_tiering_heuristics, true,
-            "Use efficiency mode in tiering heuristics.")
 DEFINE_BOOL(efficiency_mode_disable_turbofan, false,
             "Defer tier-up to turbofan while in efficiency mode.")
-DEFINE_INT(efficiency_mode_delay_turbofan, 15000,
-           "Delay tier-up to turbofan to a certain invocation count while in "
-           "efficiency mode.")
+DEFINE_INT(efficiency_mode_delay_turbofan_multiply, 3,
+           "Delay tier-up to turbofan to a certain invocation count multipier "
+           "while in efficiency mode.")
 
 // Flag to select wasm trace mark type
 DEFINE_STRING(
@@ -1626,16 +1623,11 @@ DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
 DEFINE_BOOL(turbolev, false,
             "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
             "compiler instead of Turbofan")
-// inline_api_calls are not supported by the Turboshaft->Maglev translation.
-DEFINE_NEG_IMPLICATION(turbolev, maglev_inline_api_calls)
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
     "enable Turbolev features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turbolev_future, turbolev)
-
-DEFINE_BOOL(turboshaft_csa, true, "run the CSA pipeline with turboshaft")
-DEFINE_WEAK_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 
 DEFINE_BOOL(
     typed_array_length_loading, true,
@@ -2171,6 +2163,8 @@ DEFINE_BOOL_READONLY(wasm_code_coverage, false, "enable Wasm code coverage")
         // V8_TARGET_ARCH_IA32
 DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_loop_unrolling)
 DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_inlining)
+// Wasm code coverage is not supported by the Wasm interpreter.
+DEFINE_NEG_IMPLICATION(wasm_code_coverage, wasm_jitless)
 // --wasm-code-coverage relies on the WasmOptimizePhase phase (which only runs
 // when --wasm-opt is true) to lower the WasmIncCoverageCounter operations that
 // it introduces.
@@ -2881,6 +2875,17 @@ DEFINE_BOOL(allow_natives_for_differential_fuzzing, false,
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, allow_natives_syntax)
 DEFINE_IMPLICATION(allow_natives_for_differential_fuzzing, fuzzing)
 DEFINE_BOOL(parse_only, false, "only parse the sources")
+
+DEFINE_BOOL(enable_parser_ablation, false, "Enable parser ablation")
+DEFINE_BOOL(enable_preparser_ablation, false, "Enable preparser ablation")
+DEFINE_BOOL(enable_bytecode_compiler_ablation, false,
+            "Enable bytecode compiler ablation")
+DEFINE_FLOAT(parser_ablation_amount, 0.8,
+             "Increase parse time by x for ablation studies")
+DEFINE_FLOAT(preparser_ablation_amount, 0.8,
+             "Increase parse time by x for ablation studies")
+DEFINE_FLOAT(bytecode_compiler_ablation_amount, 0.8,
+             "Increase BC compile time by x for ablation studies")
 
 // simulator-arm.cc and simulator-arm64.cc.
 #ifdef USE_SIMULATOR
@@ -3662,8 +3667,13 @@ DEFINE_BOOL(parallel_pause_for_gc_in_background, true,
 DEFINE_BOOL(incremental_marking_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
 
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL
 DEFINE_EXPERIMENTAL_FEATURE(shared_heap,
                             "Enables a shared heap between isolates.")
+#else
+DEFINE_BOOL_READONLY(shared_heap, false,
+                     "Enables a shared heap between isolates.")
+#endif
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

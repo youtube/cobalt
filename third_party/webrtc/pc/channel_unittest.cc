@@ -2420,16 +2420,16 @@ TEST_F(VideoChannelSingleThreadTest,
   ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer, err))
       << err;
 
-  EXPECT_THAT(
-      media_receive_channel1_impl()->recv_codecs(),
-      ElementsAre(AllOf(Field(&webrtc::Codec::id, 96),
+  EXPECT_THAT(media_receive_channel1_impl()->recv_codecs(),
+              UnorderedElementsAre(
+                  AllOf(Field(&webrtc::Codec::id, 96),
                         Field(&webrtc::Codec::packetization, std::nullopt)),
                   AllOf(Field(&webrtc::Codec::id, 97),
                         Field(&webrtc::Codec::packetization,
                               webrtc::kPacketizationParamRaw))));
-  EXPECT_THAT(
-      media_send_channel1_impl()->send_codecs(),
-      ElementsAre(AllOf(Field(&webrtc::Codec::id, 97),
+  EXPECT_THAT(media_send_channel1_impl()->send_codecs(),
+              UnorderedElementsAre(
+                  AllOf(Field(&webrtc::Codec::id, 97),
                         Field(&webrtc::Codec::packetization,
                               webrtc::kPacketizationParamRaw)),
                   AllOf(Field(&webrtc::Codec::id, 96),

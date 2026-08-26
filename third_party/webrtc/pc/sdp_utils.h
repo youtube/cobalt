@@ -13,7 +13,6 @@
 
 #include <functional>
 #include <memory>
-#include <string>
 
 #include "api/jsep.h"
 #include "p2p/base/transport_info.h"

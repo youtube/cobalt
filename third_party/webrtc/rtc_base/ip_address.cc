@@ -25,8 +25,6 @@
 #ifdef OPENBSD
 #include <netinet/in_systm.h>
 #endif
-#ifndef __native_client__
-#endif
 #include <netdb.h>
 #endif
 

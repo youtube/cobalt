@@ -140,8 +140,8 @@ rtc_library("utils") {
     "../../api:scoped_refptr",
     "../../api/video:video_frame",
     "../../rtc_base:checks",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
-    "//third_party/abseil-cpp/absl/strings:strings",
   ]
 }
 

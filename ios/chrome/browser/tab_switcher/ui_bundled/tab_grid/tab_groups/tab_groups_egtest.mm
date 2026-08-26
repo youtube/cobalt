@@ -24,6 +24,7 @@
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/earl_grey/chrome_xcui_actions.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/chrome/test/scoped_eg_traits_overrider.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
@@ -39,6 +40,7 @@ using chrome_test_util::CloseGroupButton;
 using chrome_test_util::CloseTabGroupButton;
 using chrome_test_util::ContextMenuItemWithAccessibilityLabel;
 using chrome_test_util::ContextMenuItemWithAccessibilityLabelId;
+using chrome_test_util::CreateTabGroupAtIndex;
 using chrome_test_util::CreateTabGroupCancelButton;
 using chrome_test_util::CreateTabGroupCreateButton;
 using chrome_test_util::CreateTabGroupTextField;
@@ -97,7 +99,7 @@ void DisplayContextMenuForGroupCellAtIndex(int group_cell_index) {
   // It happens that on certain bots, the grey_longPress action doesn't return
   // an error for EarlGrey, but the context menu doesn't open accordingly.
   // Waiting has been seen as fixing this.
-  base::PlatformThread::Sleep(base::Seconds(1));
+  base::PlatformThread::Sleep(base::Seconds(2));
 
   [[EarlGrey selectElementWithMatcher:TabGridGroupCellAtIndex(group_cell_index)]
       performAction:grey_longPress()];
@@ -334,15 +336,7 @@ void TapTabGridEditButton() {
 - (void)testCompleteTabGroupCreation {
   [ChromeEarlGreyUI openTabGrid];
 
-  // Open the creation view.
-  OpenTabGroupCreationViewUsingLongPressForCellAtIndex(0);
-  SetTabGroupCreationName(kGroup1Name);
-
-  // Valid the creation.
-  [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
-      performAction:grey_tap()];
-  [ChromeEarlGrey
-      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  CreateTabGroupAtIndex(0, kGroup1Name);
 
   // Open the group.
   [[EarlGrey selectElementWithMatcher:TabGridGroupCellWithName(kGroup1Name, 1)]
@@ -1083,12 +1077,7 @@ void TapTabGridEditButton() {
 
   // Create a group with title `1group`.
   [ChromeEarlGreyUI openTabGrid];
-  OpenTabGroupCreationViewUsingLongPressForCellAtIndex(0);
-  SetTabGroupCreationName(kGroup1Name);
-  [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
-      performAction:grey_tap()];
-  [ChromeEarlGrey
-      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  CreateTabGroupAtIndex(0, kGroup1Name);
 
   // Enter the selection mode.
   TapTabGridEditButton();
@@ -1111,6 +1100,8 @@ void TapTabGridEditButton() {
       performAction:grey_tap()];
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:TabGroupCreationView()];
   SetTabGroupCreationName(kGroup2Name);
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:CreateTabGroupCreateButton()];
   [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
       performAction:grey_tap()];
   [ChromeEarlGrey
@@ -1182,23 +1173,31 @@ void TapTabGridEditButton() {
                                               IDS_IOS_TAB_GROUP_TABS_NUMBER, 1),
                                           1)] assertWithMatcher:grey_notNil()];
 
-  // Close all (groups and tabs).
-  TapTabGridEditButton();
-  [[EarlGrey selectElementWithMatcher:TabGridEditMenuCloseAllButton()]
-      performAction:grey_tap()];
+  {
+    // Disable the synchronization, otherwise the test waits until the animation
+    // that the snackbar appears and disappears is finished.
+    ScopedSynchronizationDisabler disabler;
 
-  // Check that `Tab 2` and the group with title `1 Tab` are no longer in the
-  // grid.
-  [[EarlGrey selectElementWithMatcher:TabWithTitle(kTab2Title)]
-      assertWithMatcher:grey_nil()];
-  [[EarlGrey selectElementWithMatcher:TabGridGroupCellWithName(
-                                          l10n_util::GetPluralNSStringF(
-                                              IDS_IOS_TAB_GROUP_TABS_NUMBER, 1),
-                                          1)] assertWithMatcher:grey_nil()];
+    // Close all (groups and tabs).
+    TapTabGridEditButton();
+    [[EarlGrey selectElementWithMatcher:TabGridEditMenuCloseAllButton()]
+        performAction:grey_tap()];
 
-  // Check that the snackbar is displayed.
-  [[EarlGrey selectElementWithMatcher:TabGroupSnackBar(1)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+    // Check that `Tab 2` and the group with title `1 Tab` are no longer in the
+    // grid.
+    [[EarlGrey selectElementWithMatcher:TabWithTitle(kTab2Title)]
+        assertWithMatcher:grey_nil()];
+    [[EarlGrey
+        selectElementWithMatcher:TabGridGroupCellWithName(
+                                     l10n_util::GetPluralNSStringF(
+                                         IDS_IOS_TAB_GROUP_TABS_NUMBER, 1),
+                                     1)] assertWithMatcher:grey_nil()];
+
+    // Check that the snackbar is displayed.
+    [ChromeEarlGrey waitForUIElementToAppearWithMatcher:TabGroupSnackBar(1)];
+    [[EarlGrey selectElementWithMatcher:TabGroupSnackBar(1)]
+        assertWithMatcher:grey_sufficientlyVisible()];
+  }
 
   // Tap Undo button.
   [[EarlGrey selectElementWithMatcher:TabGridUndoCloseAllButton()]
@@ -1244,17 +1243,13 @@ void TapTabGridEditButton() {
   }
   if (@available(iOS 19.0, *)) {
     // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    // Fails to interact with new window.
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 
   // Create a group and open it.
   [ChromeEarlGreyUI openTabGrid];
-  OpenTabGroupCreationViewUsingLongPressForCellAtIndex(0);
-  SetTabGroupCreationName(kGroup1Name);
-  [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
-      performAction:grey_tap()];
-  [ChromeEarlGrey
-      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  CreateTabGroupAtIndex(0, kGroup1Name);
   [[EarlGrey selectElementWithMatcher:TabGridGroupCellWithName(kGroup1Name, 1)]
       performAction:grey_tap()];
 
@@ -1278,17 +1273,13 @@ void TapTabGridEditButton() {
   }
   if (@available(iOS 19.0, *)) {
     // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    // Fails to interact with new window.
     EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
   }
 
   // Create a first group.
   [ChromeEarlGreyUI openTabGrid];
-  OpenTabGroupCreationViewUsingLongPressForCellAtIndex(0);
-  SetTabGroupCreationName(kGroup1Name);
-  [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
-      performAction:grey_tap()];
-  [ChromeEarlGrey
-      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  CreateTabGroupAtIndex(0, kGroup1Name);
 
   // Create a second group.
   [ChromeEarlGrey openNewTab];
@@ -1303,6 +1294,8 @@ void TapTabGridEditButton() {
       performAction:grey_tap()];
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:TabGroupCreationView()];
   SetTabGroupCreationName(kGroup2Name);
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:CreateTabGroupCreateButton()];
   [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
       performAction:grey_tap()];
   [ChromeEarlGrey
@@ -1621,10 +1614,6 @@ void TapTabGridEditButton() {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }
-  if (@available(iOS 19.0, *)) {
-    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
 
   [ChromeEarlGrey loadURL:GetQueryTitleURL(self.testServer, kTab2Title)];
 
@@ -1701,24 +1690,31 @@ void TapTabGridEditButton() {
                                               IDS_IOS_TAB_GROUP_TABS_NUMBER, 1),
                                           1)] performAction:grey_tap()];
 
-  // Tap on the "Close Tab" button and confirm.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::TabGridEditCloseTabsButton()]
-      performAction:grey_tap()];
-  NSString* closeTabsButtonText =
-      base::SysUTF16ToNSString(l10n_util::GetPluralStringFUTF16(
-          IDS_IOS_TAB_GRID_CLOSE_ALL_TABS_CONFIRMATION,
-          /*number=*/1));
-  [[EarlGrey selectElementWithMatcher:
-                 chrome_test_util::ActionSheetItemWithAccessibilityLabel(
-                     closeTabsButtonText)] performAction:grey_tap()];
+  {
+    // Disable the synchronization, otherwise the test waits until the animation
+    // that the snackbar appears and disappears is finished.
+    ScopedSynchronizationDisabler disabler;
 
-  // Make sure that the tab grid is empty.
-  [ChromeEarlGrey waitForMainTabCount:0 inWindowWithNumber:0];
+    // Tap on the "Close Tab" button and confirm.
+    [[EarlGrey
+        selectElementWithMatcher:chrome_test_util::TabGridEditCloseTabsButton()]
+        performAction:grey_tap()];
+    NSString* closeTabsButtonText =
+        base::SysUTF16ToNSString(l10n_util::GetPluralStringFUTF16(
+            IDS_IOS_TAB_GRID_CLOSE_ALL_TABS_CONFIRMATION,
+            /*number=*/1));
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::ActionSheetItemWithAccessibilityLabel(
+                       closeTabsButtonText)] performAction:grey_tap()];
 
-  // Check that the snackbar is displayed.
-  [[EarlGrey selectElementWithMatcher:TabGroupSnackBar(1)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+    // Make sure that the tab grid is empty.
+    [ChromeEarlGrey waitForMainTabCount:0 inWindowWithNumber:0];
+
+    // Check that the snackbar is displayed.
+    [ChromeEarlGrey waitForUIElementToAppearWithMatcher:TabGroupSnackBar(1)];
+    [[EarlGrey selectElementWithMatcher:TabGroupSnackBar(1)]
+        assertWithMatcher:grey_sufficientlyVisible()];
+  }
 }
 
 // Tests renaming a group from the overflow menu in the group view.
@@ -1791,18 +1787,9 @@ void TapTabGridEditButton() {
   // Create a pinned tab.
   CreatePinnedTabs(1, self.testServer);
 
-  // Open the creation view.
+  // Create a tab group.
   [ChromeEarlGreyUI openTabGrid];
-  OpenTabGroupCreationViewUsingLongPressForCellAtIndex(0);
-
-  // Set the group name.
-  SetTabGroupCreationName(kGroup1Name);
-
-  // Valid the creation.
-  [[EarlGrey selectElementWithMatcher:CreateTabGroupCreateButton()]
-      performAction:grey_tap()];
-  [ChromeEarlGrey
-      waitForUIElementToDisappearWithMatcher:TabGroupCreationView()];
+  CreateTabGroupAtIndex(0, kGroup1Name);
 
   // Ensure that the group is created and the pinned tab is visible.
   [[EarlGrey selectElementWithMatcher:TabGridGroupCellWithName(kGroup1Name, 1)]

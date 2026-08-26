@@ -17,21 +17,19 @@
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/task_id.h"
+#include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/common/buildflags.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/tabs/public/tab_interface.h"
+#include "url/gurl.h"
 
 class Profile;
 
 namespace content {
 class BrowserContext;
 }  // namespace content
-
-namespace page_content_annotations {
-struct FetchPageContextResult;
-}  // namespace page_content_annotations
 
 namespace actor {
 namespace ui {
@@ -107,9 +105,9 @@ class ActorKeyedService : public KeyedService {
   bool IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
   Profile* GetProfile();
 
-  using TabObservationResult =
-      base::expected<std::unique_ptr<optimization_guide::proto::TabObservation>,
-                     std::string>;
+  using TabObservationResult = base::expected<
+      std::unique_ptr<page_content_annotations::FetchPageContextResult>,
+      std::string>;
 
   // Request a TabOservation be generated from the given tab.
   void RequestTabObservation(
@@ -123,13 +121,18 @@ class ActorKeyedService : public KeyedService {
 
   void NotifyTaskStateChanged(const ActorTask& task);
 
+  // Returns the acting task for web_contents. Returns nullptr if acting task
+  // does not exist.
+  const ActorTask* GetActingActorTaskForWebContents(
+      content::WebContents* web_contents);
+
  private:
   // Called when the actor coordinator has finished an action which required
   // task creation.
   void OnActionFinished(
       base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
           callback,
-      int task_id,
+      TaskId task_id,
       actor::mojom::ActionResultPtr action_result,
       std::optional<size_t> index_of_failed_action);
 
@@ -141,8 +144,9 @@ class ActorKeyedService : public KeyedService {
   void ConvertToBrowserActionResult(
       base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
           callback,
-      int task_id,
+      TaskId task_id,
       int32_t tab_id,
+      const GURL& url,
       actor::mojom::ActionResultPtr action_result,
       TabObservationResult context_result);
   void OnTabOservationResult(

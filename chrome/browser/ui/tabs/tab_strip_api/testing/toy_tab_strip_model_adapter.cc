@@ -54,11 +54,11 @@ void ToyTabStripModelAdapter::MoveCollection(const NodeId& id,
 
 mojom::TabCollectionContainerPtr
 ToyTabStripModelAdapter::GetTabStripTopology() {
-  auto tab_collection = tabs_api::mojom::TabCollection::New();
-  tab_collection->id =
+  auto mojo_tab_strip = tabs_api::mojom::TabStrip::New();
+  mojo_tab_strip->id =
       tabs_api::NodeId(tabs_api::NodeId::Type::kCollection, "0");
-  tab_collection->collection_type =
-      tabs_api::mojom::TabCollection::CollectionType::kTabStrip;
+  auto tab_collection =
+      tabs_api::mojom::TabCollection::NewTabStrip(std::move(mojo_tab_strip));
 
   auto result = tabs_api::mojom::TabCollectionContainer::New();
   result->collection = std::move(tab_collection);
@@ -80,8 +80,13 @@ ToyTabStripModelAdapter::GetTabStripTopology() {
 std::optional<const tab_groups::TabGroupId>
 ToyTabStripModelAdapter::FindGroupIdFor(
     const tabs::TabCollection::Handle& collection_handle) {
-  // TODO(crbug.com/425390972): Integrate with the toy tabstrip for testing
-  // purposes.
-  return std::nullopt;
+  return tab_strip_->GetGroupIdFor(collection_handle);
 }
+
+void ToyTabStripModelAdapter::UpdateTabGroupVisuals(
+    const tab_groups::TabGroupId& group,
+    const tab_groups::TabGroupVisualData& visual_data) {
+  tab_strip_->UpdateGroupVisuals(group, visual_data);
+}
+
 }  // namespace tabs_api::testing

@@ -49,9 +49,7 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
 
   if (!has_heapnumber_input_output) {
     for (ValueNode* input : call_site->caller_details.arguments) {
-      input = input->UnwrapIdentities();
-      if (input->value_representation() == ValueRepresentation::kFloat64 ||
-          input->value_representation() == ValueRepresentation::kHoleyFloat64) {
+      if (input->UnwrapIdentities()->is_float64_or_holey_float64()) {
         has_heapnumber_input_output = true;
         break;
       }
@@ -117,7 +115,8 @@ void MaglevInliner::Run() {
 
     // Optimize current graph.
     {
-      GraphProcessor<MaglevGraphOptimizer> optimizer(graph_);
+      GraphProcessor<MaglevGraphOptimizer, /* visit_identity_nodes */ true>
+          optimizer(graph_);
       optimizer.ProcessGraph(graph_);
 
       if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
@@ -137,7 +136,8 @@ void MaglevInliner::Run() {
     // via the sweeper or the optimizer), or support identities in the graph
     // builder.
     {
-      GraphProcessor<SweepIdentityNodes> sweeper;
+      GraphProcessor<SweepIdentityNodes, /* visit_identity_nodes */ true>
+          sweeper;
       sweeper.ProcessGraph(graph_);
     }
   }
@@ -221,7 +221,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
                                               call_exception_handler_info);
   rem_handlers_in_call_block.DropHead();
 
-  // Truncate the basic block and remove the generic call node.
+  // Truncate the basic block.
   ZoneVector<Node*> rem_nodes_in_call_block =
       call_block->Split(call_node, zone());
 
@@ -296,10 +296,9 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   }
 
   DCHECK(result.IsDoneWithValue());
-  ValueNode* returned_value = EnsureTagged(inner_graph_builder, result.value());
+  ValueNode* returned_value = result.value()->Unwrap();
 
   // Resume execution using the final block of the inner builder.
-
   // Add remaining nodes to the final block and use the control flow of the
   // old call block.
   BasicBlock* final_block = inner_graph_builder.FinishInlinedBlockForCaller(
@@ -327,7 +326,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
     alloc->set_is_returned_value_from_inline_call();
 #endif  // DEBUG
   }
-  call_node->OverwriteWithIdentityTo(returned_value);
+  call_node->OverwriteWithReturnValue(returned_value);
 
   // Remove unreachable catch block if no throwable nodes were added during
   // inlining.
@@ -350,38 +349,6 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
                                     graph_->blocks().end());
   graph_->blocks().resize(index);
   return saved_bb;
-}
-
-ValueNode* MaglevInliner::EnsureTagged(MaglevGraphBuilder& builder,
-                                       ValueNode* node) {
-  // TODO(victorgomes): Use KNA to create better conversion nodes?
-  if (node->Is<Identity>()) {
-    // TODO(victorgomes): Properly support identities with different
-    // value representations.
-    return EnsureTagged(builder, node->input(0).node());
-  }
-  switch (node->value_representation()) {
-    case ValueRepresentation::kInt32:
-      return builder.reducer().AddNewNodeNoInputConversion<Int32ToNumber>(
-          {node});
-    case ValueRepresentation::kUint32:
-      return builder.reducer().AddNewNodeNoInputConversion<Uint32ToNumber>(
-          {node});
-    case ValueRepresentation::kFloat64:
-      return builder.reducer().AddNewNodeNoInputConversion<Float64ToTagged>(
-          {node}, Float64ToTagged::ConversionMode::kForceHeapNumber);
-    case ValueRepresentation::kHoleyFloat64:
-      return builder.reducer()
-          .AddNewNodeNoInputConversion<HoleyFloat64ToTagged>(
-              {node}, HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
-    case ValueRepresentation::kIntPtr:
-      return builder.reducer().AddNewNodeNoInputConversion<IntPtrToNumber>(
-          {node});
-    case ValueRepresentation::kTagged:
-      return node;
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
 }
 
 // static
@@ -418,6 +385,40 @@ void MaglevInliner::RemovePredecessorFollowing(ControlNode* control,
       }
     }
   });
+}
+
+ProcessResult ReturnedValueRepresentationSelector::Process(
+    ReturnedValue* node, const ProcessingState& state) {
+  if (!node->is_used()) {
+    return ProcessResult::kRemove;
+  }
+  // TODO(victorgomes): Use KNA to create better conversion nodes?
+  ValueNode* input = node->input(0).node()->UnwrapIdentities();
+  switch (input->value_representation()) {
+    case ValueRepresentation::kInt32:
+      node->OverwriteWith<Int32ToNumber>();
+      break;
+    case ValueRepresentation::kUint32:
+      node->OverwriteWith<Uint32ToNumber>();
+      break;
+    case ValueRepresentation::kFloat64:
+      node->OverwriteWith<Float64ToTagged>();
+      node->Cast<Float64ToTagged>()->SetMode(
+          Float64ToTagged::ConversionMode::kForceHeapNumber);
+      break;
+    case ValueRepresentation::kHoleyFloat64:
+      node->OverwriteWith<HoleyFloat64ToTagged>();
+      node->Cast<HoleyFloat64ToTagged>()->SetMode(
+          HoleyFloat64ToTagged::ConversionMode::kForceHeapNumber);
+      break;
+    case ValueRepresentation::kIntPtr:
+      node->OverwriteWith<IntPtrToNumber>();
+      break;
+    case ValueRepresentation::kTagged:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+  return ProcessResult::kContinue;
 }
 
 }  // namespace v8::internal::maglev

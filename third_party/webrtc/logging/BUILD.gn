@@ -377,7 +377,7 @@ rtc_library("rtc_event_log_impl_encoder") {
       "../api:array_view",
       "../api:candidate",
       "../api:dtls_transport_interface",
-      "../api/rtc_event_log:rtc_event_log",
+      "../api/rtc_event_log",
       "../api/transport:bandwidth_usage",
       "../api/units:timestamp",
       "../api/video:video_frame",

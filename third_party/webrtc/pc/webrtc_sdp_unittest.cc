@@ -1081,11 +1081,12 @@ class WebRtcSdpTest : public ::testing::Test {
     const IceCandidateCollection* video_candidates_collection =
         jdesc_.candidates(1);
     ASSERT_NE(nullptr, video_candidates_collection);
-    std::vector<Candidate> video_candidates;
-    for (const auto& c : video_candidates_collection->candidates()) {
-      video_candidates.push_back(c->candidate());
+    // Since this loop modifies video_candidates_collection, just loop until
+    // it's empty instead of using a for loop.
+    while (!video_candidates_collection->candidates().empty()) {
+      ASSERT_TRUE(jdesc_.RemoveCandidate(
+          video_candidates_collection->candidates().back().get()));
     }
-    jdesc_.RemoveCandidates("video_content_name", video_candidates);
   }
 
   // Turns the existing reference description into a description using

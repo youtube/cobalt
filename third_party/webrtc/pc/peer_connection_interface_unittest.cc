@@ -25,6 +25,7 @@
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/crypto/crypto_options.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment_factory.h"
@@ -2396,6 +2397,125 @@ TEST_P(PeerConnectionInterfaceTest,
   RTCError error;
   EXPECT_EQ(pc_->SetConfiguration(config).type(),
             RTCErrorType::INVALID_PARAMETER);
+}
+
+TEST_P(PeerConnectionInterfaceTest, UnmodifiedSetConfigurationSucceeds) {
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+
+    CreatePeerConnection(config);
+
+    EXPECT_TRUE(pc_->SetConfiguration(config).ok());
+  }
+
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    EXPECT_TRUE(pc_->SetConfiguration(config).ok());
+  }
+}
+
+TEST_P(PeerConnectionInterfaceTest,
+       SetConfigurationSucceedsWithMatchingCryptoOptions) {
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+
+    CreatePeerConnection(config);
+
+    config.crypto_options = CryptoOptions();
+    EXPECT_TRUE(pc_->SetConfiguration(config).ok());
+  }
+
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    config.crypto_options = CryptoOptions();
+    EXPECT_TRUE(pc_->SetConfiguration(config).ok());
+  }
+
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+    CryptoOptions options;
+    options.ephemeral_key_exchange_cipher_groups.SetEnabled({
+        webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+            kX25519_MLKEM768,
+    });
+    config.crypto_options = options;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    EXPECT_TRUE(pc_->SetConfiguration(config).ok());
+  }
+}
+
+TEST_P(PeerConnectionInterfaceTest,
+       SetConfigurationFailsWithMismatchingCryptoOptions) {
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    CryptoOptions options;
+    options.ephemeral_key_exchange_cipher_groups.SetEnabled({
+        webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+            kX25519_MLKEM768,
+    });
+    config.crypto_options = options;
+
+    RTCError error = pc_->SetConfiguration(config);
+    EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, error.type());
+  }
+
+  {
+    RTCConfiguration config;
+    config.sdp_semantics = sdp_semantics_;
+    CryptoOptions options;
+    options.ephemeral_key_exchange_cipher_groups.SetEnabled({
+        webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::
+            kX25519_MLKEM768,
+    });
+    config.crypto_options = options;
+
+    CreatePeerConnection(config);
+
+    std::unique_ptr<SessionDescriptionInterface> offer;
+    ASSERT_TRUE(DoCreateOffer(&offer, nullptr));
+    EXPECT_TRUE(DoSetLocalDescription(std::move(offer)));
+
+    options.ephemeral_key_exchange_cipher_groups.SetEnabled({
+        webrtc::CryptoOptions::EphemeralKeyExchangeCipherGroups::kSECP521R1,
+    });
+    config.crypto_options = options;
+
+    RTCError error = pc_->SetConfiguration(config);
+    EXPECT_EQ(RTCErrorType::INVALID_MODIFICATION, error.type());
+  }
 }
 
 // Test that PeerConnection::Close changes the states to closed and all remote

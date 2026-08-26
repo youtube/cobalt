@@ -47,7 +47,7 @@ void CroppingWindowCapturer::SetSharedMemoryFactory(
 
 void CroppingWindowCapturer::CaptureFrame() {
   if (ShouldUseScreenCapturer()) {
-    if (!screen_capturer_.get()) {
+    if (!screen_capturer_) {
       screen_capturer_ = DesktopCapturer::CreateRawScreenCapturer(options_);
       if (excluded_window_) {
         screen_capturer_->SetExcludedWindow(excluded_window_);
@@ -62,7 +62,7 @@ void CroppingWindowCapturer::CaptureFrame() {
 
 void CroppingWindowCapturer::SetExcludedWindow(WindowId window) {
   excluded_window_ = window;
-  if (screen_capturer_.get()) {
+  if (screen_capturer_) {
     screen_capturer_->SetExcludedWindow(window);
   }
 }

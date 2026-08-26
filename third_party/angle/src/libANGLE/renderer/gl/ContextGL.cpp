@@ -142,7 +142,8 @@ BufferImpl *ContextGL::createBuffer(const gl::BufferState &state)
     return new BufferGL(state, buffer);
 }
 
-VertexArrayImpl *ContextGL::createVertexArray(const gl::VertexArrayState &data)
+VertexArrayImpl *ContextGL::createVertexArray(const gl::VertexArrayState &data,
+                                              const gl::VertexArrayBuffers &vertexArrayBuffers)
 {
     const FunctionsGL *functions      = getFunctions();
     const angle::FeaturesGL &features = getFeaturesGL();
@@ -158,14 +159,14 @@ VertexArrayImpl *ContextGL::createVertexArray(const gl::VertexArrayState &data)
     {
         StateManagerGL *stateManager = getStateManager();
 
-        return new VertexArrayGL(data, stateManager->getDefaultVAO(),
+        return new VertexArrayGL(data, stateManager->getDefaultVAO(), vertexArrayBuffers,
                                  stateManager->getDefaultVAOState());
     }
     else
     {
         GLuint vao = 0;
         functions->genVertexArrays(1, &vao);
-        return new VertexArrayGL(data, vao);
+        return new VertexArrayGL(data, vao, vertexArrayBuffers);
     }
 }
 
@@ -250,7 +251,7 @@ ANGLE_INLINE angle::Result ContextGL::setDrawArraysState(const gl::Context *cont
                                                          GLsizei instanceCount)
 {
     const angle::FeaturesGL &features = getFeaturesGL();
-    if (context->getStateCache().hasAnyActiveClientAttrib() ||
+    if (context->hasAnyActiveClientAttrib() ||
         (features.shiftInstancedArrayDataWithOffset.enabled && first > 0))
     {
         const gl::State &glState                = context->getState();
@@ -295,7 +296,6 @@ ANGLE_INLINE angle::Result ContextGL::setDrawElementsState(const gl::Context *co
     const gl::State &glState                = context->getState();
     const gl::ProgramExecutable *executable = getState().getProgramExecutable();
     const gl::VertexArray *vao              = glState.getVertexArray();
-    const gl::StateCache &stateCache        = context->getStateCache();
 
     const angle::FeaturesGL &features = getFeaturesGL();
     if (features.shiftInstancedArrayDataWithOffset.enabled)
@@ -306,7 +306,7 @@ ANGLE_INLINE angle::Result ContextGL::setDrawElementsState(const gl::Context *co
         ANGLE_TRY(vaoGL->recoverForcedStreamingAttributesForDrawArraysInstanced(context));
     }
 
-    if (stateCache.hasAnyActiveClientAttrib() || vao->getElementArrayBuffer() == nullptr)
+    if (context->hasAnyActiveClientAttrib() || vao->getElementArrayBuffer() == nullptr)
     {
         const VertexArrayGL *vaoGL = GetImplAs<VertexArrayGL>(vao);
         ANGLE_TRY(vaoGL->syncDrawElementsState(context, executable->getActiveAttribLocationsMask(),
@@ -399,8 +399,8 @@ gl::AttributesMask ContextGL::updateAttributesForBaseInstance(GLuint baseInstanc
                 const char *p             = static_cast<const char *>(attrib.pointer);
                 const size_t sourceStride = gl::ComputeVertexAttributeStride(attrib, binding);
                 const void *newPointer    = p + sourceStride * baseInstance;
-
-                const BufferGL *buffer = GetImplAs<BufferGL>(binding.getBuffer().get());
+                const BufferGL *buffer    = GetImplAs<BufferGL>(
+                    mState.getVertexArray()->getVertexArrayBuffer(attrib.bindingIndex));
                 // We often stream data from scratch buffers when client side data is being used
                 // and that information is in VertexArrayGL.
                 // Assert that the buffer is non-null because this case isn't handled.
@@ -433,11 +433,10 @@ void ContextGL::resetUpdatedAttributes(gl::AttributesMask attribMask)
     {
         const gl::VertexAttribute &attrib =
             mState.getVertexArray()->getVertexAttributes()[attribIndex];
-        const gl::VertexBinding &binding =
-            (mState.getVertexArray()->getVertexBindings())[attrib.bindingIndex];
-        getStateManager()->bindBuffer(
-            gl::BufferBinding::Array,
-            GetImplAs<BufferGL>(binding.getBuffer().get())->getBufferID());
+        const gl::Buffer *buffer =
+            mState.getVertexArray()->getVertexArrayBuffer(attrib.bindingIndex);
+        getStateManager()->bindBuffer(gl::BufferBinding::Array,
+                                      GetImplAs<BufferGL>(buffer)->getBufferID());
         if (attrib.format->isPureInt())
         {
             functions->vertexAttribIPointer(static_cast<GLuint>(attribIndex),

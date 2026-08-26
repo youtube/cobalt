@@ -12,6 +12,7 @@
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
+#include "components/password_manager/core/browser/password_manager.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/web_contents.h"
@@ -22,6 +23,8 @@ using FinalModelStatus = optimization_guide::proto::FinalModelStatus;
 using PasswordChangeOutcome = optimization_guide::proto ::
     PasswordChangeSubmissionData_PasswordChangeOutcome;
 using PageType = optimization_guide::proto::OpenFormResponseData_PageType;
+using LoginPasswordType =
+    optimization_guide::proto::LoginAttemptOutcome_PasswordType;
 
 namespace {
 int64_t ComputeRequestLatencyMs(base::Time server_request_start_time) {
@@ -36,11 +39,9 @@ std::string GetLocation() {
              : std::string();
 }
 
-std::string GetPageDomain(content::WebContents* web_contents) {
-  CHECK(web_contents);
-  return affiliations::GetExtendedTopLevelDomain(
-      web_contents->GetPrimaryMainFrame()->GetLastCommittedURL(),
-      /*psl_extensions=*/{});
+std::string GetPageDomain(const GURL& page_url) {
+  return affiliations::GetExtendedTopLevelDomain(page_url,
+                                                 /*psl_extensions=*/{});
 }
 
 std::string GetPageLanguage(content::WebContents* web_contents) {
@@ -95,20 +96,74 @@ ModelQualityLogsUploader::QualityStatus GetVerifySubmissionQualityStatus(
       PasswordChangeQuality_StepQuality_SubmissionStatus_ACTION_SUCCESS;
 }
 
-optimization_guide::proto::PasswordChangeQuality_StepQuality* GetNextStep(
-    optimization_guide::proto::PasswordChangeQuality& quality) {
-  if (quality.submit_form().status() !=
+optimization_guide::proto::PasswordChangeQuality_StepQuality*
+GetNextStepQuality(optimization_guide::proto::LogAiDataRequest& log) {
+  optimization_guide::proto::PasswordChangeQuality* quality =
+      log.mutable_password_change_submission()->mutable_quality();
+  if (quality->submit_form().status() !=
       ModelQualityLogsUploader::QualityStatus::
           PasswordChangeQuality_StepQuality_SubmissionStatus_UNKNOWN_STATUS) {
-    return quality.mutable_verify_submission();
+    return quality->mutable_verify_submission();
   }
 
-  if (quality.open_form().status() !=
+  if (quality->open_form().status() !=
       ModelQualityLogsUploader::QualityStatus::
           PasswordChangeQuality_StepQuality_SubmissionStatus_UNKNOWN_STATUS) {
-    return quality.mutable_submit_form();
+    return quality->mutable_submit_form();
   }
-  return quality.mutable_open_form();
+  return quality->mutable_open_form();
+}
+
+optimization_guide::proto::PasswordChangeQuality_StepQuality* GetStepQuality(
+    ModelQualityLogsUploader::FlowStep step,
+    optimization_guide::proto::LogAiDataRequest& log) {
+  optimization_guide::proto::PasswordChangeQuality* quality =
+      log.mutable_password_change_submission()->mutable_quality();
+  switch (step) {
+    case ModelQualityLogsUploader::FlowStep::
+        PasswordChangeRequest_FlowStep_OPEN_FORM_STEP:
+      return quality->mutable_open_form();
+    case ModelQualityLogsUploader::FlowStep::
+        PasswordChangeRequest_FlowStep_SUBMIT_FORM_STEP:
+      return quality->mutable_submit_form();
+    case ModelQualityLogsUploader::FlowStep::
+        PasswordChangeRequest_FlowStep_VERIFY_SUBMISSION_STEP:
+      return quality->mutable_verify_submission();
+    default:
+      NOTREACHED();
+  }
+}
+
+bool IsSuccessfulLoginAttempt(
+    password_manager::LogInWithChangedPasswordOutcome login_outcome) {
+  switch (login_outcome) {
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kBackupPasswordSucceeded:
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kPrimaryPasswordSucceeded:
+      // TODO(crbug.com/425927757): Add Unknown case.
+      return true;
+    default:
+      return false;
+  }
+}
+
+LoginPasswordType GetLoginAttemptPasswordType(
+    password_manager::LogInWithChangedPasswordOutcome login_outcome) {
+  switch (login_outcome) {
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kPrimaryPasswordSucceeded:
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kPrimaryPasswordFailed:
+      return LoginPasswordType::LoginAttemptOutcome_PasswordType_PRIMARY;
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kBackupPasswordFailed:
+    case password_manager::LogInWithChangedPasswordOutcome::
+        kBackupPasswordSucceeded:
+      return LoginPasswordType::LoginAttemptOutcome_PasswordType_BACKUP;
+    default:
+      return LoginPasswordType::LoginAttemptOutcome_PasswordType_UNKNOWN;
+  }
 }
 
 }  // namespace
@@ -123,9 +178,12 @@ ModelQualityLogsUploader::~ModelQualityLogsUploader() = default;
 
 void ModelQualityLogsUploader::SetCommonInformationQuality(
     content::WebContents* web_contents) {
+  CHECK(web_contents);
+  const GURL& page_url =
+      web_contents->GetPrimaryMainFrame()->GetLastCommittedURL();
   final_log_data_.mutable_password_change_submission()
       ->mutable_quality()
-      ->set_domain(GetPageDomain(web_contents));
+      ->set_domain(GetPageDomain(page_url));
   final_log_data_.mutable_password_change_submission()
       ->mutable_quality()
       ->set_location(GetLocation());
@@ -197,14 +255,25 @@ void ModelQualityLogsUploader::SetOpenFormUnexpectedFailure() {
 }
 
 void ModelQualityLogsUploader::SetFlowInterrupted() {
-  const QualityStatus flow_interrupted_status = QualityStatus::
-      PasswordChangeQuality_StepQuality_SubmissionStatus_FLOW_INTERRUPTED;
+  GetNextStepQuality(final_log_data_)
+      ->set_status(
+          QualityStatus::
+              PasswordChangeQuality_StepQuality_SubmissionStatus_FLOW_INTERRUPTED);
+}
 
-  optimization_guide::proto::PasswordChangeQuality* quality =
-      final_log_data_.mutable_password_change_submission()->mutable_quality();
+void ModelQualityLogsUploader::SetOtpDetected() {
+  GetNextStepQuality(final_log_data_)
+      ->set_status(
+          QualityStatus::
+              PasswordChangeQuality_StepQuality_SubmissionStatus_OTP_DETECTED);
+}
 
-  // The interruption status is set to the next step in the flow.
-  GetNextStep(*quality)->set_status(flow_interrupted_status);
+void ModelQualityLogsUploader::MarkStepSkipped(
+    optimization_guide::proto::PasswordChangeRequest::FlowStep step) {
+  GetStepQuality(step, final_log_data_)
+      ->set_status(
+          QualityStatus::
+              PasswordChangeQuality_StepQuality_SubmissionStatus_STEP_SKIPPED);
 }
 
 void ModelQualityLogsUploader::OpenFormTargetElementNotFound() {
@@ -287,16 +356,34 @@ void ModelQualityLogsUploader::SetVerifySubmissionQuality(
           ComputeRequestLatencyMs(server_request_start_time));
 }
 
+// static
+void ModelQualityLogsUploader::RecordLoginAttemptQuality(
+    optimization_guide::ModelQualityLogsUploaderService* mqls_service,
+    const GURL& page_url,
+    password_manager::LogInWithChangedPasswordOutcome login_outcome) {
+  CHECK(mqls_service);
+  auto new_log_entry =
+      std::make_unique<optimization_guide::ModelQualityLogEntry>(
+          mqls_service->GetWeakPtr());
+  auto* login_attempt_outcome = new_log_entry->log_ai_data_request()
+                                    ->mutable_password_change_submission()
+                                    ->mutable_login_attempt_outcome();
+  login_attempt_outcome->set_domain(GetPageDomain(page_url));
+  login_attempt_outcome->set_success(IsSuccessfulLoginAttempt(login_outcome));
+  login_attempt_outcome->set_password_type(
+      GetLoginAttemptPasswordType(login_outcome));
+}
+
 void ModelQualityLogsUploader::UploadFinalLog() {
-  auto* logs_uploader =
+  auto* mqls_service =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile_)
           ->GetModelQualityLogsUploaderService();
-  if (!logs_uploader) {
+  if (!mqls_service) {
     return;
   }
   auto new_log_entry =
       std::make_unique<optimization_guide::ModelQualityLogEntry>(
-          logs_uploader->GetWeakPtr());
+          mqls_service->GetWeakPtr());
 
   new_log_entry->log_ai_data_request()->MergeFrom(final_log_data_);
   optimization_guide::ModelQualityLogEntry::Upload(std::move(new_log_entry));

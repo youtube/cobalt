@@ -672,9 +672,6 @@ inline bool LogCheckLevel(LoggingSeverity sev) {
 #define RTC_LOG_GLE(sev) RTC_LOG_GLE_EX(sev, static_cast<int>(GetLastError()))
 #define RTC_LOG_ERR_EX(sev, err) RTC_LOG_GLE_EX(sev, err)
 #define RTC_LOG_ERR(sev) RTC_LOG_GLE(sev)
-#elif defined(__native_client__) && __native_client__
-#define RTC_LOG_ERR_EX(sev, err) RTC_LOG(sev)
-#define RTC_LOG_ERR(sev) RTC_LOG(sev)
 #elif defined(WEBRTC_POSIX)
 #define RTC_LOG_ERR_EX(sev, err) RTC_LOG_ERRNO_EX(sev, err)
 #define RTC_LOG_ERR(sev) RTC_LOG_ERRNO(sev)

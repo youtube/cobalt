@@ -7,6 +7,7 @@
 #import "base/check.h"
 #import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/omnibox/common/omnibox_features.h"
 #import "ios/chrome/browser/omnibox/model/suggestions/autocomplete_suggestion.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_popup_accessibility_identifier_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
@@ -114,8 +115,7 @@ const CGFloat kOmniboxPopupCellMinimumHeight = 58;
     self.trailingIconType = TrailingIconType::kOpenExistingTab;
     trailingButtonActionName =
         l10n_util::GetNSString(IDS_IOS_OMNIBOX_POPUP_SWITCH_TO_OPEN_TAB);
-  } else if (_suggestion.isSearchWithAim &&
-             base::FeatureList::IsEnabled(kIOSOmniboxAimShortcut)) {
+  } else if (_suggestion.hasAimShortcut) {
     self.trailingIconType = TrailingIconType::kSearchWithAim;
     trailingButtonActionName =
         l10n_util::GetNSString(IDS_IOS_OMNIBOX_POPUP_SEARCH_WITH_AIM);

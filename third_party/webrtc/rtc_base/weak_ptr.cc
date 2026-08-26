@@ -57,7 +57,7 @@ WeakReference WeakReferenceOwner::GetRef() const {
 }
 
 void WeakReferenceOwner::Invalidate() {
-  if (flag_.get()) {
+  if (flag_) {
     flag_->Invalidate();
     flag_ = nullptr;
   }

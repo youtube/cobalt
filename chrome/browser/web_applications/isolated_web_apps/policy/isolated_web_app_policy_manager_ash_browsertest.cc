@@ -66,7 +66,7 @@
 #include "components/policy/policy_constants.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
@@ -362,8 +362,9 @@ class IsolatedWebAppPolicyManagerAshBrowserTest
       const IsolatedWebAppPolicyManagerAshBrowserTest&) = delete;
 };
 
+// TODO(crbug.com/435371796): Test is flaky.
 IN_PROC_BROWSER_TEST_P(IsolatedWebAppPolicyManagerAshBrowserTest,
-                       InstallIsolatedWebAppOnLogin) {
+                       DISABLED_InstallIsolatedWebAppOnLogin) {
   AddUser(/*set_iwa_policy_on_login=*/true);
 
   // Log in in the managed guest session.
@@ -383,8 +384,9 @@ IN_PROC_BROWSER_TEST_P(IsolatedWebAppPolicyManagerAshBrowserTest,
   EXPECT_EQ(GetIsolatedWebAppVersion(kAppId1).GetString(), "7.0.6");
 }
 
+// TODO(crbug.com/435371796): Test is flaky.
 IN_PROC_BROWSER_TEST_P(IsolatedWebAppPolicyManagerAshBrowserTest,
-                       PolicyUpdate) {
+                       DISABLED_PolicyUpdate) {
   AddUser();
 
   SetPolicyWithOneApp();

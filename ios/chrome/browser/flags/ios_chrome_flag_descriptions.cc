@@ -26,6 +26,16 @@ const char kAppBackgroundRefreshDescription[] =
     "Schedules app background refresh after some minimum period of time has "
     "passed after the last refresh.";
 
+const char kApplyClientsideModelPredictionsForPasswordTypesName[] =
+    "Apply clientside model predictions for password forms.";
+const char kApplyClientsideModelPredictionsForPasswordTypesDescription[] =
+    "Enable using clientside model predictions to fill password forms.";
+
+const char kApplyClientsideModelPredictionsForOtpsName[] =
+    "Apply clientside model predictions for OTPs.";
+const char kApplyClientsideModelPredictionsForOtpsDescription[] =
+    "Enable using clientside model predictions to fill OTP forms.";
+
 // Title and description for the flag that enables autofill across iframes.
 extern const char kAutofillAcrossIframesName[] =
     "Enables Autofill across iframes";
@@ -113,6 +123,12 @@ const char kAutofillEnableDynamicallyLoadingFieldsForAddressInputName[] =
 const char kAutofillEnableDynamicallyLoadingFieldsForAddressInputDescription[] =
     "When enabled, the address fields for input would be dynamically loaded "
     "based on the country value";
+
+const char kAutofillPaymentsFieldSwappingName[] =
+    "Swap credit card suggestions";
+const char kAutofillPaymentsFieldSwappingDescription[] =
+    "When enabled, swapping autofilled payment suggestions would result"
+    "in overriding all of the payments fields with the swapped profile data";
 
 const char kAutofillEnableFlatRateCardBenefitsFromCurinosName[] =
     "Enable showing flat rate card benefits sourced from Curinos";
@@ -279,6 +295,10 @@ const char kBottomOmniboxDefaultSettingDescription[] =
     "hasn't already changed the setting, changes the omnibox position to top "
     "or bottom of the screen on iPhone. The default is top omnibox.";
 
+const char kBWGPreciseLocationName[] = "BWG Precise Location";
+const char kBWGPreciseLocationDescription[] =
+    "When enabled, the precise location row is shown in BWG settings.";
+
 const char kBreakpadNoDelayInitialUploadName[] =
     "Remove delay on initial crash upload";
 const char kBreakpadNoDelayInitialUploadDescription[] =
@@ -437,6 +457,11 @@ const char kDefaultBrowserBannerPromoDescription[] =
     "When enabled, the default browser banner promo will show when conditions "
     "are met.";
 
+const char kDefaultBrowserOffCyclePromoName[] =
+    "Default Browser off-cycle promo";
+const char kDefaultBrowserOffCyclePromoDescription[] =
+    "When enabled, an off-cycle default browser promo will be shown.";
+
 const char kDefaultBrowserPromoPropensityModelName[] =
     "Default Browser promo propensity model";
 const char kDefaultBrowserPromoPropensityModelDescription[] =
@@ -476,6 +501,11 @@ extern const char kDownloadAutoDeletionDescription[] =
 const char kDownloadedPDFOpeningName[] = "Enables downloaded PDF opening";
 const char kDownloadedPDFOpeningDescription[] =
     "Enables the direct opening of downloaded PDF files in Chrome";
+
+const char kDownloadListName[] = "Enable Download List";
+const char kDownloadListDescription[] =
+    "Controls the UI type for the download list. When enabled, allows "
+    "switching between default and custom UI implementations.";
 
 const char kEnableFeedHeaderSettingsName[] =
     "Enables the feed header settings.";
@@ -589,11 +619,6 @@ const char kEnhancedSafeBrowsingPromoDescription[] =
     "When enabled, the Enhanced Safe Browsing inline and infobar promos are "
     "displayed given certain preconditions are met.";
 
-const char kEnterpriseRealtimeEventReportingOnIOSName[] =
-    "Enable realtime event reporting for Enterprise on iOS";
-const char kEnterpriseRealtimeEventReportingOnIOSDescription[] =
-    "When enabled, realtime events will be reported to the user's organization";
-
 const char kFeedBackgroundRefreshName[] = "Enable feed background refresh";
 const char kFeedBackgroundRefreshDescription[] =
     "Schedules a feed background refresh after some minimum period of time has "
@@ -632,10 +657,11 @@ const char kFullscreenPromosManagerSkipInternalLimitsDescription[] =
     "When enabled, the internal Impression Limits of the Promos Manager will "
     "be ignored; this is useful for local development.";
 
-const char kFullscreenTransitionName[] = "Fullscreen Transition Tweaks";
-const char kFullscreenTransitionDescription[] =
-    "When enabled, the transition of fullscreen is either delayed or the speed "
-    "of the transition is increased-decreased.";
+const char kFullscreenTransitionSpeedName[] =
+    "Fullscreen Transition Speed Tweaks";
+const char kFullscreenTransitionSpeedDescription[] =
+    "When enabled, the speed of the fullscreen' transition is "
+    "increased-decreased.";
 
 const char kFullscreenSmoothScrollingName[] = "Fullscreen Smooth Scrolling";
 const char kFullscreenSmoothScrollingDescription[] =
@@ -856,6 +882,12 @@ const char kIOSExpandedTipsName[] = "Expanded Tips Notifications";
 const char kIOSExpandedTipsDescription[] =
     "Enables a feature that adds several new Tips Notifications that can be "
     "sent.";
+
+const char kIOSOneTimeDefaultBrowserNotificationName[] =
+    "One-time default browser notification";
+const char kIOSOneTimeDefaultBrowserNotificationDescription[] =
+    "Enables a one-time notification to prompt the user to set the app as the "
+    "default browser.";
 
 const char kIOSProvidesAppNotificationSettingsName[] =
     "IOS Provides App Notification Settings";
@@ -1253,6 +1285,10 @@ const char kPageActionMenuDescription[] =
     "When enabled, the entry point for the Page Action Menu becomes available "
     "for actions relating to the web page.";
 
+const char kGeminiCrossTabName[] = "Gemini Cross Tab";
+const char kGeminiCrossTabDescription[] =
+    "When enabled, the Gemini floaty conversation persists across all tabs.";
+
 const char kBWGPromoConsentName[] = "BWG Promo Consent";
 const char kBWGPromoConsentDescription[] =
     "Whether the promo consent flow is composed of a single or a double screen "
@@ -1287,6 +1323,10 @@ const char kPageVisibilityPageContentAnnotationsName[] =
 const char kPageVisibilityPageContentAnnotationsDescription[] =
     "Enables annotating the page visibility model for each page load "
     "on-device.";
+
+const char kPageContextAnchorTagsName[] = "Page Context anchor tags";
+const char kPageContextAnchorTagsDescription[] =
+    "Include the retrieval of anchor tags (links) as part of Page Context.";
 
 const char kPasswordFormClientsideClassifierName[] =
     "Clientside password form classifier.";
@@ -1472,11 +1512,6 @@ const char kSetUpListShortenedDurationName[] = "Set Up List Shortened Duration";
 const char kSetUpListShortenedDurationDescription[] =
     "Reduces the Set Up List duration in the NTP to the selected parameter.";
 
-const char kSetUpListWithoutSignInItemName[] =
-    "Set Up List without sign-in item";
-const char kSetUpListWithoutSignInItemDescription[] =
-    "Removes the sign-in item from the Set Up List.";
-
 const char kShareInWebContextMenuIOSName[] = "Share in web context menu";
 const char kShareInWebContextMenuIOSDescription[] =
     "Enables the Share button in the web context menu in iOS 16.0 and above.";
@@ -1499,6 +1534,12 @@ const char kSignInButtonNoAvatarName[] =
     "Display sign-in button without avatar";
 const char kSignInButtonNoAvatarDescription[] =
     "When enabled, the sign-in button is shown without an avatar on the NTP.";
+
+const char kSkipDefaultBrowserPromoInFirstRunName[] =
+    "Skip the FRE Default Browser Promo in EEA";
+const char kSkipDefaultBrowserPromoInFirstRunDescription[] =
+    "When enabled, users in the EEA will not see a Default Browser Promo in "
+    "the FRE.";
 
 const char kNTPBackgroundCustomizationName[] =
     "Enable background customization menu on the NTP";

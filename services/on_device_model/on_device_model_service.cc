@@ -26,10 +26,6 @@
 #include "services/on_device_model/public/cpp/features.h"
 #include "services/on_device_model/public/cpp/service_client.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "services/on_device_model/android/backend_impl_android.h"
-#endif
-
 namespace on_device_model {
 namespace {
 
@@ -45,6 +41,7 @@ const base::FeatureParam<base::TimeDelta> kModelIdleTimeout{
     "on_device_model_active_session_idle_timeout", kDefaultModelIdleTimeout};
 
 class ModelWrapper;
+class AsrStreamWrapper;
 
 class SessionWrapper final : public mojom::Session {
  public:
@@ -61,11 +58,12 @@ class SessionWrapper final : public mojom::Session {
   SessionWrapper(const SessionWrapper&) = delete;
   SessionWrapper& operator=(const SessionWrapper&) = delete;
 
+  // mojom::Session:
   void Append(mojom::AppendOptionsPtr options,
               mojo::PendingRemote<mojom::ContextClient> client) override;
   void Generate(
       mojom::GenerateOptionsPtr options,
-      mojo::PendingRemote<mojom::StreamingResponder> response) override;
+      mojo::PendingRemote<mojom::StreamingResponder> responder) override;
   void GetSizeInTokens(mojom::InputPtr input,
                        GetSizeInTokensCallback callback) override;
   void Score(const std::string& text, ScoreCallback callback) override;
@@ -76,6 +74,11 @@ class SessionWrapper final : public mojom::Session {
   void SetPriority(mojom::Priority priority) override { priority_ = priority; }
 
   mojo::Receiver<mojom::Session>& receiver() { return receiver_; }
+  BackendSession& backend() { return *session_; }
+  void AsrStream(
+      mojom::AsrStreamOptionsPtr options,
+      mojo::PendingReceiver<mojom::AsrStreamInput> stream,
+      mojo::PendingRemote<mojom::AsrStreamResponder> response) override;
 
   bool IsForeground() const {
     return priority_ == mojom::Priority::kForeground;
@@ -118,11 +121,17 @@ class SessionWrapper final : public mojom::Session {
   }
 
   void CloneInternal(mojo::PendingReceiver<mojom::Session> session);
+  void AsrStreamInternal(
+      mojom::AsrStreamOptionsPtr options,
+      mojo::PendingReceiver<mojom::AsrStreamInput> stream,
+      mojo::PendingRemote<mojom::AsrStreamResponder> response,
+      base::OnceClosure on_complete);
 
   base::WeakPtr<ModelWrapper> model_;
   mojo::Receiver<mojom::Session> receiver_;
   std::unique_ptr<BackendSession> session_;
   mojom::Priority priority_;
+  std::unique_ptr<AsrStreamWrapper> asr_session_;
   base::WeakPtrFactory<SessionWrapper> weak_ptr_factory_{this};
 };
 
@@ -321,12 +330,34 @@ class ModelWrapper final : public mojom::OnDeviceModel {
   base::WeakPtrFactory<ModelWrapper> weak_ptr_factory_{this};
 };
 
+class AsrStreamWrapper final : public mojom::AsrStreamInput {
+ public:
+  AsrStreamWrapper(base::WeakPtr<SessionWrapper> session,
+                   mojo::PendingReceiver<mojom::AsrStreamInput> receiver)
+      : session_(session), receiver_(this, std::move(receiver)) {}
+  ~AsrStreamWrapper() override = default;
+
+  AsrStreamWrapper(const AsrStreamWrapper&) = delete;
+  AsrStreamWrapper& operator=(const AsrStreamWrapper&) = delete;
+
+  void AddAudioChunk(mojom::AudioDataPtr data) override {
+    if (!session_) {
+      return;  // Session was already closed.
+    }
+    session_->backend().AsrAddAudioChunk(std::move(data));
+  }
+
+ private:
+  base::WeakPtr<SessionWrapper> session_;
+  mojo::Receiver<mojom::AsrStreamInput> receiver_;
+  base::WeakPtrFactory<AsrStreamWrapper> weak_ptr_factory_{this};
+};
+
 void SessionWrapper::Append(mojom::AppendOptionsPtr options,
                             mojo::PendingRemote<mojom::ContextClient> client) {
   if (!model_) {
     return;
   }
-
   auto append_internal = base::BindOnce(&SessionWrapper::AppendInternal,
                                         weak_ptr_factory_.GetWeakPtr(),
                                         std::move(options), std::move(client));
@@ -337,14 +368,14 @@ void SessionWrapper::Append(mojom::AppendOptionsPtr options,
 
 void SessionWrapper::Generate(
     mojom::GenerateOptionsPtr options,
-    mojo::PendingRemote<mojom::StreamingResponder> response) {
+    mojo::PendingRemote<mojom::StreamingResponder> responder) {
   if (!model_) {
     return;
   }
 
   auto generate_internal = base::BindOnce(
       &SessionWrapper::GenerateInternal, weak_ptr_factory_.GetWeakPtr(),
-      std::move(options), std::move(response));
+      std::move(options), std::move(responder));
 
   model_->AddAndRunPendingTask(std::move(generate_internal),
                                weak_ptr_factory_.GetWeakPtr());
@@ -401,6 +432,20 @@ void SessionWrapper::Clone(mojo::PendingReceiver<mojom::Session> session) {
       weak_ptr_factory_.GetWeakPtr());
 }
 
+void SessionWrapper::AsrStream(
+    mojom::AsrStreamOptionsPtr options,
+    mojo::PendingReceiver<mojom::AsrStreamInput> stream,
+    mojo::PendingRemote<mojom::AsrStreamResponder> response) {
+  if (!model_) {
+    return;
+  }
+  model_->AddAndRunPendingTask(
+      base::BindOnce(&SessionWrapper::AsrStreamInternal,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(options),
+                     std::move(stream), std::move(response)),
+      weak_ptr_factory_.GetWeakPtr());
+}
+
 void SessionWrapper::CloneInternal(
     mojo::PendingReceiver<mojom::Session> session) {
   if (!model_) {
@@ -410,10 +455,22 @@ void SessionWrapper::CloneInternal(
   model_->AddSession(std::move(session), session_->Clone(), priority_);
 }
 
+void SessionWrapper::AsrStreamInternal(
+    mojom::AsrStreamOptionsPtr options,
+    mojo::PendingReceiver<mojom::AsrStreamInput> stream,
+    mojo::PendingRemote<mojom::AsrStreamResponder> response,
+    base::OnceClosure on_complete) {
+  if (!model_) {
+    return;
+  }
+  DCHECK_EQ(asr_session_, nullptr);
+  auto speech_stream_wrapper = std::make_unique<AsrStreamWrapper>(
+      weak_ptr_factory_.GetWeakPtr(), std::move(stream));
+  asr_session_ = std::move(speech_stream_wrapper);
+  session_->AsrStream(std::move(options), std::move(response));
+}
+
 std::unique_ptr<Backend> DefaultImpl() {
-#if BUILDFLAG(IS_ANDROID)
-  return std::make_unique<BackendImplAndroid>();
-#else
   if (base::FeatureList::IsEnabled(features::kUseFakeChromeML)) {
     return std::make_unique<ml::BackendImpl>(fake_ml::GetFakeChromeML());
   }
@@ -422,7 +479,6 @@ std::unique_ptr<Backend> DefaultImpl() {
 #else
   return std::make_unique<ml::BackendImpl>(fake_ml::GetFakeChromeML());
 #endif  // defined(ENABLE_ML_INTERNAL)
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace

@@ -55,7 +55,7 @@
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/win32.h"
-#elif !defined(__native_client__)
+#else
 #include "rtc_base/ifaddrs_converter.h"
 #endif
 // IWYU pragma: end_keep
@@ -158,7 +158,6 @@ uint16_t ComputeNetworkCostByType(int type,
   }
 }
 
-#if !defined(__native_client__)
 bool IsIgnoredIPv6(bool allow_mac_based_ipv6, const InterfaceAddress& ip) {
   if (ip.family() != AF_INET6) {
     return false;
@@ -186,7 +185,6 @@ bool IsIgnoredIPv6(bool allow_mac_based_ipv6, const InterfaceAddress& ip) {
 
   return false;
 }
-#endif  // !defined(__native_client__)
 
 // Note: consider changing to const Network* as arguments
 // if/when considering other changes that should not trigger
@@ -573,17 +571,7 @@ void BasicNetworkManager::OnNetworksChanged() {
   UpdateNetworksOnce();
 }
 
-#if defined(__native_client__)
-
-bool BasicNetworkManager::CreateNetworks(
-    bool include_ignored,
-    std::vector<std::unique_ptr<Network>>* networks) const {
-  RTC_DCHECK_NOTREACHED();
-  RTC_LOG(LS_WARNING) << "BasicNetworkManager doesn't work on NaCl yet";
-  return false;
-}
-
-#elif defined(WEBRTC_POSIX)
+#if defined(WEBRTC_POSIX)
 NetworkMonitorInterface::InterfaceInfo BasicNetworkManager::GetInterfaceInfo(
     struct ifaddrs* cursor) const {
   if (cursor->ifa_flags & IFF_LOOPBACK) {

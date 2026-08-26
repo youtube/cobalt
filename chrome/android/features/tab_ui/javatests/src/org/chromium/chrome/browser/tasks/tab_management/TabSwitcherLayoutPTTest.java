@@ -63,6 +63,7 @@ import org.chromium.chrome.test.transit.hub.TabSwitcherListEditorFacility;
 import org.chromium.chrome.test.transit.hub.TabSwitcherStation;
 import org.chromium.chrome.test.transit.hub.UndoSnackbarFacility;
 import org.chromium.chrome.test.transit.ntp.IncognitoNewTabPageStation;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageAppMenuFacility;
 import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -282,6 +283,38 @@ public class TabSwitcherLayoutPTTest {
 
     @Test
     @MediumTest
+    @Feature({"RenderTest"})
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testRenderGrid_PinnedTabs() throws IOException {
+        ChromeTabbedActivity cta = mCtaTestRule.getActivity();
+        RegularNewTabPageStation pageStation =
+                Journeys.prepareTabsWithThumbnails(
+                        mStartPage,
+                        3,
+                        0,
+                        UrlConstants.NTP_URL,
+                        RegularNewTabPageStation::newBuilder);
+        // Make sure all thumbnails are there before switching tabs.
+        RegularTabSwitcherStation tabSwitcherStation =
+                enterRegularHtsWithThumbnailChecking(pageStation);
+
+        // Pin a tab.
+        pageStation = tabSwitcherStation.selectTabAtIndex(0, RegularNewTabPageStation.newBuilder());
+        RegularNewTabPageAppMenuFacility menu = pageStation.openAppMenu();
+        menu.pinTab();
+
+        tabSwitcherStation = pageStation.openRegularTabSwitcher();
+
+        mRenderTestRule.render(cta.findViewById(R.id.pane_frame), "regular_pinned_tabs");
+
+        RegularNewTabPageStation previousPage =
+                tabSwitcherStation.leaveHubToPreviousTabViaBack(
+                        RegularNewTabPageStation.newBuilder());
+        assertFinalDestination(previousPage);
+    }
+
+    @Test
+    @MediumTest
     @EnableAnimations
     public void testTabToGridAndBack_NoReset() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
@@ -323,6 +356,7 @@ public class TabSwitcherLayoutPTTest {
     @Test
     @MediumTest
     @TestAnimations.EnableAnimations
+    @DisabledTest(message = "crbug.com/433892577 thumbnail capture is flaky")
     @RequiresRestart("Flaky on desktop (crbug.com/381679686), affects flake rate of other tests")
     public void testTabToGridAndBack_SoftCleanup_Ntp() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();

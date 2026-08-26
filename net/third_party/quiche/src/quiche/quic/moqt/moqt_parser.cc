@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
@@ -124,39 +125,6 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
     list.insert(type, value);
   }
   return true;
-}
-
-void KeyValuePairListToMoqtSessionParameters(const KeyValuePairList& parameters,
-                                             MoqtSessionParameters& out) {
-  parameters.ForEach(
-      [&](uint64_t key, uint64_t value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kMaxRequestId:
-            out.max_request_id = value;
-            break;
-          case SetupParameter::kMaxAuthTokenCacheSize:
-            out.max_auth_token_cache_size = value;
-            break;
-          case SetupParameter::kSupportObjectAcks:
-            out.support_object_acks = (value == 1);
-            break;
-          default:
-            break;
-        }
-        return true;
-      },
-      [&](uint64_t key, absl::string_view value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kPath:
-            out.path = value;
-            break;
-          default:
-            break;
-        }
-        return true;
-      });
 }
 
 }  // namespace
@@ -323,6 +291,15 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kRequestsBlocked:
       bytes_read = ProcessRequestsBlocked(reader);
       break;
+    case MoqtMessageType::kPublish:
+      bytes_read = ProcessPublish(reader);
+      break;
+    case MoqtMessageType::kPublishOk:
+      bytes_read = ProcessPublishOk(reader);
+      break;
+    case MoqtMessageType::kPublishError:
+      bytes_read = ProcessPublishError(reader);
+      break;
     case moqt::MoqtMessageType::kObjectAck:
       bytes_read = ProcessObjectAck(reader);
       break;
@@ -363,7 +340,9 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
     ParseError(error, "Client SETUP contains invalid parameters");
     return 0;
   }
-  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
+  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+    return 0;
+  }
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
   visitor_.OnClientSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
@@ -388,7 +367,9 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
     ParseError(error, "Server SETUP contains invalid parameters");
     return 0;
   }
-  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
+  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+    return 0;
+  }
   visitor_.OnServerSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
 }
@@ -398,7 +379,6 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   uint64_t filter, group, object;
   uint8_t group_order, forward;
   if (!reader.ReadVarInt62(&subscribe.request_id) ||
-      !reader.ReadVarInt62(&subscribe.track_alias) ||
       !ReadFullTrackName(reader, subscribe.full_track_name) ||
       !reader.ReadUInt8(&subscribe.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&forward) ||
@@ -464,6 +444,7 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   uint8_t group_order;
   uint8_t content_exists;
   if (!reader.ReadVarInt62(&subscribe_ok.request_id) ||
+      !reader.ReadVarInt62(&subscribe_ok.track_alias) ||
       !reader.ReadVarInt62(&milliseconds) || !reader.ReadUInt8(&group_order) ||
       !reader.ReadUInt8(&content_exists)) {
     return 0;
@@ -507,8 +488,7 @@ size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   uint64_t error_code;
   if (!reader.ReadVarInt62(&subscribe_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(subscribe_error.reason_phrase) ||
-      !reader.ReadVarInt62(&subscribe_error.track_alias)) {
+      !reader.ReadStringVarInt62(subscribe_error.reason_phrase)) {
     return 0;
   }
   subscribe_error.error_code = static_cast<RequestErrorCode>(error_code);
@@ -922,6 +902,136 @@ size_t MoqtControlParser::ProcessRequestsBlocked(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
+size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
+  MoqtPublish publish;
+  uint8_t group_order, content_exists;
+  QUICHE_DCHECK(reader.PreviouslyReadPayload().empty());
+  if (!reader.ReadVarInt62(&publish.request_id) ||
+      !ReadFullTrackName(reader, publish.full_track_name) ||
+      !reader.ReadVarInt62(&publish.track_alias) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&content_exists)) {
+    return 0;
+  }
+  publish.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in PUBLISH");
+    return 0;
+  }
+  if (content_exists > 1) {
+    ParseError("PUBLISH ContentExists has invalid value");
+    return 0;
+  }
+  if (content_exists == 1) {
+    uint64_t group, object;
+    if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+      return 0;
+    }
+    publish.largest_location = Location(group, object);
+  }
+  uint8_t forward;
+  if (!reader.ReadUInt8(&forward)) {
+    return 0;
+  }
+  if (forward > 0x01) {
+    ParseError("Invalid forward value in PUBLISH");
+    return 0;
+  }
+  publish.forward = forward == 1;
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublish)) {
+    ParseError("PUBLISH message contains invalid parameters");
+    return 0;
+  }
+  if (!KeyValuePairListToVersionSpecificParameters(
+          parameters, /*out=*/publish.parameters)) {
+    return 0;
+  };
+  visitor_.OnPublishMessage(publish);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
+  MoqtPublishOk publish_ok;
+  uint8_t forward, group_order;
+  uint64_t filter_type;
+  KeyValuePairList parameters;
+  if (!reader.ReadVarInt62(&publish_ok.request_id) ||
+      !reader.ReadUInt8(&forward) ||
+      !reader.ReadUInt8(&publish_ok.subscriber_priority) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter_type)) {
+    return 0;
+  }
+  if (forward > 0x01) {
+    ParseError("Invalid forward value in PUBLISH_OK");
+    return 0;
+  }
+  publish_ok.forward = forward == 1;
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in PUBLISH_OK");
+    return 0;
+  }
+  publish_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  publish_ok.filter_type = static_cast<MoqtFilterType>(filter_type);
+  uint64_t group, object, end_group;
+  switch (publish_ok.filter_type) {
+    case MoqtFilterType::kNextGroupStart:
+    case MoqtFilterType::kLatestObject:
+      break;
+    case MoqtFilterType::kAbsoluteStart:
+    case MoqtFilterType::kAbsoluteRange:
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+        return 0;
+      }
+      publish_ok.start = Location(group, object);
+      if (publish_ok.filter_type == MoqtFilterType::kAbsoluteStart) {
+        break;
+      }
+      if (!reader.ReadVarInt62(&end_group)) {
+        return 0;
+      }
+      publish_ok.end_group = end_group;
+      if (*publish_ok.end_group < publish_ok.start->group) {
+        ParseError("End group is less than start group");
+        return 0;
+      }
+      break;
+    default:
+      ParseError("Invalid filter type");
+      return 0;
+  }
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublishOk)) {
+    ParseError("PUBLISH_OK message contains invalid parameters");
+    return 0;
+  }
+  if (!KeyValuePairListToVersionSpecificParameters(parameters,
+                                                   publish_ok.parameters)) {
+    return 0;
+  };
+  visitor_.OnPublishOkMessage(publish_ok);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessPublishError(quic::QuicDataReader& reader) {
+  MoqtPublishError publish_error;
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&publish_error.request_id) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(publish_error.error_reason)) {
+    return 0;
+  }
+  publish_error.error_code = static_cast<RequestErrorCode>(error_code);
+  visitor_.OnPublishErrorMessage(publish_error);
+  return reader.PreviouslyReadPayload().length();
+}
+
 size_t MoqtControlParser::ProcessObjectAck(quic::QuicDataReader& reader) {
   MoqtObjectAck object_ack;
   uint64_t raw_delta;
@@ -996,6 +1106,44 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
   return true;
 }
 
+bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
+    const KeyValuePairList& parameters, MoqtSessionParameters& out) {
+  return parameters.ForEach(
+      [&](uint64_t key, uint64_t value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kMaxRequestId:
+            out.max_request_id = value;
+            break;
+          case SetupParameter::kMaxAuthTokenCacheSize:
+            out.max_auth_token_cache_size = value;
+            break;
+          case SetupParameter::kSupportObjectAcks:
+            out.support_object_acks = (value == 1);
+            break;
+          default:
+            break;
+        }
+        return true;
+      },
+      [&](uint64_t key, absl::string_view value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kPath:
+            out.path = value;
+            break;
+          case SetupParameter::kAuthorizationToken:
+            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
+              return false;
+            }
+            break;
+          default:
+            break;
+        }
+        return true;
+      });
+}
+
 // Returns false if there is a protocol violation.
 bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
     const KeyValuePairList& parameters, VersionSpecificParameters& out) {
@@ -1024,7 +1172,7 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
             static_cast<VersionSpecificParameter>(key);
         switch (parameter) {
           case VersionSpecificParameter::kAuthorizationToken:
-            if (!ParseAuthTokenParameter(value, out)) {
+            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
               return false;
             }
             break;
@@ -1035,8 +1183,8 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
       });
 }
 
-bool MoqtControlParser::ParseAuthTokenParameter(
-    absl::string_view field, VersionSpecificParameters& out) {
+bool MoqtControlParser::ParseAuthTokenParameter(absl::string_view field,
+                                                std::vector<AuthToken>& out) {
   quic::QuicDataReader reader(field);
   AuthTokenType token_type;
   absl::string_view token;
@@ -1085,6 +1233,14 @@ bool MoqtControlParser::ParseAuthTokenParameter(
       }
       token_type = static_cast<AuthTokenType>(value);
       token = reader.PeekRemainingPayload();
+      if (message_type_.has_value() &&
+          *message_type_ ==
+              static_cast<uint64_t>(MoqtMessageType::kClientSetup)) {
+        // Do not check the max cache size. Since the max size isn't sent until
+        // SERVER_SETUP, it's not yet known. Since draft-12, this is not an
+        // error and tokens in excess of the cache limit are simply ignored.
+        break;
+      }
       if (auth_token_cache_size_ + sizeof(uint64_t) + token.length() >
           max_auth_token_cache_size_) {
         ParseError(MoqtError::kAuthTokenCacheOverflow,
@@ -1108,7 +1264,7 @@ bool MoqtControlParser::ParseAuthTokenParameter(
       return false;
   }
   // Validate cache operations.
-  out.authorization_token.push_back(AuthToken(token_type, token));
+  out.push_back(AuthToken(token_type, token));
   return true;
 }
 

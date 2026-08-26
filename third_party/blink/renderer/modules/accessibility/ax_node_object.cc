@@ -1270,7 +1270,7 @@ bool AXNodeObject::ComputeIsIgnored(IgnoredReasons* ignored_reasons) const {
 
     // Fallback elements inside of a <canvas> are invisible, but are not ignored
     if (IsHiddenViaStyle() || !node || !node->parentElement() ||
-        !node->parentElement()->IsInCanvasSubtree()) {
+        !node->parentElement()->IsCanvasOrInCanvasSubtree()) {
       return true;
     }
   }
@@ -3293,13 +3293,12 @@ AccessibilityExpanded AXNodeObject::IsExpanded() const {
   // the HTML spec invokers commandfor functionality first, and only
   // popovertarget after, if commandfor was not executed.
   if (auto* button = DynamicTo<HTMLButtonElement>(element)) {
-    const AtomicString& action =
-        button->FastGetAttribute(html_names::kCommandAttr);
-    CommandEventType type = button->GetCommandEventType(action);
     if (HTMLElement* command_for =
             DynamicTo<HTMLElement>(button->commandForElement())) {
-      bool is_valid_popover_command =
-          command_for->IsValidBuiltinPopoverCommand(*button, type);
+      const AtomicString& action =
+          button->FastGetAttribute(html_names::kCommandAttr);
+      bool is_valid_popover_command = command_for->IsValidBuiltinPopoverCommand(
+          *button, HTMLButtonElement::GetCommandEventType(action));
       bool is_child = button->IsDescendantOrShadowDescendantOf(command_for);
       // Buttons for popovers should indicate the expanded/collapsed state.
       if (is_valid_popover_command && !is_child) {
@@ -5527,7 +5526,7 @@ void AXNodeObject::GetRelativeBounds(AXObject** out_container,
   // If it's in a canvas but doesn't have an explicit rect, or has display:
   // contents set, get the bounding rect of its children.
   if ((GetNode()->parentElement() &&
-       GetNode()->parentElement()->IsInCanvasSubtree()) ||
+       GetNode()->parentElement()->IsCanvasOrInCanvasSubtree()) ||
       (element && element->HasDisplayContentsStyle())) {
     Vector<gfx::RectF> rects;
     for (Node& child : NodeTraversal::ChildrenOf(*GetNode())) {
@@ -8302,13 +8301,22 @@ AXObject* AXNodeObject::NextOnLine() const {
   if (const auto* list_marker =
           GetListMarker(*layout_object, ParentObjectIfPresent())) {
     // A list marker should be followed by a list item on the same line.
-    // Note that pseudo content is always included in the tree, so
-    // NextSiblingIncludingIgnored() will succeed.
     auto* ax_list_marker = AXObjectCache().Get(list_marker);
-    if (ax_list_marker && ax_list_marker->IsIncludedInTree()) {
+    // If the list marker is ignored, it is OK to connect it to an ignored node.
+    if (ax_list_marker && ax_list_marker->IsIgnoredButIncludedInTree()) {
       return SetNextOnLine(
           GetFirstInlineBlockOrDeepestInlineAXChildInLayoutTree(
               ax_list_marker->NextSiblingIncludingIgnored(), true));
+    }
+    // If the list marker is not ignored, it should be connected to the next
+    // unignored sibling that is in the same line.
+    if (ax_list_marker && !ax_list_marker->IsIgnored()) {
+      AXObject* next_sibling = ax_list_marker->UnignoredNextSiblingSlow();
+      if (next_sibling) {
+        return SetNextOnLine(
+            GetFirstInlineBlockOrDeepestInlineAXChildInLayoutTree(next_sibling,
+                                                                  true));
+      }
     }
     return SetNextOnLine(nullptr);
   }

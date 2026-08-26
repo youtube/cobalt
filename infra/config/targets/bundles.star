@@ -326,6 +326,10 @@ targets.bundle(
         "minidump_uploader_test",
         "system_webview_shell_instrumentation_tests",  # Not an experimental test
         "webview_ui_instrumentation_tests",
+        # TODO(crbug.com/424259075): Replace this bundle with
+        # android_ci_only_fieldtrial_webview_tests (or appropriate cts tests)
+        # once those tests are working on android 16.
+        "webview_ui_test_app_test_apk_no_field_trial",
     ],
 )
 
@@ -655,7 +659,6 @@ targets.bundle(
         "android_monochrome_smoke_tests",
         "android_smoke_tests",
         "android_specific_chromium_gtests",
-        "android_wpr_record_replay_tests",
         "chromium_gtests",
         "chromium_gtests_for_devices_with_graphical_output",
         "linux_flavor_specific_chromium_gtests",
@@ -707,7 +710,6 @@ targets.bundle(
         "android_monochrome_smoke_tests",
         "android_smoke_tests",
         "android_specific_chromium_gtests",
-        "android_wpr_record_replay_tests",
         "chromium_gtests",
         "chromium_gtests_for_devices_with_graphical_output",
         "linux_flavor_specific_chromium_gtests",
@@ -955,13 +957,6 @@ targets.bundle(
             "gpu_integration_test_common_args",
         ],
     },
-)
-
-targets.bundle(
-    name = "android_wpr_record_replay_tests",
-    targets = [
-        "chrome_java_test_wpr_tests",
-    ],
 )
 
 targets.bundle(
@@ -1732,7 +1727,6 @@ targets.bundle(
         "module_installer_junit_tests",
         "net_junit_tests",
         "paint_preview_junit_tests",
-        "password_check_junit_tests",
         "password_manager_junit_tests",
         "services_junit_tests",
         "touch_to_fill_junit_tests",
@@ -1878,16 +1872,6 @@ targets.bundle(
             ],
         ),
         "paint_preview_junit_tests": targets.per_test_modification(
-            remove_mixins = [
-                "chromium_pixel_2_q",
-                "emulator-4-cores",
-                "nougat-x86-emulator",
-                "oreo-x86-emulator",
-                "pie-x86-emulator",
-                "10-x86-emulator",
-            ],
-        ),
-        "password_check_junit_tests": targets.per_test_modification(
             remove_mixins = [
                 "chromium_pixel_2_q",
                 "emulator-4-cores",
@@ -4936,6 +4920,16 @@ targets.bundle(
             ],
         ),
         targets.bundle(
+            targets = "ios_passing_eg2_cq_tests",
+            mixins = [
+                "xcodebuild_sim_runner",
+            ],
+            variants = [
+                "SIM_IPAD_AIR_5TH_GEN_26_0",
+                "SIM_IPHONE_14_26_0",
+            ],
+        ),
+        targets.bundle(
             targets = "ios_passing_eg2_tests",
             mixins = [
                 "xcodebuild_sim_runner",
@@ -5449,7 +5443,6 @@ targets.bundle(
     name = "ios_failing_eg2_cq_tests",
     targets = [
         "ios_chrome_integration_eg2tests_module",
-        "ios_web_shell_eg2tests_module",
     ],
     per_test_modifications = {
         "ios_chrome_integration_eg2tests_module": [
@@ -5466,18 +5459,9 @@ targets.bundle(
 targets.bundle(
     name = "ios_failing_eg2_tests",
     targets = [
-        "ios_chrome_settings_eg2tests_module",
         "ios_chrome_ui_eg2tests_module",
     ],
     per_test_modifications = {
-        "ios_chrome_settings_eg2tests_module": [
-            targets.mixin(
-                swarming = targets.swarming(
-                    shards = 4,
-                ),
-            ),
-            "ios_parallel_simulators",
-        ],
         "ios_chrome_ui_eg2tests_module": [
             targets.mixin(
                 swarming = targets.swarming(
@@ -5547,9 +5531,17 @@ targets.bundle(
 )
 
 targets.bundle(
+    name = "ios_passing_eg2_cq_tests",
+    targets = [
+        "ios_web_shell_eg2tests_module",
+    ],
+)
+
+targets.bundle(
     name = "ios_passing_eg2_tests",
     targets = [
         "ios_chrome_bookmarks_eg2tests_module",
+        "ios_chrome_settings_eg2tests_module",
         "ios_chrome_signin_eg2tests_module",
         "ios_chrome_smoke_eg2tests_module",
         "ios_chrome_web_eg2tests_module",
@@ -5560,6 +5552,14 @@ targets.bundle(
                 shards = 3,
             ),
         ),
+        "ios_chrome_settings_eg2tests_module": [
+            targets.mixin(
+                swarming = targets.swarming(
+                    shards = 4,
+                ),
+            ),
+            "ios_parallel_simulators",
+        ],
         "ios_chrome_signin_eg2tests_module": targets.mixin(
             swarming = targets.swarming(
                 shards = 6,

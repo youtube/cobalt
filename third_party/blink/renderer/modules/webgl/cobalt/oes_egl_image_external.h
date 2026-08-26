@@ -21,6 +21,7 @@
 namespace blink {
 
 class ExceptionState;
+class ExecutionContext;
 class HTMLVideoElement;
 
 // Implements the Blink-side WebGL extension OES_EGL_image_external,
@@ -38,7 +39,7 @@ class OESEGLImageExternal final : public WebGLExtension {
   static bool Supported(WebGLRenderingContextBase*);
   static const char* ExtensionName();
 
-  explicit OESEGLImageExternal(WebGLRenderingContextBase*);
+  OESEGLImageExternal(WebGLRenderingContextBase*, ExecutionContext*);
 
   WebGLExtensionName GetName() const override;
 

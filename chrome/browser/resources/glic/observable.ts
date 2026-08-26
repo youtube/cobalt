@@ -32,8 +32,8 @@ export interface ObservableValueReadOnly<T> {
 export class ObservableValue<T> {
   private subscribers: Set<ObservableSubscription<T>> = new Set();
 
-  private constructor(
-      private isSet: boolean, private value: T|undefined,
+  protected constructor(
+      private isSet: boolean, private value?: T,
       private hasActiveSubscriptionCallback?:
           (hasActiveSubscription: boolean) => void) {}
 
@@ -97,8 +97,8 @@ export class ObservableValue<T> {
     }
 
     this.subscribers.delete(sub);
-    if (this.hasActiveSubscriptionCallback && this.subscribers.size === 0) {
-      this.hasActiveSubscriptionCallback(false);
+    if (this.subscribers.size === 0) {
+      this.activeSubscriptionChanged(false);
     }
   }
 
@@ -106,14 +106,22 @@ export class ObservableValue<T> {
   subscribe(change: (newValue: T) => void): Subscriber {
     const newSub =
         new ObservableSubscription(change, this.onUnsubscribe.bind(this));
-    if (this.hasActiveSubscriptionCallback && this.subscribers.size === 0) {
-      this.hasActiveSubscriptionCallback(true);
+    if (this.subscribers.size === 0) {
+      this.activeSubscriptionChanged(true);
     }
     this.subscribers.add(newSub);
     if (this.isSet) {
       change(this.value!);
     }
     return newSub;
+  }
+
+  protected activeSubscriptionChanged(hasActiveSubscription: boolean): void {
+    this.hasActiveSubscriptionCallback?.(hasActiveSubscription);
+  }
+
+  protected hasActiveSubscription(): boolean {
+    return this.subscribers.size > 0;
   }
 
   /**
@@ -130,5 +138,36 @@ export class ObservableValue<T> {
     const resultValue = await promise;
     sub.unsubscribe();
     return resultValue;
+  }
+}
+
+/**
+ * A simple observable with no memory of previous values.
+ */
+export class Subject<T> {
+  private subscribers: Set<ObservableSubscription<T>> = new Set();
+
+  subscribe(change: (newValue: T) => void): Subscriber {
+    const newSub =
+        new ObservableSubscription(change, this.onUnsubscribe.bind(this));
+    this.subscribers.add(newSub);
+    return newSub;
+  }
+
+  next(v: T) {
+    this.subscribers.forEach((sub) => {
+      // Ignore if removed since forEach was called.
+      if (this.subscribers.has(sub)) {
+        try {
+          sub.onChange(v);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    });
+  }
+
+  private onUnsubscribe(sub: ObservableSubscription<T>) {
+    this.subscribers.delete(sub);
   }
 }

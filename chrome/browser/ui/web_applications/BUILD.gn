@@ -119,6 +119,7 @@ source_set("browser_tests") {
     "//chrome/browser/themes",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/page_info",
+    "//chrome/browser/ui/startup",
     "//chrome/browser/ui/window_sizer",
     "//chrome/browser/web_applications:prevent_close_test_support",
     "//chrome/browser/web_applications:web_applications_test_support",
@@ -145,8 +146,8 @@ source_set("browser_tests") {
       "//chrome/browser/ui/ash/system_web_apps",
       "//chromeos/ash/components/browser_context_helper",
       "//chromeos/constants",
-      "//components/session_manager/core:core",
-      "//components/user_manager:user_manager",
+      "//components/session_manager/core",
+      "//components/user_manager",
     ]
   }
 }

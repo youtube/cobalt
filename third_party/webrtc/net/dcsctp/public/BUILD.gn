@@ -25,7 +25,7 @@ rtc_library("socket") {
   deps = [
     ":types",
     "../../../api:array_view",
-    "../../../api/task_queue:task_queue",
+    "../../../api/task_queue",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base:strong_alias",

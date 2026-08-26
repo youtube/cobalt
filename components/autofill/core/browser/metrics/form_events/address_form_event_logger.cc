@@ -52,6 +52,8 @@ CategoryResolvedKeyMetricBucket ProfileCategoriesToMetricBucket(
       return CategoryResolvedKeyMetricBucket::kAccountHome;
     case AutofillProfileRecordTypeCategory::kAccountWork:
       return CategoryResolvedKeyMetricBucket::kAccountWork;
+    case AutofillProfileRecordTypeCategory::kAccountNameEmail:
+      return CategoryResolvedKeyMetricBucket::kAccountNameEmail;
   }
 }
 
@@ -129,8 +131,9 @@ void AddressFormEventLogger::OnDidShowSuggestions(
     base::TimeTicks form_parsed_timestamp,
     bool off_the_record,
     base::span<const Suggestion> suggestions) {
-  FormEventLoggerBase::OnDidShowSuggestions(form, field, form_parsed_timestamp,
-                                            off_the_record, suggestions);
+  FormEventLoggerBase::OnDidShowSuggestions(
+      form, field, field.Type().GetAddressType(), form_parsed_timestamp,
+      off_the_record, suggestions);
 
   if (!base::FeatureList::IsEnabled(
           features::kAutofillEnableSupportForHomeAndWork)) {
@@ -168,7 +171,7 @@ void AddressFormEventLogger::OnDidFillFormFillingSuggestion(
   base::RecordAction(
       base::UserMetricsAction("Autofill_FilledProfileSuggestion"));
 
-  FieldType field_type = field.Type().GetStorableType();
+  FieldType field_type = field.Type().GetAddressType();
   field_types_with_shown_suggestions_.erase(field_type);
   field_types_with_accepted_suggestions_.insert(field_type);
 

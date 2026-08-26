@@ -9,9 +9,9 @@ import android.view.KeyEvent;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
-import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
+import org.chromium.base.JniOnceCallback;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -91,6 +91,11 @@ public class WebContentsDelegateAndroid {
     }
 
     @CalledByNative
+    public boolean preHandleKeyboardEvent(long nativeKeyEvent) {
+        return false;
+    }
+
+    @CalledByNative
     public void handleKeyboardEvent(KeyEvent event) {
         // TODO(bulach): we probably want to re-inject the KeyEvent back into
         // the system. Investigate if this is at all possible.
@@ -119,7 +124,8 @@ public class WebContentsDelegateAndroid {
     public void showRepostFormWarningDialog() {}
 
     @CalledByNative
-    public void enterFullscreenModeForTab(boolean prefersNavigationBar, boolean prefersStatusBar) {}
+    public void enterFullscreenModeForTab(
+            long requestingFrame, boolean prefersNavigationBar, boolean prefersStatusBar) {}
 
     @CalledByNative
     public void fullscreenStateChangedForTab(
@@ -133,8 +139,15 @@ public class WebContentsDelegateAndroid {
         return false;
     }
 
+    @CalledByNative
+    public void requestKeyboardLock(boolean escKeyLocked) {}
+
+    @CalledByNative
+    public void cancelKeyboardLockRequest() {}
+
     /**
      * Called when BrowserMediaPlayerManager wants to load a media resource.
+     *
      * @param url the URL of media resource to load.
      * @return true to prevent the resource from being loaded.
      */
@@ -207,12 +220,14 @@ public class WebContentsDelegateAndroid {
     public void didBackForwardTransitionAnimationChange() {}
 
     @CalledByNative
-    private boolean maybeCopyContentAreaAsBitmap(long nativeCallback) {
-        return maybeCopyContentAreaAsBitmap(
-                (bitmap) -> {
-                    WebContentsDelegateAndroidJni.get()
-                            .maybeCopyContentAreaAsBitmapOutcome(nativeCallback, bitmap);
-                });
+    private boolean maybeCopyContentAreaAsBitmap(JniOnceCallback<@Nullable Bitmap> callback) {
+        boolean result = maybeCopyContentAreaAsBitmap((Callback<@Nullable Bitmap>) callback);
+        if (!result) {
+            // If the method returns false, the callback won't be called, so we need to destroy it
+            // to prevent memory leaks and match the previous behavior of no callback.
+            callback.destroy();
+        }
+        return result;
     }
 
     /**
@@ -292,9 +307,4 @@ public class WebContentsDelegateAndroid {
      */
     @CalledByNative
     public void didChangeCloseSignalInterceptStatus() {}
-
-    @NativeMethods
-    public interface Natives {
-        void maybeCopyContentAreaAsBitmapOutcome(long callbackPtr, @Nullable Bitmap bitmap);
-    }
 }

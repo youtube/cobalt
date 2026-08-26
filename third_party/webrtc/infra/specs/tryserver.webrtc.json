@@ -2534,7 +2534,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2583,7 +2583,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2632,7 +2632,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2680,7 +2680,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2728,7 +2728,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2776,7 +2776,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2824,7 +2824,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2872,7 +2872,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2920,7 +2920,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -2968,7 +2968,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3016,7 +3016,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3064,7 +3064,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3112,7 +3112,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3160,7 +3160,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3208,7 +3208,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3256,7 +3256,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3305,7 +3305,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3354,7 +3354,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3403,7 +3403,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3453,7 +3453,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3503,7 +3503,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3553,7 +3553,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3601,7 +3601,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3649,7 +3649,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3697,7 +3697,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3745,7 +3745,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3793,7 +3793,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3841,7 +3841,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3889,7 +3889,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3937,7 +3937,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -3985,7 +3985,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4033,7 +4033,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4081,7 +4081,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4130,7 +4130,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4179,7 +4179,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4228,7 +4228,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4277,7 +4277,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4326,7 +4326,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4375,7 +4375,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4423,7 +4423,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4473,7 +4473,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4523,7 +4523,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4573,7 +4573,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4621,7 +4621,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4669,7 +4669,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4717,7 +4717,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4765,7 +4765,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4813,7 +4813,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4861,7 +4861,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4909,7 +4909,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -4957,7 +4957,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5005,7 +5005,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5054,7 +5054,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5103,7 +5103,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5152,7 +5152,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5200,7 +5200,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5248,7 +5248,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5296,7 +5296,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5344,7 +5344,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5392,7 +5392,7 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
@@ -5431,7 +5431,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "audio_decoder_unittests",
@@ -5448,7 +5448,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_audio_unittests",
@@ -5465,7 +5465,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_video_unittests",
@@ -5482,7 +5482,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "dcsctp_unittests",
@@ -5499,7 +5499,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 2
         },
@@ -5517,7 +5517,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -5535,7 +5535,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -5553,7 +5553,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_media_unittests",
@@ -5570,7 +5570,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_p2p_unittests",
@@ -5587,7 +5587,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_pc_unittests",
@@ -5604,7 +5604,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_stats_unittests",
@@ -5621,7 +5621,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -5639,7 +5639,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "shared_screencast_stream_test",
@@ -5656,7 +5656,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "slow_peer_connection_unittests",
@@ -5673,7 +5673,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -5691,7 +5691,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "system_wrappers_unittests",
@@ -5708,7 +5708,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "test_support_unittests",
@@ -5725,7 +5725,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "tools_unittests",
@@ -5742,7 +5742,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -5760,7 +5760,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "voip_unittests",
@@ -5777,7 +5777,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "webrtc_nonparallel_tests",
@@ -6630,7 +6630,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "audio_decoder_unittests",
@@ -6647,7 +6647,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_audio_unittests",
@@ -6664,7 +6664,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_video_unittests",
@@ -6681,7 +6681,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "dcsctp_unittests",
@@ -6698,7 +6698,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 2
         },
@@ -6716,7 +6716,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -6734,7 +6734,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -6752,7 +6752,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_media_unittests",
@@ -6769,7 +6769,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_p2p_unittests",
@@ -6786,7 +6786,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_pc_unittests",
@@ -6803,7 +6803,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_stats_unittests",
@@ -6820,7 +6820,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -6838,7 +6838,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "slow_peer_connection_unittests",
@@ -6855,7 +6855,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -6873,7 +6873,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "system_wrappers_unittests",
@@ -6890,7 +6890,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "test_support_unittests",
@@ -6907,7 +6907,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "tools_unittests",
@@ -6924,7 +6924,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -6942,7 +6942,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "voip_unittests",
@@ -6959,7 +6959,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "webrtc_nonparallel_tests",
@@ -7393,7 +7393,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "audio_decoder_unittests",
@@ -7410,7 +7410,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_audio_unittests",
@@ -7427,7 +7427,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_video_unittests",
@@ -7444,7 +7444,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "dcsctp_unittests",
@@ -7461,7 +7461,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 2
         },
@@ -7479,7 +7479,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -7497,7 +7497,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -7515,7 +7515,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_media_unittests",
@@ -7532,7 +7532,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_p2p_unittests",
@@ -7549,7 +7549,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_pc_unittests",
@@ -7566,7 +7566,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_stats_unittests",
@@ -7583,7 +7583,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -7601,7 +7601,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "slow_peer_connection_unittests",
@@ -7618,7 +7618,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -7636,7 +7636,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "system_wrappers_unittests",
@@ -7653,7 +7653,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "test_support_unittests",
@@ -7670,7 +7670,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "tools_unittests",
@@ -7687,7 +7687,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -7705,7 +7705,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "voip_unittests",
@@ -7722,7 +7722,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "webrtc_nonparallel_tests",
@@ -7743,7 +7743,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "audio_decoder_unittests",
@@ -7760,7 +7760,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_audio_unittests",
@@ -7777,7 +7777,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_video_unittests",
@@ -7794,7 +7794,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "dcsctp_unittests",
@@ -7811,7 +7811,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 2
         },
@@ -7829,7 +7829,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -7847,7 +7847,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -7865,7 +7865,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_media_unittests",
@@ -7882,7 +7882,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_p2p_unittests",
@@ -7899,7 +7899,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_pc_unittests",
@@ -7916,7 +7916,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_stats_unittests",
@@ -7933,7 +7933,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -7951,7 +7951,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "shared_screencast_stream_test",
@@ -7968,7 +7968,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "slow_peer_connection_unittests",
@@ -7985,7 +7985,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -8003,7 +8003,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "system_wrappers_unittests",
@@ -8020,7 +8020,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "test_support_unittests",
@@ -8037,7 +8037,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "tools_unittests",
@@ -8054,7 +8054,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -8072,7 +8072,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "voip_unittests",
@@ -8089,7 +8089,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "webrtc_nonparallel_tests",
@@ -8110,7 +8110,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "audio_decoder_unittests",
@@ -8127,7 +8127,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_audio_unittests",
@@ -8144,7 +8144,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "common_video_unittests",
@@ -8161,7 +8161,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "dcsctp_unittests",
@@ -8178,7 +8178,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 2
         },
@@ -8196,7 +8196,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -8214,7 +8214,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -8232,7 +8232,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_media_unittests",
@@ -8249,7 +8249,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_p2p_unittests",
@@ -8266,7 +8266,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_pc_unittests",
@@ -8283,7 +8283,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "rtc_stats_unittests",
@@ -8300,7 +8300,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 6
         },
@@ -8318,7 +8318,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "shared_screencast_stream_test",
@@ -8335,7 +8335,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "slow_peer_connection_unittests",
@@ -8352,7 +8352,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -8370,7 +8370,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "system_wrappers_unittests",
@@ -8387,7 +8387,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "test_support_unittests",
@@ -8404,7 +8404,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "tools_unittests",
@@ -8421,7 +8421,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           },
           "shards": 4
         },
@@ -8439,7 +8439,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "voip_unittests",
@@ -8456,7 +8456,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Ubuntu-20.04"
+            "os": "Ubuntu-22.04"
           }
         },
         "test": "webrtc_nonparallel_tests",

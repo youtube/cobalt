@@ -21,12 +21,15 @@ class BrowserDelegateImpl : public BrowserDelegate {
   Browser& GetBrowser() const override;
   BrowserType GetType() const override;
   SessionID GetSessionID() const override;
+  const AccountId& GetAccountId() const override;
   bool IsOffTheRecord() const override;
   gfx::Rect GetBounds() const override;
   content::WebContents* GetActiveWebContents() const override;
   size_t GetWebContentsCount() const override;
   content::WebContents* GetWebContentsAt(size_t index) const override;
   aura::Window* GetNativeWindow() const override;
+  std::optional<webapps::AppId> GetAppId() const override;
+  bool IsWebApp() const override;
   bool IsClosing() const override;
   bool IsActive() const override;
   void Show() override;

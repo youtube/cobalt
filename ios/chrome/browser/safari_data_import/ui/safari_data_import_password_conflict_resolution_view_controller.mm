@@ -7,6 +7,8 @@
 #import "base/check_op.h"
 #import "ios/chrome/browser/safari_data_import/public/password_import_item.h"
 #import "ios/chrome/browser/safari_data_import/public/utils.h"
+#import "ios/chrome/browser/safari_data_import/ui/safari_data_import_import_stage_transition_handler.h"
+#import "ios/chrome/browser/safari_data_import/ui/safari_data_import_password_conflict_mutator.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_attributed_string_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_url_item.h"
@@ -122,8 +124,12 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
 }
 
 - (void)didTapContinueButton {
-  /// TODO(crbug.com/420703283): Actually import passwords with conflict
-  /// resolution decisions.
+  NSMutableArray<NSNumber*>* passwordIdentifiers = [NSMutableArray array];
+  for (NSIndexPath* indexPath in [self.tableView indexPathsForSelectedRows]) {
+    [passwordIdentifiers
+        addObject:[_dataSource itemIdentifierForIndexPath:indexPath]];
+  }
+  [self.mutator continueToImportPasswords:passwordIdentifiers];
   [self.presentingViewController dismissViewControllerAnimated:YES
                                                     completion:nil];
 }
@@ -171,17 +177,15 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
           indexPath.item);
   /// Populate cell with information.
   PasswordImportItem* item = _passwordConflicts[identifier.intValue];
-  cell.titleLabel.text = item.username;
-  cell.URLLabel.text = item.url;
+  cell.titleLabel.text = item.url;
+  cell.URLLabel.text = item.username;
   if (item.faviconAttributes) {
     [cell.faviconView configureWithAttributes:item.faviconAttributes];
   } else {
     __weak __typeof(self) weakSelf = self;
-    UIAction* completionHandler =
-        [UIAction actionWithHandler:^(UIAction* action) {
-          [weakSelf updateItemWithIdentifier:identifier];
-        }];
-    [item loadFaviconWithCompletionHandler:completionHandler];
+    [item loadFaviconWithCompletionHandler:^{
+      [weakSelf updateItemWithIdentifier:identifier];
+    }];
   }
   BOOL shouldUnmaskPassword =
       _shouldUnmaskPasswordAtIndex[identifier.intValue].boolValue;
@@ -248,11 +252,11 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
   [self updateSelectionButton];
 }
 
-/// Sets `_dataSource` and fill the table with data from `_passwordConflicts`.
+/// Sets `_dataSource` and fills the table with data from `_passwordConflicts`.
 - (void)initializeDataSourceAndTable {
   /// Set up data source.
   __weak __typeof(self) weakSelf = self;
-  UITableViewDiffableDataSourceCellProvider cellProvier = ^UITableViewCell*(
+  UITableViewDiffableDataSourceCellProvider cellProvider = ^UITableViewCell*(
       UITableView* tableView, NSIndexPath* indexPath,
       NSNumber* itemIdentifier) {
     CHECK_EQ(tableView, weakSelf.tableView);
@@ -260,7 +264,7 @@ NSString* const kSafariDataImportPasswordConflictResolutionSection =
   };
   _dataSource =
       [[UITableViewDiffableDataSource alloc] initWithTableView:self.tableView
-                                                  cellProvider:cellProvier];
+                                                  cellProvider:cellProvider];
   /// Initialize table.
   NSDiffableDataSourceSnapshot* snapshot =
       [[NSDiffableDataSourceSnapshot alloc] init];

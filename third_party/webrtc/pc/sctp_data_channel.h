@@ -11,13 +11,13 @@
 #ifndef PC_SCTP_DATA_CHANNEL_H_
 #define PC_SCTP_DATA_CHANNEL_H_
 
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
-#include <set>
 #include <string>
 
+#include "absl/functional/any_invocable.h"
 #include "api/data_channel_interface.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"

@@ -2580,7 +2580,7 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
 }
 
 // static
-Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
+Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
   DCHECK(!heap->using_initial_limit());
   heap->tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = heap->CurrentHeapGrowingMode();
@@ -2600,7 +2600,7 @@ Heap::LimitsCompuatationResult Heap::ComputeNewAllocationLimits(Heap* heap) {
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 heap, heap->max_global_memory_size_, embedder_gc_speed,
                 embedder_speed, mode)
-          : 0;
+          : BaseControllerTrait::kMinGrowingFactor;
 
   size_t new_space_capacity = heap->NewSpaceTargetCapacity();
 
@@ -3453,8 +3453,9 @@ bool Heap::CanMoveObjectStart(Tagged<HeapObject> object) {
 }
 
 bool Heap::IsImmovable(Tagged<HeapObject> object) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->NeverEvacuate() || chunk->IsLargePage();
+  const MemoryChunkMetadata* metadata =
+      MemoryChunk::FromHeapObject(object)->Metadata(isolate());
+  return metadata->never_evacuate() || metadata->is_large();
 }
 
 bool Heap::IsLargeObject(Tagged<HeapObject> object) {
@@ -6256,7 +6257,7 @@ void Heap::NotifyDeserializationComplete() {
   for (PagedSpace* s = spaces.Next(); s != nullptr; s = spaces.Next()) {
     // All pages right after bootstrapping must be marked as never-evacuate.
     for (PageMetadata* p : *s) {
-      DCHECK(p->Chunk()->NeverEvacuate());
+      DCHECK(p->never_evacuate());
     }
   }
 #endif  // DEBUG

@@ -4470,10 +4470,6 @@ auto GraphBuilderTflite::SerializeGather(const mojom::Gather& gather)
       GetOperand(gather.input_operand_id).descriptor));
   CHECK(context_properties_.data_type_limits.gather_indices.Supports(
       GetOperand(gather.indices_operand_id).descriptor));
-  ASSIGN_OR_RETURN(const TensorInfo& indices_tensor_info,
-                   SerializeInputTensorInfo(gather.indices_operand_id));
-  const TensorIndex indices_tensor_index =
-      CastGatherIndices(indices_tensor_info);
 
   // The WebNN axis option is uint32 data type, but TFLite axis needs int32
   // type, so the axis need to be validated here to not overflow.
@@ -4496,6 +4492,22 @@ auto GraphBuilderTflite::SerializeGather(const mojom::Gather& gather)
       fuse_dequantize
           ? quantized_output->index
           : SerializeOutputTensorInfo(gather.output_operand_id).index;
+
+  ASSIGN_OR_RETURN(const TensorInfo& indices_tensor_info,
+                   SerializeInputTensorInfo(gather.indices_operand_id));
+  TensorIndex indices_tensor_index;
+  if (indices_tensor_info.data_type == ::tflite::TensorType_UINT32 ||
+      indices_tensor_info.data_type == ::tflite::TensorType_INT64) {
+    ASSIGN_OR_RETURN(indices_tensor_index,
+                     SerializeGatherIndices<int64_t>(
+                         indices_tensor_info, input_tensor_info, gather.axis));
+  } else {
+    CHECK_EQ(indices_tensor_info.data_type, ::tflite::TensorType_INT32);
+    ASSIGN_OR_RETURN(indices_tensor_index,
+                     SerializeGatherIndices<int32_t>(
+                         indices_tensor_info, input_tensor_info, gather.axis));
+  }
+
   const OperatorCodeIndex operator_code_index =
       GetOperatorCodeIndex(::tflite::BuiltinOperator_GATHER);
   const std::array<TensorIndex, 2> op_inputs = {input_tensor_info.index,
@@ -4509,9 +4521,10 @@ auto GraphBuilderTflite::SerializeGather(const mojom::Gather& gather)
 }
 
 template <typename DataType>
-auto GraphBuilderTflite::SerializeGatherNDIndices(
+auto GraphBuilderTflite::SerializeGatherIndices(
     const TensorInfo& indices_tensor_info,
-    const TensorInfo& input_tensor_info)
+    const TensorInfo& input_tensor_info,
+    std::optional<uint32_t> gather_axis)
     -> base::expected<TensorIndex, std::string> {
   // The values in `indices` are computed at runtime, so they can exceed the
   // boundary of the `axis` dimension of input. If unchecked, such indices will
@@ -4519,19 +4532,32 @@ auto GraphBuilderTflite::SerializeGatherNDIndices(
   // to be in range of `-N` (inclusive) to `N` (exclusive), where `N =
   // input.dimensions[axis]`, but TFLite doesn't support the negative index
   // (index from the end of the `axis` dimension).
-  // TODO(crbug.com/373192621): Support negative indices to avoid the runtime
-  // error.
   const size_t indices_rank = indices_tensor_info.dimensions.size();
-  const size_t indices_nd = indices_tensor_info.dimensions[indices_rank - 1];
-  if (indices_nd == input_tensor_info.dimensions.size()) {
-    return base::unexpected(
-        "TFLite doesn't support to gather input into one dimension.");
-  }
+  const int32_t indices_nd =
+      gather_axis ? 1 : indices_tensor_info.dimensions[indices_rank - 1];
   base::FixedArray<DataType> min_values(indices_nd);
   base::FixedArray<DataType> max_values(indices_nd);
-  for (size_t axis = 0; axis < indices_nd; ++axis) {
-    min_values[axis] = -(input_tensor_info.dimensions[axis]);
-    max_values[axis] = input_tensor_info.dimensions[axis] - 1;
+  TensorIndex axis_boundary_tensor_index;
+  if (gather_axis) {
+    // Gather operation.
+    const DataType axis_boundary = input_tensor_info.dimensions[*gather_axis];
+    min_values[0] = -axis_boundary;
+    max_values[0] = axis_boundary - 1;
+    axis_boundary_tensor_index = SerializeTensorWithBuffer<DataType>(
+        /*buffer=*/std::array<DataType, 1>{axis_boundary},
+        /*dimensions=*/{});
+  } else {
+    // GatherND operation.
+    base::FixedArray<DataType> axes_boundary(indices_nd);
+    for (int32_t axis = 0; axis < indices_nd; ++axis) {
+      const DataType axis_boundary = input_tensor_info.dimensions[axis];
+      min_values[axis] = -axis_boundary;
+      max_values[axis] = axis_boundary - 1;
+      axes_boundary[axis] = axis_boundary;
+    }
+    axis_boundary_tensor_index = SerializeTensorWithBuffer<DataType>(
+        /*buffer=*/axes_boundary,
+        /*dimensions=*/{indices_nd});
   }
   TensorIndex indices_tensor_index = CastGatherIndices(indices_tensor_info);
   ::tflite::TensorType cast_tensor_type =
@@ -4545,7 +4571,28 @@ auto GraphBuilderTflite::SerializeGatherNDIndices(
                  indices_tensor_info.dimensions),
       clamp_tensor_index, min_values, max_values));
 
-  return clamp_tensor_index;
+  // Shift negative indices to positive by the subgraph `where(lesser(indices,
+  // constant(0)), indices, add(indices, constant(input.dimensions[axis])))`.
+  TensorIndex lesser_tensor_index = SerializeTemporaryTensor(
+      indices_tensor_info.dimensions, ::tflite::TensorType_BOOL);
+  const TensorIndex zero_value_tensor_index =
+      SerializeTensorWithBuffer<DataType>(
+          /*buffer=*/std::array<DataType, 1>{0},
+          /*dimensions=*/{});
+  operators_.emplace_back(SerializeBinaryOperation(
+      ::tflite::BuiltinOperator_LESS, clamp_tensor_index,
+      zero_value_tensor_index, lesser_tensor_index));
+  TensorIndex add_tensor_index = SerializeTemporaryTensor(
+      indices_tensor_info.dimensions, cast_tensor_type);
+  operators_.emplace_back(SerializeBinaryOperation(
+      ::tflite::BuiltinOperator_ADD, clamp_tensor_index,
+      axis_boundary_tensor_index, add_tensor_index));
+  TensorIndex where_tensor_index = SerializeTemporaryTensor(
+      indices_tensor_info.dimensions, cast_tensor_type);
+  operators_.emplace_back(
+      SerializeWhereOperation(lesser_tensor_index, add_tensor_index,
+                              clamp_tensor_index, where_tensor_index));
+  return where_tensor_index;
 }
 
 auto GraphBuilderTflite::SerializeGatherNDOperation(
@@ -4655,13 +4702,13 @@ auto GraphBuilderTflite::SerializeGatherND(const mojom::GatherND& gather_nd)
   if (indices_tensor_info.data_type == ::tflite::TensorType_UINT32 ||
       indices_tensor_info.data_type == ::tflite::TensorType_INT64) {
     ASSIGN_OR_RETURN(indices_tensor_index,
-                     SerializeGatherNDIndices<int64_t>(indices_tensor_info,
-                                                       input_tensor_info));
+                     SerializeGatherIndices<int64_t>(indices_tensor_info,
+                                                     input_tensor_info));
   } else {
     CHECK_EQ(indices_tensor_info.data_type, ::tflite::TensorType_INT32);
     ASSIGN_OR_RETURN(indices_tensor_index,
-                     SerializeGatherNDIndices<int32_t>(indices_tensor_info,
-                                                       input_tensor_info));
+                     SerializeGatherIndices<int32_t>(indices_tensor_info,
+                                                     input_tensor_info));
   }
 
   const TensorIndex output_tensor_index =
@@ -6250,8 +6297,10 @@ auto GraphBuilderTflite::SerializeMatmul(const mojom::Matmul& matmul)
 auto GraphBuilderTflite::SerializePad(const mojom::Pad& pad)
     -> base::expected<OperatorOffset, std::string> {
   CHECK_EQ(pad.beginning_padding.size(), pad.ending_padding.size());
+  const OperandDescriptor& input_descriptor =
+      GetOperand(pad.input_operand_id).descriptor;
   CHECK(context_properties_.data_type_limits.pad_input.Supports(
-      GetOperand(pad.input_operand_id).descriptor));
+      input_descriptor));
 
   std::vector<int32_t> paddings;
   paddings.resize(pad.beginning_padding.size() * 2);
@@ -6293,8 +6342,8 @@ auto GraphBuilderTflite::SerializePad(const mojom::Pad& pad)
       // that the constant value is 0.0f and the operator code is
       // BuiltinOperator_PAD.
       // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc;l=5025;drc=4e673771b1ee61f0e9f854e2d1420f353c67c401
-      const float constant_value = pad.mode->get_constant()->value;
-      if (constant_value == 0.0f) {
+      const MLNumber& constant_value = pad.mode->get_constant()->value;
+      if (constant_value.AsFloat32() == 0.0f) {
         operator_code = ::tflite::BuiltinOperator::BuiltinOperator_PAD;
         builtin_options_type =
             ::tflite::BuiltinOptions::BuiltinOptions_PadOptions;
@@ -6308,15 +6357,36 @@ auto GraphBuilderTflite::SerializePad(const mojom::Pad& pad)
       builtin_options = ::tflite::CreatePadV2Options(builder_).Union();
 
       // Add the padding value as an input.
-      //
-      // TODO: crbug.com/328567884 - This is not correct to always use floats,
-      // though for now WebNN only supports passing a float32 constant value.
-      // https://www.tensorflow.org/mlir/tfl_ops#tflpadv2_tflpadv2op specifies
-      // that this constant value should match the type of the input operand.
-      const std::array<float, 1> padding_value_buffer = {constant_value};
       const std::array<int32_t, 1> padding_value_dimensions = {1};
-      const TensorIndex padding_value_index = SerializeTensorWithBuffer<float>(
-          padding_value_buffer, padding_value_dimensions);
+      TensorIndex padding_value_index;
+      switch (input_descriptor.data_type()) {
+        case OperandDataType::kFloat16:
+          // The float16 data type has been cast to float32.
+          [[fallthrough]];
+        case OperandDataType::kFloat32:
+          padding_value_index = SerializeTensorWithBuffer<float>(
+              {constant_value.AsFloat32()}, padding_value_dimensions);
+          break;
+        case OperandDataType::kInt32:
+          padding_value_index = SerializeTensorWithBuffer<int32_t>(
+              {constant_value.AsInt32()}, padding_value_dimensions);
+          break;
+        case OperandDataType::kInt64:
+          padding_value_index = SerializeTensorWithBuffer<int64_t>(
+              {constant_value.AsInt64()}, padding_value_dimensions);
+          break;
+        case OperandDataType::kUint8:
+          padding_value_index = SerializeTensorWithBuffer<uint8_t>(
+              {constant_value.AsUint8()}, padding_value_dimensions);
+          break;
+        case OperandDataType::kUint32:
+        case OperandDataType::kInt8:
+        case OperandDataType::kUint64:
+        case OperandDataType::kInt4:
+        case OperandDataType::kUint4:
+          NOTREACHED() << "This data type is not supported by pad.";
+      }
+
       if (fuse_dequantize) {
         // The padding value should be quantized to the same data type of input
         // to meet the requirements of QDQ fusion and get the correct results.

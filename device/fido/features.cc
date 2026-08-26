@@ -148,16 +148,6 @@ BASE_FEATURE(kWebAuthnNewBfCacheHandling,
              "WebAuthenticationNewBfCacheHandling",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Default enabled in M134. Remove in or after M137.
-BASE_FEATURE(kWebAuthnNoAccountTimeout,
-             "WebAuthenticationNoAccountTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Default enabled in M134. Remove in or after M137.
-BASE_FEATURE(kSyncSecurityDomainBeforePINRenewal,
-             "kWebAuthenticationSyncSecurityDomainBeforePINRenewal",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Default enabled in M135. Remove in or after M138.
 BASE_FEATURE(kWebAuthnMicrosoftSoftwareUnexportableKeyProvider,
              "WebAuthenticationMicrosoftSoftwareUnexportableKeyProvider",
@@ -225,5 +215,10 @@ BASE_FEATURE(kWebAuthnLargeBlobForGPM,
 BASE_FEATURE(kWebAuthnSendPinGeneration,
              "WebAuthenticationSendPinGeneration",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Not yet enabled by default.
+BASE_FEATURE(kWebAuthnWrapCohortData,
+             "WebAuthenticationWrapCohortData",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace device

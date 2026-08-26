@@ -586,7 +586,7 @@ void CallTest::CreateVideoSendStreams() {
 
   // We currently only support testing external fec controllers with a single
   // VideoSendStream.
-  if (fec_controller_factory_.get()) {
+  if (fec_controller_factory_) {
     RTC_DCHECK_LE(video_send_configs_.size(), 1);
   }
 
@@ -606,7 +606,7 @@ void CallTest::CreateVideoSendStreams() {
   video_send_streams_.resize(video_send_configs_.size(), nullptr);
 
   for (size_t i : streams_creation_order) {
-    if (fec_controller_factory_.get()) {
+    if (fec_controller_factory_) {
       video_send_streams_[i] = sender_call_->CreateVideoSendStream(
           video_send_configs_[i].Copy(), video_encoder_configs_[i].Copy(),
           fec_controller_factory_->CreateFecController(send_env_));

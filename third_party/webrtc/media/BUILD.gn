@@ -743,8 +743,8 @@ if (rtc_build_dcsctp) {
       "../api:rtc_error",
       "../api:sequence_checker",
       "../api/environment",
+      "../api/task_queue",
       "../api/task_queue:pending_task_safety_flag",
-      "../api/task_queue:task_queue",
       "../api/transport:datagram_transport_interface",
       "../net/dcsctp/public:factory",
       "../net/dcsctp/public:socket",
@@ -765,9 +765,9 @@ if (rtc_build_dcsctp) {
       "../rtc_base:threading",
       "../rtc_base/containers:flat_map",
       "../rtc_base/network:received_packet",
-      "../rtc_base/third_party/sigslot:sigslot",
+      "../rtc_base/third_party/sigslot",
       "../system_wrappers",
-      "//third_party/abseil-cpp/absl/strings:strings",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
 }

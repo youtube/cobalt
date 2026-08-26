@@ -263,21 +263,21 @@ DEF_TEST(pathbuilder_addRRect, reporter) {
 
 DEF_TEST(pathbuilder_make, reporter) {
     constexpr int N = 100;
-    uint8_t vbs[N];
+    SkPathVerb vbs[N];
     SkPoint pts[N];
 
     SkRandom rand;
     SkPathBuilder b;
     b.moveTo(0, 0);
-    pts[0] = {0, 0}; vbs[0] = (uint8_t)SkPathVerb::kMove;
+    pts[0] = {0, 0}; vbs[0] = SkPathVerb::kMove;
     for (int i = 1; i < N; ++i) {
         float x = rand.nextF();
         float y = rand.nextF();
         b.lineTo(x, y);
-        pts[i] = {x, y}; vbs[i] = (uint8_t)SkPathVerb::kLine;
+        pts[i] = {x, y}; vbs[i] = SkPathVerb::kLine;
     }
     auto p0 = b.detach();
-    auto p1 = SkPath::Make(pts, vbs, {}, p0.getFillType());
+    auto p1 = SkPath::Raw(pts, vbs, {}, p0.getFillType());
     REPORTER_ASSERT(reporter, p0 == p1);
 }
 
@@ -348,12 +348,12 @@ static void test_addPathMode(skiatest::Reporter* reporter, bool explicitMoveTo, 
     }
     q.lineTo(2, 2);
     p.addPath(q.snapshot(), extend ? SkPath::kExtend_AddPathMode : SkPath::kAppend_AddPathMode);
-    SkSpan<const uint8_t> verbs = SkPathPriv::GetVerbs(p);
-    REPORTER_ASSERT(reporter, SkPathPriv::CountVerbs(p) == 4);
-    REPORTER_ASSERT(reporter, verbs[0] == SkPath::kMove_Verb);
-    REPORTER_ASSERT(reporter, verbs[1] == SkPath::kLine_Verb);
-    REPORTER_ASSERT(reporter, verbs[2] == (extend ? SkPath::kLine_Verb : SkPath::kMove_Verb));
-    REPORTER_ASSERT(reporter, verbs[3] == SkPath::kLine_Verb);
+    auto verbs = SkPathPriv::GetVerbs(p);
+    REPORTER_ASSERT(reporter, verbs.size() == 4);
+    REPORTER_ASSERT(reporter, verbs[0] == SkPathVerb::kMove);
+    REPORTER_ASSERT(reporter, verbs[1] == SkPathVerb::kLine);
+    REPORTER_ASSERT(reporter, verbs[2] == (extend ? SkPathVerb::kLine : SkPathVerb::kMove));
+    REPORTER_ASSERT(reporter, verbs[3] == SkPathVerb::kLine);
 }
 
 static void test_extendClosedPath(skiatest::Reporter* reporter) {
@@ -365,15 +365,15 @@ static void test_extendClosedPath(skiatest::Reporter* reporter) {
     q.moveTo(2, 1);
     q.lineTo(2, 3);
     p.addPath(q.detach(), SkPath::kExtend_AddPathMode);
-    SkSpan<const uint8_t> verbs = SkPathPriv::GetVerbs(p);
-    REPORTER_ASSERT(reporter, SkPathPriv::CountVerbs(p) == 7);
-    REPORTER_ASSERT(reporter, verbs[0] == SkPath::kMove_Verb);
-    REPORTER_ASSERT(reporter, verbs[1] == SkPath::kLine_Verb);
-    REPORTER_ASSERT(reporter, verbs[2] == SkPath::kLine_Verb);
-    REPORTER_ASSERT(reporter, verbs[3] == SkPath::kClose_Verb);
-    REPORTER_ASSERT(reporter, verbs[4] == SkPath::kMove_Verb);
-    REPORTER_ASSERT(reporter, verbs[5] == SkPath::kLine_Verb);
-    REPORTER_ASSERT(reporter, verbs[6] == SkPath::kLine_Verb);
+    auto verbs = SkPathPriv::GetVerbs(p);
+    REPORTER_ASSERT(reporter, verbs.size() == 7);
+    REPORTER_ASSERT(reporter, verbs[0] == SkPathVerb::kMove);
+    REPORTER_ASSERT(reporter, verbs[1] == SkPathVerb::kLine);
+    REPORTER_ASSERT(reporter, verbs[2] == SkPathVerb::kLine);
+    REPORTER_ASSERT(reporter, verbs[3] == SkPathVerb::kClose);
+    REPORTER_ASSERT(reporter, verbs[4] == SkPathVerb::kMove);
+    REPORTER_ASSERT(reporter, verbs[5] == SkPathVerb::kLine);
+    REPORTER_ASSERT(reporter, verbs[6] == SkPathVerb::kLine);
 
     std::optional<SkPoint> pt = p.getLastPt();
     REPORTER_ASSERT(reporter, pt.has_value());
@@ -768,8 +768,8 @@ DEF_TEST(SkPathBuilder_cleaning, reporter) {
 
     auto verbs = b.verbs();
     REPORTER_ASSERT(reporter, verbs.size() == 2);
-    REPORTER_ASSERT(reporter, verbs[0] == (uint8_t)SkPathVerb::kMove);
-    REPORTER_ASSERT(reporter, verbs[1] == (uint8_t)SkPathVerb::kClose);
+    REPORTER_ASSERT(reporter, verbs[0] == SkPathVerb::kMove);
+    REPORTER_ASSERT(reporter, verbs[1] == SkPathVerb::kClose);
 
     auto pts = b.points();
     REPORTER_ASSERT(reporter, pts.size() == 1);
@@ -808,31 +808,26 @@ DEF_TEST(SkPathBuilder_path_roundtrip, reporter) {
         }
 
 
-        SkRect rect[2];
-        SkRRect rrect[2];
-        SkPathDirection dir[2];
-        unsigned start_index[2];
-
-        const bool is_oval[] = {
-            SkPathPriv::IsOval(path, &rect[0], &dir[0], &start_index[0]),
-            SkPathPriv::IsOval(rpath, &rect[1], &dir[1], &start_index[1])
+        const std::optional<SkPathOvalInfo> is_oval[] = {
+            SkPathPriv::IsOval(path),
+            SkPathPriv::IsOval(rpath)
         };
-        REPORTER_ASSERT(reporter, is_oval[0] == is_oval[1]);
+        REPORTER_ASSERT(reporter, is_oval[0].has_value() == is_oval[1].has_value());
         if (is_oval[0] && is_oval[1]) {
-            REPORTER_ASSERT(reporter, rect[0] == rect[1]);
-            REPORTER_ASSERT(reporter, dir[0] == dir[1]);
-            REPORTER_ASSERT(reporter, start_index[0] == start_index[1]);
+            REPORTER_ASSERT(reporter, is_oval[0]->fBounds     == is_oval[1]->fBounds);
+            REPORTER_ASSERT(reporter, is_oval[0]->fDirection  == is_oval[1]->fDirection);
+            REPORTER_ASSERT(reporter, is_oval[0]->fStartIndex == is_oval[1]->fStartIndex);
         }
 
-        const bool is_rrect[] = {
-            SkPathPriv::IsRRect(path, &rrect[0], &dir[0], &start_index[0]),
-            SkPathPriv::IsRRect(rpath, &rrect[1], &dir[1], &start_index[1])
+        const std::optional<SkPathRRectInfo> is_rrect[] = {
+            SkPathPriv::IsRRect(path),
+            SkPathPriv::IsRRect(rpath)
         };
-        REPORTER_ASSERT(reporter, is_rrect[0] == is_rrect[1]);
+        REPORTER_ASSERT(reporter, is_rrect[0].has_value() == is_rrect[1].has_value());
         if (is_rrect[0] && is_rrect[1]) {
-            REPORTER_ASSERT(reporter, rrect[0] == rrect[1]);
-            REPORTER_ASSERT(reporter, dir[0] == dir[1]);
-            REPORTER_ASSERT(reporter, start_index[0] == start_index[1]);
+            REPORTER_ASSERT(reporter, is_rrect[0]->fRRect      == is_rrect[1]->fRRect);
+            REPORTER_ASSERT(reporter, is_rrect[0]->fDirection  == is_rrect[1]->fDirection);
+            REPORTER_ASSERT(reporter, is_rrect[0]->fStartIndex == is_rrect[1]->fStartIndex);
         }
     };
 
@@ -846,4 +841,63 @@ DEF_TEST(SkPathBuilder_path_roundtrip, reporter) {
                       .quadTo({0, 0}, {0, 100})
                       .close()
                       .detach());
+}
+
+static void check_move(skiatest::Reporter* reporter, SkPathRaw::Iter* iter,
+                       SkScalar x0, SkScalar y0) {
+    auto rec = iter->next().value();
+    REPORTER_ASSERT(reporter, rec.vrb == SkPathVerb::kMove);
+    REPORTER_ASSERT(reporter, rec.pts[0].fX == x0);
+    REPORTER_ASSERT(reporter, rec.pts[0].fY == y0);
+}
+
+static void check_line(skiatest::Reporter* reporter, SkPathRaw::Iter* iter,
+                       SkScalar x1, SkScalar y1) {
+    auto rec = iter->next().value();
+    REPORTER_ASSERT(reporter, rec.vrb == SkPathVerb::kLine);
+    REPORTER_ASSERT(reporter, rec.pts[1].fX == x1);
+    REPORTER_ASSERT(reporter, rec.pts[1].fY == y1);
+}
+
+static void check_close(skiatest::Reporter* reporter, SkPathRaw::Iter* iter) {
+    auto rec = iter->next().value();
+    REPORTER_ASSERT(reporter, rec.vrb == SkPathVerb::kClose);
+}
+
+static void check_done(skiatest::Reporter* reporter, SkPathBuilder* p, SkPathRaw::Iter* iter) {
+    REPORTER_ASSERT(reporter, !iter->next().has_value());
+}
+
+static void check_done_and_reset(skiatest::Reporter* reporter, SkPathBuilder* p,
+                                 SkPathRaw::Iter* iter) {
+    check_done(reporter, p, iter);
+    p->reset();
+}
+
+DEF_TEST(SkPathBuilder_rMoveTo, reporter) {
+    SkPathBuilder p;
+    p.moveTo(10, 11);
+    p.lineTo(20, 21);
+    p.close();
+    p.rMoveTo({30, 31});
+    SkPathRaw::Iter iter = SkPathRaw::Iter(p.points(), p.verbs(), {} /* no conics */);
+    check_move(reporter, &iter, 10, 11);
+    check_line(reporter, &iter, 20, 21);
+    check_close(reporter, &iter);
+    check_move(reporter, &iter, 10 + 30, 11 + 31);
+    check_done_and_reset(reporter, &p, &iter);
+
+    p.moveTo(10, 11);
+    p.lineTo(20, 21);
+    p.rMoveTo({30, 31});
+    iter = SkPathRaw::Iter(p.points(), p.verbs(), {} /* no conics */);
+    check_move(reporter, &iter, 10, 11);
+    check_line(reporter, &iter, 20, 21);
+    check_move(reporter, &iter, 20 + 30, 21 + 31);
+    check_done_and_reset(reporter, &p, &iter);
+
+    p.rMoveTo({30, 31});
+    iter = SkPathRaw::Iter(p.points(), p.verbs(), {} /* no conics */);
+    check_move(reporter, &iter, 30, 31);
+    check_done_and_reset(reporter, &p, &iter);
 }

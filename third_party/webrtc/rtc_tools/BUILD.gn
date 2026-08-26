@@ -215,11 +215,11 @@ if (!is_component_build) {
       "../test:video_frame_writer",
       "../test:video_test_common",
       "../test:video_test_constants",
-      "../test/time_controller:time_controller",
+      "../test/time_controller",
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
+      "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/strings:str_format",
-      "//third_party/abseil-cpp/absl/strings:strings",
     ]
     if (build_with_chromium) {
       # When building from Chromium, WebRTC's metrics and field trial
@@ -318,7 +318,7 @@ if (!build_with_chromium) {
         "../api/environment",
         "../api/environment:environment_factory",
         "../api/neteq:neteq_api",
-        "../api/rtc_event_log:rtc_event_log",
+        "../api/rtc_event_log",
         "../api/transport:bandwidth_usage",
         "../api/transport:ecn_marking",
         "../api/transport:goog_cc",
@@ -425,7 +425,7 @@ if (!build_with_chromium) {
       "//api/video_codecs:builtin_video_decoder_factory",
       "//api/video_codecs:builtin_video_encoder_factory",
       "//api/video_codecs:video_codecs_api",
-      "//common_video:common_video",
+      "//common_video",
       "//media:media_constants",
       "//modules/video_coding:video_codec_interface",
       "//modules/video_coding:video_coding_utility",
@@ -436,7 +436,7 @@ if (!build_with_chromium) {
       "//third_party/abseil-cpp/absl/flags:flag",
       "//third_party/abseil-cpp/absl/flags:parse",
       "//third_party/abseil-cpp/absl/flags:usage",
-      "//third_party/abseil-cpp/absl/strings:strings",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
 }

@@ -120,7 +120,7 @@ if (rtc_include_tests) {
       ":reassembly_streams",
       ":traditional_reassembly_streams",
       "../../../api:array_view",
-      "../../../api/task_queue:task_queue",
+      "../../../api/task_queue",
       "../../../api/units:time_delta",
       "../../../api/units:timestamp",
       "../../../rtc_base:checks",

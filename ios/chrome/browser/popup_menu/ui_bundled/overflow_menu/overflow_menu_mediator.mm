@@ -711,7 +711,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     self.AIPrototypeAction = [self openAIPrototypeAction];
   }
 
-  if ([self isAIHubAvailable]) {
+  if ([self isGeminiAvailable]) {
     self.askBWGAction = [self openAskBWGAction];
   }
 
@@ -762,7 +762,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 - (OverflowMenuAction*)toggleReaderModeAction {
   ReaderModeTabHelper* tabHelper =
       ReaderModeTabHelper::FromWebState(self.webState);
-  BOOL isReaderModeActive = tabHelper->IsActive();
+  BOOL isReaderModeActive = tabHelper && tabHelper->IsActive();
   int nameID = isReaderModeActive ? IDS_IOS_TOOLS_MENU_HIDE_READER_MODE
                                   : IDS_IOS_TOOLS_MENU_READER_MODE;
   __weak __typeof(self) weakSelf = self;
@@ -1482,24 +1482,21 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
   // The "Add to Reading List" functionality requires JavaScript execution,
   // which is paused while overlays are displayed over the web content area.
-  self.readLaterAction.enabled = !self.webContentAreaShowingOverlay &&
-                                 [self isCurrentURLWebURL] &&
-                                 !isReaderModeActive;
+  self.readLaterAction.enabled =
+      !self.webContentAreaShowingOverlay && [self isCurrentURLWebURL];
 
   BOOL bookmarkEnabled =
       [self isCurrentURLWebURL] && [self isEditBookmarksEnabled];
-  self.addBookmarkAction.enabled = bookmarkEnabled && !isReaderModeActive;
-  self.editBookmarkAction.enabled = bookmarkEnabled && !isReaderModeActive;
+  self.addBookmarkAction.enabled = bookmarkEnabled;
+  self.editBookmarkAction.enabled = bookmarkEnabled;
   self.translateAction.enabled =
       [self isTranslateEnabled] && !isReaderModeActive;
-  self.findInPageAction.enabled =
-      [self isFindInPageEnabled] && !isReaderModeActive;
+  self.findInPageAction.enabled = [self isFindInPageEnabled];
   self.textZoomAction.enabled = [self isTextZoomEnabled] && !isReaderModeActive;
   self.requestDesktopAction.enabled =
-      [self userAgentType] == web::UserAgentType::MOBILE && !isReaderModeActive;
+      [self userAgentType] == web::UserAgentType::MOBILE;
   self.requestMobileAction.enabled =
-      [self userAgentType] == web::UserAgentType::DESKTOP &&
-      !isReaderModeActive;
+      [self userAgentType] == web::UserAgentType::DESKTOP;
 
   // Enable/disable items based on enterprise policies.
   self.openTabAction.enterpriseDisabled =
@@ -1630,16 +1627,21 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     return NO;
   }
 
-  // Reader Mode is always enabled in the Overflow menu if the triggering
-  // heuristic is disabled.
-  if (!base::FeatureList::IsEnabled(
-          kEnableReaderModePageEligibilityForToolsMenu)) {
-    return YES;
-  }
-
   ReaderModeTabHelper* helper =
       ReaderModeTabHelper::FromWebState(self.webState);
-  return helper && helper->CurrentPageSupportsReaderMode();
+  if (!helper || helper->CurrentPageDistillationAlreadyFailed()) {
+    return NO;
+  }
+
+  // If `kEnableReaderModePageEligibilityForToolsMenu` is enabled then not only
+  // the page needs to support Reader mode, but it needs to be probably
+  // distillable according to the heuristic.
+  if (base::FeatureList::IsEnabled(
+          kEnableReaderModePageEligibilityForToolsMenu)) {
+    return helper->CurrentPageIsDistillable();
+  } else {
+    return helper->CurrentPageIsEligibleForReaderMode();
+  }
 }
 
 // Whether or not text zoom is enabled for this page.
@@ -1767,8 +1769,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }
 }
 
-/// Returns whether the AI Hub is currently available for the web state.
-- (BOOL)isAIHubAvailable {
+/// Returns whether the Ask Gemini feature is currently available for the web
+/// state.
+- (BOOL)isGeminiAvailable {
   if (!IsPageActionMenuEnabled()) {
     return NO;
   }
@@ -2119,7 +2122,6 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     actions.push_back(overflow_menu::ActionType::SetTabReminder);
   }
 
-  actions.push_back(overflow_menu::ActionType::Follow);
   actions.push_back(overflow_menu::ActionType::Bookmark);
   actions.push_back(overflow_menu::ActionType::ReadingList);
   actions.push_back(overflow_menu::ActionType::ClearBrowsingData);
@@ -2136,7 +2138,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     actions.push_back(overflow_menu::ActionType::AIPrototype);
   }
 
-  if ([self isAIHubAvailable]) {
+  if ([self isGeminiAvailable]) {
     actions.push_back(overflow_menu::ActionType::AskBWG);
   }
 
@@ -2504,7 +2506,12 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Sets the Reader mode UI visibility.
 - (void)setReaderModeVisibility:(BOOL)visible {
-  ReaderModeTabHelper::FromWebState(self.webState)->SetActive(visible);
+  if (visible) {
+    [self.readerModeHandler
+        showReaderModeFromAccessPoint:ReaderModeAccessPoint::kToolsMenu];
+  } else {
+    [self.readerModeHandler hideReaderMode];
+  }
   [self dismissMenu];
 }
 

@@ -67,10 +67,11 @@ class AutofillAiManager {
 
   virtual void OnSuggestionsShown(const FormStructure& form,
                                   const AutofillField& field,
+                                  DenseSet<EntityType> suggested_entity_types,
                                   ukm::SourceId ukm_source_id);
   virtual void OnFormSeen(const FormStructure& form);
   virtual void OnDidFillSuggestion(
-      const base::Uuid& guid,
+      const EntityInstance& entity,
       const FormStructure& form,
       const AutofillField& field,
       base::span<const AutofillField* const> filled_fields,

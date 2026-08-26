@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_picker_action_sheet_coordinator.h"
 
 #import "components/image_fetcher/core/image_fetcher_service.h"
+#import "ios/chrome/browser/google/model/google_logo_service_factory.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_color_picker_mediator.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_photo_picker_coordinator.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_background_picker_action_sheet_mediator.h"
@@ -19,13 +20,17 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_photo_library_picker_view_controller.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_action_sheet_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_preset_gallery_picker_view_controller.h"
-#import "ios/chrome/browser/home_customization/ui/home_customization_logo_vendor_provider.h"
+#import "ios/chrome/browser/home_customization/ui/home_customization_search_engine_logo_mediator_provider.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 #import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/mediator/search_engine_logo_mediator.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/grit/ios_strings.h"
-#import "ios/public/provider/chrome/browser/ui_utils/ui_utils_api.h"
+#import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
@@ -40,10 +45,10 @@ CGFloat const kSheetCornerRadius = 30;
 }  // namespace
 
 @interface HomeCustomizationBackgroundPickerActionSheetCoordinator () <
-    UIAdaptivePresentationControllerDelegate,
-    HomeCustomizationLogoVendorProvider,
+    HomeCustomizationBackgroundPhotoPickerCoordinatorDelegate,
     HomeCustomizationBackgroundPickerActionSheetPresentationDelegate,
-    HomeCustomizationBackgroundPhotoPickerCoordinatorDelegate> {
+    HomeCustomizationSearchEngineLogoMediatorProvider,
+    UIAdaptivePresentationControllerDelegate> {
   // The mediator of the background picker action sheet.
   HomeCustomizationBackgroundPickerActionSheetMediator* _mediator;
 
@@ -92,11 +97,14 @@ CGFloat const kSheetCornerRadius = 30;
       initWithHomeBackgroundCustomizationService:
           homeBackgroundCustomizationService];
   _backgroundColorPickerMediator =
-      [[HomeCustomizationBackgroundColorPickerMediator alloc] init];
+      [[HomeCustomizationBackgroundColorPickerMediator alloc]
+          initWithBackgroundCustomizationService:
+              homeBackgroundCustomizationService];
   _backgroundPresetGalleryPickerMediator =
       [[HomeCustomizationBackgroundPresetGalleryPickerMediator alloc]
-          initWithImageFetcherService:imageFetcherService
-           homeBackgroundImageService:homeBackgroundImageService];
+             initWithImageFetcherService:imageFetcherService
+              homeBackgroundImageService:homeBackgroundImageService
+          backgroundCustomizationService:homeBackgroundCustomizationService];
 
   [self
       addItemWithTitle:
@@ -142,11 +150,28 @@ CGFloat const kSheetCornerRadius = 30;
   [super stop];
 }
 
-#pragma mark - HomeCustomizationLogoVendorProvider
+#pragma mark - HomeCustomizationSearchEngineLogoMediatorProvider
 
-- (id<LogoVendor>)provideLogoVendor {
-  return ios::provider::CreateLogoVendor(
-      self.browser, self.browser->GetWebStateList()->GetActiveWebState());
+- (SearchEngineLogoMediator*)provideSearchEngineLogoMediator {
+  ProfileIOS* profile = self.browser->GetProfile();
+  web::WebState* webState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  TemplateURLService* templateURLService =
+      ios::TemplateURLServiceFactory::GetForProfile(profile);
+  GoogleLogoService* logoService =
+      GoogleLogoServiceFactory::GetForProfile(profile);
+  UrlLoadingBrowserAgent* URLLoadingBrowserAgent =
+      UrlLoadingBrowserAgent::FromBrowser(self.browser);
+  scoped_refptr<network::SharedURLLoaderFactory> sharedURLLoaderFactory =
+      profile->GetSharedURLLoaderFactory();
+  BOOL offTheRecord = profile->IsOffTheRecord();
+  return
+      [[SearchEngineLogoMediator alloc] initWithWebState:webState
+                                      templateURLService:templateURLService
+                                             logoService:logoService
+                                  URLLoadingBrowserAgent:URLLoadingBrowserAgent
+                                  sharedURLLoaderFactory:sharedURLLoaderFactory
+                                            offTheRecord:offTheRecord];
 }
 
 #pragma mark - HomeCustomizationBackgroundPickerActionSheetPresentationDelegate
@@ -272,7 +297,7 @@ CGFloat const kSheetCornerRadius = 30;
       mainViewController =
           [[HomeCustomizationBackgroundPresetGalleryPickerViewController alloc]
               init];
-  mainViewController.logoVendorProvider = self;
+  mainViewController.searchEngineLogoMediatorProvider = self;
   mainViewController.presentationDelegate = self;
   mainViewController.mutator = _backgroundPresetGalleryPickerMediator;
   return mainViewController;

@@ -61,7 +61,7 @@ namespace {
 // ASSERT_* macros can only be used in functions returning void.
 void AssertResultIsString(const content::EvalJsResult& result) {
   // Verify no error.
-  ASSERT_EQ("", result.error);
+  ASSERT_TRUE(result.is_ok());
   // We could use result.value.is_string(), but this logs the actual type in
   // case of mismatch.
   std::ignore = result.ExtractString();
@@ -870,7 +870,7 @@ IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
 
   content::EvalJsResult result = content::EvalJs(
       embedder_contents, "history.pushState({}, {}, 'https://chromium.org');");
-  EXPECT_EQ(std::string(), result.error);
+  EXPECT_TRUE(result.is_ok());
   EXPECT_EQ("https://chromium.org/", main_rfh->GetLastCommittedURL().spec());
   EXPECT_TRUE(main_rfh->GetLastCommittedOrigin().GetURL().SchemeIsFile());
 
@@ -915,7 +915,7 @@ IN_PROC_BROWSER_TEST_F(PermissionsSecurityModelInteractiveUITest,
 
   content::EvalJsResult result = content::EvalJs(
       embedder_contents, "history.pushState({}, {}, 'about:blank');");
-  EXPECT_EQ(std::string(), result.error);
+  EXPECT_TRUE(result.is_ok());
   EXPECT_EQ("about:blank", main_rfh->GetLastCommittedURL().spec());
   EXPECT_TRUE(main_rfh->GetLastCommittedURL().IsAboutBlank());
 
@@ -1615,7 +1615,7 @@ IN_PROC_BROWSER_TEST_F(PermissionRequestWithPrerendererTest,
   content::EvalJsResult results =
       content::EvalJs(prerender_render_frame_host, "eventsSeen");
   std::vector<std::string> eventsSeen;
-  base::Value::List results_list = results.ExtractList();
+  const base::Value::List& results_list = results.ExtractList();
   for (const auto& result : results_list) {
     eventsSeen.push_back(result.GetString());
   }

@@ -820,7 +820,7 @@ void AudioProcessingImpl::HandleCaptureOutputUsedSetting(
   capture_.capture_output_used =
       capture_output_used || !constants_.minimize_processing_for_unused_output;
 
-  if (submodules_.agc_manager.get()) {
+  if (submodules_.agc_manager) {
     submodules_.agc_manager->HandleCaptureOutputUsedChange(
         capture_.capture_output_used);
   }
@@ -2044,9 +2044,8 @@ void AudioProcessingImpl::InitializeGainController1() {
     return;
   }
 
-  if (!submodules_.agc_manager.get() ||
-      submodules_.agc_manager->num_channels() !=
-          static_cast<int>(num_proc_channels())) {
+  if (!submodules_.agc_manager || submodules_.agc_manager->num_channels() !=
+                                      static_cast<int>(num_proc_channels())) {
     int stream_analog_level = -1;
     const bool re_creation = !!submodules_.agc_manager;
     if (re_creation) {

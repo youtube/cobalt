@@ -46,14 +46,15 @@ class AutofillBubbleControllerBase : public content::WebContentsObserver {
   // potentially log metrics.
   virtual void DoShowBubble() = 0;
 
-  void Show();
-
-  void UpdatePageActionIcon();
+  virtual void UpdatePageActionIcon();
 
   AutofillBubbleBase* bubble_view() const { return bubble_view_; }
   void set_bubble_view(AutofillBubbleBase* bubble_view) {
     bubble_view_ = bubble_view;
   }
+
+  // Shows the bubbles.
+  void ShowBubble();
 
   // Remove the |bubble_view_| and hide the bubble.
   void HideBubble();

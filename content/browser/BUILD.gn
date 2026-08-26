@@ -44,8 +44,8 @@ if (is_android) {
     ]
     deps = [
       "//third_party/rust/font_types/v0_9:lib",
-      "//third_party/rust/read_fonts/v0_30:lib",
-      "//third_party/rust/skrifa/v0_32:lib",
+      "//third_party/rust/read_fonts/v0_31:lib",
+      "//third_party/rust/skrifa/v0_33:lib",
     ]
   }
 }
@@ -77,6 +77,13 @@ source_set("browser") {
     visibility += [
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
+    ]
+  }
+
+  if (use_fuzzing_engine && is_android) {
+    visibility += [
+      ":*",
+      "//content/test/fuzzer:*",
     ]
   }
 
@@ -211,7 +218,6 @@ source_set("browser") {
     "//media:media_buildflags",
     "//media/capture",
     "//media/capture:capture_switches",
-    "//media/learning/impl",
     "//media/midi",
     "//media/midi:mojo",
     "//media/mojo:buildflags",
@@ -1389,8 +1395,6 @@ source_set("browser") {
     "media/audio_stream_broker_impl.h",
     "media/audio_stream_monitor.cc",
     "media/audio_stream_monitor.h",
-    "media/browser_feature_provider.cc",
-    "media/browser_feature_provider.h",
     "media/capture/desktop_capture_device_uma_types.cc",
     "media/capture/desktop_capture_device_uma_types.h",
     "media/capture/desktop_streams_registry_impl.cc",
@@ -1586,6 +1590,8 @@ source_set("browser") {
     "picture_in_picture/video_picture_in_picture_window_controller_impl.h",
     "preloading/anchor_element_interaction_host_impl.cc",
     "preloading/anchor_element_interaction_host_impl.h",
+    "preloading/preconnect_manager_impl.cc",
+    "preloading/preconnect_manager_impl.h",
     "preloading/preconnector.cc",
     "preloading/preconnector.h",
     "preloading/prefetch/contamination_delay_navigation_throttle.cc",
@@ -1694,9 +1700,13 @@ source_set("browser") {
     "preloading/prerender/prerender_subframe_navigation_throttle.h",
     "preloading/prerender/prerender_url_loader_throttle.cc",
     "preloading/prerender/prerender_url_loader_throttle.h",
+    "preloading/prerender/reserved_prerender_host_info.cc",
+    "preloading/prerender/reserved_prerender_host_info.h",
     "preloading/prerenderer.h",
     "preloading/prerenderer_impl.cc",
     "preloading/prerenderer_impl.h",
+    "preloading/resolve_host_client_impl.cc",
+    "preloading/resolve_host_client_impl.h",
     "preloading/speculation_rules/speculation_host_impl.cc",
     "preloading/speculation_rules/speculation_host_impl.h",
     "preloading/speculation_rules/speculation_rules_params.cc",
@@ -2917,6 +2927,7 @@ source_set("browser") {
       "renderer_host/render_widget_host_view_ios.mm",
       "renderer_host/web_menu_runner_ios.h",
       "renderer_host/web_menu_runner_ios.mm",
+      "web_contents/web_contents_impl_ios.mm",
       "web_contents/web_contents_view_ios.h",
       "web_contents/web_contents_view_ios.mm",
     ]

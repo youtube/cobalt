@@ -16,7 +16,6 @@
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 namespace webrtc {
 template <typename IdStruct>

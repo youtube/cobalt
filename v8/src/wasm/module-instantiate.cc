@@ -105,7 +105,8 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
                              num_supertypes, type.is_shared);
       break;
     case TypeDefinition::kCont:
-      UNIMPLEMENTED();
+      map = CreateContRefMap(isolate, canonical_type_index);
+      break;
   }
   canonical_rtts->set(canonical_type_index.index, MakeWeak(*map));
   maybe_shared_maps->set(type_index.index, *map);
@@ -719,7 +720,10 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   Isolate* isolate = Isolate::Current();
   if (IsWasmSuspendingObject(*callable_)) {
     suspend_ = kSuspend;
-    SetCallable(isolate, Cast<WasmSuspendingObject>(*callable_)->callable());
+    callable_ =
+        handle(Cast<WasmSuspendingObject>(*callable_)->callable(), isolate);
+    return IsJSFunction(*callable_) ? ImportCallKind::kJSFunction
+                                    : ImportCallKind::kUseCallBuiltin;
   }
   if (!trusted_function_data_.is_null() &&
       IsWasmExportedFunctionData(*trusted_function_data_)) {
@@ -789,7 +793,6 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
   // can be used instead of a compiled wrapper; but that requires adding
   // support for calling bound functions to the generic wrapper first.
 
-  // For JavaScript calls, determine whether the target has an arity match.
   if (IsJSFunction(*callable_)) {
     auto function = Cast<JSFunction>(callable_);
     DirectHandle<SharedFunctionInfo> shared(function->shared(), isolate);
@@ -2930,14 +2933,11 @@ void InstanceBuilder::ProcessExports() {
       trusted_data_->instance_object(), isolate_};
   DirectHandle<JSObject> exports_object =
       direct_handle(instance_object->exports_object(), isolate_);
-  MaybeDirectHandle<String> single_function_name;
   bool is_asm_js = is_asmjs_module(module_);
   if (is_asm_js) {
     DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
         isolate_->native_context()->object_function(), isolate_);
     exports_object = isolate_->factory()->NewJSObject(object_function);
-    single_function_name =
-        isolate_->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName);
     instance_object->set_exports_object(*exports_object);
   }
 
@@ -2976,11 +2976,12 @@ void InstanceBuilder::ProcessExports() {
         value = wasm_external_function;
 
         if (is_asm_js &&
-            String::Equals(isolate_, name,
-                           single_function_name.ToHandleChecked())) {
+            name->IsEqualTo(base::CStrVector(AsmJs::kSingleFunctionName))) {
           desc.set_value(value);
-          CHECK(JSReceiver::DefineOwnProperty(isolate_, instance_object, name,
-                                              &desc, Just(kThrowOnError))
+          CHECK(JSReceiver::DefineOwnProperty(
+                    isolate_, instance_object,
+                    isolate_->factory()->wasm_asm_single_function_symbol(),
+                    &desc, Just(kThrowOnError))
                     .FromMaybe(false));
           continue;
         }
@@ -3298,7 +3299,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
     // FOR_WITH_HANDLE_SCOPE saves another 50ns per function.
     size_t elem_count = elem_segment.element_count;
     const uint8_t* pc = decoder.pc();
-    FOR_WITH_HANDLE_SCOPE(isolate, size_t, i = 0, i, i < elem_count, i++, {
+    FOR_WITH_HANDLE_SCOPE(isolate, size_t i = 0, i, i < elem_count, i++) {
       // Not using {consume_u32v} to avoid validation overhead. At this point
       // we already know that the segment is valid.
       auto [function_index, length] =
@@ -3313,7 +3314,7 @@ std::optional<MessageTemplate> InitializeElementSegment(
                                  : trusted_instance_data,
               function_index, precreate_external_functions);
       result->set(static_cast<int>(i), *value);
-    });
+    }
   } else {
     for (size_t i = 0; i < elem_segment.element_count; ++i) {
       ValueOrError value = ConsumeElementSegmentEntry(

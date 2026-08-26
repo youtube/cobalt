@@ -51,8 +51,7 @@ public class TabUiThemeProvider {
             return AppCompatResources.getColorStateList(
                     context, R.color.incognito_tab_bg_selected_color);
         }
-        return ColorStateList.valueOf(
-                MaterialColors.getColor(context, org.chromium.chrome.R.attr.colorPrimary, TAG));
+        return ColorStateList.valueOf(MaterialColors.getColor(context, R.attr.colorPrimary, TAG));
     }
 
     /**
@@ -103,9 +102,7 @@ public class TabUiThemeProvider {
         } else {
             if (isSelected) {
                 @ColorInt
-                int baseColor =
-                        MaterialColors.getColor(
-                                context, org.chromium.chrome.R.attr.colorPrimary, TAG);
+                int baseColor = MaterialColors.getColor(context, R.attr.colorPrimary, TAG);
                 int alpha =
                         context.getResources()
                                 .getInteger(
@@ -175,9 +172,7 @@ public class TabUiThemeProvider {
                             : R.color.incognito_tab_grid_dialog_ungroup_bar_text_color);
         } else {
             return MaterialColors.getColor(
-                    context,
-                    isTabHovered ? R.attr.colorOnPrimary : org.chromium.chrome.R.attr.colorPrimary,
-                    TAG);
+                    context, isTabHovered ? R.attr.colorOnPrimary : R.attr.colorPrimary, TAG);
         }
     }
 
@@ -333,7 +328,9 @@ public class TabUiThemeProvider {
      * @return The background resource id for message card view.
      */
     public static int getMessageCardBackgroundResourceId(boolean isIncognito) {
-        return isIncognito ? R.drawable.incognito_card_bg : R.drawable.card_with_corners_background;
+        return isIncognito
+                ? R.drawable.card_background_corners_16dp_baseline
+                : R.drawable.card_background_corners_16dp;
     }
 
     /**

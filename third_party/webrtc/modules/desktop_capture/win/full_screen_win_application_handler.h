@@ -26,7 +26,8 @@ enum class FullScreenDetectorResult {
   kUnknown = 0,
   kSuccess = 1,
   kFailureDueToSameTitleWindows = 2,
-  kMaxValue = kFailureDueToSameTitleWindows
+  kFailureDueToSlideShowWasNotChosen = 3,
+  kMaxValue = kFailureDueToSlideShowWasNotChosen
 };
 
 namespace webrtc {
@@ -42,6 +43,9 @@ class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
   DesktopCapturer::SourceId FindFullScreenWindow(
       const DesktopCapturer::SourceList& window_list,
       int64_t timestamp) const override;
+
+  void SetSlideShowCreationStateForTest(
+      bool fullscreen_slide_show_started_after_capture_start) override;
 
  private:
   WindowType GetWindowType(HWND window) const;
@@ -61,6 +65,8 @@ class FullScreenPowerPointHandler : public FullScreenApplicationHandler {
   bool IsEditorWindow(HWND window) const;
 
   bool IsSlideShowWindow(HWND window) const;
+
+  mutable bool was_slide_show_created_after_capture_started_;
 
   mutable FullScreenDetectorResult full_screen_detector_result_;
 };

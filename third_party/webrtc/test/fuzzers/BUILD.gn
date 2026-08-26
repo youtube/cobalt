@@ -270,7 +270,7 @@ webrtc_fuzzer_test("rtp_packetizer_av1_fuzzer") {
   deps = [
     "../../api:array_view",
     "../../api/video:video_frame_type",
-    "../../modules/rtp_rtcp:rtp_rtcp",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../rtc_base:checks",
   ]
@@ -281,7 +281,7 @@ webrtc_fuzzer_test("rtp_format_h264_fuzzer") {
   deps = [
     "../../api:array_view",
     "../../api/video:video_frame_type",
-    "../../modules/rtp_rtcp:rtp_rtcp",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
     "../../rtc_base:checks",
@@ -293,7 +293,7 @@ webrtc_fuzzer_test("rtp_format_vp8_fuzzer") {
   deps = [
     "../../api:array_view",
     "../../api/video:video_frame_type",
-    "../../modules/rtp_rtcp:rtp_rtcp",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
     "../../rtc_base:checks",
@@ -305,7 +305,7 @@ webrtc_fuzzer_test("rtp_format_vp9_fuzzer") {
   deps = [
     "../../api:array_view",
     "../../api/video:video_frame_type",
-    "../../modules/rtp_rtcp:rtp_rtcp",
+    "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
     "../../rtc_base:checks",
@@ -523,14 +523,6 @@ webrtc_fuzzer_test("stun_validator_fuzzer") {
   dict = "corpora/stun.tokens"
 }
 
-webrtc_fuzzer_test("pseudotcp_parser_fuzzer") {
-  sources = [ "pseudotcp_parser_fuzzer.cc" ]
-  deps = [
-    "../../p2p:pseudo_tcp",
-    "../../rtc_base:threading",
-  ]
-}
-
 rtc_library("audio_processing_fuzzer_helper") {
   testonly = true
   sources = [
@@ -691,8 +683,8 @@ webrtc_fuzzer_test("rtp_frame_reference_finder_fuzzer") {
     "../../api/video:video_rtp_headers",
     "../../modules/rtp_rtcp",
     "../../modules/rtp_rtcp:rtp_video_header",
+    "../../modules/video_coding",
     "../../modules/video_coding:codec_globals_headers",
-    "../../modules/video_coding:video_coding",
     "../../system_wrappers",
   ]
 }
@@ -854,7 +846,6 @@ group("fuzzers") {
     ":h264_depacketizer_fuzzer",
     ":neteq_rtp_fuzzer",
     ":neteq_signal_fuzzer",
-    ":pseudotcp_parser_fuzzer",
     ":receive_side_congestion_controller_fuzzer",
     ":residual_echo_detector_fuzzer",
     ":rtcp_receiver_fuzzer",

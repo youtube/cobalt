@@ -22,6 +22,7 @@
 #include "media/base/stream_params.h"
 #include "pc/channel_interface.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/session_description.h"
 #include "test/gmock.h"
 
 namespace webrtc {

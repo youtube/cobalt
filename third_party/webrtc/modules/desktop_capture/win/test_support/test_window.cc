@@ -84,6 +84,23 @@ void ResizeTestWindow(const HWND hwnd, const int width, const int height) {
   ::UpdateWindow(hwnd);
 }
 
+void ResizeTestWindowToFullScreen(const HWND hwnd) {
+  ::SetWindowLongPtr(hwnd, GWL_STYLE, WS_VISIBLE);
+
+  MONITORINFO monitor_info = {sizeof(monitor_info)};
+  if (!::GetMonitorInfo(::MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST),
+                        &monitor_info)) {
+    return;
+  }
+
+  ::SetWindowPos(
+      hwnd, HWND_TOP, monitor_info.rcMonitor.left, monitor_info.rcMonitor.top,
+      /*width=*/monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+      /*height=*/monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+      SWP_SHOWWINDOW);
+  ::UpdateWindow(hwnd);
+}
+
 void MoveTestWindow(const HWND hwnd, const int x, const int y) {
   // SWP_NOSIZE results in the width and height params being ignored.
   ::SetWindowPos(hwnd, HWND_TOP, x, y, /*width=*/0, /*height=*/0,

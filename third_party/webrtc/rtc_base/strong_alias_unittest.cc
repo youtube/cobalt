@@ -312,8 +312,8 @@ TYPED_TEST(StrongAliasTest, CanDifferentiateOverloads) {
   using BarAlias = StrongAlias<class BarTag, TypeParam>;
   class Scope {
    public:
-    static std::string Overload(FooAlias) { return "FooAlias"; }
-    static std::string Overload(BarAlias) { return "BarAlias"; }
+    static std::string Overload(FooAlias /*unused*/) { return "FooAlias"; }
+    static std::string Overload(BarAlias /*unused*/) { return "BarAlias"; }
   };
   EXPECT_EQ("FooAlias", Scope::Overload(FooAlias()));
   EXPECT_EQ("BarAlias", Scope::Overload(BarAlias()));

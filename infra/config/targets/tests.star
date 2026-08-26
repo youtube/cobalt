@@ -566,13 +566,6 @@ targets.tests.isolated_script_test(
     name = "chrome_java_test_pagecontroller_junit_tests",
 )
 
-targets.tests.gtest_test(
-    name = "chrome_java_test_wpr_tests",
-    mixins = [
-        "skia_gold_test",
-    ],
-)
-
 targets.tests.isolated_script_test(
     name = "chrome_junit_tests",
 )
@@ -2004,10 +1997,6 @@ targets.tests.isolated_script_test(
 targets.tests.isolated_script_test(
     name = "passthrough_command_buffer_perftests",
     binary = "command_buffer_perftests",
-)
-
-targets.tests.isolated_script_test(
-    name = "password_check_junit_tests",
 )
 
 targets.tests.isolated_script_test(

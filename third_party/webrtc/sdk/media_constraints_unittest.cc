@@ -10,6 +10,7 @@
 
 #include "sdk/media_constraints.h"
 
+#include "api/peer_connection_interface.h"
 #include "test/gtest.h"
 
 namespace webrtc {

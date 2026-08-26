@@ -15,6 +15,7 @@
 namespace features {
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSynchronizedScrolling);
 
 // Sets raster tree priority to NEW_CONTENT_TAKES_PRIORITY when performing a
@@ -136,14 +137,20 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSendExplicitDecodeRequestsImmediately);
 // When enabled, the CC tree priority will be switched to
 // NEW_CONTENT_TAKES_PRIORITY during long scroll that cause checkerboarding.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kNewContentForCheckerboardedScrolls);
+// When kNewContentForCheckerboardedScrolls is enabled with this param, the tree
+// priority will be changed *after* a frame is drawn with checkerboarding, and
+// will remain changed until the current scroll ends.
+CC_BASE_EXPORT extern const char kNewContentForCheckerboardedScrollsPerScroll[];
+// When kNewContentForCheckerboardedScrolls is enabled with this param, the tree
+// priority will be changed *before* a frame is drawn with checkerboarding, and
+// will be reset at the first frame that is painted without checkerboarding.
+CC_BASE_EXPORT extern const char kNewContentForCheckerboardedScrollsPerFrame[];
+CC_BASE_EXPORT extern const base::FeatureParam<std::string>
+    kNewContentForCheckerboardedScrollsParam;
 
 // When enabled, LCD text is allowed with some filters and backdrop filters.
 // Killswitch M135.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAllowLCDTextWithFilter);
-
-// When enabled, impl-only scroll animations may execute concurrently.
-CC_BASE_EXPORT BASE_DECLARE_FEATURE(kMultipleImplOnlyScrollAnimations);
-CC_BASE_EXPORT extern bool MultiImplOnlyScrollAnimationsSupported();
 
 // When enabled, for a render surface with fractional translation, we'll try to
 // align the texels in the render surface to screen pixels to avoid blurriness

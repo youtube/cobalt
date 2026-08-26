@@ -279,6 +279,16 @@ bool SkDrawTreatAAStrokeAsHairline(SkScalar strokeWidth, const SkMatrix& matrix,
     return false;
 }
 
+void SkDrawBase::drawOval(const SkRect& oval, const SkPaint& paint) const {
+    SkDEBUGCODE(this->validate());
+
+    if (fRC->isEmpty()) {
+        return;
+    }
+
+    this->drawPath(SkPath::Oval(oval), paint, nullptr, true);
+}
+
 void SkDrawBase::drawRRect(const SkRRect& rrect, const SkPaint& paint) const {
     SkDEBUGCODE(this->validate());
 
@@ -314,19 +324,18 @@ DRAW_PATH:
 bool SkDrawBase::drawRRectNinePatch(const SkRRect& rrect, const SkPaint& paint) const {
     SkASSERT(paint.getMaskFilter());
 
-    SkRRect devRRect;
-    if (rrect.transform(*fCTM, &devRRect)) {
+    if (auto rr = rrect.transform(*fCTM)) {
         SkAutoBlitterChoose blitter(*this, nullptr, paint);
         SkResourceCache* cache = nullptr;  // TODO(kjlubick) get this from fCtx
         const SkMaskFilterBase* maskFilter = as_MFB(paint.getMaskFilter());
         if (rrect.getType() == SkRRect::kRect_Type) {
-            SkRect devRect = devRRect.rect();
+            SkRect devRect = rr->rect();
             if (maskFilter->filterRects(SkSpan(&devRect, 1), *fCTM, *fRC, blitter.get(), cache)
                     == SkMaskFilterBase::FilterReturn::kTrue) {
                 return true;
             }
         } else {
-            if (maskFilter->filterRRect(devRRect, *fCTM, *fRC, blitter.get(), cache)) {
+            if (maskFilter->filterRRect(*rr, *fCTM, *fRC, blitter.get(), cache)) {
                 return true;  // filterRRect() called the blitter, so we're done
             }
         }

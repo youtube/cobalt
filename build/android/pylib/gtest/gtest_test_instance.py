@@ -30,7 +30,6 @@ BROWSER_TEST_SUITES = [
     'cobalt_browsertests',
     'components_browsertests',
     'content_browsertests',
-    'weblayer_browsertests',
 ]
 
 # The max number of tests to run on a batch during the test run.

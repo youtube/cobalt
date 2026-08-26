@@ -128,15 +128,28 @@ egl::Error SurfaceImpl::getFrameTimestamps(EGLuint64KHR frameId,
     UNREACHABLE();
     return egl::Error(EGL_BAD_DISPLAY);
 }
-egl::Error SurfaceImpl::getUserWidth(const egl::Display *display, EGLint *value) const
+
+angle::Result SurfaceImpl::ensureSizeResolved(const gl::Context *context)
 {
-    *value = getWidth();
-    return egl::NoError();
+    return angle::Result::Continue;
 }
 
-egl::Error SurfaceImpl::getUserHeight(const egl::Display *display, EGLint *value) const
+egl::Error SurfaceImpl::getUserSize(const egl::Display *display,
+                                    EGLint *width,
+                                    EGLint *height) const
 {
-    *value = getHeight();
+    // Override getUserSize() if it is not the same as getSize() or if its usage is suboptimal.
+    // In case of override use "final" for both methods when possible to prevent accidental bugs.
+    const gl::Extents size = getSize();
+    ASSERT(size.depth == 1);
+    if (width != nullptr)
+    {
+        *width = size.width;
+    }
+    if (height != nullptr)
+    {
+        *height = size.height;
+    }
     return egl::NoError();
 }
 

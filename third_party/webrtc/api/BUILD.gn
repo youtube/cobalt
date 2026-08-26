@@ -233,7 +233,7 @@ rtc_source_set("ice_transport_interface") {
     ":ref_count",
     ":rtc_error",
     ":scoped_refptr",
-    "rtc_event_log:rtc_event_log",
+    "rtc_event_log",
   ]
 }
 
@@ -1025,7 +1025,7 @@ rtc_library("ice_transport_factory") {
     "../rtc_base:macromagic",
     "../rtc_base:threading",
     "../rtc_base/system:rtc_export",
-    "rtc_event_log:rtc_event_log",
+    "rtc_event_log",
   ]
 }
 
@@ -1051,7 +1051,7 @@ rtc_source_set("sequence_checker") {
     "../rtc_base:checks",
     "../rtc_base:macromagic",
     "../rtc_base/synchronization:sequence_checker_internal",
-    "task_queue:task_queue",
+    "task_queue",
   ]
 }
 
@@ -1758,7 +1758,7 @@ rtc_library("frame_transformer_factory") {
     ":frame_transformer_interface",
     ":ref_count",
     ":scoped_refptr",
-    "../audio:audio",
+    "../audio",
     "../modules/rtp_rtcp",
     "../rtc_base:checks",
     "../rtc_base/system:rtc_export",

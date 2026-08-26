@@ -77,6 +77,19 @@ class GPU_GLES2_EXPORT D3DImageBacking final
       std::string debug_label,
       Microsoft::WRL::ComPtr<ID3D12Resource> d3d12_resource);
 
+  static std::unique_ptr<D3DImageBacking> CreateFromSwapChainBuffers(
+      const Mailbox& mailbox,
+      viz::SharedImageFormat format,
+      const gfx::Size& size,
+      const gfx::ColorSpace& color_space,
+      GrSurfaceOrigin surface_origin,
+      SkAlphaType alpha_type,
+      gpu::SharedImageUsageSet usage,
+      Microsoft::WRL::ComPtr<ID3D11Texture2D> back_buffer_texture,
+      Microsoft::WRL::ComPtr<ID3D11Texture2D> front_buffer_texture,
+      Microsoft::WRL::ComPtr<IDXGISwapChain1> swap_chain,
+      const GLFormatCaps& gl_format_caps);
+
   static std::unique_ptr<D3DImageBacking> CreateFromSwapChainBuffer(
       const Mailbox& mailbox,
       viz::SharedImageFormat format,
@@ -141,6 +154,12 @@ class GPU_GLES2_EXPORT D3DImageBacking final
                                      wgpu::BackendType backend_type,
                                      wgpu::BufferUsage usage);
   void EndAccessDawnBuffer(const wgpu::Device& device, wgpu::Buffer buffer);
+
+  std::unique_ptr<WebNNTensorRepresentation> ProduceWebNNTensor(
+      SharedImageManager* manager,
+      MemoryTypeTracker* tracker) override;
+
+  Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const;
 
   std::optional<gl::DCLayerOverlayImage> GetDCLayerOverlayImage();
 
@@ -342,6 +361,9 @@ class GPU_GLES2_EXPORT D3DImageBacking final
 
   // Texture could be nullptr if an empty backing is needed for testing.
   const Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d11_texture_;
+
+  // Null unless created via CreateFromSwapBuffers().
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> swap_chain_front_buffer_texture_;
 
   // Set if this backing is used for a D3D12 resource, otherwise will be
   // nullptr.

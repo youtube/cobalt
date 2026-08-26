@@ -242,6 +242,7 @@ class LocationBarView
   // GeolocationSystemPermissionManager::PermissionObserver:
   void OnSystemPermissionUpdated(
       device::LocationSystemPermissionStatus new_status) override;
+  void OnPermissionManagerShuttingDown() override;
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
   static bool IsVirtualKeyboardVisible(views::Widget* widget);
@@ -314,6 +315,9 @@ class LocationBarView
   // is actually blocked on the current page. Returns true if the visibility
   // of at least one of the views in |content_setting_views_| changed.
   bool RefreshContentSettingViews();
+
+  // Updates the visibility state of the AIM page action button in particular.
+  void RefreshAimPageActionIcon();
 
   // Updates the visibility state of the PageActionIconViews to reflect what
   // actions are available on the current page.

@@ -570,11 +570,6 @@ void LocalFrameMojoHandler::NotifyVirtualKeyboardOverlayRect(
   frame_->NotifyVirtualKeyboardOverlayRectObservers(scaled_rect);
 }
 
-void LocalFrameMojoHandler::NotifyContextMenuInsetsObservers(
-    const gfx::Rect& safe_area) {
-  frame_->NotifyContextMenuInsetsObservers(safe_area);
-}
-
 void LocalFrameMojoHandler::ShowInterestInElement(int nodeID) {
   frame_->ShowInterestInElement(nodeID);
 }
@@ -1332,8 +1327,10 @@ void LocalFrameMojoHandler::UpdateBrowserControlsState(
       constraints, current, animate, offset_tag_modifications);
 }
 
-void LocalFrameMojoHandler::Discard() {
+void LocalFrameMojoHandler::Discard(
+    mojom::blink::LocalMainFrame::DiscardCallback completion_callback) {
   frame_->Discard();
+  std::move(completion_callback).Run();
 }
 
 void LocalFrameMojoHandler::FinalizeNavigationConfidence(

@@ -7,9 +7,12 @@
 #import "base/check_op.h"
 #import "base/feature_list.h"
 #import "components/breadcrumbs/core/breadcrumbs_status.h"
+#import "components/data_sharing/public/features.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_browser_agent.h"
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_notifier_browser_agent.h"
 #import "ios/chrome/browser/bubble/model/tab_based_iph_browser_agent.h"
+#import "ios/chrome/browser/collaboration/model/collaboration_service_factory.h"
+#import "ios/chrome/browser/collaboration/model/data_sharing_browser_agent.h"
 #import "ios/chrome/browser/crash_report/model/breadcrumbs/breadcrumb_manager_browser_agent.h"
 #import "ios/chrome/browser/credential_provider/model/credential_provider_buildflags.h"
 #import "ios/chrome/browser/device_sharing/model/device_sharing_browser_agent.h"
@@ -89,11 +92,18 @@ void AttachBrowserAgentsForActiveBrowser(Browser* browser) {
     CHECK_NE(Browser::Type::kInactive, browser->type());
   }
 
+  // Some BrowserAgent needs to be injected KeyedService, so grab the profile.
+  ProfileIOS* profile = browser->GetProfile();
+  CHECK(profile);
+
   // TODO(crbug.com/433229469): Once kLimitBrowserAgentsForInactiveBrowser is
-  // fully launched the variable browser_is_inactive can be removed as it will
-  // always be false. Cleanup the variable and its use when the feature launch.
-  const bool browser_is_off_record = browser->GetProfile()->IsOffTheRecord();
-  const bool browser_is_inactive = browser->IsInactive();
+  // fully launched the variables browser_is_inactive and browser_is_temporary
+  // can be removed as they will always be false. Cleanup the variables and
+  // their use when the feature launch.
+  const Browser::Type browser_type = browser->type();
+  const bool browser_is_off_record = browser_type == Browser::Type::kIncognito;
+  const bool browser_is_inactive = browser_type == Browser::Type::kInactive;
+  const bool browser_is_temporary = browser_type == Browser::Type::kTemporary;
 
   LiveTabContextBrowserAgent::CreateForBrowser(browser);
   TabInsertionBrowserAgent::CreateForBrowser(browser);
@@ -103,8 +113,14 @@ void AttachBrowserAgentsForActiveBrowser(Browser* browser) {
   AppLauncherBrowserAgent::CreateForBrowser(browser);
   OmniboxPositionBrowserAgent::CreateForBrowser(browser);
 
-  if (!browser_is_inactive) {
+  // Only create the FullscreenBrowserAgent and ReaderModeBrowserAgent for
+  // regular and incognito Browser (since the other Browser do not present the
+  // WebStates, and may not create the tab helpers which would lead to crashes).
+  if (!browser_is_inactive && !browser_is_temporary) {
     FullscreenController::CreateForBrowser(browser);
+    if (IsReaderModeAvailable()) {
+      ReaderModeBrowserAgent::CreateForBrowser(browser);
+    }
   }
 
   // LensBrowserAgent must be created before WebNavigationBrowserAgent.
@@ -142,12 +158,7 @@ void AttachBrowserAgentsForActiveBrowser(Browser* browser) {
   UrlLoadingBrowserAgent::CreateForBrowser(browser);
 
   WebStateListMetricsBrowserAgent::CreateForBrowser(
-      browser, SessionMetrics::FromProfile(browser->GetProfile()));
-
-  if (IsReaderModeAvailable()) {
-    ReaderModeBrowserAgent::CreateForBrowser(browser,
-                                             browser->GetWebStateList());
-  }
+      browser, SessionMetrics::FromProfile(profile));
 
   // Normal profiles are the only ones to get tab usage recorder.
   if (!browser_is_off_record) {
@@ -185,6 +196,17 @@ void AttachBrowserAgentsForActiveBrowser(Browser* browser) {
 
   if (!browser_is_off_record && IsPageActionMenuEnabled()) {
     BwgBrowserAgent::CreateForBrowser(browser);
+  }
+
+  if (!browser_is_inactive && !browser_is_temporary && !browser_is_off_record) {
+    if (data_sharing::features::ShouldInterceptUrlForVersioning()) {
+      if (collaboration::CollaborationService* collaboration_service =
+              collaboration::CollaborationServiceFactory::GetForProfile(
+                  profile)) {
+        DataSharingBrowserAgent::CreateForBrowser(browser,
+                                                  collaboration_service);
+      }
+    }
   }
 
   // This needs to be called last in case any downstream browser agents need to

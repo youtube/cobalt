@@ -66,6 +66,9 @@ namespace content {
 void RenderMediaClient::Initialize() {
   static RenderMediaClient* client = new RenderMediaClient();
   media::SetMediaClient(client);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  client->InstallDecoderBufferAllocator();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 RenderMediaClient::RenderMediaClient()
@@ -195,6 +198,10 @@ bool RenderMediaClient::IsEncoderSupportedVideoType(
 bool RenderMediaClient::IsSupportedBitstreamAudioCodec(
     media::AudioCodec codec) {
   return GetContentClient()->renderer()->IsSupportedBitstreamAudioCodec(codec);
+}
+
+bool RenderMediaClient::ShouldSuppressAudioTracks() {
+  return GetContentClient()->renderer()->ShouldSuppressAudioTracks();
 }
 
 std::optional<::media::AudioRendererAlgorithmParameters>

@@ -23,10 +23,6 @@
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/core/common/proto/realtimeapi.pb.h"
 
-#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
-#include "components/enterprise/data_controls/core/browser/verdict.h"
-#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
-
 namespace content {
 class BrowserContext;
 }
@@ -135,82 +131,11 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
       const std::string& trigger,
       const std::string& scan_id,
       const std::string& content_transfer_method,
+      const std::string& active_user_email,
       const safe_browsing::ReferrerChain& referrer_chain,
       const enterprise_connectors::ContentAnalysisResponse::Result& result,
       const int64_t content_size,
       std::optional<std::u16string> user_justification);
-
-  // Notifies listeners that the user saw a download warning.
-  // - |url| is the download URL
-  // - |file_name| is the path on disk
-  // - |download_digest_sha256| is the hex-encoded SHA256
-  // - |threat_type| is the danger type of the download.
-  void OnDangerousDownloadEvent(
-      const GURL& url,
-      const GURL& tab_url,
-      const std::string& file_name,
-      const std::string& download_digest_sha256,
-      const std::string& threat_type,
-      const std::string& mime_type,
-      const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
-      enterprise_connectors::EventResult event_result);
-  void OnDangerousDownloadEvent(
-      const GURL& url,
-      const GURL& tab_url,
-      const std::string& file_name,
-      const std::string& download_digest_sha256,
-      const download::DownloadDangerType danger_type,
-      const std::string& mime_type,
-      const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain,
-      enterprise_connectors::EventResult event_result);
-
-  // Notifies listeners that the user bypassed a download warning.
-  // - |url| is the download URL
-  // - |file_name| is the path on disk
-  // - |download_digest_sha256| is the hex-encoded SHA256
-  // - |threat_type| is the danger type of the download.
-  void OnDangerousDownloadWarningBypassed(
-      const GURL& url,
-      const GURL& tab_url,
-      const std::string& file_name,
-      const std::string& download_digest_sha256,
-      const std::string& threat_type,
-      const std::string& mime_type,
-      const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain);
-  void OnDangerousDownloadWarningBypassed(
-      const GURL& url,
-      const GURL& tab_url,
-      const std::string& file_name,
-      const std::string& download_digest_sha256,
-      const download::DownloadDangerType danger_type,
-      const std::string& mime_type,
-      const std::string& scan_id,
-      const int64_t content_size,
-      const safe_browsing::ReferrerChain& referrer_chain);
-
-#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
-  // Helper function to report sensitive data event that were caused by
-  // triggering a Data Controls rule. This is similar to
-  // `OnSensitiveDataEvent()` with a signature more suited to Data Controls as
-  // opposed to scanning related events.
-  void OnDataControlsSensitiveDataEvent(
-      const GURL& url,
-      const GURL& tab_url,
-      const std::string& source,
-      const std::string& destination,
-      const std::string& mime_type,
-      const std::string& trigger,
-      const std::string& source_active_user_email,
-      const data_controls::Verdict::TriggeredRules& triggered_rules,
-      enterprise_connectors::EventResult event_result,
-      int64_t content_size);
-#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
 
  private:
   // Returns filename with full path if full path is required;

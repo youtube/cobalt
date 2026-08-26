@@ -69,12 +69,4 @@ class ScopedLocalRefFrame {
 }  // namespace jni
 }  // namespace webrtc
 
-// TODO(magjed): Remove once external clients are updated.
-namespace webrtc_jni {
-
-using webrtc::AttachCurrentThreadIfNeeded;
-using webrtc::jni::InitGlobalJniVariables;
-
-}  // namespace webrtc_jni
-
 #endif  // SDK_ANDROID_SRC_JNI_JNI_HELPERS_H_

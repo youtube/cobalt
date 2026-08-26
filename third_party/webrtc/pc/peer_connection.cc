@@ -1494,7 +1494,8 @@ RTCError PeerConnection::SetConfiguration(
   }
 
   if (has_local_description &&
-      configuration.crypto_options != configuration_.crypto_options) {
+      configuration.crypto_options.value_or(CryptoOptions()) !=
+          configuration_.crypto_options) {
     LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_MODIFICATION,
                          "Can't change crypto_options after calling "
                          "SetLocalDescription.");

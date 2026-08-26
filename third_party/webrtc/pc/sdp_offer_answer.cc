@@ -1039,7 +1039,7 @@ class SdpOfferAnswerHandler::RemoteDescriptionOperation {
   void ReportOfferAnswerUma() {
     RTC_DCHECK(ok());
     if (type_ == SdpType::kOffer || type_ == SdpType::kAnswer) {
-      handler_->pc_->ReportSdpBundleUsage(*desc_.get());
+      handler_->pc_->ReportSdpBundleUsage(*desc_);
     }
   }
 
@@ -3009,40 +3009,15 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
     const std::vector<Candidate>& candidates) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::RemoveIceCandidates");
   RTC_DCHECK_RUN_ON(signaling_thread());
-  if (pc_->IsClosed()) {
-    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: PeerConnection is closed.";
-    return false;
-  }
 
-  if (!remote_description()) {
-    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: No remote description.";
-    return false;
-  }
-
-  if (candidates.empty()) {
-    RTC_LOG(LS_ERROR) << "RemoveIceCandidates: No candidates.";
-    return false;
-  }
-
-  size_t number_removed = 0u;
   for (const auto& c : candidates) {
-    number_removed +=
-        mutable_remote_description()->RemoveCandidates(c.transport_name(), {c});
-  }
-  if (number_removed != candidates.size()) {
-    RTC_LOG(LS_ERROR)
-        << "RemoveIceCandidates: Failed to remove candidates. Requested "
-        << candidates.size() << " but only " << number_removed
-        << " were removed.";
+    IceCandidate candidate(c.transport_name(), /*sdp_mline_index=*/-1, c);
+    if (!RemoveIceCandidate(&candidate)) {
+      RTC_LOG(LS_ERROR) << "RemoveIceCandidates: Failed to remove candidate: "
+                        << c.ToSensitiveString();
+    }
   }
 
-  // Remove the candidates from the transport controller.
-  RTCError error = transport_controller_s()->RemoveRemoteCandidates(candidates);
-  if (!error.ok()) {
-    RTC_LOG(LS_ERROR)
-        << "RemoveIceCandidates: Error when removing remote candidates: "
-        << error.message();
-  }
   // Technically it would be more correct to return `number_removed != 0u` here,
   // but some downstream code needs to be updated first.
   return true;
@@ -3061,7 +3036,10 @@ void SdpOfferAnswerHandler::RemoveLocalIceCandidates(
     const std::vector<Candidate>& candidates) {
   RTC_DCHECK_RUN_ON(signaling_thread());
   if (local_description()) {
-    mutable_local_description()->RemoveCandidates(mid, candidates);
+    for (const auto& c : candidates) {
+      IceCandidate ice_candidate(mid, -1, c);
+      mutable_local_description()->RemoveCandidate(&ice_candidate);
+    }
   }
 }
 

@@ -176,7 +176,7 @@ std::unique_ptr<ScreenDrawerLock> ScreenDrawerLock::Create() {
 
 // static
 std::unique_ptr<ScreenDrawer> ScreenDrawer::Create() {
-  if (SharedXDisplay::CreateDefault().get()) {
+  if (SharedXDisplay::CreateDefault()) {
     return std::make_unique<ScreenDrawerLinux>();
   }
   return nullptr;

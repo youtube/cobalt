@@ -6,7 +6,6 @@ module glic.mojom;
 
 import "chrome/browser/glic/host/glic_features.mojom";
 import "components/content_settings/core/common/content_settings_types.mojom";
-import "components/optimization_guide/content/mojom/ai_page_content_metadata.mojom";
 import "mojo/public/mojom/base/proto_wrapper.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
@@ -15,6 +14,7 @@ import "skia/public/mojom/bitmap.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
+import "third_party/blink/public/mojom/content_extraction/ai_page_content_metadata.mojom";
 
 // The ready state of the profile.
 enum ProfileReadyState {
@@ -157,24 +157,6 @@ enum CreateTaskErrorReason {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CreateTaskErrorReason)
 
-// Reason for failure while acting in a focused tab. This MUST be kept in
-// sync with the glic_api.ts enum.
-// LINT.IfChange(ActInFocusedTabErrorReason)
-[Stable, Extensible]
-enum ActInFocusedTabErrorReason {
-  [Default] kUnknown = 0,
-  // Capturing Context after acting failed.
-  kGetContextFailed = 1,
-  // The action proto is invalid.
-  kInvalidActionProto = 2,
-  // Action target is not found.
-  kTargetNotFound = 3,
-  // Failed to start a new task.
-  [MinVersion=1] kFailedToStartTask = 4,
-};
-
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ActInFocusedTabErrorReason)
-
 // The state of an actor task. This MUST be kept in sync with the glic_api.ts
 // enum.
 [Stable, Extensible]
@@ -206,11 +188,6 @@ union GetContextResult {
 union CaptureScreenshotResult {
   CaptureScreenshotErrorReason error_reason;
   Screenshot screenshot;
-};
-
-union ActInFocusedTabResult {
-  ActInFocusedTabErrorReason error_reason;
-  ActInFocusedTabResponse act_in_focused_tab_response;
 };
 
 // Information about the user profile.
@@ -247,6 +224,7 @@ struct WebClientInitialState {
   // Whether the panel is active. See `NotifyPanelActiveChange`.
   bool panel_is_active;
   bool browser_is_open;
+  bool browser_is_active;
   // Reflects the enabling state of always-detached mode.
   bool always_detached_mode;
   bool enable_zero_state_suggestions;
@@ -559,18 +537,6 @@ interface WebClientHandler {
   PerformActions(array<uint8> actions_proto) =>
       result<mojo_base.mojom.ProtoWrapper, PerformActionsErrorReason>;
 
-  // TODO(crbug.com/411462297) DEPRECATED - new callers should use
-  // PerformActions.
-  //
-  // Starts an action in the currently focused tab. `action_proto` is a
-  // serialized proto of type optimization_guide::proto::BrowserAction. Returns
-  // the result of the action when it is completed along with an observation of
-  // the page, taken using the given `options`.
-  //
-  // It is an error to act with a paused task.
-  ActInFocusedTab(array<uint8> action_proto, GetTabContextOptions options)
-      => (ActInFocusedTabResult result);
-
   // Immediately stops the actor from taking any further actions associated with
   // the given id and exits acting mode. Any in flight actions are canceled and
   // their callbacks will be (asynchronously) invoked. No-op if a task with the
@@ -698,9 +664,6 @@ interface WebClientHandler {
   // Called when the user submits input.
   OnUserInputSubmitted(WebClientMode mode);
 
-  // Called when the web client starts a request.
-  OnRequestStarted();
-
   // Called when the web client starts to respond.
   OnResponseStarted();
 
@@ -762,6 +725,11 @@ interface WebClientHandler {
   // This is useful for debugging the webview without having the responsiveness
   // check get in the way.
   IsDebuggerAttached() => (bool is_attached_to_webview);
+
+  // Called when the web client has changed the view shown to the user. This is
+  // used to trigger updates to browser UI which shows the current state of the
+  // web client, such as toggle controls.
+  OnViewChanged(ViewChangedNotification notification);
 };
 
 // Data sent from the browser to the web client with panel opening information.
@@ -820,6 +788,8 @@ enum InvocationSource {
   [MinVersion=1] kWhatsNew = 9,
   // User clicked the sign-in button and signed in.
   [MinVersion=2] kAfterSignIn = 10,
+  // User shared a tab (e.g. via its context menu).
+  [MinVersion=3] kSharedTab = 11,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation)
@@ -918,6 +888,12 @@ interface WebClient {
   // True if the browser has at least one open window.
   NotifyBrowserIsOpenChanged(bool browser_is_open);
 
+  // The browser (or at least, some browser window which is potentially
+  // relevant to this glic panel) has become active or inactive (in the sense
+  // of visibility and focus). Some activity, such as responsiveness checks,
+  // may be paused or resumed accordingly.
+  NotifyBrowserIsActiveChanged(bool browser_active);
+
   // Notify that the closed captioning setting has changed.
   NotifyClosedCaptioningSettingChanged(bool enabled);
 
@@ -937,6 +913,13 @@ interface WebClient {
   // Notify that the actor task with the given id has changed to the indicated
   // state.
   NotifyActorTaskStateChanged(int32 task_id, ActorTaskState state);
+
+  // Called when the browser wants the web client to change its view to match
+  // the requested change (e.g., because the user clicked a UI element to toggle
+  // to a different view).
+  //
+  // The web client should update its view to match the requested change.
+  RequestViewChange(ViewChangeRequest request);
 };
 
 // Information extracted from a tab.
@@ -956,17 +939,6 @@ struct TabContext {
   // Information about the annotated page content. Provided if the document is
   // a web page and annotated page content was requested.
   AnnotatedPageData? annotated_page_data;
-};
-
-struct ActInFocusedTabResponse {
-  // The context of the focused tab after the action was completed.
-  TabContext tab_context;
-  // The outcome of the action.
-  // Note that this is an enum ActionResultCode from chrome/common/actor.mojom.
-  // It would be tedious to import the actual enum here and the renderer doesn't
-  // need the type, so we just use an int here. It is expected that the client
-  // has an equivalent enum definition. See http://shortn/_gLyPxrRm6p
-  int32 action_result;
 };
 
 // Information about a web page being rendered in a tab.
@@ -1017,6 +989,14 @@ struct TabData {
   string document_mime_type;
   // Whether the tab is observable (i.e., audible or visible).
   bool? is_observable;
+  // Whether the tab has active audio or video playing, used for showing tab UI.
+  // This is a best effort signal, and may not be accurate/stale due to not
+  // observing media events directly.
+  bool? is_media_active;
+  // Whether the tab content is being captured by another functionality (e.g., screen share in video chat).
+  // This is a best effort signal, and may not be accurate/stale due to not
+  // observing tab content capture events directly.
+  bool? is_tab_content_captured;
 };
 
 // Data about the focused tab state.
@@ -1043,7 +1023,7 @@ struct AnnotatedPageData {
   mojo_base.mojom.ProtoWrapper? annotated_page_content;
 
   // Metadata about the page content.
-  optimization_guide.mojom.PageMetadata? metadata;
+  blink.mojom.PageMetadata? metadata;
 };
 
 // Annotates an image, providing security relevant information about the origins
@@ -1092,4 +1072,41 @@ struct OpenSettingsOptions {
 enum HostCapability {
   // Glic host supports ScrollTo() with PDF documents.
   kScrollToPdf = 0,
+  // Glic host will reset panel size and location on open.
+  kResetSizeAndLocationOnOpen = 1,
+};
+
+// A request to change the glic web client to a view suitable for tracking the
+// progress of actuation.
+struct ViewChangeRequestActuation {};
+
+// A request to change the glic web client to a view which shows a
+// conversational interface of some type (whether textual, aural or other).
+struct ViewChangeRequestConversation {};
+
+union ViewChangeRequestDetails {
+  ViewChangeRequestActuation actuation;
+  ViewChangeRequestConversation conversation;
+};
+
+// A request to change the glic web client to a view of some type. These all
+// specify what the desired view is (via the union discriminator) but some may
+// carry additional information.
+struct ViewChangeRequest {
+  ViewChangeRequestDetails details;
+};
+
+// A coarse categorization of the view currently shown to the user.
+enum CurrentView {
+  // A conversational interface of some type (whether textual, aural or other).
+  kConversation = 0,
+
+  // A view suitable for tracking the progress of actuation.
+  kActuation = 1,
+};
+
+// A notification that the glic web client has changed the view shown to the
+// user.
+struct ViewChangedNotification {
+  CurrentView current_view;
 };

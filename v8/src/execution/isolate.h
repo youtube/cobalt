@@ -423,35 +423,40 @@ class WaiterQueueNode;
     }                                                \
   } while (false)
 
-// "..." is the loop body; this way of writing it allows commas to occur in it.
-#define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
-                              limit_check, increment, ...)                 \
-  do {                                                                     \
-    loop_var_type init;                                                    \
-    loop_var_type for_with_handle_limit = loop_var;                        \
-    Isolate* for_with_handle_isolate = isolate;                            \
-    while (limit_check) {                                                  \
-      for_with_handle_limit += 1024;                                       \
-      HandleScope loop_scope(for_with_handle_isolate);                     \
-      for (; limit_check && loop_var < for_with_handle_limit; increment) { \
-        __VA_ARGS__                                                        \
-      }                                                                    \
-    }                                                                      \
-  } while (false)
+// A for loop which has a HandleScope in its body, which is periodically
+// reconstructed to avoid allocating too many handles.
+#define FOR_WITH_HANDLE_SCOPE(isolate, init, loop_var, limit_check, increment) \
+  SCOPED_VARIABLE(Isolate* for_with_handle_isolate = (isolate))                \
+  SCOPED_VARIABLE(init)                                                        \
+  SCOPED_VARIABLE(bool should_exit = !(limit_check))                           \
+  /* Outer loop, runs as long as should_exit is false -- should_exit is set */ \
+  /* to true at the start of each iteration (it's initialized to true and   */ \
+  /* the loop condition check sets it to true), and it's only set to false  */ \
+  /* if the inner loop aborts specifically because of the handle limit.     */ \
+  /* This allows `break` inside the inner loop to escape out of both loops, */ \
+  /* since `should_exit` will not be set to false.                          */ \
+  for (auto for_with_handle_limit = loop_var + 1024;                           \
+       !should_exit && (should_exit = true); for_with_handle_limit += 1024)    \
+    for (HandleScope loop_scope(for_with_handle_isolate);                      \
+         (limit_check) &&                                                      \
+         (loop_var < for_with_handle_limit || (should_exit = false));          \
+         increment)
 
-// "..." is the loop body; this way of writing it allows commas to occur in it.
-#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, ...) \
-  do {                                                     \
-    Isolate* while_with_handle_isolate = isolate;          \
-    while (limit_check) {                                  \
-      HandleScope loop_scope(while_with_handle_isolate);   \
-      for (int while_with_handle_it = 0;                   \
-           limit_check && while_with_handle_it < 1024;     \
-           ++while_with_handle_it) {                       \
-        __VA_ARGS__                                        \
-      }                                                    \
-    }                                                      \
-  } while (false)
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check)                          \
+  SCOPED_VARIABLE(Isolate* while_with_handle_isolate = (isolate))              \
+  SCOPED_VARIABLE(bool should_exit = !(limit_check))                           \
+  /* Outer loop, runs as long as should_exit is false -- should_exit is set */ \
+  /* to true at the start of each iteration (it's initialized to true and   */ \
+  /* the loop condition check sets it to true), and it's only set to false  */ \
+  /* if the inner loop aborts specifically because of the handle limit.     */ \
+  /* This allows `break` inside the inner loop to escape out of both loops, */ \
+  /* since `should_exit` will not be set to false.                          */ \
+  for (int while_with_handle_it = 0; !should_exit && (should_exit = true);     \
+       while_with_handle_it = 0)                                               \
+    for (HandleScope loop_scope(while_with_handle_isolate);                    \
+         (limit_check) &&                                                      \
+         (while_with_handle_it < 1024 || (should_exit = false));               \
+         ++while_with_handle_it)
 
 #define FIELD_ACCESSOR(type, name)                \
   inline void set_##name(type v) { name##_ = v; } \
@@ -2085,12 +2090,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return priority_ != v8::Isolate::Priority::kUserBlocking;
   }
 
-  // This is a temporary api until we use it by default.
-  bool EfficiencyModeEnabledForTiering() {
-    return v8_flags.efficiency_mode_for_tiering_heuristics &&
-           EfficiencyModeEnabled();
-  }
-
   // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
   // saver mode is opt-in by the embedder. As with efficiency mode we must
   // expect that the mode is toggled off again and we should be able to ramp up
@@ -2318,13 +2317,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
-  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>&
-  wasm_stacks() {
+  std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
   }
 
   // Updates the stack limit, parent pointer and central stack info.
-  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to);
+  template <wasm::JumpBuffer::StackState new_state_of_old_stack,
+            wasm::JumpBuffer::StackState expected_target_state>
+  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
+                    Address fp, Address pc);
 
   // Retires the stack owned by {continuation}, to be called when returning or
   // throwing from this continuation.
@@ -2899,8 +2900,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   size_t stack_size_;
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  std::vector<std::unique_ptr<wasm::StackMemory, wasm::StackMemoryDeleter>>
-      wasm_stacks_;
+  std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;
 #if V8_ENABLE_DRUMBRAKE
   std::unique_ptr<wasm::WasmExecutionTimer> wasm_execution_timer_;
 #endif  // V8_ENABLE_DRUMBRAKE

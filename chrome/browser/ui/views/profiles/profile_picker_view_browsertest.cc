@@ -49,7 +49,9 @@
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
+#include "chrome/browser/signin/dice_tab_helper.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/process_dice_header_delegate_impl.h"
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -73,7 +75,7 @@
 #include "chrome/browser/ui/tab_dialogs.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
-#include "chrome/browser/ui/views/profiles/profile_picker_dice_reauth_provider.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_reauth_provider.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_test_base.h"
 #include "chrome/browser/ui/webui/profile_helper.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
@@ -154,13 +156,9 @@
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #endif  // BUILDFLAG(IS_MAC)
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-#include "chrome/browser/signin/dice_tab_helper.h"
-#include "chrome/browser/signin/process_dice_header_delegate_impl.h"
-#endif
-
 using signin::constants::kNoHostedDomainFound;
 using testing::_;
+using testing::Eq;
 
 namespace {
 const SkColor kProfileColor = SK_ColorRED;
@@ -190,9 +188,10 @@ AccountInfo FillAccountInfo(
   account_info.hosted_domain = hosted_domain;
   account_info.locale = "en";
   account_info.picture_url = "https://get-avatar.com/foo";
-  AccountCapabilitiesTestMutator(&account_info.capabilities)
-      .set_is_subject_to_enterprise_policies(hosted_domain !=
-                                             kNoHostedDomainFound);
+  bool is_managed = hosted_domain != kNoHostedDomainFound;
+  AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+  mutator.set_is_subject_to_enterprise_features(is_managed);
+  mutator.set_is_subject_to_account_level_enterprise_policies(is_managed);
   return account_info;
 }
 
@@ -474,8 +473,8 @@ class ProfilePickerCreationFlowBrowserTest
     // Simulate a click on the signin button.
     base::MockCallback<base::OnceCallback<void(bool)>> switch_finished_callback;
     EXPECT_CALL(switch_finished_callback, Run(true));
-    ProfilePicker::SwitchToDiceSignIn(kProfileColor,
-                                      switch_finished_callback.Get());
+    ProfilePicker::SwitchToSignIn(kProfileColor,
+                                  switch_finished_callback.Get());
 
     // The DICE navigation happens in a new web contents (for the profile being
     // created), wait for it.
@@ -653,11 +652,9 @@ class ProfilePickerCreationFlowBrowserTest
 #endif
   }
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   bool IsNativeToolbarVisible() {
     return view()->IsNativeToolbarVisibleForTesting();
   }
-#endif
 
  protected:
   const GURL kLocalProfileCreationUrl = AppendProfileCustomizationQueryParams(
@@ -1560,8 +1557,7 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   // Simulate a click on the signin button.
   base::MockCallback<base::OnceCallback<void(bool)>> switch_finished_callback;
   EXPECT_CALL(switch_finished_callback, Run).Times(0);
-  ProfilePicker::SwitchToDiceSignIn(kProfileColor,
-                                    switch_finished_callback.Get());
+  ProfilePicker::SwitchToSignIn(kProfileColor, switch_finished_callback.Get());
 
   // Close the flow immediately with the [X] button before
   // `switch_finished_callback` gets called (and before the respective profile
@@ -1626,8 +1622,8 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
   const SkColor kDifferentProfileColor = SK_ColorBLUE;
   base::MockCallback<base::OnceCallback<void(bool)>> switch_finished_callback;
   EXPECT_CALL(switch_finished_callback, Run(true));
-  ProfilePicker::SwitchToDiceSignIn(kDifferentProfileColor,
-                                    switch_finished_callback.Get());
+  ProfilePicker::SwitchToSignIn(kDifferentProfileColor,
+                                switch_finished_callback.Get());
 
   // Simulate a successful Gaia sign-in.
   FinishDiceSignIn(profile_being_created, "joe.consumer@gmail.com", "Joe");
@@ -2046,10 +2042,18 @@ IN_PROC_BROWSER_TEST_F(ProfilePickerCreationFlowBrowserTest,
       HatsServiceFactory::GetInstance()->SetTestingFactoryAndUse(
           other_profile, base::BindRepeating(&BuildMockHatsService)));
 
-  EXPECT_CALL(
-      *hats_service,
-      LaunchSurvey(kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker, _,
-                   _, _, _, _, _))
+  // Verify that a HaTS survey is launched when the user switch profile with the
+  // profile picker.
+  std::map<std::string, std::string> expected_string_psd = {
+      {"Channel", "unknown"},
+      {"Chrome Version", version_info::GetVersion().GetString()},
+      {"Number of Chrome Profiles", "2"},
+      {"Number of Google Accounts", "0"},
+      {"Sign-in Status", "Signed Out"}};
+  EXPECT_CALL(*hats_service,
+              LaunchDelayedSurvey(
+                  kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker, _,
+                  _, Eq(expected_string_psd)))
       .Times(2);
 
   // Open the picker.

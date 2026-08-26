@@ -27,9 +27,12 @@ import {getTemplate} from './backup_password_details_card.html.js';
 import type {CredentialFieldElement} from './credential_field.js';
 import type {CredentialNoteElement} from './credential_note.js';
 
+export type BackupPasswordRemovedEvent = CustomEvent<{}>;
+
 declare global {
   interface HTMLElementEventMap {
     'value-copied': ValueCopiedEvent;
+    'backup-password-removed': BackupPasswordRemovedEvent;
   }
 }
 
@@ -103,7 +106,11 @@ export class BackupPasswordDetailsCardElement extends
   }
 
   private onDeleteClick_() {
-    // TODO(crbug.com/420801799): Handle delete button for backup entries.
+    PasswordManagerImpl.getInstance().removeBackupPassword(this.password.id);
+    this.dispatchEvent(new CustomEvent('backup-password-removed', {
+      bubbles: true,
+      composed: true,
+    }));
     return;
   }
 
@@ -131,11 +138,11 @@ export class BackupPasswordDetailsCardElement extends
     return this.i18n('passwordLabel');
   }
 
-  private getAriaLabelForPasswordCard_(): string {
+  private getAriaLabelForBackupPasswordCard_(): string {
     return this.password.username ?
         this.i18n(
-            'passwordDetailsCardAriaLabel', this.getCredentialTypeString_(),
-            this.password.username) :
+            'backupPasswordDetailsCardAriaLabel',
+            this.getCredentialTypeString_(), this.password.username) :
         this.getCredentialTypeString_();
   }
 

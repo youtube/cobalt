@@ -279,24 +279,6 @@ bool JsepSessionDescription::RemoveCandidate(const IceCandidate* candidate) {
   return true;
 }
 
-size_t JsepSessionDescription::RemoveCandidates(
-    absl::string_view mid,
-    const std::vector<Candidate>& candidates) {
-  int mediasection_index = GetMediasectionIndex(mid);
-  if (mediasection_index < 0) {
-    return 0u;
-  }
-
-  size_t num_removed = 0u;
-  for (auto& candidate : candidates) {
-    num_removed += candidate_collection_[mediasection_index].remove(candidate);
-    UpdateConnectionAddress(
-        candidate_collection_[mediasection_index],
-        description_->contents()[mediasection_index].media_description());
-  }
-  return num_removed;
-}
-
 size_t JsepSessionDescription::number_of_mediasections() const {
   if (!description_)
     return 0;

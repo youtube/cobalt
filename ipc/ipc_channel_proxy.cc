@@ -20,8 +20,6 @@
 #include "ipc/ipc_channel_factory.h"
 #include "ipc/ipc_listener.h"
 #include "ipc/ipc_message_macros.h"
-#include "ipc/message_filter.h"
-#include "ipc/message_filter_router.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 
 namespace IPC {
@@ -36,7 +34,6 @@ ChannelProxy::Context::Context(
       listener_(listener),
       ipc_task_runner_(ipc_task_runner),
       channel_connected_called_(false),
-      message_filter_router_(new MessageFilterRouter()),
       peer_pid_(base::kNullProcessId) {
   DCHECK(ipc_task_runner_.get());
   // The Listener thread where Messages are handled must be a separate thread
@@ -76,15 +73,6 @@ void ChannelProxy::Context::CreateChannel(
 }
 
 bool ChannelProxy::Context::TryFilters(const Message& message) {
-  DCHECK(message_filter_router_);
-  if (message_filter_router_->TryFilters(message)) {
-    if (message.dispatch_error()) {
-      GetTaskRunner(message.routing_id())
-          ->PostTask(FROM_HERE, base::BindOnce(&Context::OnDispatchBadMessage,
-                                               this, message));
-    }
-    return true;
-  }
   return false;
 }
 
@@ -130,12 +118,6 @@ void ChannelProxy::Context::OnChannelConnected(int32_t peer_pid) {
     peer_pid_ = peer_pid;
   }
 
-  // Add any pending filters.  This avoids a race condition where someone
-  // creates a ChannelProxy, calls AddFilter, and then right after starts the
-  // peer process.  The IO thread could receive a message before the task to add
-  // the filter is run on the IO thread.
-  OnAddFilter();
-
   // See above comment about using default_listener_task_runner_ here.
   default_listener_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&Context::OnDispatchConnected, this));
@@ -143,9 +125,6 @@ void ChannelProxy::Context::OnChannelConnected(int32_t peer_pid) {
 
 // Called on the IPC::Channel thread
 void ChannelProxy::Context::OnChannelError() {
-  for (size_t i = 0; i < filters_.size(); ++i)
-    filters_[i]->OnChannelError();
-
   // See above comment about using default_listener_task_runner_ here.
   default_listener_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&Context::OnDispatchError, this));
@@ -172,9 +151,6 @@ void ChannelProxy::Context::OnChannelOpened() {
     OnChannelError();
     return;
   }
-
-  for (size_t i = 0; i < filters_.size(); ++i)
-    filters_[i]->OnFilterAdded(channel_.get());
 }
 
 // Called on the IPC::Channel thread
@@ -183,22 +159,6 @@ void ChannelProxy::Context::OnChannelClosed() {
   // would result in this branch being taken.
   if (!channel_)
     return;
-
-  for (auto& filter : pending_filters_) {
-    filter->OnChannelClosing();
-    filter->OnFilterRemoved();
-  }
-  for (auto& filter : filters_) {
-    filter->OnChannelClosing();
-    filter->OnFilterRemoved();
-  }
-
-  // We don't need the filters anymore.
-  message_filter_router_->Clear();
-  filters_.clear();
-  // We don't need the lock, because at this point, the listener thread can't
-  // access it any more.
-  pending_filters_.clear();
 
   ClearChannel();
 
@@ -220,75 +180,6 @@ void ChannelProxy::Context::OnSendMessage(std::unique_ptr<Message> message) {
 
   if (!channel_->Send(message.release()))
     OnChannelError();
-}
-
-// Called on the IPC::Channel thread
-void ChannelProxy::Context::OnAddFilter() {
-  // Our OnChannelConnected method has not yet been called, so we can't be
-  // sure that channel_ is valid yet. When OnChannelConnected *is* called,
-  // it invokes OnAddFilter, so any pending filter(s) will be added at that
-  // time.
-  // No lock necessary for |peer_pid_| because it is only modified on this
-  // thread.
-  if (peer_pid_ == base::kNullProcessId)
-    return;
-
-  std::vector<scoped_refptr<MessageFilter> > new_filters;
-  {
-    base::AutoLock auto_lock(pending_filters_lock_);
-    new_filters.swap(pending_filters_);
-  }
-
-  for (size_t i = 0; i < new_filters.size(); ++i) {
-    filters_.push_back(new_filters[i]);
-
-    message_filter_router_->AddFilter(new_filters[i].get());
-
-    // The channel has already been created and connected, so we need to
-    // inform the filters right now.
-    new_filters[i]->OnFilterAdded(channel_.get());
-    new_filters[i]->OnChannelConnected(peer_pid_);
-  }
-}
-
-// Called on the IPC::Channel thread
-void ChannelProxy::Context::OnRemoveFilter(MessageFilter* filter) {
-  // No lock necessary for |peer_pid_| because it is only modified on this
-  // thread.
-  if (peer_pid_ == base::kNullProcessId) {
-    // The channel is not yet connected, so any filters are still pending.
-    base::AutoLock auto_lock(pending_filters_lock_);
-    for (size_t i = 0; i < pending_filters_.size(); ++i) {
-      if (pending_filters_[i].get() == filter) {
-        filter->OnFilterRemoved();
-        pending_filters_.erase(pending_filters_.begin() + i);
-        return;
-      }
-    }
-    return;
-  }
-  if (!channel_)
-    return;  // The filters have already been deleted.
-
-  message_filter_router_->RemoveFilter(filter);
-
-  for (size_t i = 0; i < filters_.size(); ++i) {
-    if (filters_[i].get() == filter) {
-      filter->OnFilterRemoved();
-      filters_.erase(filters_.begin() + i);
-      return;
-    }
-  }
-
-  NOTREACHED() << "filter to be removed not found";
-}
-
-// Called on the listener's thread
-void ChannelProxy::Context::AddFilter(MessageFilter* filter) {
-  base::AutoLock auto_lock(pending_filters_lock_);
-  pending_filters_.push_back(base::WrapRefCounted(filter));
-  ipc_task_runner_->PostTask(FROM_HERE,
-                             base::BindOnce(&Context::OnAddFilter, this));
 }
 
 // Called on the listener's thread
@@ -528,20 +419,6 @@ void ChannelProxy::SendInternal(Message* message) {
   // tests that call Send() from a wrong thread. See http://crbug.com/163523.
 
   context_->Send(message);
-}
-
-void ChannelProxy::AddFilter(MessageFilter* filter) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  context_->AddFilter(filter);
-}
-
-void ChannelProxy::RemoveFilter(MessageFilter* filter) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-
-  context_->ipc_task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&Context::OnRemoveFilter, context_,
-                                base::RetainedRef(filter)));
 }
 
 void ChannelProxy::AddGenericAssociatedInterfaceForIOThread(

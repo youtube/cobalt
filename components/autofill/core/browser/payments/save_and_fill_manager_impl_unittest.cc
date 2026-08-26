@@ -70,6 +70,11 @@ class TestPaymentsAutofillClientMock : public TestPaymentsAutofillClient {
               ShowCreditCardUploadSaveAndFillDialog,
               (const LegalMessageLines&, CardSaveAndFillDialogCallback),
               (override));
+
+  MOCK_METHOD(void,
+              LoadRiskData,
+              (base::OnceCallback<void(const std::string&)>),
+              (override));
 };
 
 }  // namespace
@@ -321,6 +326,98 @@ TEST_F(SaveAndFillManagerImplTest,
             !details.client_behavior_signals.empty());
 }
 
+TEST_F(SaveAndFillManagerImplTest, UniqueAddress_SingleAddressCandidate) {
+  auto profile = test::GetFullProfile(AddressCountryCode("US"));
+  autofill_client_->GetPersonalDataManager()
+      .test_address_data_manager()
+      .AddProfile(profile);
+  save_and_fill_manager_impl_->SetCreditCardUploadEnabledOverrideForTesting(
+      true);
+  UploadCardRequestDetails details;
+
+  EXPECT_CALL(*mock_network_interface_,
+              GetDetailsForCreateCard(testing::_, testing::_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&details),
+                               testing::Return(RequestId("11223344"))));
+
+  save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
+      fill_card_callback_.Get());
+
+  ASSERT_EQ(details.profiles.size(), 1U);
+  EXPECT_EQ(details.profiles[0], profile);
+}
+
+TEST_F(SaveAndFillManagerImplTest,
+       UniqueAddress_MultipleConflictingAddressCandidates) {
+  auto& test_address_data_manager =
+      autofill_client_->GetPersonalDataManager().test_address_data_manager();
+  test_address_data_manager.AddProfile(
+      test::GetFullProfile(AddressCountryCode("US")));
+  test_address_data_manager.AddProfile(
+      test::GetFullProfile2(AddressCountryCode("UK")));
+  save_and_fill_manager_impl_->SetCreditCardUploadEnabledOverrideForTesting(
+      true);
+  UploadCardRequestDetails details;
+
+  EXPECT_CALL(*mock_network_interface_,
+              GetDetailsForCreateCard(testing::_, testing::_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&details),
+                               testing::Return(RequestId("11223344"))));
+
+  save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
+      fill_card_callback_.Get());
+
+  EXPECT_TRUE(details.profiles.empty());
+}
+
+TEST_F(SaveAndFillManagerImplTest,
+       UniqueAddress_MultipleDuplicateAddressCandidates) {
+  auto& test_address_data_manager =
+      autofill_client_->GetPersonalDataManager().test_address_data_manager();
+  auto profile = test::GetFullProfile(AddressCountryCode("US"));
+  test_address_data_manager.AddProfile(profile);
+  test_address_data_manager.AddProfile(profile);
+  save_and_fill_manager_impl_->SetCreditCardUploadEnabledOverrideForTesting(
+      true);
+  UploadCardRequestDetails details;
+
+  EXPECT_CALL(*mock_network_interface_,
+              GetDetailsForCreateCard(testing::_, testing::_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&details),
+                               testing::Return(RequestId("11223344"))));
+
+  save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
+      fill_card_callback_.Get());
+
+  ASSERT_EQ(details.profiles.size(), 1U);
+  EXPECT_EQ(details.profiles[0], profile);
+}
+
+TEST_F(SaveAndFillManagerImplTest,
+       UniqueAddress_NoRecentlyUsedAddressCandidate) {
+  constexpr base::Time kJanuary2017 =
+      base::Time::FromSecondsSinceUnixEpoch(1484505871);
+  auto profile = test::GetFullProfile(AddressCountryCode("US"));
+  profile.usage_history().set_modification_date(kJanuary2017);
+  profile.usage_history().set_use_date(kJanuary2017);
+  autofill_client_->GetPersonalDataManager()
+      .test_address_data_manager()
+      .AddProfile(profile);
+  save_and_fill_manager_impl_->SetCreditCardUploadEnabledOverrideForTesting(
+      true);
+  UploadCardRequestDetails details;
+
+  EXPECT_CALL(*mock_network_interface_,
+              GetDetailsForCreateCard(testing::_, testing::_))
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&details),
+                               testing::Return(RequestId("11223344"))));
+
+  save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
+      fill_card_callback_.Get());
+
+  EXPECT_TRUE(details.profiles.empty());
+}
+
 // Test that the server dialog is shown when the preflight call succeeds and
 // legal messages are parsed correctly.
 TEST_F(SaveAndFillManagerImplTest,
@@ -375,6 +472,40 @@ TEST_F(SaveAndFillManagerImplTest,
 
   save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
       fill_card_callback_.Get());
+}
+
+TEST_F(SaveAndFillManagerImplTest, LoadRiskData) {
+  save_and_fill_manager_impl_->SetCreditCardUploadEnabledOverrideForTesting(
+      true);
+  SetUpGetDetailsForCreateCardResponse(
+      PaymentsAutofillClient::PaymentsRpcResult::kSuccess,
+      /*create_valid_legal_message=*/true);
+
+  EXPECT_CALL(*payments_autofill_client_, ShowCreditCardUploadSaveAndFillDialog)
+      .WillOnce([](const LegalMessageLines&,
+                   TestPaymentsAutofillClient::CardSaveAndFillDialogCallback
+                       callback) {
+        std::move(callback).Run(CardSaveAndFillDialogUserDecision::kAccepted,
+                                UserProvidedCardSaveAndFillDetails());
+      });
+
+  base::OnceCallback<void(const std::string&)> risk_data_loaded_callback;
+  EXPECT_CALL(*payments_autofill_client_, LoadRiskData)
+      .WillOnce([&](base::OnceCallback<void(const std::string&)> callback) {
+        risk_data_loaded_callback = std::move(callback);
+      });
+
+  UploadCardRequestDetails details;
+  EXPECT_CALL(*mock_network_interface_, CreateCard)
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&details),
+                               testing::Return(RequestId("11223344"))));
+
+  save_and_fill_manager_impl_->OnDidAcceptCreditCardSaveAndFillSuggestion(
+      fill_card_callback_.Get());
+
+  std::move(risk_data_loaded_callback).Run("some risk data");
+
+  EXPECT_EQ(details.risk_data, "some risk data");
 }
 
 }  // namespace autofill::payments

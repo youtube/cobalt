@@ -5,7 +5,6 @@
 #include "chrome/browser/actor/tools/page_tool_request.h"
 
 #include "chrome/browser/actor/tools/page_tool.h"
-#include "chrome/browser/actor/variant_visitor.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_constants.h"
@@ -13,6 +12,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace actor {
 
@@ -22,7 +22,7 @@ using optimization_guide::DocumentIdentifierUserData;
 using tabs::TabHandle;
 
 namespace {
-constexpr Visitor ToMojoFn{
+constexpr absl::Overload ToMojoFn{
     [](const gfx::Point& pt) -> mojom::ToolTargetPtr {
       return actor::mojom::ToolTarget::NewCoordinate(pt);
     },
@@ -45,13 +45,14 @@ PageToolRequest::PageToolRequest(const PageToolRequest& other) = default;
 
 ToolRequest::CreateToolResult PageToolRequest::CreateTool(
     TaskId task_id,
-    AggregatedJournal& journal) const {
+    ToolDelegate& tool_delegate) const {
   if (!GetTabHandle().Get()) {
     return {/*tool=*/nullptr, MakeResult(mojom::ActionResultCode::kTabWentAway,
                                          "The tab is no longer present.")};
   }
 
-  return {std::make_unique<PageTool>(task_id, journal, *this), MakeOkResult()};
+  return {std::make_unique<PageTool>(task_id, tool_delegate, *this),
+          MakeOkResult()};
 }
 
 const PageTarget& PageToolRequest::GetTarget() const {

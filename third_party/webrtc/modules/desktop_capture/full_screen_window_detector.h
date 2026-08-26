@@ -76,7 +76,8 @@ class FullScreenWindowDetector
 
   // Used for tests.
   void CreateFullScreenApplicationHandlerForTest(
-      DesktopCapturer::SourceId source_id);
+      DesktopCapturer::SourceId source_id,
+      bool fullscreen_slide_show_started_after_capture_start);
 
  protected:
   std::unique_ptr<FullScreenApplicationHandler> app_handler_;

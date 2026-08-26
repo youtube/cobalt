@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller.h"
 #include "components/autofill/core/common/credit_card_number_validation.h"
 #include "components/grit/components_scaled_resources.h"
@@ -16,12 +17,15 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/textfield/textfield.h"
+#include "ui/views/controls/throbber.h"
 
 namespace autofill {
 
 SaveAndFillDialog::SaveAndFillDialog(
-    base::WeakPtr<SaveAndFillDialogController> controller)
-    : controller_(controller) {
+    base::WeakPtr<SaveAndFillDialogController> controller,
+    base::RepeatingCallback<void(const GURL&)> on_legal_message_link_clicked)
+    : controller_(controller),
+      on_legal_message_link_clicked_(on_legal_message_link_clicked) {
   // Set the ownership of the delegate, not the View. The View is owned by the
   // Widget as a child view.
   // TODO(crbug.com/338254375): Remove the following line once this is the
@@ -50,7 +54,7 @@ void SaveAndFillDialog::AddedToWidget() {
     focus_manager_->AddFocusChangeListener(this);
   }
 
-  if (controller_->IsUploadSaveAndFill()) {
+  if (controller_->GetDialogState() == SaveAndFillDialogState::kUploadDialog) {
     GetBubbleFrameView()->SetTitleView(
         std::make_unique<TitleWithIconAfterLabelView>(
             GetWindowTitle(), TitleWithIconAfterLabelView::Icon::GOOGLE_PAY));
@@ -133,13 +137,37 @@ void SaveAndFillDialog::InitViews() {
   set_margins(ChromeLayoutProvider::Get()->GetDialogInsetsForContentType(
       views::DialogContentType::kControl, views::DialogContentType::kControl));
 
-  AddChildView(views::Builder<views::Label>()
-                   .SetText(controller_->GetExplanatoryMessage())
-                   .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
-                   .SetTextStyle(views::style::STYLE_SECONDARY)
-                   .SetMultiLine(true)
-                   .SetHorizontalAlignment(gfx::ALIGN_TO_HEAD)
-                   .Build());
+  container_view_ = AddChildView(std::make_unique<views::View>());
+  container_view_->SetUseDefaultFillLayout(true);
+
+  CreateMainContentView();
+  CreatePendingView();
+
+  if (controller_->GetDialogState() == SaveAndFillDialogState::kPendingDialog) {
+    ToggleThrobberVisibility(/*visible=*/true);
+  } else if (controller_->GetDialogState() ==
+             SaveAndFillDialogState::kUploadDialog) {
+    ToggleThrobberVisibility(/*visible=*/false);
+  }
+}
+
+void SaveAndFillDialog::CreateMainContentView() {
+  container_view_->AddChildView(
+      views::Builder<views::BoxLayoutView>()
+          .CopyAddressTo(&main_view_)
+          .SetOrientation(views::BoxLayout::Orientation::kVertical)
+          .SetBetweenChildSpacing(
+              ChromeLayoutProvider::Get()->GetDistanceMetric(
+                  views::DISTANCE_RELATED_CONTROL_VERTICAL))
+          .Build());
+  main_view_->AddChildView(
+      views::Builder<views::Label>()
+          .SetText(controller_->GetExplanatoryMessage())
+          .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
+          .SetTextStyle(views::style::STYLE_SECONDARY)
+          .SetMultiLine(true)
+          .SetHorizontalAlignment(gfx::ALIGN_TO_HEAD)
+          .Build());
 
   card_number_data_ = CreateLabelAndTextfieldView(
       /*label_text=*/controller_->GetCardNumberLabel(),
@@ -147,7 +175,7 @@ void SaveAndFillDialog::InitViews() {
   card_number_data_.GetInputTextField().SetTextInputType(
       ui::TextInputType::TEXT_INPUT_TYPE_NUMBER);
   card_number_data_.GetInputTextField().SetController(this);
-  AddChildView(std::move(card_number_data_.container));
+  main_view_->AddChildView(std::move(card_number_data_.container));
 
   expiration_date_data_ = CreateLabelAndTextfieldView(
       /*label_text=*/controller_->GetExpirationDateLabel(),
@@ -176,7 +204,7 @@ void SaveAndFillDialog::InitViews() {
       /*error_message=*/std::u16string());
 
   // Create the horizontal row for expiration date, cvc, and icon.
-  AddChildView(
+  main_view_->AddChildView(
       views::Builder<views::BoxLayoutView>()
           .SetOrientation(views::BoxLayout::Orientation::kHorizontal)
           .SetBetweenChildSpacing(
@@ -195,7 +223,31 @@ void SaveAndFillDialog::InitViews() {
       /*label_text=*/controller_->GetNameOnCardLabel(),
       /*error_message=*/controller_->GetInvalidNameOnCardErrorMessage());
   name_on_card_data_.GetInputTextField().SetController(this);
-  AddChildView(std::move(name_on_card_data_.container));
+  main_view_->AddChildView(std::move(name_on_card_data_.container));
+
+  if (controller_->GetDialogState() == SaveAndFillDialogState::kUploadDialog) {
+    main_view_->AddChildView(CreateLegalMessageView());
+  }
+}
+
+void SaveAndFillDialog::CreatePendingView() {
+  container_view_->AddChildView(
+      views::Builder<views::BoxLayoutView>()
+          .CopyAddressTo(&pending_view_)
+          .SetMainAxisAlignment(views::BoxLayout::MainAxisAlignment::kCenter)
+          .SetCrossAxisAlignment(views::BoxLayout::CrossAxisAlignment::kCenter)
+          .AddChild(
+              views::Builder<views::Throbber>(
+                  std::make_unique<views::Throbber>(kDialogThrobberDiameter))
+                  .CopyAddressTo(&throbber_))
+          .SetVisible(false)
+          .Build());
+}
+
+void SaveAndFillDialog::ToggleThrobberVisibility(bool visible) {
+  visible ? throbber_->Start() : throbber_->Stop();
+  main_view_->SetVisible(!visible);
+  pending_view_->SetVisible(visible);
 }
 
 payments::PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails
@@ -234,6 +286,18 @@ void SaveAndFillDialog::OnDialogClosed(views::Widget::ClosedReason reason) {
   } else {
     controller_->Dismiss();
   }
+}
+
+std::unique_ptr<views::View> SaveAndFillDialog::CreateLegalMessageView() {
+  const LegalMessageLines& message_lines = controller_->GetLegalMessageLines();
+
+  if (message_lines.empty()) {
+    return nullptr;
+  }
+
+  return autofill::CreateLegalMessageView(
+      message_lines, std::u16string(), ui::ImageModel(),
+      base::BindRepeating(on_legal_message_link_clicked_));
 }
 
 }  // namespace autofill

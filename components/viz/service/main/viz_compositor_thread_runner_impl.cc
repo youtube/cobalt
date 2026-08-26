@@ -29,7 +29,6 @@
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_switches.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "ui/gfx/switches.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -85,6 +84,12 @@ std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
 
   std::unique_ptr<base::Thread> thread;
   base::Thread::Options thread_options;
+  // DirectReceiver requires an I/O MessagePump, or the pump to expose an
+  // IOWatcher like MessagePumpAndroid.
+  if (mojo::IsDirectReceiverSupported() &&
+      features::IsVizDirectCompositorThreadIpcNonRootEnabled()) {
+    thread_options.message_pump_type = base::MessagePumpType::IO;
+  }
 #if BUILDFLAG(IS_OZONE)
   auto* platform = ui::OzonePlatform::GetInstance();
   thread_options.message_pump_type =

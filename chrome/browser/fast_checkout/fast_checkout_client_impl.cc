@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ranges>
 
 #include "base/containers/flat_set.h"
 #include "base/metrics/histogram_functions.h"
@@ -57,10 +58,9 @@ const autofill::AutofillField* GetFieldToFill(
     bool is_credit_card_form) {
   for (const std::unique_ptr<autofill::AutofillField>& field : fields) {
     if (IsVisibleTextField(*field) && field->value().empty() &&
-        ((!is_credit_card_form &&
-          autofill::IsAddressType(field->Type().GetStorableType())) ||
-         (is_credit_card_form &&
-          field->Type().GetStorableType() == autofill::CREDIT_CARD_NUMBER))) {
+        (is_credit_card_form
+             ? field->Type().GetCreditCardType() == autofill::CREDIT_CARD_NUMBER
+             : field->Type().GetAddressType() != autofill::UNKNOWN_TYPE)) {
       return field.get();
     }
   }
@@ -80,12 +80,14 @@ bool IsEmailForm(const autofill::FormStructure& form) {
       form.GetFormTypes().contains(autofill::FormType::kAddressForm);
   bool has_name_or_address_field = std::ranges::any_of(
       form.fields(), [](const std::unique_ptr<autofill::AutofillField>& field) {
-        autofill::FieldTypeGroup type_group = field->Type().group();
-        return IsNameOrAddress(type_group) && IsVisibleTextField(*field);
+        return std::ranges::any_of(field->Type().GetGroups(),
+                                   &IsNameOrAddress) &&
+               IsVisibleTextField(*field);
       });
   bool has_focusable_email_field = std::ranges::any_of(
       form.fields(), [](const std::unique_ptr<autofill::AutofillField>& field) {
-        return field->Type().group() == autofill::FieldTypeGroup::kEmail &&
+        return field->Type().GetGroups().contains(
+                   autofill::FieldTypeGroup::kEmail) &&
                IsVisibleTextField(*field);
       });
   return is_address_form && has_focusable_email_field &&

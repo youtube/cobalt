@@ -175,7 +175,7 @@ public class MockWebContents implements WebContents, WebContentsObserver.Observa
     public void stop() {}
 
     @Override
-    public void setPrimaryMainFrameImportance(int importance) {}
+    public void setPrimaryPageImportance(int mainFrameImportance, int subframeImportance) {}
 
     @Override
     public void suspendAllMediaPlayers() {}
@@ -355,9 +355,6 @@ public class MockWebContents implements WebContents, WebContentsObserver.Observa
 
     @Override
     public void setDisplayCutoutSafeArea(Rect insets) {}
-
-    @Override
-    public void setContextMenuInsets(Rect insets) {}
 
     @Override
     public void showInterestInElement(int nodeID) {}

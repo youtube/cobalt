@@ -1393,7 +1393,7 @@ void LegacyStatsCollector::UpdateReportFromAudioTrack(
 
   auto audio_processor(track->GetAudioProcessor());
 
-  if (audio_processor.get()) {
+  if (audio_processor) {
     AudioProcessorInterface::AudioProcessorStatistics stats =
         audio_processor->GetStats(has_remote_tracks);
 

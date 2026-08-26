@@ -17,7 +17,7 @@
 
 #include "rtc_base/system/arch.h"  // IWYU pragma: keep
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
+#if defined(WEBRTC_POSIX)
 #include <arpa/inet.h>  // IWYU pragma: keep
 #endif
 
@@ -39,7 +39,7 @@
 #define le32toh(v) OSSwapLittleToHostInt32(v)
 #define le64toh(v) OSSwapLittleToHostInt64(v)
 
-#elif defined(WEBRTC_WIN) || defined(__native_client__)
+#elif defined(WEBRTC_WIN)
 
 #if defined(WEBRTC_WIN)
 #include <winsock2.h>
@@ -62,10 +62,6 @@
 #define htobe64(v) _byteswap_uint64(v)
 #define be64toh(v) _byteswap_uint64(v)
 #endif  // defined(WEBRTC_WIN)
-#if defined(__native_client__)
-#define htobe64(v) __builtin_bswap64(v)
-#define be64toh(v) __builtin_bswap64(v)
-#endif  // defined(__native_client__)
 
 #elif defined(WEBRTC_ARCH_BIG_ENDIAN)
 #define htobe16(v) (v)
@@ -82,10 +78,6 @@
 #define htobe64(v) (v)
 #define be64toh(v) (v)
 #endif  // defined(WEBRTC_WIN)
-#if defined(__native_client__)
-#define htobe64(v) (v)
-#define be64toh(v) (v)
-#endif  // defined(__native_client__)
 #else
 #error WEBRTC_ARCH_BIG_ENDIAN or WEBRTC_ARCH_LITTLE_ENDIAN must be defined.
 #endif  // defined(WEBRTC_ARCH_LITTLE_ENDIAN)

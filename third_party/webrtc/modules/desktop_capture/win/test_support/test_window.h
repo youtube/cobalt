@@ -38,6 +38,8 @@ WindowInfo CreateTestWindow(const WCHAR* window_title,
 
 void ResizeTestWindow(HWND hwnd, int width, int height);
 
+void ResizeTestWindowToFullScreen(const HWND hwnd);
+
 void MoveTestWindow(HWND hwnd, int x, int y);
 
 void MinimizeTestWindow(HWND hwnd);

@@ -7,8 +7,10 @@
 #include <string_view>
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/to_vector.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 
@@ -78,7 +80,6 @@ static constexpr auto kTypeNameToFieldType =
          {"CREDIT_CARD_TYPE", CREDIT_CARD_TYPE},
          {"CREDIT_CARD_VERIFICATION_CODE", CREDIT_CARD_VERIFICATION_CODE},
          {"COMPANY_NAME", COMPANY_NAME},
-         {"FIELD_WITH_DEFAULT_VALUE", FIELD_WITH_DEFAULT_VALUE},
          {"MERCHANT_EMAIL_SIGNUP", MERCHANT_EMAIL_SIGNUP},
          {"MERCHANT_PROMO_CODE", MERCHANT_PROMO_CODE},
          {"PASSWORD", PASSWORD},
@@ -172,6 +173,10 @@ static constexpr auto kTypeNameToFieldType =
          {"NATIONAL_ID_CARD_EXPIRATION_DATE", NATIONAL_ID_CARD_EXPIRATION_DATE},
          {"NATIONAL_ID_CARD_ISSUE_DATE", NATIONAL_ID_CARD_ISSUE_DATE},
          {"NATIONAL_ID_CARD_ISSUING_COUNTRY", NATIONAL_ID_CARD_ISSUING_COUNTRY},
+         {"KNOWN_TRAVELER_NUMBER", KNOWN_TRAVELER_NUMBER},
+         {"KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE",
+          KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE},
+         {"REDRESS_NUMBER", REDRESS_NUMBER},
          {"EMAIL_OR_LOYALTY_MEMBERSHIP_ID", EMAIL_OR_LOYALTY_MEMBERSHIP_ID}});
 
 bool IsFillableFieldType(FieldType field_type) {
@@ -300,6 +305,9 @@ bool IsFillableFieldType(FieldType field_type) {
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
       return true;
 
     // Not fillable credential fields.
@@ -319,7 +327,6 @@ bool IsFillableFieldType(FieldType field_type) {
     case NO_SERVER_DATA:
     case EMPTY_TYPE:
     case AMBIGUOUS_TYPE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case PRICE:
     case NUMERIC_QUANTITY:
@@ -349,6 +356,12 @@ std::string FieldTypeToString(FieldType type) {
   return std::string(FieldTypeToStringView(type));
 }
 
+std::string FieldTypeSetToString(FieldTypeSet s) {
+  return base::JoinString(
+      base::ToVector(s, [](FieldType t) { return FieldTypeToStringView(t); }),
+      ", ");
+}
+
 FieldType TypeNameToFieldType(std::string_view type_name) {
   auto it = kTypeNameToFieldType.find(type_name);
   return it != kTypeNameToFieldType.end() ? it->second : UNKNOWN_TYPE;
@@ -358,7 +371,6 @@ std::string_view FieldTypeToDeveloperRepresentationString(FieldType type) {
   switch (type) {
     case NO_SERVER_DATA:
     case UNKNOWN_TYPE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case EMPTY_TYPE:
     case NOT_ACCOUNT_CREATION_PASSWORD:
     case NOT_NEW_PASSWORD:
@@ -393,6 +405,9 @@ std::string_view FieldTypeToDeveloperRepresentationString(FieldType type) {
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
       return "";
     case NUMERIC_QUANTITY:
       return "Numeric quantity";

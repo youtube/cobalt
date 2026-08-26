@@ -9,6 +9,7 @@
 #include "base/path_service.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
@@ -23,6 +25,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/common/chrome_features.h"
@@ -41,27 +44,34 @@
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/fre/glic_fre.mojom.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
+namespace {
+using testing::SizeIs;
+}  // namespace
+
 class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
  public:
   TabStripActionContainerBrowserTest() {
-    feature_list_.InitWithFeatures(
+    feature_list_.InitWithFeaturesAndParameters(
         {
-            features::kTabOrganization,
+            {features::kTabOrganization, {}},
 #if BUILDFLAG(ENABLE_GLIC)
-            features::kGlicRollout,
-            features::kGlicFreWarming,
+            {features::kGlicRollout, {}},
+            {features::kGlicFreWarming, {}},
+            {features::kGlicActor, {}},
+            {features::kGlicActorUi,
+             { {features::kGlicActorUiTaskIconName, "true"} }},
 #endif
-            features::kTabstripComboButton,
-            features::kTabstripDeclutter,
-            contextual_cueing::kContextualCueing,
+            {features::kTabstripComboButton, {}},
+            {features::kTabstripDeclutter, {}},
+            {contextual_cueing::kContextualCueing, {}},
         },
         {});
     TabOrganizationUtils::GetInstance()->SetIgnoreOptGuideForTesting(true);
@@ -78,6 +88,7 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
             .AppendASCII("gen/chrome/test/data/webui/glic/"));
     ASSERT_TRUE(fre_server_.Start());
     fre_url_ = fre_server_.GetURL("/glic/test_client/fre.html");
+
     InProcessBrowserTest::SetUp();
   }
 
@@ -125,6 +136,14 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
 
   glic::GlicButton* GlicNudgeButton() {
     return tab_strip_action_container()->GetGlicButton();
+  }
+
+  glic::GlicActorTaskIcon* GlicActorTaskIcon() {
+    return tab_strip_action_container()->glic_actor_task_icon();
+  }
+
+  views::FlexLayoutView* GlicActorButtonContainer() {
+    return tab_strip_action_container()->glic_actor_button_container();
   }
 
   void ShowTabStripNudgeButton(TabStripNudgeButton* button) {
@@ -499,5 +518,102 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   EXPECT_EQ(0, tab_strip_action_container()
                    ->GetGlicButton()
                    ->width_factor_for_testing());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
+                       ShowAndHideGlicActorTaskIconBasedOnTaskState) {
+  EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
+  ASSERT_THAT(GlicActorButtonContainer()->children(), SizeIs(1));
+
+  auto* task_icon_controller =
+      browser()->browser_window_features()->glic_actor_task_icon_controller();
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kActive,
+      glic::GlicWindowController::State::kClosed);
+
+  EXPECT_TRUE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetVisible());
+  // Check that GlicButton was added to the GlicActorButtonContainer.
+  ASSERT_THAT(GlicActorButtonContainer()->children(), SizeIs(2));
+  EXPECT_EQ(tab_strip_action_container()->GetGlicButton(),
+            GlicActorButtonContainer()->children()[1]);
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kInactive,
+      glic::GlicWindowController::State::kClosed);
+
+  EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_THAT(GlicActorButtonContainer()->children(), SizeIs(1));
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
+                       ShowAndHideGlicActorTaskIconCheckTasksNudge) {
+  EXPECT_EQ(GlicActorTaskIcon()->GetText(), std::u16string());
+  ASSERT_FALSE(tab_strip_action_container()->animation_session_for_testing());
+  EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
+
+  auto* task_icon_controller =
+      browser()->browser_window_features()->glic_actor_task_icon_controller();
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kCheckTasks,
+      glic::GlicWindowController::State::kClosed);
+
+  ASSERT_TRUE(tab_strip_action_container()
+                  ->animation_session_for_testing()
+                  ->expansion_animation()
+                  ->IsShowing());
+
+  EXPECT_TRUE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetIsShowingNudge());
+  // TODO(crbug.com/431015299): Replace with finalized strings when ready.
+  EXPECT_EQ(GlicActorTaskIcon()->GetText(), u"Your task needs attention");
+
+  ResetAnimation(1);
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kInactive,
+      glic::GlicWindowController::State::kClosed);
+
+  EXPECT_EQ(GlicActorTaskIcon()->GetText(), std::u16string());
+  EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_FALSE(GlicActorTaskIcon()->GetIsShowingNudge());
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
+                       ResetTaskIconOnCheckTaskToActiveStateChange) {
+  auto* task_icon_controller =
+      browser()->browser_window_features()->glic_actor_task_icon_controller();
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kCheckTasks,
+      glic::GlicWindowController::State::kClosed);
+
+  ASSERT_TRUE(tab_strip_action_container()
+                  ->animation_session_for_testing()
+                  ->expansion_animation()
+                  ->IsShowing());
+
+  EXPECT_TRUE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetIsShowingNudge());
+  // TODO(crbug.com/431015299): Replace with finalized strings when ready.
+  EXPECT_EQ(GlicActorTaskIcon()->GetText(), u"Your task needs attention");
+
+  ResetAnimation(1);
+
+  task_icon_controller->OnStateUpdate(
+      actor::ui::ActorUiStateManagerInterface::UiState::kActive,
+      glic::GlicWindowController::State::kClosed);
+
+  EXPECT_TRUE(GlicActorButtonContainer()->GetVisible());
+  EXPECT_TRUE(GlicActorTaskIcon()->GetVisible());
+  // Check that GlicButton was added to the GlicActorButtonContainer.
+  ASSERT_THAT(GlicActorButtonContainer()->children(), SizeIs(2));
+  EXPECT_EQ(tab_strip_action_container()->GetGlicButton(),
+            GlicActorButtonContainer()->children()[1]);
+  EXPECT_EQ(GlicActorTaskIcon()->GetText(), std::u16string());
+  EXPECT_FALSE(GlicActorTaskIcon()->GetIsShowingNudge());
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)

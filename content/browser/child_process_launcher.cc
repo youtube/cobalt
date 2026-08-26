@@ -349,6 +349,7 @@ RenderProcessPriority::RenderProcessPriority(
     bool intersects_viewport,
     bool boost_for_pending_views,
     bool boost_for_loading,
+    bool boost_for_discard,
     bool is_spare_renderer
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -367,6 +368,7 @@ RenderProcessPriority::RenderProcessPriority(
       intersects_viewport(intersects_viewport),
       boost_for_pending_views(boost_for_pending_views),
       boost_for_loading(boost_for_loading),
+      boost_for_discard(boost_for_discard),
       is_spare_renderer(is_spare_renderer)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -395,7 +397,7 @@ bool RenderProcessPriority::is_background() const {
       return false;
     }
     // TODO(351953350): Migrate this logic to the performance manager.
-    if (boost_for_loading) {
+    if (boost_for_loading || boost_for_discard) {
       return false;
     }
     return *priority_override == base::Process::Priority::kBestEffort;
@@ -403,7 +405,7 @@ bool RenderProcessPriority::is_background() const {
 #endif
   return !visible && !has_media_stream && !has_immersive_xr_session &&
          !boost_for_pending_views && !has_foreground_service_worker &&
-         !boost_for_loading;
+         !boost_for_loading && !boost_for_discard;
 }
 
 base::Process::Priority RenderProcessPriority::GetProcessPriority() const {
@@ -416,7 +418,7 @@ base::Process::Priority RenderProcessPriority::GetProcessPriority() const {
       return base::Process::Priority::kUserBlocking;
     }
     // TODO(351953350): Migrate this logic to the performance manager.
-    if (boost_for_loading) {
+    if (boost_for_loading || boost_for_discard) {
       return base::Process::Priority::kUserBlocking;
     }
     return *priority_override;

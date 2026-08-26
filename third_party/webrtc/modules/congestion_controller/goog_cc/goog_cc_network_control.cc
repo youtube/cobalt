@@ -113,8 +113,7 @@ GoogCcNetworkController::GoogCcNetworkController(NetworkControllerConfig config,
       bandwidth_estimation_(
           std::make_unique<SendSideBandwidthEstimation>(&env_.field_trials(),
                                                         &env_.event_log())),
-      alr_detector_(std::make_unique<AlrDetector>(&env_.field_trials(),
-                                                  &env_.event_log())),
+      alr_detector_(env_),
       probe_bitrate_estimator_(new ProbeBitrateEstimator(&env_.event_log())),
       network_estimator_(std::move(goog_cc_config.network_state_estimator)),
       network_state_predictor_(
@@ -221,7 +220,7 @@ NetworkControlUpdate GoogCcNetworkController::OnProcessInterval(
   }
   bandwidth_estimation_->UpdateEstimate(msg.at_time);
   probe_controller_->SetAlrStartTime(
-      alr_detector_->GetApplicationLimitedRegionStartTime());
+      alr_detector_.GetApplicationLimitedRegionStartTime());
 
   auto probes = probe_controller_->Process(msg.at_time);
   update.probe_cluster_configs.insert(update.probe_cluster_configs.end(),
@@ -262,9 +261,9 @@ NetworkControlUpdate GoogCcNetworkController::OnRoundTripTimeUpdate(
 
 NetworkControlUpdate GoogCcNetworkController::OnSentPacket(
     SentPacket sent_packet) {
-  alr_detector_->OnBytesSent(sent_packet.size, sent_packet.send_time);
+  alr_detector_.OnBytesSent(sent_packet.size, sent_packet.send_time);
   acknowledged_bitrate_estimator_->SetAlr(
-      alr_detector_->GetApplicationLimitedRegionStartTime().has_value());
+      alr_detector_.GetApplicationLimitedRegionStartTime().has_value());
 
   if (!first_packet_sent_) {
     first_packet_sent_ = true;
@@ -444,7 +443,7 @@ NetworkControlUpdate GoogCcNetworkController::OnTransportPacketsFeedback(
   }
 
   std::optional<Timestamp> alr_start_time =
-      alr_detector_->GetApplicationLimitedRegionStartTime();
+      alr_detector_.GetApplicationLimitedRegionStartTime();
   if (previously_in_alr_ && !alr_start_time.has_value()) {
     acknowledged_bitrate_estimator_->SetAlrEndedTime(report.feedback_time);
     probe_controller_->SetAlrEndedTime(report.feedback_time);
@@ -613,7 +612,7 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     last_estimated_round_trip_time_ = round_trip_time;
     last_loss_base_state_ = loss_based_state;
 
-    alr_detector_->SetEstimatedBitrate(loss_based_target_rate);
+    alr_detector_.SetEstimatedBitrate(loss_based_target_rate);
 
     TimeDelta bwe_period = delay_based_bwe_->GetExpectedBwePeriod();
 

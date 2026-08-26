@@ -58,8 +58,6 @@ enum GpuMemoryBufferType {
 #endif
 };
 
-using GpuMemoryBufferId = GenericSharedMemoryId;
-
 #if BUILDFLAG(IS_WIN)
 using DXGIHandleToken = base::TokenType<class DXGIHandleTokenTypeMarker>;
 
@@ -136,8 +134,6 @@ class COMPONENT_EXPORT(GFX) DXGIHandle {
 // is always consistent, particularly that the only one handle is set at the
 // same time and it corresponds to |type|.
 struct COMPONENT_EXPORT(GFX) GpuMemoryBufferHandle {
-  static constexpr GpuMemoryBufferId kInvalidId = GpuMemoryBufferId(-1);
-
   GpuMemoryBufferHandle();
   explicit GpuMemoryBufferHandle(base::UnsafeSharedMemoryRegion region);
 #if BUILDFLAG(IS_WIN)

@@ -86,6 +86,7 @@
 <translation id="2091012649849228750">Google Chrome-ның жаңа нұсқаларын алып тұру үшін Windows 10 не одан кейінгі операциялық жүйе керек болады. Бұл компьютерде Windows 8 нұсқасы орнатылған.</translation>
 <translation id="2094648590148273905">ChromeOS Flex шарттары</translation>
 <translation id="2094919256425865063">Chrome браузерінен бәрібір шығасыз ба?</translation>
+<translation id="2096213354152647998">Жақында кірмедіңіз. Chrome <ph name="PERMISSION" /> рұқсатын өшірді.</translation>
 <translation id="2106831557840787829">ChromeOS Flex операциялық жүйесі де <ph name="BEGIN_LINK_LINUX_OSS" />Linux әзірлеу ортасы<ph name="END_LINK_LINUX_OSS" /> сияқты қосымша <ph name="BEGIN_LINK_CROS_OSS" />ашық кодты бағдарламалық құрал<ph name="END_LINK_CROS_OSS" /> арқылы қолжетімді болады.</translation>
 <translation id="2108778574543343055">Chrome-ның қолданбаларда фондық режимде жұмыс істеу мүмкіндігін өшіру</translation>
 <translation id="2120620239521071941"><ph name="ITEMS_COUNT" /> элемент бұл құрылғыдан жойылады. Деректерді кейінірек алу үшін Chrome жүйесіне <ph name="USER_EMAIL" /> болып кіріңіз.</translation>
@@ -197,6 +198,7 @@
 <translation id="3282568296779691940">Chrome жүйесіне кіру</translation>
 <translation id="3286538390144397061">Қазір қайта іске қосу</translation>
 <translation id="3292333338048274092">Содан кейін Chrome-ды өшіріп қосуыңыз қажет.</translation>
+<translation id="3324218984287646518">Google Lens-ден осы бейне жайында сұрау</translation>
 <translation id="3327226547491422998">Кейінірек Chrome сізден үлгілерді автоматты түрде толтыру үшін сақталған ақпаратты пайдалану-пайдаланбау қажеттігін сұрауы мүмкін.</translation>
 <translation id="3352986031709923790">іздеу аймағының жоғарғы оң жақ бұрышы: оң жақ <ph name="RIGHT" />%, жоғарғы жақ <ph name="TOP" />%</translation>
 <translation id="3360895254066713204">Chrome Helper</translation>
@@ -215,11 +217,11 @@
 <translation id="3576528680708590453">Жүйе әкімшісі Google Chrome браузерін <ph name="TARGET_URL_HOSTNAME" /> бетіне кіргенде қосымша браузер ашылатын етіп конфигурациялады.</translation>
 <translation id="3582972582564653026">Chrome браузерін барлық құрылғыларда синхрондап, параметрлерін жекелендіріңіз.</translation>
 <translation id="3583751698304738917">Басқа Chrome профилінде әлдеқашан <ph name="USER_EMAIL_ADDRESS" /> ретінде кіргенсіз.</translation>
+<translation id="358381413217813387">Бұл бетті Google Lens-бен іздеу</translation>
 <translation id="3589519427766620380">Google Lens-ден осы бет жайында сұрау</translation>
 <translation id="3595784445906693824">Chrome-ға жаңа профильмен кіру қажет пе?</translation>
 <translation id="3596080736082218006">{COUNT,plural, =0{Жаңартылған нұсқаны қолдану үшін әкімшіңіз Chrome браузерін қайта іске қосуыңызды талап етеді.}=1{Жаңартылған нұсқаны қолдану үшін әкімшіңіз Chrome браузерін қайта іске қосуыңызды талап етеді. Инкогнито терезесі қайта ашылмайды.}other{Жаңартылған нұсқаны қолдану үшін әкімшіңіз Chrome браузерін қайта іске қосуыңызды талап етеді. # инкогнито терезесі қайта ашылмайды.}}</translation>
 <translation id="3597003331831379823">Реттеуді кеңейтілген құқықтармен бастау мүмкін болмады. <ph name="METAINSTALLER_ERROR" /></translation>
-<translation id="3609788354808247807">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> рұқсаттарын өшірді.</translation>
 <translation id="3622716124581627104">Заттарды не орындарды анықтауға және мәтінді көшіруге не аударуға болады. Google Lens пайдалансаңыз, бет скриншоты Google-ға жіберіледі. <ph name="LEARN_MORE" /></translation>
 <translation id="3622797965165704966">Енді Chrome қолданбасын Google аккаунтымен және ортақ компьютерлерде пайдалану жеңілірек.</translation>
 <translation id="3635073343384702370">Құпия сөздер сақталған кезде, Chrome оларды тексере алады.</translation>
@@ -268,6 +270,7 @@
 <translation id="4205939740494406371">Chrome сіздің құпия сөздеріңізді тексере алмай жатыр. 24 сағаттан кейін қайталап көріңіз немесе <ph name="BEGIN_LINK" />құпия сөздерді Google аккаунтынан тексеріңіз<ph name="END_LINK" />.</translation>
 <translation id="4222932583846282852">Бас тартылуда…</translation>
 <translation id="4224210481850767180">Орнату тоқтатылды.</translation>
+<translation id="4230631012078055975">Chrome аккаунтына кіріп, көп функцияны қолданыңыз</translation>
 <translation id="4242034826641750751">Chrome бұл сайт үшін камера мен микрофонды пайдалануға рұқсат сұрайды.</translation>
 <translation id="424864128008805179">Chrome жүйесінен шығасыз ба?</translation>
 <translation id="4251615635259297716">Chromium дерегіңізді осы аккаунтпен байланыстырасыз ба?</translation>
@@ -294,9 +297,11 @@
 <translation id="4501471624619070934">Орнату мүмкін болмады, себебі бұл елде кіруге шектеу қойылған.</translation>
 <translation id="4567424176335768812"><ph name="USER_EMAIL_ADDRESS" /> ретінде кіргенсіз. Енді барлық кірген құрылғыларда бетбелгілеріңізді, журналыңызды және басқа параметрлерді көре аласыз.</translation>
 <translation id="4571503333518166079">Chrome хабарландыру параметрлері бөліміне өту</translation>
+<translation id="4592634244097223647">Google-дан осы сурет жайында сұрау</translation>
 <translation id="459622048091363950">Chrome браузерінің кіру рұқсаты болса, веб-сайттар сізден кіру рұқсатын сұрай алады.</translation>
 <translation id="4598116752460667024">Тізімнен кез келген процесті іздейді.</translation>
 <translation id="4600710005438004015">Chrome браузерінің ең соңғы нұсқасы орнатылмады, сондықтан жаңа мүмкіндіктер мен қауіпсіздікке қатысты түзетілген функцияларды пайдалана алмайсыз.</translation>
+<translation id="4608435347866444037">Бұл суретті Google Lens-бен іздеу</translation>
 <translation id="4624065194742029982">Chrome-ның инкогнито режимі</translation>
 <translation id="4627412468266359539">Міндетті емес: диагностика және пайдалану туралы деректі Google-ға автоматты түрде жіберу арқылы ChromeOS Flex операциялық жүйесінің функциялары мен жұмыс өнімділігін жақсартуға көмектесіңіз.</translation>
 <translation id="4633000520311261472">Chrome қауіпсіз ету үшін <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ішінде көрсетілмеген және сізге білдірмей қосылған болуы мүмкін кейбір кеңейтімдерді өшірдік.</translation>
@@ -309,6 +314,7 @@
 <translation id="4747730611090640388">Chrome браузері қызығушылықтарыңызды болжайды.  Кейін сіз кірген сайт жарнамаларды жекелендіру үшін Chrome браузерінен қызығушылықтарыңыз туралы ақпаратты сұрап алады.</translation>
 <translation id="475321580758063259">Chrome деректерін Google аккаунтында (<ph name="ACCOUNT_EMAIL" />) әрі қарай пайдалану үшін Chrome-ды жаңартыңыз.</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Chrome-ның V8 жүйесімен сайттар жылдам жұмыс істейді, бірақ Chrome-ның шабуылдарға төзімділігі сәл азаяды.</translation>
 <translation id="479167709087336770">Google Search қызметіндегі емле тексеру құралы пайдаланылады. Браузерде терілген мәтін Google-ға жіберіледі. Мұны параметрлерде өзгертуіңізге болады.</translation>
 <translation id="4793679854893018356">Chrome сізді қалай қорғайтыны туралы ақпарат алыңыз</translation>
 <translation id="4828579605166583682">Google Chrome бұрыннан бар құпия сөздерді ауыстырғысы келеді. Бұған рұқсат беру үшін Windows құпия сөзін енгізіңіз.</translation>
@@ -330,7 +336,6 @@
 <translation id="4990567037958725628">Google Chrome Canary</translation>
 <translation id="5003967926796347400">"Google Password Manager" түймесін басыңыз.</translation>
 <translation id="504867494566807945">Кез келген қолданба сілтемесін Chrome-нан ашыңыз. Оңай қол жеткізу үшін ол тапсырмалар жолағына бекітіледі.</translation>
-<translation id="5049567194145991071">"Түсінікті" түймесін бассаңыз, Chrome-ға кірген жағдайда құпия сөздерді және т.б. ақпаратты Google аккаунтына сақтап, пайдалануға болады. <ph name="LEARN_MORE" /></translation>
 <translation id="5114340746415930644">Chrome деректерін <ph name="USER_EMAIL" /> аккаунтында қолдану және сақтау үшін құпия фразаны енгізіңіз.</translation>
 <translation id="5120334927898581447">Басқа Google қызметтеріне кірген кезде, Chrome-ға де кіресіз</translation>
 <translation id="5126049312684316860">Chrome сіз кіруіңіз мүмкін көбірек бетті алдын ала жүктейді, сонда оларға кірген кезіңізде, тезірек жүктеледі.</translation>
@@ -398,7 +403,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="5941711191222866238">Жию</translation>
 <translation id="5941830788786076944">Google Chrome қолданбасын әдепкі браузер етіп орнату</translation>
 <translation id="5947104538377036631">Chrome пернелер тіркесімі</translation>
-<translation id="5953954252731207958">Жақында кірмедіңіз. Chrome <ph name="PERMISSION" /> рұқсатын өшірді.</translation>
+<translation id="5968400720580217226">AI режимі</translation>
 <translation id="5980111191913430208">Белгісіз дереккөздерден алынған кеңейтімдер, қолданбалар мен тақырыптар құрылғыңызға зиянын тигізуі мүмкін. Chrome оларды тек <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> дүкенінен орнатуға кеңес береді.</translation>
 <translation id="6003112304606738118">Жүктеп алынып жатыр… <ph name="HOURS" /> сағат қалды.</translation>
 <translation id="6008161919456049856">Google аккаунтыңызға сақтаған құпия сөздер, төлеу әдістері және мекенжайлар осы құрылғыдан өшіріледі. Оларды Chrome-да қайта пайдалану үшін аккаунтқа қайтадан кіріңіз.</translation>
@@ -423,7 +428,6 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome бета нұсқасы</translation>
 <translation id="6180522807229584611">Бұл қойынды ресурстарды көп қолданып жатыр. Өнімділікті жақсарту үшін Chrome-ға оны әрекетсіз қылуға рұқсат беріңіз.</translation>
 <translation id="6182736845697986886">Орнатылмады, себебі жаңарту серверінде ішкі қате пайда болды.</translation>
-<translation id="6200139057479872438">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> рұқсаттарын өшірді.</translation>
 <translation id="6235018212288296708">mDNS трафигіне рұқсат беретін Google Chrome кіріс ережесі.</translation>
 <translation id="624230925347970731">Chrome жақын арада жабылады</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
@@ -461,6 +465,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="6696915334902295848">Chrome бұл сайт үшін микрофонды пайдалануға рұқсат сұрайды.</translation>
 <translation id="6712881677154121168">Жүктеп алу қатесі: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6718739135284199302">Chrome жылдамдығын арттырыңыз</translation>
+<translation id="6734827584173583205">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> рұқсаттарын және тағы <ph name="COUNT" /> рұқсатты өшірді.</translation>
 <translation id="6735387454586646204">ChromeOS Flex жүйесі</translation>
 <translation id="6750954913813541382">Емле қателерін түзету үшін Chrome браузерде терілетін мәтінді Google-ға жібереді.</translation>
 <translation id="6760235774835597023">Chrome-ның V8 жүйесімен сайттар жылдам жұмыс істейді, бірақ Chrome-ның шабуылдарға төзімділігі сәл азаяды. Бұл параметр қосулы.</translation>
@@ -486,7 +491,9 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7024536598735240744">Пакеттен шығару қатесі: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Орнату тоқтап қалды.</translation>
 <translation id="7025800014283535195">Осы жерде Chrome профильдерін ауыстыра аласыз.</translation>
+<translation id="7051685429025310665">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" /> рұқсаттарын өшірді.</translation>
 <translation id="7059914902409643750">Chrome браузерін өз талғамыңызға сай реттеңіз</translation>
+<translation id="7060643578009939353">Бұл бейнені Google Lens-бен іздеу</translation>
 <translation id="7071827361006050863">Chrome жақын арада браузерді пайдалану деректерін жояды</translation>
 <translation id="7085332316435785646">Google қызметтерінде жекелендірілген мүмкіндіктерді пайдалану үшін Chrome тарихын қосу-қоспау нұсқасын таңдаңыз.</translation>
 <translation id="7088681679121566888">Chrome жаңартылған.</translation>
@@ -540,13 +547,13 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7655455401911432608">Браузерді қолдану тарихы, осы құрылғыда Chrome көмегімен кірген сайттардың жазбасы.</translation>
 <translation id="7655472416356262023">Аккаунтты Chrome-нан өшіру</translation>
 <translation id="7658239707568436148">Бас тарту</translation>
-<translation id="7661924425853052955">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> рұқсаттарын және тағы <ph name="COUNT" /> рұқсатты өшірді.</translation>
 <translation id="7670287553302121848">Chrome аккаунтын қайта аутентификациялау қажет.</translation>
 <translation id="769538538642757151">Тексеруге қажетті нәрсе болса, Chrome сізге хабар береді</translation>
 <translation id="7716950018788545737">Тапсырмалар аяқталды.</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" /> браузеріне арналған жүйені трассалау қызметтерін ұсынады. Қызмет өшірілсе, браузер жасаған өнімділік трассалары контекст ауыстыру және дайын ағын оқиғалары сияқты жалпы жүйелік оқиғаларды қамтымайды.</translation>
 <translation id="7736869414036750079">Ұйымыңыз Chrome-ға кіруді талап етеді</translation>
 <translation id="7747138024166251722">Орнату құралы уақытша каталогті жасай алмады. Дисктегі бос орынды және бағдарламалық жасақтама рұқсатын тексеріңіз.</translation>
+<translation id="7748969056734910029">Жақында кірмедіңіз. Chrome <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> рұқсаттарын өшірді.</translation>
 <translation id="7761834446675418963">Chrome ашып, шолуды бастау үшін атыңызды басыңыз.</translation>
 <translation id="7777080907402804672">Егер суреттің пайдалы сипаттамасы болмаса, Chrome оны өзі ұсынып көреді. Сипаттамалар жасау үшін суреттер Google-ға жіберіледі. Бұл функцияны кез келген уақытта параметрлерден өшіріп қоюға болады.</translation>
 <translation id="778331955594035129">Chrome бұл сайт үшін локацияны пайдалануға рұқсат сұрайды.</translation>
@@ -554,7 +561,6 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7801699035218095297">Google Chrome құпия сөздерді көшіргісі келеді. Бұған рұқсат беру үшін Windows құпия сөзіңізді теріңіз.</translation>
 <translation id="7808348361785373670">Chrome ішінен жою…</translation>
 <translation id="7825851276765848807">Орнату анықталмаған қате себебінен сәтсіз аяқталды. Google Chrome браузерін қайта жүктеңіз.</translation>
-<translation id="7826342993930002256">Chrome-ды кез келген жерде пайдаланыңыз</translation>
 <translation id="7827099906024714326">Chrome браузері деректерді Google аккаунтыңызға сақтау және барлық құрылғыңызда пайдалануға рұқсат беру үшін жеке басыңызды растауы қажет. Қазір шықсаңыз, бұл деректер жойылады.</translation>
 <translation id="7845233973568007926">Орнатқаныңыз үшін рақмет. <ph name="BUNDLE_NAME" /> пайдаланбас бұрын компьютерді өшіріп қосуыңыз керек.</translation>
 <translation id="7872446069773932638">Жүктеп алынып жатыр… <ph name="SECONDS" /> секунд қалды.</translation>
@@ -593,7 +599,9 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8321888067342493336">Сурет түрінде сақтау</translation>
 <translation id="8336463659890584292">Сайт беттегі сілтемелерді құпия түрде алдын ала жүктеуді сұрағанда, Chrome браузері Google серверлерін пайдаланады. Осылайша жеке деректеріңіз алдын ала жүктелетін сайттан жасырылады, бірақ Google алдын ала жүктелетін сайттарды біледі.</translation>
 <translation id="8342675569599923794">Бұл файл қауіпті болғандықтан, Chrome оны бөгеді.</translation>
+<translation id="8349094670477064572">Chrome аккаунтына кірген болсаңыз, Google аккаунтында құпия сөздер мен т.б. деректі сақтауға және пайдалануға болады. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Аударма тілі:</translation>
+<translation id="8366770919198174997">Өнімділік азаяды, бірақ Chrome шабуылдарға төзімді болады.</translation>
 <translation id="8370517070665726704">Copyright <ph name="YEAR" /> Google LLC. Барлық құқықтары қорғалған.</translation>
 <translation id="8387459386171870978">Chrome-ды пайдалана беру</translation>
 <translation id="8394720698884623075">URL мекенжайларын Chrome браузерінде сақталған қауіпсіз емес сайттар тізімімен салыстырып тексереді.</translation>
@@ -622,6 +630,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8712637175834984815">Түсінікті</translation>
 <translation id="8712767363896337380">Дайын болып қалды. Жаңартуды аяқтау үшін Chrome браузерін қайта іске қосыңыз.</translation>
 <translation id="8718062187489036808">Chrome жүйесінен шығу</translation>
+<translation id="8725440680697264016">Google-дан осы бейне жайында сұрау</translation>
 <translation id="873133009373065397">Google Chrome әдепкі браузерді анықтай не орната алмайды</translation>
 <translation id="8747073452963259673">іздеу аймағының төменгі сол жақ бұрышы: сол жақ <ph name="LEFT" />%, төменгі жақ <ph name="BOTTOM" />%</translation>
 <translation id="8748735421235723888">Chrome әрекетсіз қойындылардағы жадты босатады. Мұның нәтижесінде белсенді қойындылар мен басқа қолданбаларға қосымша компьютер ресурстары үлестіріліп, Chrome жылдам жұмыс істейді. Әрекетсіз қойындыларды ашқанда, олар автоматты түрде қайтадан белсенді болады. <ph name="BEGIN_LINK" />Жад үнемдегіш туралы толық ақпарат<ph name="END_LINK" /></translation>
@@ -630,7 +639,6 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8781673607513845160">Камераны пайдалану үшін <ph name="BEGIN_LINK" />жүйе параметрлерінде<ph name="END_LINK" /> Chrome-ға рұқсат беріңіз.</translation>
 <translation id="878572486461146056">Орнату қатесі: желі әкімшісі орнатуға рұқсат бермейтін топтық саясатты қолданды: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8798550110818026746">Ұйымыңыз сіздегі бетбелгілер, тарих және құпия сөздер сияқты браузерді пайдалану деректерін көріп, басқара алады. Ол басқа Chrome профильдеріндегі браузерді пайдалану деректерін көре алмайды.</translation>
-<translation id="8801657293260363985">V8 — сайт өнімділігін арттыру үшін қолданылатын Chrome-ның JavaScript және WebAssembly жүйесі.</translation>
 <translation id="8821043148920470810">Google Chrome-ның жаңа нұсқаларын алып тұру үшін Windows 10 не одан кейінгі операциялық жүйе керек болады. Бұл компьютерде Windows 7 нұсқасы орнатылған.</translation>
 <translation id="8823341990149967727">Chrome ескірген</translation>
 <translation id="8825634023950448068">Құпиялығыңызды сақтау үшін 4 аптадан көп көрсетілген қызығушылықтарды автоматты түрде жойып отырамыз. Интернетті шолу кезінде белгілі бір қызығушылық тізімде қайтадан шығуы мүмкін. Егер Chrome браузері қателессе немесе белгілі бір жарнамаларды көргіңіз келмесе, қызығушылықты өшіре аласыз.</translation>
@@ -638,6 +646,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="8843516219908676469">Chrome үлгілерді жақсы түсінеді және сізден де жылдам толтыра алады.</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome мұны өшіруге кеңес береді.}other{Chrome бұларды өшіруге кеңес береді.}}</translation>
 <translation id="8862326446509486874">Жүйе деңгейінде орнату үшін тиісті құқықтарыңыз жоқ. Әкімші ретінде орнату құралын қайта іске қосып көріңіз.</translation>
+<translation id="8883862939660515976">Google Lens-ден осы сурет жайында сұрау</translation>
 <translation id="8914504000324227558">Chrome қолданбасын қайта іске қосу</translation>
 <translation id="8922193594870374009">Нөмірді <ph name="ORIGIN" /> құрылғысынан Android телефонына жіберу үшін екі құрылғыда да Chrome браузеріне кіріңіз.</translation>
 <translation id="8948460679427074738">Бұл кеңейтім пайдаланушы деректерін қалай жинап, қолданатыны сияқты құпиялық шараларын жарияламаған. Chrome оны өшіруді ұсынады.</translation>

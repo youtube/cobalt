@@ -1511,7 +1511,7 @@ TEST_F(StunTest, CopyAttribute) {
       auto attr = StunAttribute::CreateByteString(STUN_ATTR_USERNAME);
       attr->CopyBytes("kes", sizeof("kes"));
 
-      auto copy = CopyStunAttribute(*attr.get(), buffer_ptr);
+      auto copy = CopyStunAttribute(*attr, buffer_ptr);
       ASSERT_EQ(copy->value_type(), STUN_VALUE_BYTE_STRING);
       EXPECT_STREQ("kes", static_cast<StunByteStringAttribute*>(copy.get())
                               ->string_view()
@@ -1526,7 +1526,7 @@ TEST_F(StunTest, CopyAttribute) {
       CheckStunAddressAttribute(addr.get(), STUN_ADDRESS_IPV6,
                                 kTestMessagePort2, test_ip);
 
-      auto copy = CopyStunAttribute(*addr.get(), buffer_ptr);
+      auto copy = CopyStunAttribute(*addr, buffer_ptr);
       ASSERT_EQ(copy->value_type(), STUN_VALUE_ADDRESS);
       CheckStunAddressAttribute(static_cast<StunAddressAttribute*>(copy.get()),
                                 STUN_ADDRESS_IPV6, kTestMessagePort2, test_ip);
@@ -1540,7 +1540,7 @@ TEST_F(StunTest, CopyAttribute) {
       CheckStunAddressAttribute(addr.get(), STUN_ADDRESS_IPV6,
                                 kTestMessagePort2, test_ip);
 
-      auto copy = CopyStunAttribute(*addr.get(), buffer_ptr);
+      auto copy = CopyStunAttribute(*addr, buffer_ptr);
       ASSERT_EQ(copy->value_type(), STUN_VALUE_ADDRESS);
       CheckStunAddressAttribute(static_cast<StunAddressAttribute*>(copy.get()),
                                 STUN_ADDRESS_IPV6, kTestMessagePort2, test_ip);

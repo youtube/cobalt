@@ -483,7 +483,7 @@ public class HubLayout extends Layout implements HubLayoutController, AppHeaderO
     @Override
     public void doneHiding() {
         try (TraceEvent e = TraceEvent.scoped("HubLayout.doneHiding")) {
-            HubContainerView containerView = mHubController.getContainerView();
+            HubContainerView containerView = mHubController.getContainerViewUnchecked();
             containerView.setVisibility(View.INVISIBLE);
             mRootView.removeView(containerView);
             mRootView.setVisibility(View.GONE);
@@ -711,7 +711,7 @@ public class HubLayout extends Layout implements HubLayoutController, AppHeaderO
 
     // Visible for testing or spying
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     HubLayoutAnimatorProvider createShowAnimatorProvider(HubContainerView containerView) {
         @Nullable Pane pane = mPaneManager.getFocusedPaneSupplier().get();
         final boolean isXrFullSpaceMode = mXrFullSpaceModeSupplier.get();
@@ -730,7 +730,7 @@ public class HubLayout extends Layout implements HubLayoutController, AppHeaderO
         return pane.createShowHubLayoutAnimatorProvider(containerView);
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     HubLayoutAnimatorProvider createHideAnimatorProvider(HubContainerView containerView) {
         @Nullable Pane pane = mPaneManager.getFocusedPaneSupplier().get();
         final boolean isXrFullSpaceMode = mXrFullSpaceModeSupplier.get();

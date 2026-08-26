@@ -303,9 +303,8 @@ void ScreenCapturerFuchsia::SetupBuffers() {
 
   fuchsia::ui::composition::RegisterBufferCollectionArgs buffer_collection_args;
   buffer_collection_args.set_export_token(std::move(export_token));
-  buffer_collection_args.set_buffer_collection_token(
-      fuchsia::sysmem::BufferCollectionTokenHandle(
-          flatland_token.Unbind().TakeChannel()));
+  buffer_collection_args.set_buffer_collection_token2(
+      std::move(flatland_token));
   buffer_collection_args.set_usage(
       fuchsia::ui::composition::RegisterBufferCollectionUsage::SCREENSHOT);
 

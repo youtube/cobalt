@@ -518,21 +518,15 @@ TEST_F(JsepSessionDescriptionTest, RemoveCandidateAndSetConnectionAddress) {
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice2));
   ASSERT_TRUE(jsep_desc_->AddCandidate(&jice3));
 
-  std::vector<Candidate> candidates;
   EXPECT_EQ("192.168.1.1:1236", media_desc->connection_address().ToString());
 
-  candidates.push_back(candidate3);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidate(&jice3));
   EXPECT_EQ("[::1]:1234", media_desc->connection_address().ToString());
 
-  candidates.clear();
-  candidates.push_back(candidate2);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidate(&jice2));
   EXPECT_EQ("[::1]:1234", media_desc->connection_address().ToString());
 
-  candidates.clear();
-  candidates.push_back(candidate1);
-  ASSERT_TRUE(jsep_desc_->RemoveCandidates("audio", candidates));
+  ASSERT_TRUE(jsep_desc_->RemoveCandidate(&jice1));
   EXPECT_EQ("0.0.0.0:9", media_desc->connection_address().ToString());
 }
 

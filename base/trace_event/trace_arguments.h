@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/tracing_buildflags.h"
@@ -609,31 +610,6 @@ class BASE_EXPORT TraceArguments {
                  const char* const* arg_names,
                  const unsigned char* arg_types,
                  const unsigned long long* arg_values);
-
-  // Constructor used to convert legacy set of arguments, where the
-  // convertable values are also provided by an array of CONVERTABLE_TYPE.
-  template <typename CONVERTABLE_TYPE>
-  TraceArguments(int num_args,
-                 const char* const* arg_names,
-                 const unsigned char* arg_types,
-                 const unsigned long long* arg_values,
-                 CONVERTABLE_TYPE* arg_convertables) {
-    static int max_args = static_cast<int>(kMaxSize);
-    if (num_args > max_args) {
-      num_args = max_args;
-    }
-    size_ = static_cast<unsigned char>(num_args);
-    for (size_t n = 0; n < size_; ++n) {
-      types_[n] = arg_types[n];
-      names_[n] = arg_names[n];
-      if (arg_types[n] == TRACE_VALUE_TYPE_CONVERTABLE) {
-        values_[n].Init(
-            std::forward<CONVERTABLE_TYPE>(std::move(arg_convertables[n])));
-      } else {
-        values_[n].as_uint = arg_values[n];
-      }
-    }
-  }
 
   // Destructor. NOTE: Intentionally inlined (see note above).
   ~TraceArguments() {

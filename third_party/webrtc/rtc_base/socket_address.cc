@@ -20,8 +20,6 @@
 #if defined(OPENBSD)
 #include <netinet/in_systm.h>
 #endif
-#if !defined(__native_client__)
-#endif
 #endif
 
 #include "absl/strings/string_view.h"

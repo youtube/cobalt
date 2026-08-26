@@ -94,7 +94,7 @@ source_set("filters") {
     "//media/video",
     "//net",
     "//third_party/libyuv",
-    "//ui/gfx/geometry:geometry",
+    "//ui/gfx/geometry",
   ]
 
   if (use_starboard_media) {
@@ -344,7 +344,7 @@ source_set("unit_tests") {
 
   deps = [
     "//base/test:test_support",
-    "//crypto:crypto",
+    "//crypto",
     "//media:test_support",
     "//testing/gmock",
     "//testing/gtest",

@@ -8,6 +8,8 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.base.ActivityWindowAndroid;
 
+import java.util.List;
+
 /**
  * Represents an Android window containing Chrome.
  *
@@ -88,6 +90,14 @@ public interface ChromeAndroidTask {
     void addFeature(ChromeAndroidTaskFeature feature);
 
     /**
+     * Returns the address of the native {@code BrowserWindowInterface}.
+     *
+     * <p>If the native object hasn't been created, this method will create it before returning its
+     * address.
+     */
+    long getOrCreateNativeBrowserWindowPtr();
+
+    /**
      * Destroys all objects owned by this {@link ChromeAndroidTask}, including all {@link
      * ChromeAndroidTaskFeature}s.
      *
@@ -97,4 +107,7 @@ public interface ChromeAndroidTask {
 
     /** Returns whether this {@link ChromeAndroidTask} has been destroyed. */
     boolean isDestroyed();
+
+    /** Returns all {@link ChromeAndroidTaskFeature}s for testing. */
+    List<ChromeAndroidTaskFeature> getAllFeaturesForTesting();
 }

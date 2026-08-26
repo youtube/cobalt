@@ -401,7 +401,6 @@ AddressUIComponentIconType GetAddressUIComponentIconTypeForFieldType(
     case NO_SERVER_DATA:
     case EMPTY_TYPE:
     case AMBIGUOUS_TYPE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case PRICE:
     case NUMERIC_QUANTITY:
@@ -430,6 +429,9 @@ AddressUIComponentIconType GetAddressUIComponentIconTypeForFieldType(
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case MAX_VALID_FIELD_TYPE:
     case DELIVERY_INSTRUCTIONS:
     case ADDRESS_HOME_SUBPREMISE:

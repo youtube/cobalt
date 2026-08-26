@@ -283,11 +283,6 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
   }
 
  protected:
-  static void SetUpTestSuite() {
-    // Ensure the RNG is inited.
-    webrtc::InitRandom(nullptr, 0);
-  }
-
   void OnPortComplete(webrtc::Port* /* port */) {
     ASSERT_FALSE(done_);
     done_ = true;

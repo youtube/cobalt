@@ -770,8 +770,7 @@ void MergePointInterpreterFrameState::MergeLoop(
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  backedge_deopt_frame_ =
-      builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
+  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
 
   if (V8_UNLIKELY(v8_flags.trace_maglev_graph_building &&
                   compilation_unit.is_tracing_enabled())) {
@@ -812,8 +811,7 @@ bool MergePointInterpreterFrameState::TryMergeLoop(
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
 
-  backedge_deopt_frame_ =
-      builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
+  backedge_deopt_frame_ = builder->GetLatestCheckpointedFrame();
 
   auto& compilation_unit = *builder->compilation_unit();
 
@@ -962,8 +960,7 @@ namespace {
 ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
                              NodeType node_type, ValueNode* value,
                              BasicBlock* predecessor) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kInt32);
+  DCHECK(value->is_int32());
   DCHECK(!value->properties().is_conversion());
 
   ValueNode* tagged;
@@ -994,8 +991,7 @@ ValueNode* FromInt32ToTagged(const MaglevGraphBuilder* builder,
 ValueNode* FromUint32ToTagged(const MaglevGraphBuilder* builder,
                               NodeType node_type, ValueNode* value,
                               BasicBlock* predecessor) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kUint32);
+  DCHECK(value->is_uint32());
   DCHECK(!value->properties().is_conversion());
 
   ValueNode* tagged;
@@ -1027,8 +1023,7 @@ ValueNode* FromIntPtrToTagged(const MaglevGraphBuilder* builder,
 ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
                                NodeType node_type, ValueNode* value,
                                BasicBlock* predecessor) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kFloat64);
+  DCHECK(value->is_float64());
   DCHECK(!value->properties().is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
@@ -1044,8 +1039,7 @@ ValueNode* FromFloat64ToTagged(const MaglevGraphBuilder* builder,
 ValueNode* FromHoleyFloat64ToTagged(const MaglevGraphBuilder* builder,
                                     NodeType node_type, ValueNode* value,
                                     BasicBlock* predecessor) {
-  DCHECK_EQ(value->properties().value_representation(),
-            ValueRepresentation::kHoleyFloat64);
+  DCHECK(value->is_holey_float64());
   DCHECK(!value->properties().is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
@@ -1081,8 +1075,7 @@ ValueNode* NonTaggedToTagged(const MaglevGraphBuilder* builder,
 ValueNode* EnsureTagged(const MaglevGraphBuilder* builder,
                         const KnownNodeAspects& known_node_aspects,
                         ValueNode* value, BasicBlock* predecessor) {
-  if (value->properties().value_representation() ==
-      ValueRepresentation::kTagged) {
+  if (value->is_tagged()) {
     return value;
   }
 
@@ -1246,8 +1239,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
 
   NodeType merged_type = merged->GetStaticType(builder->broker());
 
-  bool is_tagged = merged->properties().value_representation() ==
-                   ValueRepresentation::kTagged;
+  bool is_tagged = merged->is_tagged();
   NodeType type = merged_type != NodeType::kUnknown
                       ? merged_type
                       : AlternativeType(per_predecessor_alternatives->first());

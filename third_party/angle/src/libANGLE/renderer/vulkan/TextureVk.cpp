@@ -3260,6 +3260,26 @@ angle::Result TextureVk::getAttachmentRenderTarget(const gl::Context *context,
         }
     }
 
+    // If rendering to a YUV image and nullColorAttachmentWithExternalFormatResolve is not supported
+    // create an RGB image that is otherwise identical to the YUV image. This new RGB image
+    // will be used as the draw attachment, while the original YUV image is used as the resolve
+    // attachment.
+    if (mImage->isYuvExternalFormat() && mRgbDrawImageForYuvResolve == nullptr &&
+        !contextVk->getRenderer()->nullColorAttachmentWithExternalFormatResolve())
+    {
+        vk::Renderer *renderer = contextVk->getRenderer();
+
+        // Allocate implicit RGB image and image view
+        mRgbDrawImageForYuvResolve      = std::make_unique<vk::ImageHelper>();
+        mRgbDrawImageViewsForYuvResolve = std::make_unique<vk::ImageViewHelper>();
+
+        // Initialize implicit RGB image and image view
+        ANGLE_TRY(mRgbDrawImageForYuvResolve->initRgbDrawImageForYuvResolve(
+            contextVk, renderer->getMemoryProperties(), *mImage,
+            contextVk->isRobustResourceInitEnabled()));
+        mRgbDrawImageViewsForYuvResolve->init(renderer);
+    }
+
     GLuint layerIndex = 0, layerCount = 0, imageLayerCount = 0;
     GetRenderTargetLayerCountAndIndex(mImage, imageIndex, &layerIndex, &layerCount,
                                       &imageLayerCount);
@@ -3367,7 +3387,7 @@ void TextureVk::initSingleLayerRenderTargets(ContextVk *contextVk,
     if (isMultisampledRenderToTexture)
     {
         ASSERT(mMultisampledImages->at(renderToTextureIndex)[requestedLevel].valid());
-        ASSERT(!mImage->isYuvResolve());
+        ASSERT(!mImage->isYuvExternalFormat());
 
         resolveImage      = drawImage;
         resolveImageViews = drawImageViews;
@@ -3386,7 +3406,7 @@ void TextureVk::initSingleLayerRenderTargets(ContextVk *contextVk,
             transience = RenderTargetTransience::MultisampledTransient;
         }
     }
-    else if (mImage->isYuvResolve())
+    else if (mImage->isYuvExternalFormat())
     {
         // If rendering to YUV, similar to multisampled render to texture
         resolveImage      = drawImage;
@@ -3401,11 +3421,9 @@ void TextureVk::initSingleLayerRenderTargets(ContextVk *contextVk,
         }
         else
         {
-            transience = RenderTargetTransience::YuvResolveTransient;
-            // Need to populate drawImage here; either abuse mMultisampledImages etc
-            // or build something parallel to it. we don't have a vulkan implementation which
-            // wants this path yet, though.
-            UNREACHABLE();
+            transience     = RenderTargetTransience::YuvResolveTransient;
+            drawImage      = mRgbDrawImageForYuvResolve.get();
+            drawImageViews = mRgbDrawImageViewsForYuvResolve.get();
         }
     }
 
@@ -4152,7 +4170,7 @@ angle::Result TextureVk::initImage(ContextVk *contextVk,
 
         // If fixed rate compression is supported by this type, not support YUV now.
         const vk::Format &format = renderer->getFormat(intendedImageFormatID);
-        if (!mImage->isYuvResolve() &&
+        if (!mImage->isYuvExternalFormat() &&
             (GetFormatSupportedCompressionRates(renderer, format, 0, nullptr) != 0))
         {
             GetCompressionFixedRate(&compressionInfoVar, &compressionRates,
@@ -4270,6 +4288,13 @@ void TextureVk::releaseImage(ContextVk *contextVk)
         mMultisampledImages.reset();
     }
 
+    if (mRgbDrawImageForYuvResolve)
+    {
+        mRgbDrawImageForYuvResolve->releaseImageFromShareContexts(renderer, contextVk,
+                                                                  mImageSiblingSerial);
+        mRgbDrawImageForYuvResolve.reset();
+    }
+
     onStateChange(angle::SubjectMessage::SubjectChanged);
     mRedefinedLevels = {};
 }
@@ -4314,6 +4339,12 @@ void TextureVk::releaseImageViews(ContextVk *contextVk)
             }
         }
         mMultisampledImageViews.reset();
+    }
+
+    if (mRgbDrawImageViewsForYuvResolve)
+    {
+        mRgbDrawImageViewsForYuvResolve->release(renderer, mImage->getResourceUse());
+        mRgbDrawImageViewsForYuvResolve.reset();
     }
 
     for (auto &renderTargets : mSingleLayerRenderTargets)

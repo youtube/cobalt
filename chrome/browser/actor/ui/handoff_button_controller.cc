@@ -13,6 +13,7 @@
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/events/types/event_type.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/controls/button/label_button.h"
@@ -49,6 +50,28 @@ namespace actor::ui {
 using enum HandoffButtonState::ControlOwnership;
 using ::ui::ImageModel;
 
+HandoffButtonWidget::HandoffButtonWidget() = default;
+HandoffButtonWidget::~HandoffButtonWidget() = default;
+
+void HandoffButtonWidget::SetHoveredCallback(
+    base::RepeatingCallback<void(bool)> callback) {
+  hover_callback_ = std::move(callback);
+}
+
+void HandoffButtonWidget::OnMouseEvent(::ui::MouseEvent* event) {
+  switch (event->type()) {
+    case ::ui::EventType::kMouseEntered:
+      hover_callback_.Run(true);
+      break;
+    case ::ui::EventType::kMouseExited:
+      hover_callback_.Run(false);
+      break;
+    default:
+      break;
+  }
+  views::Widget::OnMouseEvent(event);
+}
+
 HandoffButtonController::HandoffButtonController(
     tabs::TabInterface& tab_interface)
     : tab_interface_(tab_interface) {}
@@ -69,7 +92,7 @@ void HandoffButtonController::UpdateState(const HandoffButtonState& state,
   ImageModel icon;
   // TODO(crbug.com/422541242): Update icon color to match spec.
   switch (state.controller) {
-    case kAgent:
+    case kActor:
       text = TAKE_OVER_TASK_TEXT;
       icon = ImageModel::FromVectorIcon(
           vector_icons::kSelectWindowChromeRefreshIcon, SK_ColorDKGRAY);
@@ -121,7 +144,7 @@ void HandoffButtonController::CreateAndShowButton(const std::u16string& text,
   delegate_ = std::move(widget_delegate);
 
   // Create the Widget using the delegate.
-  auto widget = std::make_unique<views::Widget>();
+  auto widget = std::make_unique<HandoffButtonWidget>();
   views::Widget::InitParams params(
       views::Widget::InitParams::Ownership::CLIENT_OWNS_WIDGET);
   params.delegate = delegate_.get();
@@ -146,6 +169,9 @@ void HandoffButtonController::CreateAndShowButton(const std::u16string& text,
 
   tab_dialog_manager->ShowDialog(widget.get(), std::move(tab_dialog_params));
   widget_ = std::move(widget);
+  widget_->SetHoveredCallback(
+      base::BindRepeating(&HandoffButtonController::UpdateButtonHoverStatus,
+                          weak_ptr_factory_.GetWeakPtr()));
 
   widget_->MakeCloseSynchronous(base::BindOnce(
       &HandoffButtonController::CloseButton, weak_ptr_factory_.GetWeakPtr()));
@@ -192,10 +218,14 @@ void HandoffButtonController::CloseButton(views::Widget::ClosedReason reason) {
   }
 }
 
+void HandoffButtonController::UpdateButtonHoverStatus(bool is_hovered) {
+  GetTabController()->SetHandoffButtonHoverStatus(is_hovered);
+}
+
 void HandoffButtonController::OnButtonPressed() {
-  // If the agent is currently in control, pressing the button
+  // If the Actor is currently in control, pressing the button
   // flips the state and pauses the task.
-  if (ownership_ == kAgent) {
+  if (ownership_ == kActor) {
     GetTabController()->SetActorTaskPaused();
   } else {
     GetTabController()->SetActorTaskResume();

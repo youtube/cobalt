@@ -115,12 +115,15 @@ void FullScreenWindowDetector::CreateApplicationHandlerIfNeeded(
 }
 
 void FullScreenWindowDetector::CreateFullScreenApplicationHandlerForTest(
-    DesktopCapturer::SourceId source_id) {
+    DesktopCapturer::SourceId source_id,
+    bool fullscreen_slide_show_started_after_capture_start) {
   if (app_handler_) {
     return;
   }
 #if defined(WEBRTC_WIN)
   app_handler_ = std::make_unique<FullScreenPowerPointHandler>(source_id);
+  app_handler_->SetSlideShowCreationStateForTest(
+      fullscreen_slide_show_started_after_capture_start);
 #endif
 }
 

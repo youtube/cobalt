@@ -170,7 +170,8 @@ enum ExtendedDirtyBitType
     EXTENDED_DIRTY_BIT_POLYGON_OFFSET_POINT_ENABLED,  // NV_polygon_mode
     EXTENDED_DIRTY_BIT_POLYGON_OFFSET_LINE_ENABLED,   // NV_polygon_mode
     EXTENDED_DIRTY_BIT_SHADER_DERIVATIVE_HINT,        // shader derivative hint
-    EXTENDED_DIRTY_BIT_SHADING_RATE,                  // QCOM_shading_rate
+    EXTENDED_DIRTY_BIT_SHADING_RATE_QCOM,             // QCOM_shading_rate
+    EXTENDED_DIRTY_BIT_SHADING_RATE_EXT,              // EXT_fragment_shading_rate
     EXTENDED_DIRTY_BIT_LOGIC_OP_ENABLED,              // ANGLE_logic_op
     EXTENDED_DIRTY_BIT_LOGIC_OP,                      // ANGLE_logic_op
     EXTENDED_DIRTY_BIT_BLEND_ADVANCED_COHERENT,       // KHR_blend_operation_advanced_coherent
@@ -420,12 +421,14 @@ class PrivateState : angle::NonCopyable
     const Rectangle &getViewport() const { return mViewport; }
 
     // QCOM_shading_rate helpers
-    void setShadingRate(GLenum rate);
-    ShadingRate getShadingRate() const { return mShadingRate; }
+    void setShadingRateQCOM(ShadingRate rate);
+    ShadingRate getShadingRateQCOM() const { return mShadingRateQCOM; }
 
     // GL_EXT_fragment_shading_rate helpers
-    void setShadingRateCombinerOps(GLenum combinerOp0, GLenum combinerOp1);
-    CombinerOp *getShadingRateCombinerOps() { return mCombinerOps; }
+    void setShadingRateEXT(ShadingRate rate);
+    ShadingRate getShadingRateEXT() const { return mShadingRateEXT; }
+    void setShadingRateCombinerOps(CombinerOp combinerOp0, CombinerOp combinerOp1);
+    const std::array<CombinerOp, 2> &getShadingRateCombinerOps() const { return mCombinerOps; }
 
     // Pixel pack state manipulation
     void setPackAlignment(GLint alignment);
@@ -559,6 +562,13 @@ class PrivateState : angle::NonCopyable
     void setVertexAttribf(GLuint index, const GLfloat values[4]);
     void setVertexAttribu(GLuint index, const GLuint values[4]);
     void setVertexAttribi(GLuint index, const GLint values[4]);
+
+    void setEnableVertexAttribArray(unsigned int attribNum, bool enabled);
+    void setVertexArrayPrivate(VertexArrayPrivate *vertexArrayPrivate)
+    {
+        mVertexArrayPrivate = vertexArrayPrivate;
+    }
+    VertexArrayPrivate *getVertexArrayPrivate() const { return mVertexArrayPrivate; }
 
     // QCOM_tiled_rendering
     void setTiledRendering(bool tiledRendering) { mTiledRendering = tiledRendering; }
@@ -735,10 +745,11 @@ class PrivateState : angle::NonCopyable
 
     // QCOM_shading_rate
     bool mShadingRatePreserveAspectRatio;
-    ShadingRate mShadingRate;
+    ShadingRate mShadingRateQCOM;
 
     // GL_EXT_fragment_shading_rate
-    CombinerOp mCombinerOps[2];
+    ShadingRate mShadingRateEXT;
+    std::array<CombinerOp, 2> mCombinerOps;
 
     // GL_ARM_shader_framebuffer_fetch
     bool mFetchPerSample;
@@ -753,6 +764,8 @@ class PrivateState : angle::NonCopyable
     const bool mClientArraysEnabled;
     const bool mRobustResourceInit;
     const bool mProgramBinaryCacheEnabled;
+
+    VertexArrayPrivate *mVertexArrayPrivate;
 
     Debug mDebug;
 
@@ -1023,9 +1036,6 @@ class State : angle::NonCopyable
 
     // Detach a buffer from all bindings
     angle::Result detachBuffer(Context *context, const Buffer *buffer);
-
-    // Vertex attrib manipulation
-    void setEnableVertexAttribArray(unsigned int attribNum, bool enabled);
 
     ANGLE_INLINE void setVertexAttribPointer(const Context *context,
                                              unsigned int attribNum,
@@ -1374,8 +1384,12 @@ class State : angle::NonCopyable
     bool isRobustResourceInitEnabled() const { return mPrivateState.isRobustResourceInitEnabled(); }
     bool isProgramBinaryCacheEnabled() const { return mPrivateState.isProgramBinaryCacheEnabled(); }
     const Rectangle &getViewport() const { return mPrivateState.getViewport(); }
-    ShadingRate getShadingRate() const { return mPrivateState.getShadingRate(); }
-    CombinerOp *getShadingRateCombinerOps() { return mPrivateState.getShadingRateCombinerOps(); }
+    ShadingRate getShadingRateQCOM() const { return mPrivateState.getShadingRateQCOM(); }
+    ShadingRate getShadingRateEXT() const { return mPrivateState.getShadingRateEXT(); }
+    const std::array<CombinerOp, 2> &getShadingRateCombinerOps() const
+    {
+        return mPrivateState.getShadingRateCombinerOps();
+    }
     GLint getPackAlignment() const { return mPrivateState.getPackAlignment(); }
     bool getPackReverseRowOrder() const { return mPrivateState.getPackReverseRowOrder(); }
     GLint getPackRowLength() const { return mPrivateState.getPackRowLength(); }

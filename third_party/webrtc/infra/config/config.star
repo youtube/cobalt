@@ -1,8 +1,11 @@
 #!/usr/bin/env lucicfg
 
-# Copyright (c) 2019 The WebRTC project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#  Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
+#  Use of this source code is governed by a BSD-style license
+#  that can be found in the LICENSE file in the root of the source
+#  tree. An additional intellectual property rights grant can be found
+#  in the file PATENTS.  All contributing project authors may
+#  be found in the AUTHORS file in the root of the source tree.
 
 # https://chromium.googlesource.com/infra/luci/luci-go/+/main/lucicfg/doc/
 
@@ -781,7 +784,7 @@ ci_builder("Linux64 Release", "Linux|x64|rel")
 try_builder("linux_rel")
 ci_builder("Linux64 Builder", "Linux|x64|size", perf_cat = "Linux|x64|Builder|", prioritized = True)
 try_builder("linux_compile_rel")
-perf_builder("Perf Linux Bionic", "Linux|x64|Tester|Bionic", triggered_by = ["Linux64 Builder"])
+perf_builder("Perf Linux", "Linux|x64|Tester", triggered_by = ["Linux64 Builder"])
 ci_builder("Linux32 Debug (ARM)", "Linux|arm|dbg")
 try_builder("linux_compile_arm_dbg")
 ci_builder("Linux32 Release (ARM)", "Linux|arm|rel")

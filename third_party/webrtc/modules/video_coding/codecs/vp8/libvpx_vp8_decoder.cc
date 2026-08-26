@@ -285,7 +285,7 @@ int LibvpxVp8Decoder::ReturnFrame(const vpx_image_t* img,
   scoped_refptr<I420Buffer> i420_buffer =
       buffer_pool_.CreateI420Buffer(img->d_w, img->d_h);
   buffer = i420_buffer;
-  if (i420_buffer.get()) {
+  if (i420_buffer) {
     libyuv::I420Copy(img->planes[VPX_PLANE_Y], img->stride[VPX_PLANE_Y],
                      img->planes[VPX_PLANE_U], img->stride[VPX_PLANE_U],
                      img->planes[VPX_PLANE_V], img->stride[VPX_PLANE_V],
@@ -295,7 +295,7 @@ int LibvpxVp8Decoder::ReturnFrame(const vpx_image_t* img,
                      img->d_w, img->d_h);
   }
 
-  if (!buffer.get()) {
+  if (!buffer) {
     // Pool has too many pending frames.
     RTC_HISTOGRAM_BOOLEAN("WebRTC.Video.LibvpxVp8Decoder.TooManyPendingFrames",
                           1);

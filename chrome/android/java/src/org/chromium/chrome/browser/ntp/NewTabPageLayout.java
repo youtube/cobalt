@@ -51,7 +51,7 @@ import org.chromium.chrome.browser.logo.LogoView;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.NewTabPage.OnSearchBoxScrollListener;
 import org.chromium.chrome.browser.ntp.search.SearchBoxCoordinator;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -171,20 +171,18 @@ public class NewTabPageLayout extends LinearLayout
     private final int mFakeSearchBoxStartPadding;
     private final int mFakeSearchBoxStartPaddingWithDseLogo;
     private int mCurrentNtpFakeSearchBoxTransitionStartOffset;
+    private int mTopInset;
 
     /** Constructor for inflating from XML. */
     public NewTabPageLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
         mContext = context;
         Resources resources = getResources();
-        mTileViewWidth =
-                resources.getDimensionPixelOffset(org.chromium.chrome.R.dimen.tile_view_width);
+        mTileViewWidth = resources.getDimensionPixelOffset(R.dimen.tile_view_width);
         mTileViewIntervalPaddingTablet =
-                resources.getDimensionPixelOffset(
-                        org.chromium.chrome.R.dimen.tile_view_padding_interval_tablet);
+                resources.getDimensionPixelOffset(R.dimen.tile_view_padding_interval_tablet);
         mTileViewEdgePaddingTablet =
-                resources.getDimensionPixelOffset(
-                        org.chromium.chrome.R.dimen.tile_view_padding_edge_tablet);
+                resources.getDimensionPixelOffset(R.dimen.tile_view_padding_edge_tablet);
 
         mNtpSearchBoxTopMarginWithoutLogo =
                 resources.getDimensionPixelSize(R.dimen.mvt_container_top_margin);
@@ -585,10 +583,8 @@ public class NewTabPageLayout extends LinearLayout
         mMostVisitedTilesCoordinator.initWithNative(
                 profile, mManager, tileGroupDelegate, touchEnabledDelegate);
 
-        // Updates the visibility of the Most Visited Tiles section based on a shared preference.
         if (ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled()) {
-            mMostVisitedTilesCoordinator.setMvtVisibility(
-                    NtpCustomizationConfigManager.getInstance().getPrefIsMvtVisible());
+            mMostVisitedTilesCoordinator.updateMvtVisibility();
         }
     }
 
@@ -950,19 +946,25 @@ public class NewTabPageLayout extends LinearLayout
         }
     }
 
-    private void setSearchProviderTopMargin() {
-        boolean showFakeSearchBoxWithoutLogo =
-                !mSearchProviderHasLogo && mIsOmniboxMobileParityUpdateV2Enabled;
+    /** Returns the fake search box's transition start offset on NTP. */
+    private int getNtpSearchBoxTransitionStartOffset(boolean showFakeSearchBoxWithoutLogo) {
         if (mIsTablet && showFakeSearchBoxWithoutLogo) {
             // On tablets, it is possible to show fake search box if DSE doesn't have logo if DSE
             // mobile parity v2 is enabled. The mNTPFakeSearchBoxTransitionStartOffset is used to
             // calculate scrolling percentage in getToolbarTransitionPercentage(). Reset to 0 when
             // no doodle is shown for 3p DSE to prevent the alpha of fake search box being set to 0
             // (transparent) by ToolbarTablet#updateNtp().
-            mCurrentNtpFakeSearchBoxTransitionStartOffset = 0;
+            return 0;
         } else {
-            mCurrentNtpFakeSearchBoxTransitionStartOffset = mNtpSearchBoxTransitionStartOffset;
+            return mNtpSearchBoxTransitionStartOffset;
         }
+    }
+
+    private void setSearchProviderTopMargin() {
+        boolean showFakeSearchBoxWithoutLogo =
+                !mSearchProviderHasLogo && mIsOmniboxMobileParityUpdateV2Enabled;
+        mCurrentNtpFakeSearchBoxTransitionStartOffset =
+                getNtpSearchBoxTransitionStartOffset(showFakeSearchBoxWithoutLogo);
 
         MarginLayoutParams params = (MarginLayoutParams) mFakeSearchBoxLayout.getLayoutParams();
         params.topMargin = showFakeSearchBoxWithoutLogo ? mNtpSearchBoxTopMarginWithoutLogo : 0;
@@ -1292,6 +1294,36 @@ public class NewTabPageLayout extends LinearLayout
     @Override
     public void onSearchBoxHintTextChanged(@Nullable String newHint) {
         mFakeSearchBoxEditText.setHint(newHint);
+    }
+
+    /**
+     * Called when the layout changes between edge-to-edge and standard.
+     *
+     * @param systemTopInset The system's top inset, i.e., the height of the Status bar. It is
+     *     always bigger than 0.
+     * @param supportsEdgeToEdgeOnTop Determines if the NTP should consume this top inset, extending
+     *     itself to the Status bar area.
+     */
+    void onToEdgeChange(int systemTopInset, boolean supportsEdgeToEdgeOnTop) {
+        // Exits early if the NTP's top padding doesn't require adjustment.
+        if (NtpCustomizationUtils.shouldSkipTopInsetsChange(
+                mTopInset, systemTopInset, supportsEdgeToEdgeOnTop)) {
+            return;
+        }
+
+        mTopInset = supportsEdgeToEdgeOnTop ? systemTopInset : 0;
+        mCurrentNtpFakeSearchBoxTransitionStartOffset =
+                getNtpSearchBoxTransitionStartOffset(
+                                !mSearchProviderHasLogo && mIsOmniboxMobileParityUpdateV2Enabled)
+                        + mTopInset;
+
+        // Top padding is applied to the NTP layout, ensuring all UI components remain in their
+        // original positions after Status bar is hidden.
+        setPaddingRelative(
+                getPaddingStart(),
+                getResources().getDimensionPixelSize(R.dimen.toolbar_height_no_shadow) + mTopInset,
+                getPaddingEnd(),
+                getPaddingBottom());
     }
 
     private boolean isInSingleUrlMode() {

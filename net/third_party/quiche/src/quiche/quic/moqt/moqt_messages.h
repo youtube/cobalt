@@ -51,6 +51,30 @@ inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
 inline constexpr size_t kMaxFullTrackNameSize = 1024;
 
+enum AuthTokenType : uint64_t {
+  kOutOfBand = 0x0,
+
+  kMaxAuthTokenType = 0x0,
+};
+
+enum AuthTokenAliasType : uint64_t {
+  kDelete = 0x0,
+  kRegister = 0x1,
+  kUseAlias = 0x2,
+  kUseValue = 0x3,
+
+  kMaxValue = 0x3,
+};
+
+struct AuthToken {
+  AuthToken(AuthTokenType token_type, absl::string_view token)
+      : type(token_type), token(token) {}
+  bool operator==(const AuthToken& other) const = default;
+
+  AuthTokenType type;
+  std::string token;
+};
+
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
   MoqtSessionParameters() = default;
@@ -78,6 +102,8 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   uint64_t max_request_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
+  // TODO(martinduke): Turn authorization_token into structured data.
+  std::vector<AuthToken> authorization_token;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -257,6 +283,7 @@ inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x04;
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
   kMaxRequestId = 0x2,
+  kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
 
   // QUICHE-specific extensions.
@@ -271,30 +298,6 @@ enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
 
   // QUICHE-specific extensions.
   kOackWindowSize = 0xbbf1438,
-};
-
-enum AuthTokenType : uint64_t {
-  kOutOfBand = 0x0,
-
-  kMaxAuthTokenType = 0x0,
-};
-
-enum AuthTokenAliasType : uint64_t {
-  kDelete = 0x0,
-  kRegister = 0x1,
-  kUseAlias = 0x2,
-  kUseValue = 0x3,
-
-  kMaxValue = 0x3,
-};
-
-struct AuthToken {
-  AuthToken(AuthTokenType token_type, absl::string_view token)
-      : type(token_type), token(token) {}
-  bool operator==(const AuthToken& other) const = default;
-
-  AuthTokenType type;
-  std::string token;
 };
 
 struct VersionSpecificParameters {
@@ -334,11 +337,9 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kNamespacePrefixUnknown = 0x4,     // SUBSCRIBE_ANNOUNCES_ERROR only.
   kInvalidRange = 0x5,               // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kNamespacePrefixOverlap = 0x5,     // SUBSCRIBE_ANNOUNCES_ERROR only.
-  kRetryTrackAlias = 0x6,            // SUBSCRIBE_ERROR only.
   kNoObjects = 0x6,                  // FETCH_ERROR only.
   kInvalidJoiningSubscribeId = 0x7,  // FETCH_ERROR only.
   kMalformedAuthToken = 0x10,
-  kUnknownAuthTokenAlias = 0x11,
   kExpiredAuthToken = 0x12,
 };
 
@@ -616,7 +617,6 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
 
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t request_id;
-  uint64_t track_alias;
   FullTrackName full_track_name;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
@@ -629,6 +629,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t request_id;
+  uint64_t track_alias;
   // The message uses ms, but expires is in us.
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
   MoqtDeliveryOrder group_order;
@@ -641,7 +642,6 @@ struct QUICHE_EXPORT MoqtSubscribeError {
   uint64_t request_id;
   RequestErrorCode error_code;
   std::string reason_phrase;
-  uint64_t track_alias;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
@@ -850,6 +850,33 @@ struct QUICHE_EXPORT MoqtFetchCancel {
 
 struct QUICHE_EXPORT MoqtRequestsBlocked {
   uint64_t max_request_id;
+};
+
+struct QUICHE_EXPORT MoqtPublish {
+  uint64_t request_id;
+  FullTrackName full_track_name;
+  uint64_t track_alias;
+  MoqtDeliveryOrder group_order;
+  std::optional<Location> largest_location;
+  bool forward;
+  VersionSpecificParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtPublishOk {
+  uint64_t request_id;
+  bool forward;
+  MoqtPriority subscriber_priority;
+  MoqtDeliveryOrder group_order;
+  MoqtFilterType filter_type;
+  std::optional<Location> start;
+  std::optional<uint64_t> end_group;
+  VersionSpecificParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtPublishError {
+  uint64_t request_id;
+  RequestErrorCode error_code;
+  std::string error_reason;
 };
 
 // All of the four values in this message are encoded as varints.

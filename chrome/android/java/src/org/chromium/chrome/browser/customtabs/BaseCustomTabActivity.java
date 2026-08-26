@@ -369,6 +369,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                         this::isInOverviewMode,
                         /* appMenuDelegate= */ this,
                         /* statusBarColorProvider= */ this,
+                        getEphemeralTabCoordinatorSupplier(),
                         getIntentRequestTracker(),
                         () -> mToolbarCoordinator,
                         () -> mIntentDataProvider,
@@ -1370,7 +1371,8 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
                             getBottomSheetController(),
                             getAuthTabVerifier(),
                             getBrowserControlsManager(),
-                            this::isShowingWebAppHeaderButtons);
+                            this::isShowingWebAppHeaderButtons,
+                            mRootUiCoordinator.getExclusiveAccessManager());
         }
         return mDelegateFactory;
     }

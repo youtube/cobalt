@@ -149,7 +149,7 @@ component("media") {
     "//ui/events:events_base",
     "//ui/gfx",
     "//ui/gfx/geometry",
-    "//ui/gl:gl",
+    "//ui/gl",
     "//url",
   ]
 
@@ -208,7 +208,6 @@ test("media_unittests") {
     "//media/filters:unit_tests",
     "//media/formats:unit_tests",
     "//media/gpu:unit_tests",
-    "//media/learning:unit_tests",
     "//media/mojo:unit_tests",
     "//media/muxers:unit_tests",
     "//media/parsers:unit_tests",

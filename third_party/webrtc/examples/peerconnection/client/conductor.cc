@@ -170,7 +170,7 @@ bool Conductor::InitializePeerConnection() {
   RTC_DCHECK(!peer_connection_factory_);
   RTC_DCHECK(!peer_connection_);
 
-  if (!signaling_thread_.get()) {
+  if (!signaling_thread_) {
     signaling_thread_ = webrtc::Thread::CreateWithSocketServer();
     signaling_thread_->Start();
   }
@@ -350,7 +350,7 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
   RTC_DCHECK(peer_id_ == peer_id || peer_id_ == -1);
   RTC_DCHECK(!message.empty());
 
-  if (!peer_connection_.get()) {
+  if (!peer_connection_) {
     RTC_DCHECK(peer_id_ == -1);
     peer_id_ = peer_id;
 
@@ -439,7 +439,7 @@ void Conductor::OnMessageFromPeer(int peer_id, const std::string& message) {
     webrtc::SdpParseError error;
     std::unique_ptr<webrtc::IceCandidate> candidate(
         webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
-    if (!candidate.get()) {
+    if (!candidate) {
       RTC_LOG(LS_WARNING) << "Can't parse received candidate message. "
                              "SdpParseError was: "
                           << error.description;
@@ -483,7 +483,7 @@ void Conductor::ConnectToPeer(int peer_id) {
   RTC_DCHECK(peer_id_ == -1);
   RTC_DCHECK(peer_id != -1);
 
-  if (peer_connection_.get()) {
+  if (peer_connection_) {
     main_wnd_->MessageBox(
         "Error", "We only support connecting to one peer at a time", true);
     return;
@@ -535,7 +535,7 @@ void Conductor::AddTracks() {
 
 void Conductor::DisconnectFromCurrentPeer() {
   RTC_LOG(LS_INFO) << __FUNCTION__;
-  if (peer_connection_.get()) {
+  if (peer_connection_) {
     client_->SendHangUp(peer_id_);
     DeletePeerConnection();
   }
@@ -582,7 +582,7 @@ void Conductor::UIThreadCallback(int msg_id, void* data) {
         delete msg;
       }
 
-      if (!peer_connection_.get())
+      if (!peer_connection_)
         peer_id_ = -1;
 
       break;

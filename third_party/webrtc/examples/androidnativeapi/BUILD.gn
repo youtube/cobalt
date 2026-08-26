@@ -31,7 +31,6 @@ if (is_android) {
     testonly = true
     sources = [ "java/org/webrtc/examples/androidnativeapi/CallClient.java" ]
     namespace = "webrtc_examples"
-    jni_generator_include = "//sdk/android/src/jni/jni_generator_helper.h"
   }
 
   rtc_shared_library("examples_androidnativeapi_jni") {

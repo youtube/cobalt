@@ -46,6 +46,7 @@ rtc_library("sdk_tests") {
   sources = [ "media_constraints_unittest.cc" ]
   deps = [
     ":media_constraints",
+    "../api:libjingle_peerconnection_api",
     "../test:test_support",
   ]
 }

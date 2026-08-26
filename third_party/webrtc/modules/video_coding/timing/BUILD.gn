@@ -149,8 +149,8 @@ rtc_library("timing_unittests") {
     "../../../api/units:timestamp",
     "../../../rtc_base:histogram_percentile_counter",
     "../../../rtc_base:timeutils",
+    "../../../system_wrappers",
     "../../../system_wrappers:metrics",
-    "../../../system_wrappers:system_wrappers",
     "../../../test:create_test_field_trials",
     "../../../test:test_support",
   ]

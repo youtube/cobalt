@@ -35,7 +35,7 @@ bool GeolocationSettingDelegate::IsValid(
 
 // Returns a setting to inherit to incognito mode. Return nullopt if the setting
 // should not be inherited.
-std::optional<PermissionSetting> GeolocationSettingDelegate::InheritInIncognito(
+PermissionSetting GeolocationSettingDelegate::InheritInIncognito(
     const PermissionSetting& setting) const {
   GeolocationSetting geo_setting = std::get<GeolocationSetting>(setting);
 
@@ -87,8 +87,16 @@ std::optional<PermissionSetting> GeolocationSettingDelegate::FromValue(
 
 bool GeolocationSettingDelegate::IsAnyPermissionAllowed(
     PermissionSetting setting) const {
+  // When precise is allowed, then approximate must be allowed too so we only
+  // need to check approximate here.
   return std::get<GeolocationSetting>(setting).approximate ==
          PermissionOption::kAllowed;
+}
+
+bool GeolocationSettingDelegate::IsUndecided(PermissionSetting setting) const {
+  const auto& geo_setting = std::get<GeolocationSetting>(setting);
+  return geo_setting.approximate == PermissionOption::kAsk &&
+         geo_setting.precise == PermissionOption::kAsk;
 }
 
 bool GeolocationSettingDelegate::CanTrackLastVisit() const {

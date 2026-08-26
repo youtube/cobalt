@@ -301,6 +301,9 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
                         jint unique_id,
                         jboolean has_sent_previous_request);
 
+  // Get the paint order for a given node.
+  jint GetPaintOrder(JNIEnv* env, jint unique_id);
+
   void UpdateFrameInfo(float page_scale);
 
   // Set a new max for TYPE_WINDOW_CONTENT_CHANGED events to fire.
@@ -383,11 +386,13 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
     return allow_image_descriptions_;
   }
 
+  // Gets the accessibility focused node from Java-side code. Must be called
+  // from BrowserAccessibilityManagerAndroid.
   BrowserAccessibilityAndroid* GetAccessibilityFocus() const;
 
   void HandlePageLoaded(int32_t unique_id);
   void HandleContentChanged(int32_t unique_id);
-  void HandleFocusChanged(int32_t unique_id);
+  void HandleFocusChanged(int32_t unique_id, bool is_root_or_frame_root);
   void HandleCheckStateChanged(int32_t unique_id);
   void HandleClicked(int32_t unique_id);
   void HandleMenuOpened(int32_t unique_id);
@@ -424,6 +429,8 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
       const;
 
   BrowserAccessibilityAndroid* GetAXFromUniqueID(int32_t unique_id) const;
+
+  bool IsAccessibilityFocused(BrowserAccessibilityAndroid* node) const;
 
   void UpdateAccessibilityNodeInfoBoundsRect(
       JNIEnv* env,

@@ -730,7 +730,7 @@ void SctpDataChannel::OnDataReceived(DataMessageType type,
   if (state_ == kOpen && observer_) {
     ++messages_received_;
     bytes_received_ += buffer->size();
-    observer_->OnMessage(*buffer.get());
+    observer_->OnMessage(*buffer);
   } else {
     if (queued_received_data_.byte_count() + payload.size() >
         kMaxQueuedReceivedDataBytes) {

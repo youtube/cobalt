@@ -27,7 +27,7 @@ namespace webrtc {
 bool CorrectUsage(size_t size, size_t alignment) {
   std::unique_ptr<char, AlignedFreeDeleter> scoped(
       static_cast<char*>(AlignedMalloc(size, alignment)));
-  if (scoped.get() == nullptr) {
+  if (scoped == nullptr) {
     return false;
   }
   const uintptr_t scoped_address = reinterpret_cast<uintptr_t>(scoped.get());

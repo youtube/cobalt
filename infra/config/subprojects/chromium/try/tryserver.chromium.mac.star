@@ -215,7 +215,7 @@ try_.builder(
             "skip_generate_fuzzer_owners",
         ],
     ),
-    contact_team_email = "chrome-deet-core@google.com",
+    contact_team_email = "chrome-fuzzing-core@google.com",
 )
 
 try_.builder(
@@ -340,7 +340,7 @@ try_.orchestrator_builder(
         # TODO (crbug.com/415099984): change to 100,
         # then move out of experimental CQ after,
         # mac15-arm64-rel replaces mac14-arm64-rel on CQ.
-        experiment_percentage = 1,
+        experiment_percentage = 30,
     ),
 )
 

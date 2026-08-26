@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/allocator/partition_alloc_features.h"
 
 #include "base/allocator/miracle_parameter.h"
@@ -134,22 +139,12 @@ constinit const FeatureParam<PartitionAllocWithAdvancedChecksEnabledProcesses>
 BASE_FEATURE(kPartitionAllocSchedulerLoopQuarantine,
              "PartitionAllocSchedulerLoopQuarantine",
              FEATURE_DISABLED_BY_DEFAULT);
-// Scheduler Loop Quarantine's per-branch capacity in bytes.
+// Scheduler Loop Quarantine's config.
 // Note: Do not use the prepared macro as of no need for a local cache.
-constinit const FeatureParam<int>
-    kPartitionAllocSchedulerLoopQuarantineBranchCapacity{
+constinit const FeatureParam<std::string>
+    kPartitionAllocSchedulerLoopQuarantineConfig{
         &kPartitionAllocSchedulerLoopQuarantine,
-        "PartitionAllocSchedulerLoopQuarantineBranchCapacity", 0};
-// Scheduler Loop Quarantine's capacity for the UI thread in bytes.
-BASE_FEATURE_PARAM(int,
-                   kPartitionAllocSchedulerLoopQuarantineBrowserUICapacity,
-                   &kPartitionAllocSchedulerLoopQuarantine,
-                   "PartitionAllocSchedulerLoopQuarantineBrowserUICapacity",
-                   0);
-
-BASE_FEATURE(kPartitionAllocZappingByFreeFlags,
-             "PartitionAllocZappingByFreeFlags",
-             FEATURE_DISABLED_BY_DEFAULT);
+        "PartitionAllocSchedulerLoopQuarantineConfig", "{}"};
 
 BASE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory,
              "PartitionAllocEventuallyZeroFreedMemory",

@@ -157,11 +157,6 @@ class IceCandidateCollection final {
   // Removes the candidate that has a matching address and protocol.
   //
   // Returns the number of candidates that were removed.
-  size_t remove(const Candidate& candidate);
-
-  // Removes the candidate that has a matching address and protocol.
-  //
-  // Returns the number of candidates that were removed.
   size_t remove(const IceCandidate* candidate);
 
   const std::vector<std::unique_ptr<IceCandidate>>& candidates() const {
@@ -267,14 +262,6 @@ class RTC_EXPORT SessionDescriptionInterface {
   //
   // Returns false if no matching candidate was found (and removed).
   virtual bool RemoveCandidate(const IceCandidate* candidate) = 0;
-
-  // Removes the candidates from the description, if found.
-  //
-  // Returns the number of candidates removed.
-  // TODO: webrtc:42233526 - Deprecate and eventually remove this method in
-  // favor of the IceCandidate version.
-  virtual size_t RemoveCandidates(absl::string_view mid,
-                                  const std::vector<Candidate>& candidates);
 
   // Returns the number of m= sections in the session description.
   virtual size_t number_of_mediasections() const = 0;

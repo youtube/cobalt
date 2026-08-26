@@ -101,18 +101,6 @@ BASE_DECLARE_FEATURE(kWebAuthnEnclaveAttestation);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnNewBfCacheHandling);
 
-// Removes the timeout when downloading the account state for the enclave,
-// tweaking the UI:
-// * A loading screen is shown when the enclave is selected.
-// * The GPM error screen now has a "try another way" button.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnNoAccountTimeout);
-
-// When enabled, a sync with the Security Domain Service is performed before a
-// GPM PIN renewal.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kSyncSecurityDomainBeforePINRenewal);
-
 // Enables using the Microsoft Software Key Storage Provider to store
 // unexportable keys when a TPM is not available.
 COMPONENT_EXPORT(DEVICE_FIDO)
@@ -164,6 +152,10 @@ BASE_DECLARE_FEATURE(kWebAuthnLargeBlobForGPM);
 // Sends a PIN generation number to the enclave on a PIN wrapping request.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnSendPinGeneration);
+
+// Adds the cohort public key and cert.xml serial number to GPM wrapped PINs.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnWrapCohortData);
 
 }  // namespace device
 

@@ -53,6 +53,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
+import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
@@ -116,7 +117,9 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
             new TabArchiver.Observer() {
                 @Override
                 public void onDeclutterPassCompleted() {
-                    saveState();
+                    if (!ChromeFeatureList.sTabModelInitFixes.isEnabled()) {
+                        saveState();
+                    }
                 }
 
                 @Override
@@ -362,7 +365,8 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
         mTabPersistencePolicy =
                 new TabbedModeTabPersistencePolicy(
-                        TabPersistentStore.getMetadataFileName(ARCHIVED_TAB_SELECTOR_UNIQUE_TAG),
+                        TabMetadataFileManager.getMetadataFileName(
+                                ARCHIVED_TAB_SELECTOR_UNIQUE_TAG),
                         /* otherMetadataFileName= */ null,
                         /* mergeTabsOnStartup= */ false,
                         /* tabMergingEnabled= */ false) {
@@ -596,8 +600,18 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
 
     private void resumeSaveTabList(TabbedModeTabModelOrchestrator orchestrator) {
         // Re-enable #saveTabListAsynchronously after running a bulk operation.
-        orchestrator.getTabPersistentStore().resumeSaveTabList();
-        mTabPersistentStore.resumeSaveTabList();
+        if (ChromeFeatureList.sTabModelInitFixes.isEnabled()) {
+            // This triggers saves to the backing stores. It's possible we crash/are shutdown after
+            // the first and before the second. For this reason, it's critical that we resume the
+            // archived side before the tabbed side. This will cause tab duplication instead of data
+            // loss. Duplication will be cleaned up and handled on the next restart. While data loss
+            // would not be recoverable.
+            mTabPersistentStore.resumeSaveTabList();
+            orchestrator.getTabPersistentStore().resumeSaveTabList();
+        } else {
+            orchestrator.getTabPersistentStore().resumeSaveTabList();
+            mTabPersistentStore.resumeSaveTabList();
+        }
     }
 
     // Testing-specific methods

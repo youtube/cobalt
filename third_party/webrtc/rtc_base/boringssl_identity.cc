@@ -175,7 +175,7 @@ const BoringSSLCertificate& BoringSSLIdentity::certificate() const {
 }
 
 const SSLCertChain& BoringSSLIdentity::cert_chain() const {
-  return *cert_chain_.get();
+  return *cert_chain_;
 }
 
 std::unique_ptr<SSLIdentity> BoringSSLIdentity::CloneInternal() const {

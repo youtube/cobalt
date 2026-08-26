@@ -44,6 +44,7 @@
 #include "third_party/blink/public/web/web_plugin_container.h"
 #include "third_party/blink/public/web/web_plugin_params.h"
 #include "third_party/blink/public/web/web_print_params.h"
+#include "third_party/blink/public/web/web_view_observer.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/cursor/cursor.h"
@@ -93,6 +94,7 @@ class PdfInkModuleClient;
 
 class PdfViewWebPlugin final : public PDFiumEngineClient,
                                public blink::WebPlugin,
+                               public blink::WebViewObserver,
                                public pdf::mojom::PdfListener,
                                public UrlLoader::Client,
                                public PostMessageReceiver::Client,
@@ -110,14 +112,6 @@ class PdfViewWebPlugin final : public PDFiumEngineClient,
     kLoading = 0,
     kComplete,
     kFailed,
-  };
-
-  // Must match `SaveRequestType` in chrome/browser/resources/pdf/constants.ts.
-  enum class SaveRequestType {
-    kAnnotation = 0,
-    kOriginal = 1,
-    kEdited = 2,
-    kSearchified = 3,
   };
 
   // Provides services from the plugin's container.
@@ -348,12 +342,17 @@ class PdfViewWebPlugin final : public PDFiumEngineClient,
           blink::mojom::AnnotationAgentContainerInterfaceBase> pending_receiver)
       override;
 
+  // blink::WebViewObserver:
+  void OnDestruct() override;
+  void OnRendererPreferencesUpdated(
+      const blink::RendererPreferences& preferences) override;
+
   // PDFiumEngineClient:
   void ProposeDocumentLayout(const DocumentLayout& layout) override;
   void Invalidate(const gfx::Rect& rect) override;
   void DidScroll(const gfx::Vector2d& offset) override;
-  void ScrollToX(int x_screen_coords) override;
-  void ScrollToY(int y_screen_coords) override;
+  void ScrollToX(int x_screen_coords, bool force_smooth_scroll) override;
+  void ScrollToY(int y_screen_coords, bool force_smooth_scroll) override;
   void ScrollBy(const gfx::Vector2d& delta) override;
   void ScrollToPage(int page) override;
   void NavigateTo(const std::string& url,
@@ -617,28 +616,28 @@ class PdfViewWebPlugin final : public PDFiumEngineClient,
   void HandleStopScrollingMessage(const base::Value::Dict& message);
   void HandleViewportMessage(const base::Value::Dict& message);
 
-  void SaveToBuffer(SaveRequestType request_type, const std::string& token);
+  void SaveToBuffer(pdf::mojom::SaveRequestType request_type,
+                    const std::string& token);
   void SaveToFile(const std::string& token);
 
   // Returns `block_size` bytes to save the PDF with `request_type`, starting
-  // from location `offset`. Since the caller may not know the exact file size,
-  // the first request (when `offset` is 0) can be called with `block_size` 0
-  // and in that case, the entire file data, capped at 16MB limit is returned.
-  // The function also returns the total file size.
-  // Note that it only handles files less than INT_MAX size, and if the file is
-  // larger than that, it returns 0 as file size and no data.
-  SaveDataBlock SaveBlockToBuffer(SaveRequestType request_type,
-                                  uint32_t offset,
-                                  uint32_t block_size);
+  // from location `offset`. For non-original save requests, uses `buffer` to
+  // temporarily store save data for future calls. Since the caller may not know
+  // the exact file size, the first request (when `offset` is 0) can be called
+  // with `block_size` 0 and in that case, the entire file data, capped at 16MB
+  // limit is returned. The function also returns the total file size. Note that
+  // it only handles files less than INT_MAX size, and if the file is larger
+  // than that, it returns 0 as file size and no data.
+  SaveDataBlock SaveBlockToBufferImpl(std::vector<uint8_t>& buffer,
+                                      pdf::mojom::SaveRequestType request_type,
+                                      uint32_t offset,
+                                      uint32_t block_size);
 
-  // For a call to `SaveBlockToBuffer`, ensures `offset` and `block_size` have
-  // expected values and returns the effective `block_size`.
+  // For a call to `SaveBlockToBufferImpl()`, ensures `offset` and
+  // `block_size` have expected values and returns the effective `block_size`.
   uint32_t VerifyParamsAndGetSaveBlockSize(uint32_t total_file_size,
                                            uint32_t offset,
                                            uint32_t block_size);
-
-  // Release buffered data for saving.
-  void ReleaseSaveBuffer();
 
   // Sets whether the plugin can and should handle the save by using `pdf_host_`
   // to notify the browser. Prevents duplicate notifications to the browser if
@@ -782,6 +781,9 @@ class PdfViewWebPlugin final : public PDFiumEngineClient,
 
   // Starts loading accessibility information.
   void LoadAccessibility();
+
+  // Applies the initial renderer preferences and observes future updates.
+  void ApplyAndObserveRendererPreferences();
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   // Triggered to show/hide Searchify progress indicator.

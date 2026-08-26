@@ -16,8 +16,8 @@
 namespace actor::ui {
 
 ActorOverlayViewController::ActorOverlayViewController(
-    tabs::TabInterface* tab_interface)
-    : tab_interface_(*tab_interface) {}
+    tabs::TabInterface& tab_interface)
+    : tab_interface_(tab_interface) {}
 
 ActorOverlayViewController::~ActorOverlayViewController() = default;
 
@@ -34,7 +34,7 @@ ActorUiTabControllerInterface* ActorOverlayViewController::GetTabController() {
 // handoff button should be visible. Look into ways of tracking mouse movements
 // directly.
 void ActorOverlayViewController::OnHoverStatusChanged(bool is_hovering) {
-  GetTabController()->SetHandoffButtonVisibility(is_hovering);
+  GetTabController()->SetOverlayHoverStatus(is_hovering);
 }
 
 void ActorOverlayViewController::UpdateState(const ActorOverlayState& state,

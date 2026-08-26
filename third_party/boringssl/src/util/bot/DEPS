@@ -199,7 +199,8 @@ hooks = [
   {
     'name': 'clang',
     'pattern': '.',
-    'condition': 'checkout_clang',
+    # bindgen in the packaged rust-toolchain requires packaged clang.
+    'condition': 'checkout_clang or checkout_rust',
     'action': [ 'python3',
                 'boringssl/util/bot/tools/clang/scripts/update.py',
                 '--output-dir', 'boringssl/util/bot/llvm-build',

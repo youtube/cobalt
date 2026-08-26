@@ -42,10 +42,11 @@
 #include "third_party/rust/chromium_crates_io/vendor/llguidance-v1/llguidance.h"
 #endif
 
-using on_device_model::mojom::LoadModelResult;
-
 namespace ml {
 namespace {
+
+namespace odmm = ::on_device_model::mojom;
+using odmm::LoadModelResult;
 
 constexpr uint32_t kReserveTokensForSafety = 2;
 
@@ -101,6 +102,24 @@ int CalculateTokensPerSecond(int num_tokens, base::TimeDelta duration) {
   }
   return (num_tokens / static_cast<float>(duration.InMicroseconds())) *
          base::Time::kMicrosecondsPerSecond;
+}
+
+// If `pieces` ends with ml::Token::kModel and then a text piece, returns the
+// final text piece.
+std::optional<std::string> GetModelResponsePrefix(
+    const std::vector<InputPiece>& pieces) {
+  if (pieces.size() < 2) {
+    return std::nullopt;
+  }
+  if (const ml::Token* token =
+          std::get_if<ml::Token>(&pieces[pieces.size() - 2]);
+      !token || *token != ml::Token::kModel) {
+    return std::nullopt;
+  }
+  if (const std::string* text = std::get_if<std::string>(&pieces.back())) {
+    return *text;
+  }
+  return std::nullopt;
 }
 
 }  // namespace
@@ -203,6 +222,48 @@ class Responder final {
   base::OnceClosure on_complete_;
   SessionAccessor::Ptr session_;
   base::WeakPtrFactory<Responder> weak_ptr_factory_{this};
+};
+
+// Handles sending and cancelling ASR streams.
+class AsrStreamResponder final {
+ public:
+  explicit AsrStreamResponder(
+      mojo::PendingRemote<odmm::AsrStreamResponder> responder,
+      SessionAccessor::Ptr session)
+      : responder_(std::move(responder)), session_(std::move(session)) {
+    responder_.set_disconnect_handler(
+        base::BindOnce(&AsrStreamResponder::Cancel, base::Unretained(this)));
+  }
+  ~AsrStreamResponder() { Cancel(); }
+  SessionAccessor* session() { return session_.get(); }
+  ChromeMLASRStreamOutputFn CreateOutputFn() {
+    return [weak_ptr = weak_ptr_factory_.GetWeakPtr(),
+            task_runner = base::SequencedTaskRunner::GetCurrentDefault()](
+               const ChromeMLASRStreamOutput& output) {
+      std::vector<odmm::SpeechRecognitionResultPtr> result;
+      result.reserve(output.size());
+      for (const auto& t : output) {
+        result.push_back(
+            odmm::SpeechRecognitionResult::New(t.transcript, t.is_final));
+      }
+      task_runner->PostTask(
+          FROM_HERE, base::BindOnce(&AsrStreamResponder::OnOutput, weak_ptr,
+                                    std::move(result)));
+    };
+  }
+
+  base::WeakPtr<AsrStreamResponder> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  void Cancel() { session_ = nullptr; }
+  void OnOutput(std::vector<odmm::SpeechRecognitionResultPtr> output) {
+    responder_->OnResponse(std::move(output));
+  }
+  mojo::Remote<odmm::AsrStreamResponder> responder_;
+  SessionAccessor::Ptr session_;
+  base::WeakPtrFactory<AsrStreamResponder> weak_ptr_factory_{this};
 };
 
 // Handles calling the ContextClient on completion and canceling the context
@@ -357,6 +418,7 @@ void SessionImpl::Append(
     on_device_model::mojom::AppendOptionsPtr options,
     mojo::PendingRemote<on_device_model::mojom::ContextClient> client,
     base::OnceClosure on_complete) {
+  model_response_prefix_ = GetModelResponsePrefix(options->input->pieces);
   auto context_holder = std::make_unique<ContextHolder>(
       std::move(client),
       base::BindOnce(&SessionImpl::RemoveContext, base::Unretained(this)),
@@ -383,7 +445,8 @@ void SessionImpl::Generate(
   ChromeMLExecutionOutputFn output_fn = responder_->CreateOutputFn();
   ChromeMLConstraint constraint = 0;
   if (options->constraint) {
-    constraint = executor_->CreateConstraint(*options->constraint);
+    constraint = executor_->CreateConstraint(*options->constraint,
+                                             model_response_prefix_);
     if (!constraint) {
       // TODO(crbug.com/391919456): Propagate error.
       responder_.reset();
@@ -413,6 +476,27 @@ void SessionImpl::GetProbabilitiesBlocking(
     base::OnceCallback<void(const std::vector<float>&)> callback) {
   session_->GetProbabilitiesBlocking(input,
                                      ConvertCallbackToFn(std::move(callback)));
+}
+
+DISABLE_CFI_DLSYM
+void SessionImpl::AsrStream(
+    odmm::AsrStreamOptionsPtr options,
+    mojo::PendingRemote<odmm::AsrStreamResponder> responder) {
+  DCHECK_EQ(asr_responder_, nullptr);
+  auto cloned = session_->Clone();
+  auto cloned_raw = cloned.get();  // For CreateAsrStream after std::move
+  asr_responder_ = std::make_unique<AsrStreamResponder>(std::move(responder),
+                                                        std::move(cloned));
+  ChromeMLASRStreamOutputFn output_fn = asr_responder_->CreateOutputFn();
+  cloned_raw->CreateAsrStream(std::move(options), output_fn);
+}
+
+DISABLE_CFI_DLSYM
+void SessionImpl::AsrAddAudioChunk(odmm::AudioDataPtr data) {
+  if (!asr_responder_) {
+    return;
+  }
+  asr_responder_->session()->AsrAddAudioChunk(std::move(data));
 }
 
 std::unique_ptr<on_device_model::BackendSession> SessionImpl::Clone() {
@@ -500,7 +584,8 @@ void OnDeviceModelExecutor::UnloadAdaptation(uint32_t adaptation_id) {
 
 DISABLE_CFI_DLSYM
 ChromeMLConstraint OnDeviceModelExecutor::CreateConstraint(
-    const on_device_model::mojom::ResponseConstraint& response_constraint) {
+    const on_device_model::mojom::ResponseConstraint& response_constraint,
+    const std::optional<std::string>& prefix) {
 #if defined(ENABLE_ON_DEVICE_CONSTRAINTS)
   if (!tokenizer_) {
     CHECK(chrome_ml_->api().GetTokenizerParams(
@@ -551,6 +636,35 @@ ChromeMLConstraint OnDeviceModelExecutor::CreateConstraint(
     llg_free_constraint(constraint);
     return 0;
   }
+  // Now apply any model prefix to the constraint so the generated model
+  // response continues with the correct constraint state.
+  if (prefix) {
+    std::vector<uint32_t> tokens;
+    // First get the total number of tokens needed.
+    size_t token_size = llg_tokenize_bytes(
+        tokenizer_, reinterpret_cast<const uint8_t*>(prefix->data()),
+        prefix->size(), tokens.data(), 0);
+    tokens.resize(token_size);
+    // Then tokenize into `tokens`.
+    llg_tokenize_bytes(tokenizer_,
+                       reinterpret_cast<const uint8_t*>(prefix->data()),
+                       prefix->size(), tokens.data(), tokens.size());
+    // Apply each token to the constraint.
+    for (uint32_t token : tokens) {
+      LlgMaskResult mask_res;
+      if (llg_compute_mask(constraint, &mask_res) < 0) {
+        LOG(ERROR) << "Error computing mask for prompt prefix.";
+        llg_free_constraint(constraint);
+        return 0;
+      }
+      LlgCommitResult res;
+      if (llg_commit_token(constraint, token, &res) < 0) {
+        LOG(ERROR) << "Error matching prompt prefix.";
+        llg_free_constraint(constraint);
+        return 0;
+      }
+    }
+  }
   return reinterpret_cast<ChromeMLConstraint>(constraint);
 #else
   return 0;
@@ -585,6 +699,12 @@ LoadModelResult OnDeviceModelExecutor::Init(
                             assets.cache.IsValid()
                         ? assets.cache.TakePlatformFile()
                         : base::kInvalidPlatformFile;
+  if (assets.encoder_cache.IsValid()) {
+    data.encoder_cache_file = assets.encoder_cache.TakePlatformFile();
+  }
+  if (assets.adapter_cache.IsValid()) {
+    data.adapter_cache_file = assets.adapter_cache.TakePlatformFile();
+  }
   ChromeMLModelDescriptor descriptor = {
       .backend_type = params->backend_type,
       .model_data = &data,

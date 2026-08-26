@@ -40,7 +40,6 @@ if (is_android) {
     testonly = true
     sources = [ "java/org/webrtc/examples/androidvoip/VoipClient.java" ]
     namespace = "webrtc_examples"
-    jni_generator_include = "//sdk/android/src/jni/jni_generator_helper.h"
   }
 
   rtc_shared_library("examples_androidvoip_jni") {
@@ -80,7 +79,7 @@ if (is_android) {
       "//sdk/android:native_api_audio_device_module",
       "//sdk/android:native_api_base",
       "//sdk/android:native_api_jni",
-      "//third_party/abseil-cpp/absl/memory:memory",
+      "//third_party/abseil-cpp/absl/memory",
       "//third_party/jni_zero",
     ]
   }

@@ -8,13 +8,14 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
+#include "components/input/features.h"
 #include "components/input/input_constants.h"
 #include "components/input/input_router_config_helper.h"
 #include "components/input/input_router_impl.h"
@@ -116,9 +117,6 @@ class UnboundWidgetInputHandler : public blink::mojom::WidgetInputHandler {
   }
 };
 
-base::LazyInstance<UnboundWidgetInputHandler>::Leaky g_unbound_input_handler =
-    LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 RenderInputRouter::~RenderInputRouter() {
@@ -132,8 +130,9 @@ RenderInputRouter::RenderInputRouter(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
     : should_disable_hang_monitor_(
           base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kDisableHangMonitor)),
-      hung_renderer_delay_(kHungRendererDelay),
+              switches::kDisableHangMonitor) ||
+          !base::FeatureList::IsEnabled(input::features::kRendererHangWatcher)),
+      hung_renderer_delay_(input::features::kRendererHangWatcherDelay.Get()),
       fling_scheduler_(std::move(fling_scheduler)),
       latency_tracker_(
           std::make_unique<RenderInputRouterLatencyTracker>(delegate)),
@@ -237,7 +236,8 @@ blink::mojom::WidgetInputHandler* RenderInputRouter::GetWidgetInputHandler() {
   // the main frame is remote. This is because of ordering issues during
   // widget shutdown, so we present an UnboundWidgetInputHandler had
   // DLOGS the message calls.
-  return g_unbound_input_handler.Pointer();
+  static base::NoDestructor<UnboundWidgetInputHandler> unbound_input_handler;
+  return unbound_input_handler.get();
 }
 
 void RenderInputRouter::OnImeCompositionRangeChanged(

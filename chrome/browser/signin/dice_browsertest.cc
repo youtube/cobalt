@@ -742,7 +742,8 @@ class DiceBrowserTest : public InProcessBrowserTest,
     // Fill in the required account capabilities for the sign in intercept.
     AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
     mutator.set_is_subject_to_parental_controls(false);
-    mutator.set_is_subject_to_enterprise_policies(false);
+    mutator.set_is_subject_to_enterprise_features(false);
+    mutator.set_is_subject_to_account_level_enterprise_policies(false);
 
     CHECK(account_info.IsValid());
     signin::UpdateAccountInfoForAccount(GetIdentityManager(), account_info);
@@ -1110,7 +1111,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, EnableSyncAfterToken) {
   // Both LST and Sync Header are received so their time difference must be
   // recorded.
   histogram_tester.ExpectTotalCount(
-      "Signin.SigninManager.SyncHeaderArrivalTimeWindow", 1);
+      "Signin.SigninManager.SyncHeaderArrivalTimeWindowAfterLst", 1);
 }
 
 // Tests that the account is signed in if the ENABLE_SYNC response is received
@@ -1181,7 +1182,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserTest, EnableSyncBeforeToken) {
   // Both LST and Sync Header are received so their time difference must be
   // recorded.
   histogram_tester.ExpectTotalCount(
-      "Signin.SigninManager.SyncHeaderArrivalTimeWindow", 1);
+      "Signin.SigninManager.SyncHeaderArrivalTimeWindowAfterLst", 1);
 }
 
 // Verifies that Chrome doesn't crash on browser window close when the sync
@@ -1433,7 +1434,7 @@ IN_PROC_BROWSER_TEST_F(DiceBrowserSiginInInterceptionInteractiveTest,
   // The sync header was not received so the histogram recording it's time
   // difference from the LST is not recorded.
   histogram_tester.ExpectTotalCount(
-      "Signin.SigninManager.SyncHeaderArrivalTimeWindow", 0);
+      "Signin.SigninManager.SyncHeaderArrivalTimeWindowAfterLst", 0);
 }
 
 class DiceAddAccountTabBrowserTest : public DiceBrowserTest,

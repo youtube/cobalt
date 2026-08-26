@@ -512,7 +512,7 @@ std::unique_ptr<DesktopCapturer> ScreenCapturerX11::CreateRawScreenCapturer(
     return nullptr;
 
   std::unique_ptr<ScreenCapturerX11> capturer(new ScreenCapturerX11());
-  if (!capturer.get()->Init(options)) {
+  if (!capturer->Init(options)) {
     return nullptr;
   }
 

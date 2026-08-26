@@ -486,7 +486,7 @@ found in the LICENSE file.
   </div>
 </div>
 <div class="section">
-  <h1>Test actInFocusedTab()</h1>
+  <h1>Test performActions()</h1>
   <div>
     <label for="actorTaskId">Task ID</label>
     <input id="actorTaskId" type="number" style="width: 8ch;" />
@@ -495,20 +495,17 @@ found in the LICENSE file.
   </div>
   <div>
     <label> <input type="text" id="actionProtoEncodedText" />
-      Action Proto, base64-encoded from http://shortn/_Iyf96Pob5S
+      Action Proto, base64-encoded from http://shortn/_pPzGXm1TZR
     </label>
-    <button id="executeAction">Execute Action</button>
+    <button id="executeAction">Perform Actions</button>
   </div>
-  <div id="actionUpdatedScreenshot">
-    <img id="actionUpdatedScreenshotImg" />
-  </div>
-  <span id="actionUpdatedContextResult"></span>
   <span id="actionStatus"></span>
 </div>
 <div class="section" id="multiTabSection">
   <h1>Multi-Tab</h1>
   <button id="pinFocusedTab">Share Current</button>
   <button id="fetchPinned">⬆️ </button>
+  <label>Fetch Screenshot?<input id="multiTabFetchScreenshot" type="checkbox"/></label>
   <button id="unpin">❌</button>
   <p>Shared</p>
   <ul id="pinnedTabs">
@@ -523,6 +520,15 @@ found in the LICENSE file.
   <input type="text" id="shareCandidateQuery"/>
   <ul id="shareCandidates">
   </ul>
+</div>
+<div class="section">
+  <h1>View Change</h1>
+  <select id="viewChangedCurrentView">
+    <!-- options will be populated by view.ts -->
+  </select>
+  <button id="viewChangedBtn">View Changed</button>
+  <input type="checkbox" id="viewChangedAutomaticallyAccept" checked/>
+  <label for="viewChangedAutomaticallyAccept">Automatically accept requested changes</label>
 </div>
 <div class="section">
   <h1>MQLS Client ID</h1>

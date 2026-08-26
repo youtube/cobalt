@@ -152,12 +152,12 @@ std::optional<autofill::FieldType> StringToFieldType(std::string_view str) {
   static auto map = [] {
     std::map<std::string_view, autofill::FieldType> map;
     for (autofill::FieldType field_type : autofill::kAllFieldTypes) {
-      map[autofill::AutofillType(field_type).ToStringView()] = field_type;
+      map[autofill::FieldTypeToStringView(field_type)] = field_type;
     }
     for (autofill::HtmlFieldType html_field_type :
          autofill::kAllHtmlFieldTypes) {
-      autofill::AutofillType field_type(html_field_type);
-      map[field_type.ToStringView()] = field_type.GetStorableType();
+      map[autofill::FieldTypeToStringView(html_field_type)] =
+          autofill::HtmlFieldTypeToBestCorrespondingFieldType(html_field_type);
     }
     return map;
   }();
@@ -2208,7 +2208,7 @@ bool TestRecipeReplayer::GetElementProperty(
     *property = result.ExtractString();
     return true;
   }
-  *property = result.error;
+  *property = result.is_ok() ? "" : result.ExtractError();
   return false;
 }
 
@@ -2281,13 +2281,13 @@ bool TestRecipeReplayer::PlaceFocusOnElement(
 
   content::EvalJsResult result =
       content::EvalJs(frame, focus_on_target_field_js);
-  if (result.error.empty() && result.is_bool() && result.ExtractBool()) {
+  if (result.is_ok() && result.is_bool() && result.ExtractBool()) {
     return true;
   } else {
     VLOG(1) << "Failed to focus element through script:"
-            << (result.error.empty()
+            << (result.is_ok()
                     ? (result.is_bool() ? "Returned false" : "Not a valid bool")
-                    : result.error);
+                    : result.ExtractError());
 
     // Failing focusing on an element through script, use the less preferred
     // method of left mouse clicking the element.

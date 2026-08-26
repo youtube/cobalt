@@ -462,12 +462,13 @@ bool WgcCapturerWin::IsSourceBeingCaptured(DesktopCapturer::SourceId id) {
 
 void WgcCapturerWin::SetUpFullScreenDetectorForTest(
     bool use_heuristic,
-    DesktopCapturer::SourceId source_id) {
+    DesktopCapturer::SourceId source_id,
+    bool fullscreen_slide_show_started_after_capture_start) {
   if (full_screen_window_detector_) {
     full_screen_window_detector_->SetUseHeuristicFullscreenPowerPointWindows(
         /*use_heuristic_fullscreen_powerpoint_windows=*/true, use_heuristic);
     full_screen_window_detector_->CreateFullScreenApplicationHandlerForTest(
-        source_id);
+        source_id, fullscreen_slide_show_started_after_capture_start);
   }
 }
 

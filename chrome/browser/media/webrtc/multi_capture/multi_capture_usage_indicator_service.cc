@@ -12,6 +12,7 @@
 #include "ash/constants/ash_constants.h"
 #include "ash/public/cpp/notification_utils.h"
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/containers/contains.h"
 #include "base/containers/extend.h"
 #include "base/functional/bind.h"
@@ -57,36 +58,6 @@ const char kPrivacyIndicatorsMultiCaptureNotificationIdPrefix[] =
     "multi-capture-active-privacy-indicators-";
 
 constexpr auto kNotifierType = message_center::NotifierType::SYSTEM_COMPONENT;
-
-std::vector<std::string> GetAllCaptureWithNotificationApps(
-    const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) {
-  std::vector<std::string> capturing_apps_with_notification;
-  for (const auto& [_, app_name] : apps.future_capture_notification_apps) {
-    capturing_apps_with_notification.push_back(app_name);
-  }
-
-  for (const auto& [_, app_name] : apps.current_capture_notification_apps) {
-    capturing_apps_with_notification.push_back(app_name);
-  }
-
-  std::sort(capturing_apps_with_notification.begin(),
-            capturing_apps_with_notification.end());
-
-  return capturing_apps_with_notification;
-}
-
-std::vector<std::string> GetAllCaptureWithoutNotificationApps(
-    const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) {
-  std::vector<std::string> capturing_apps_without_notification;
-  for (const auto& [_, app_name] : apps.future_capture_no_notification_apps) {
-    capturing_apps_without_notification.push_back(app_name);
-  }
-
-  std::sort(capturing_apps_without_notification.begin(),
-            capturing_apps_without_notification.end());
-
-  return capturing_apps_without_notification;
-}
 
 std::string GenerateActiveNotifcationId(const webapps::AppId& app_id) {
   return kPrivacyIndicatorsMultiCaptureNotificationIdPrefix + app_id;
@@ -174,6 +145,7 @@ MultiCaptureUsageIndicatorService::MultiCaptureUsageIndicatorService(
   CHECK(notification_display_service_);
 
   data_service_observer_.Observe(data_service_);
+  notification_service_observer_.Observe(notification_display_service_);
 }
 
 MultiCaptureUsageIndicatorService::~MultiCaptureUsageIndicatorService() =
@@ -185,9 +157,12 @@ MultiCaptureUsageIndicatorService::Create(
     web_app::WebAppProvider* provider,
     NotificationDisplayService* notification_display_service,
     MultiCaptureDataService* data_service) {
-  auto service = base::WrapUnique(new MultiCaptureUsageIndicatorService(
+  if (!prefs || !provider || !notification_display_service || !data_service) {
+    CHECK_IS_TEST();
+    return nullptr;
+  }
+  return base::WrapUnique(new MultiCaptureUsageIndicatorService(
       prefs, provider, notification_display_service, data_service));
-  return service;
 }
 
 void MultiCaptureUsageIndicatorService::MultiCaptureStarted(
@@ -226,6 +201,17 @@ void MultiCaptureUsageIndicatorService::MultiCaptureDataServiceDestroyed() {
   data_service_observer_.Reset();
 }
 
+void MultiCaptureUsageIndicatorService::OnNotificationDisplayed(
+    const message_center::Notification& notification,
+    const NotificationCommon::Metadata* const metadata) {}
+void MultiCaptureUsageIndicatorService::OnNotificationClosed(
+    const std::string& notification_id) {}
+void MultiCaptureUsageIndicatorService::OnNotificationDisplayServiceDestroyed(
+    NotificationDisplayService* service) {
+  notification_service_observer_.Reset();
+  notification_display_service_ = nullptr;
+}
+
 message_center::Notification
 MultiCaptureUsageIndicatorService::CreateFutureCaptureNotification(
     const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) {
@@ -246,9 +232,8 @@ MultiCaptureUsageIndicatorService::CreateFutureCaptureNotification(
       message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE,
       // TODO(crbug.com/428895081): Prevent this text from being trimmed.
       kPrivacyIndicatorsMultiCaptureLoginNotificationId,
-      /*title=*/u"",
-      /*message=*/
-      CreateFutureCaptureNotificationMessage(apps),
+      /*title=*/CreateFutureCaptureNotificationMessage(apps),
+      /*message=*/u"",
       /*icon=*/ui::ImageModel(),
       /*display_source=*/std::u16string(),
       /*origin_url=*/GURL(),
@@ -268,14 +253,13 @@ MultiCaptureUsageIndicatorService::CreateFutureCaptureNotification(
                 const MultiCaptureUsageIndicatorService::AllowListedAppNames
                     app_names = service->GetInstalledAndAllowlistedAppNames();
                 MultiCaptureNotificationDetailsView::ShowCaptureDetails(
-                    GetAllCaptureWithNotificationApps(app_names),
-                    GetAllCaptureWithoutNotificationApps(app_names));
+                    service->GetAllCaptureWithNotificationApps(app_names),
+                    service->GetAllCaptureWithoutNotificationApps(app_names));
               },
               weak_ptr_factory_.GetWeakPtr())));
 
   notification.set_system_notification_warning_level(
       message_center::SystemNotificationWarningLevel::NORMAL);
-  notification.set_accent_color_id(ui::kColorAshPrivacyIndicatorsBackground);
   return notification;
 }
 
@@ -310,14 +294,14 @@ MultiCaptureUsageIndicatorService::CreateActiveCaptureNotification(
   message_center::Notification notification(
       message_center::NotificationType::NOTIFICATION_TYPE_SIMPLE,
       notification_id,
-      /*title=*/u"",
-      /*message=*/
+      /*title=*/
       base::i18n::MessageFormatter::FormatWithNamedArgs(
           l10n_util::GetStringUTF16(
               IDS_MULTI_CAPTURE_ACTIVE_CAPTURE_NOTIFICATION_MESSAGE),
           "NUM_APPS", /*plurality=*/1, "APP_NAME",
           gfx::TruncateString(base::UTF8ToUTF16(app_name), kAppLength,
                               gfx::BreakType::WORD_BREAK)),
+      /*message=*/u"",
       /*icon=*/ui::ImageModel(),
       /*display_source=*/std::u16string(),
       /*origin_url=*/GURL(),
@@ -330,7 +314,6 @@ MultiCaptureUsageIndicatorService::CreateActiveCaptureNotification(
       base::MakeRefCounted<message_center::NotificationDelegate>());
   notification.set_system_notification_warning_level(
       message_center::SystemNotificationWarningLevel::NORMAL);
-  notification.set_accent_color_id(ui::kColorAshPrivacyIndicatorsBackground);
 
   return notification;
 }
@@ -375,20 +358,17 @@ void MultiCaptureUsageIndicatorService::ShowFutureMultiCaptureNotification(
 
 void MultiCaptureUsageIndicatorService::ShowActiveMultiCaptureNotifications(
     const AllowListedAppNames& apps) {
-  web_app::WebAppRegistrar& registrar = provider_->registrar_unsafe();
+  CHECK(data_service_);
+
   std::vector<std::pair<webapps::AppId, std::string>> apps_to_notify;
+  const std::map<webapps::AppId, std::string>& apps_with_notification =
+      data_service_->GetCaptureAppsWithNotification();
   for (const auto& [app_id, _] : started_captures_) {
-    if (!registrar.GetAppById(app_id)) {
+    if (!apps_with_notification.contains(app_id)) {
       continue;
     }
 
-    if (!apps.current_capture_notification_apps.contains(app_id)) {
-      continue;
-    }
-
-    // TODO(crbug.com/428901090): Don't add notifications here that were already
-    // shown once.
-    apps_to_notify.emplace_back(app_id, registrar.GetAppShortName(app_id));
+    apps_to_notify.emplace_back(app_id, apps_with_notification.at(app_id));
   }
 
   std::sort(apps_to_notify.begin(), apps_to_notify.end(),
@@ -429,11 +409,64 @@ void MultiCaptureUsageIndicatorService::RefreshNotifications() {
   if (apps.future_capture_notification_apps.empty() &&
       apps.future_capture_no_notification_apps.empty() &&
       apps.current_capture_notification_apps.empty()) {
+    notification_display_service_->Close(
+        NotificationHandler::Type::TRANSIENT,
+        kPrivacyIndicatorsMultiCaptureLoginNotificationId);
     return;
   }
 
   ShowFutureMultiCaptureNotification(apps);
   ShowActiveMultiCaptureNotifications(apps);
+}
+
+std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+MultiCaptureUsageIndicatorService::GetAllCaptureWithNotificationApps(
+    const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) const {
+  std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+      capturing_apps_with_notification;
+  for (const auto& [app_id, app_name] : apps.future_capture_notification_apps) {
+    capturing_apps_with_notification.push_back(
+        MultiCaptureNotificationDetailsView::AppInfo(
+            app_name, data_service_->GetAppIcon(app_id)));
+  }
+
+  for (const auto& [app_id, app_name] :
+       apps.current_capture_notification_apps) {
+    capturing_apps_with_notification.push_back(
+        MultiCaptureNotificationDetailsView::AppInfo(
+            app_name, data_service_->GetAppIcon(app_id)));
+  }
+
+  std::sort(capturing_apps_with_notification.begin(),
+            capturing_apps_with_notification.end(),
+            [](const MultiCaptureNotificationDetailsView::AppInfo& app_1,
+               const MultiCaptureNotificationDetailsView::AppInfo& app_2) {
+              return app_1.name < app_2.name;
+            });
+
+  return capturing_apps_with_notification;
+}
+
+std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+MultiCaptureUsageIndicatorService::GetAllCaptureWithoutNotificationApps(
+    const MultiCaptureUsageIndicatorService::AllowListedAppNames& apps) const {
+  std::vector<MultiCaptureNotificationDetailsView::AppInfo>
+      capturing_apps_without_notification;
+  for (const auto& [app_id, app_name] :
+       apps.future_capture_no_notification_apps) {
+    capturing_apps_without_notification.push_back(
+        MultiCaptureNotificationDetailsView::AppInfo(
+            app_name, data_service_->GetAppIcon(app_id)));
+  }
+
+  std::sort(capturing_apps_without_notification.begin(),
+            capturing_apps_without_notification.end(),
+            [](const MultiCaptureNotificationDetailsView::AppInfo& app_1,
+               const MultiCaptureNotificationDetailsView::AppInfo& app_2) {
+              return app_1.name < app_2.name;
+            });
+
+  return capturing_apps_without_notification;
 }
 
 }  // namespace multi_capture

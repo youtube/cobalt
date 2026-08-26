@@ -1047,6 +1047,15 @@ egl::Error Context::makeCurrent(egl::Display *display,
 {
     mDisplay = display;
 
+    EGLint width  = 0;
+    EGLint height = 0;
+
+    angle::FrameCaptureShared *frameCaptureShared = getShareGroup()->getFrameCaptureShared();
+    if ((frameCaptureShared->enabled() || !mHasBeenCurrent) && drawSurface != nullptr)
+    {
+        ANGLE_TRY(drawSurface->getUserSize(display, &width, &height));
+    }
+
     if (!mHasBeenCurrent)
     {
         initializeDefaultResources();
@@ -1054,14 +1063,6 @@ egl::Error Context::makeCurrent(egl::Display *display,
         initVendorString();
         initVersionStrings();
         initExtensionStrings();
-
-        int width  = 0;
-        int height = 0;
-        if (drawSurface != nullptr)
-        {
-            width  = drawSurface->getWidth();
-            height = drawSurface->getHeight();
-        }
 
         ContextPrivateViewport(getMutablePrivateState(), getMutablePrivateStateCache(), 0, 0, width,
                                height);
@@ -1073,7 +1074,7 @@ egl::Error Context::makeCurrent(egl::Display *display,
 
     ANGLE_TRY(unsetDefaultFramebuffer());
 
-    getShareGroup()->getFrameCaptureShared()->onMakeCurrent(this, drawSurface);
+    frameCaptureShared->onMakeCurrent(this, drawSurface, width, height);
 
     // TODO(jmadill): Rework this when we support ContextImpl
     mState.setAllDirtyBits();
@@ -1570,7 +1571,7 @@ void Context::bindVertexArray(VertexArrayID vertexArrayHandle)
     VertexArray *vertexArray = checkVertexArrayAllocation(vertexArrayHandle);
     mState.setVertexArrayBinding(this, vertexArray);
     mVertexArrayObserverBinding.bind(vertexArray);
-    mStateCache.onVertexArrayBindingChange(this);
+    mPrivateStateCache.onVertexArrayBindingChange();
 }
 
 void Context::bindVertexBuffer(GLuint bindingIndex,
@@ -1581,7 +1582,7 @@ void Context::bindVertexBuffer(GLuint bindingIndex,
     Buffer *buffer =
         mState.mBufferManager->checkBufferAllocation(mImplementation.get(), bufferHandle);
     mState.bindVertexBuffer(this, bindingIndex, buffer, offset, stride);
-    mStateCache.onVertexArrayStateChange(this);
+    mPrivateStateCache.onVertexArrayStateChange();
 }
 
 void Context::bindSampler(GLuint textureUnit, SamplerID samplerHandle)
@@ -1641,7 +1642,7 @@ void Context::bindTransformFeedback(GLenum target, TransformFeedbackID transform
     TransformFeedback *transformFeedback =
         checkTransformFeedbackAllocation(transformFeedbackHandle);
     mState.setTransformFeedbackBinding(this, transformFeedback);
-    mStateCache.onActiveTransformFeedbackChange(this);
+    onActiveTransformFeedbackChange();
 }
 
 void Context::bindProgramPipeline(ProgramPipelineID pipelineHandle)
@@ -1867,6 +1868,11 @@ void Context::getBooleanvImpl(GLenum pname, GLboolean *params) const
             break;
         case GL_CONTEXT_ROBUST_ACCESS_EXT:
             *params = ConvertToGLBoolean(mState.hasRobustAccess());
+            break;
+        case GL_FRAGMENT_SHADING_RATE_NON_TRIVIAL_COMBINERS_SUPPORTED_EXT:
+            *params =
+                mState.getCaps()
+                    .fragmentShadingRateProperties.fragmentShadingRateNonTrivialCombinersSupport;
             break;
 
         default:
@@ -2475,6 +2481,10 @@ void Context::getIntegervImpl(GLenum pname, GLint *params) const
 
         case GL_QUERY_COUNTER_BITS_EXT:
             *params = mState.getCaps().queryCounterBitsTimestamp;
+            break;
+
+        case GL_SHADING_RATE_EXT:
+            *params = ToGLenum(mState.getShadingRateEXT());
             break;
 
         default:
@@ -3322,7 +3332,7 @@ void Context::detachTransformFeedback(TransformFeedbackID transformFeedback)
     if (mState.removeTransformFeedbackBinding(this, transformFeedback))
     {
         bindTransformFeedback(GL_TRANSFORM_FEEDBACK, {0});
-        mStateCache.onActiveTransformFeedbackChange(this);
+        onActiveTransformFeedbackChange();
     }
 }
 
@@ -3339,7 +3349,7 @@ void Context::detachProgramPipeline(ProgramPipelineID pipeline)
 void Context::vertexAttribDivisor(GLuint index, GLuint divisor)
 {
     mState.setVertexAttribDivisor(this, index, divisor);
-    mStateCache.onVertexArrayStateChange(this);
+    mPrivateStateCache.onVertexArrayStateChange();
 }
 
 void Context::samplerParameteri(SamplerID sampler, GLenum pname, GLint param)
@@ -3796,7 +3806,7 @@ void Context::beginTransformFeedback(PrimitiveMode primitiveMode)
 
     // TODO: http://anglebug.com/42265705: Handle PPOs
     ANGLE_CONTEXT_TRY(transformFeedback->begin(this, primitiveMode, mState.getProgram()));
-    mStateCache.onActiveTransformFeedbackChange(this);
+    onActiveTransformFeedbackChange();
 }
 
 bool Context::hasActiveTransformFeedback(ShaderProgramID program) const
@@ -4472,6 +4482,14 @@ void Context::initCaps()
                   "mobile";
         extensions->depth32OES = false;
 
+        // The corresponding Vulkan extension is presently limited to ARM and Qualcomm
+        INFO()
+            << "Disabling GL_EXT_texture_compression_astc_decode_mode and "
+               "GL_EXT_texture_compression_astc_decode_mode_rgb9e5 during capture, which are not "
+               "yet widely supported";
+        extensions->textureCompressionAstcDecodeModeEXT       = false;
+        extensions->textureCompressionAstcDecodeModeRgb9e5EXT = false;
+
         // Pixel 4 (Qualcomm) only supports 6 atomic counter buffer bindings.
         constexpr GLint maxAtomicCounterBufferBindings = 6;
         INFO() << "Limiting max atomic counter buffer bindings to "
@@ -4728,6 +4746,7 @@ void Context::updateCaps()
 
     // Reinitialize state cache after extension changes.
     mStateCache.initialize(this);
+    mPrivateStateCache.initialize();
 }
 
 angle::Result Context::prepareForClear(GLbitfield mask)
@@ -6082,24 +6101,6 @@ void Context::blendBarrier()
     mImplementation->blendBarrier();
 }
 
-void Context::disableVertexAttribArray(GLuint index)
-{
-    mState.setEnableVertexAttribArray(index, false);
-    mStateCache.onVertexArrayStateChange(this);
-}
-
-void Context::enableVertexAttribArray(GLuint index)
-{
-    const VertexArray *vao = getState().getVertexArray();
-    if (vao->getEnabledAttributesMask().test(index))
-    {
-        return;
-    }
-
-    mState.setEnableVertexAttribArray(index, true);
-    mStateCache.onVertexArrayStateChange(this);
-}
-
 void Context::vertexAttribFormat(GLuint attribIndex,
                                  GLint size,
                                  VertexAttribType type,
@@ -6108,7 +6109,7 @@ void Context::vertexAttribFormat(GLuint attribIndex,
 {
     mState.setVertexAttribFormat(attribIndex, size, type, ConvertToBool(normalized), false,
                                  relativeOffset);
-    mStateCache.onVertexArrayFormatChange(this);
+    mPrivateStateCache.onVertexArrayFormatChange();
 }
 
 void Context::vertexAttribIFormat(GLuint attribIndex,
@@ -6117,19 +6118,19 @@ void Context::vertexAttribIFormat(GLuint attribIndex,
                                   GLuint relativeOffset)
 {
     mState.setVertexAttribFormat(attribIndex, size, type, false, true, relativeOffset);
-    mStateCache.onVertexArrayFormatChange(this);
+    mPrivateStateCache.onVertexArrayFormatChange();
 }
 
 void Context::vertexAttribBinding(GLuint attribIndex, GLuint bindingIndex)
 {
     mState.setVertexAttribBinding(this, attribIndex, bindingIndex);
-    mStateCache.onVertexArrayStateChange(this);
+    mPrivateStateCache.onVertexArrayStateChange();
 }
 
 void Context::vertexBindingDivisor(GLuint bindingIndex, GLuint divisor)
 {
     mState.setVertexBindingDivisor(this, bindingIndex, divisor);
-    mStateCache.onVertexArrayFormatChange(this);
+    mPrivateStateCache.onVertexArrayFormatChange();
 }
 
 void Context::vertexAttribIPointer(GLuint index,
@@ -6143,7 +6144,7 @@ void Context::vertexAttribIPointer(GLuint index,
                                    type, stride, pointer, &vertexAttribDirty);
     if (vertexAttribDirty)
     {
-        mStateCache.onVertexArrayStateChange(this);
+        mPrivateStateCache.onVertexArrayStateChange();
     }
 }
 
@@ -6152,8 +6153,9 @@ void Context::getVertexAttribivImpl(GLuint index, GLenum pname, GLint *params) c
     const VertexAttribCurrentValueData &currentValues =
         getState().getVertexAttribCurrentValue(index);
     const VertexArray *vao = getState().getVertexArray();
+    size_t bindingIndex    = vao->getBindingIndexFromAttribIndex(index);
     QueryVertexAttribiv(vao->getVertexAttribute(index), vao->getBindingFromAttribIndex(index),
-                        currentValues, pname, params);
+                        vao->getVertexArrayBuffer(bindingIndex), currentValues, pname, params);
 }
 
 void Context::getVertexAttribiv(GLuint index, GLenum pname, GLint *params)
@@ -6175,8 +6177,9 @@ void Context::getVertexAttribfv(GLuint index, GLenum pname, GLfloat *params)
     const VertexAttribCurrentValueData &currentValues =
         getState().getVertexAttribCurrentValue(index);
     const VertexArray *vao = getState().getVertexArray();
+    size_t bindingIndex    = vao->getBindingIndexFromAttribIndex(index);
     QueryVertexAttribfv(vao->getVertexAttribute(index), vao->getBindingFromAttribIndex(index),
-                        currentValues, pname, params);
+                        vao->getVertexArrayBuffer(bindingIndex), currentValues, pname, params);
 }
 
 void Context::getVertexAttribfvRobust(GLuint index,
@@ -6193,8 +6196,9 @@ void Context::getVertexAttribIiv(GLuint index, GLenum pname, GLint *params)
     const VertexAttribCurrentValueData &currentValues =
         getState().getVertexAttribCurrentValue(index);
     const VertexArray *vao = getState().getVertexArray();
+    size_t bindingIndex    = vao->getBindingIndexFromAttribIndex(index);
     QueryVertexAttribIiv(vao->getVertexAttribute(index), vao->getBindingFromAttribIndex(index),
-                         currentValues, pname, params);
+                         vao->getVertexArrayBuffer(bindingIndex), currentValues, pname, params);
 }
 
 void Context::getVertexAttribIivRobust(GLuint index,
@@ -6211,8 +6215,9 @@ void Context::getVertexAttribIuiv(GLuint index, GLenum pname, GLuint *params)
     const VertexAttribCurrentValueData &currentValues =
         getState().getVertexAttribCurrentValue(index);
     const VertexArray *vao = getState().getVertexArray();
+    size_t bindingIndex    = vao->getBindingIndexFromAttribIndex(index);
     QueryVertexAttribIuiv(vao->getVertexAttribute(index), vao->getBindingFromAttribIndex(index),
-                          currentValues, pname, params);
+                          vao->getVertexArrayBuffer(bindingIndex), currentValues, pname, params);
 }
 
 void Context::getVertexAttribIuivRobust(GLuint index,
@@ -6334,7 +6339,41 @@ void Context::getFragmentShadingRates(GLsizei samples,
                                       GLsizei *count,
                                       GLenum *shadingRates)
 {
-    return;
+    // If <count> is NULL then it is ignored.
+    if (count == nullptr)
+    {
+        return;
+    }
+
+    uint32_t shadingRatesCounts = 0;
+    angle::ShadingRateMap SupportedFragmentShadingRateSampleCounts =
+        mImplementation->getSupportedFragmentShadingRateEXTSampleCounts();
+    uint32_t supportedShadingRateCounts = SupportedFragmentShadingRateSampleCounts.size();
+
+    for (uint32_t i = 1; i < supportedShadingRateCounts; i++)
+    {
+        gl::ShadingRate shadingRate = static_cast<gl::ShadingRate>(i);
+        ASSERT(shadingRate > gl::ShadingRate::Undefined &&
+               shadingRate < gl::ShadingRate::InvalidEnum);
+        // Assert samples is a power of two.
+        ASSERT(samples >= 1 && (samples & (samples - 1)) == 0);
+        if ((SupportedFragmentShadingRateSampleCounts[shadingRate] & samples) == samples)
+        {
+            if (shadingRates == nullptr)
+            {
+                shadingRatesCounts++;
+            }
+            else
+            {
+                shadingRates[shadingRatesCounts++] = ToGLenum(shadingRate);
+                if (maxCount <= static_cast<GLsizei>(shadingRatesCounts))
+                {
+                    break;
+                }
+            }
+        }
+    }
+    *count = shadingRatesCounts;
 }
 
 void Context::framebufferShadingRate(GLenum target,
@@ -6436,7 +6475,7 @@ void Context::bindBufferRange(BufferBinding target,
     }
     else
     {
-        mStateCache.onBufferBindingChange(this);
+        mPrivateStateCache.onBufferBindingChange();
     }
 
     if (object && isWebGL())
@@ -7738,7 +7777,7 @@ void Context::endTransformFeedback()
 {
     TransformFeedback *transformFeedback = mState.getCurrentTransformFeedback();
     ANGLE_CONTEXT_TRY(transformFeedback->end(this));
-    mStateCache.onActiveTransformFeedbackChange(this);
+    onActiveTransformFeedbackChange();
 }
 
 void Context::transformFeedbackVaryings(ShaderProgramID program,
@@ -7816,14 +7855,14 @@ void Context::pauseTransformFeedback()
 {
     TransformFeedback *transformFeedback = mState.getCurrentTransformFeedback();
     ANGLE_CONTEXT_TRY(transformFeedback->pause(this));
-    mStateCache.onActiveTransformFeedbackChange(this);
+    onActiveTransformFeedbackChange();
 }
 
 void Context::resumeTransformFeedback()
 {
     TransformFeedback *transformFeedback = mState.getCurrentTransformFeedback();
     ANGLE_CONTEXT_TRY(transformFeedback->resume(this));
-    mStateCache.onActiveTransformFeedbackChange(this);
+    onActiveTransformFeedbackChange();
 }
 
 void Context::getUniformuiv(ShaderProgramID program, UniformLocation location, GLuint *params)
@@ -9257,12 +9296,12 @@ void Context::onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMess
             {
                 case angle::SubjectMessage::ContentsChanged:
                     mState.setObjectDirty(GL_VERTEX_ARRAY);
-                    mStateCache.onVertexArrayBufferContentsChange(this);
+                    mPrivateStateCache.onVertexArrayBufferContentsChange();
                     break;
                 case angle::SubjectMessage::SubjectMapped:
                 case angle::SubjectMessage::SubjectUnmapped:
                 case angle::SubjectMessage::BindingChanged:
-                    mStateCache.onVertexArrayBufferStateChange(this);
+                    mPrivateStateCache.onVertexArrayBufferStateChange();
                     break;
                 default:
                     break;
@@ -9932,6 +9971,74 @@ size_t Context::getMemoryUsage() const
     return memoryUsage;
 }
 
+void Context::updateActiveAttribsMaskIfNeeded() const
+{
+    if (!mPrivateStateCache.isCachedActiveAttribMasksValid())
+    {
+        mStateCache.updateActiveAttribsMask(this);
+        mPrivateStateCache.setCachedActiveAttribMasksValid();
+    }
+}
+
+AttributesMask Context::getActiveBufferedAttribsMask() const
+{
+    updateActiveAttribsMaskIfNeeded();
+    return mStateCache.getActiveBufferedAttribsMask(mPrivateStateCache);
+}
+
+AttributesMask Context::getActiveClientAttribsMask() const
+{
+    updateActiveAttribsMaskIfNeeded();
+    return mStateCache.getActiveClientAttribsMask(mPrivateStateCache);
+}
+
+AttributesMask Context::getActiveDefaultAttribsMask() const
+{
+    updateActiveAttribsMaskIfNeeded();
+    return mStateCache.getActiveDefaultAttribsMask(mPrivateStateCache);
+}
+
+bool Context::hasAnyEnabledClientAttrib() const
+{
+    updateActiveAttribsMaskIfNeeded();
+    return mStateCache.hasAnyEnabledClientAttrib(mPrivateStateCache);
+}
+
+bool Context::hasAnyActiveClientAttrib() const
+{
+    updateActiveAttribsMaskIfNeeded();
+    return mStateCache.hasAnyActiveClientAttrib(mPrivateStateCache);
+}
+
+GLint64 Context::getNonInstancedVertexElementLimit() const
+{
+    ASSERT(mBufferAccessValidationEnabled);
+    if (!mPrivateStateCache.isCachedVertexElementLimitValid())
+    {
+        mStateCache.updateVertexElementLimits(this);
+        mPrivateStateCache.setCachedVertexElementLimitValid();
+    }
+    return mStateCache.getNonInstancedVertexElementLimit(mPrivateStateCache);
+}
+
+GLint64 Context::getInstancedVertexElementLimit() const
+{
+    ASSERT(mBufferAccessValidationEnabled);
+    if (!mPrivateStateCache.isCachedVertexElementLimitValid())
+    {
+        mStateCache.updateVertexElementLimits(this);
+        mPrivateStateCache.setCachedVertexElementLimitValid();
+    }
+    return mStateCache.getInstancedVertexElementLimit(mPrivateStateCache);
+}
+
+void Context::onActiveTransformFeedbackChange()
+{
+    mStateCache.onActiveTransformFeedbackChange(this);
+    // This can only be called from current context since transform feedback are per context.
+    mPrivateStateCache.invalidateCachedBasicDrawElementsError();
+}
+
 // ErrorSet implementation.
 ErrorSet::ErrorSet(Debug *debug,
                    const angle::FrontendFeatures &frontendFeatures,
@@ -10138,7 +10245,6 @@ StateCache::StateCache()
       mCachedInstancedVertexElementLimit(0),
       mCachedBasicDrawStatesErrorString(kInvalidPointer),
       mCachedBasicDrawStatesErrorCode(GL_NO_ERROR),
-      mCachedBasicDrawElementsError(kInvalidPointer),
       mCachedProgramPipelineError(kInvalidPointer),
       mCachedHasAnyEnabledClientAttrib(false),
       mCachedTransformFeedbackActiveUnpaused(false),
@@ -10149,7 +10255,7 @@ StateCache::StateCache()
 
 StateCache::~StateCache() = default;
 
-ANGLE_INLINE void StateCache::updateVertexElementLimits(Context *context)
+ANGLE_INLINE void StateCache::updateVertexElementLimits(const Context *context)
 {
     if (context->isBufferAccessValidationEnabled())
     {
@@ -10163,12 +10269,16 @@ void StateCache::initialize(Context *context)
     updateValidBindTextureTypes(context);
     updateValidDrawElementsTypes(context);
     updateBasicDrawStatesError();
-    updateBasicDrawElementsError();
     updateVertexAttribTypesValidation(context);
     updateCanDraw(context);
 }
 
-void StateCache::updateActiveAttribsMask(Context *context)
+void PrivateStateCache::initialize()
+{
+    mCachedBasicDrawElementsError = kInvalidPointer;
+}
+
+void StateCache::updateActiveAttribsMask(const Context *context)
 {
     bool isGLES1         = context->isGLES1();
     const State &glState = context->getState();
@@ -10198,7 +10308,7 @@ void StateCache::updateActiveAttribsMask(Context *context)
     mCachedHasAnyEnabledClientAttrib = (clientAttribs & enabledAttribs).any();
 }
 
-void StateCache::updateVertexElementLimitsImpl(Context *context)
+void StateCache::updateVertexElementLimitsImpl(const Context *context)
 {
     ASSERT(context->isBufferAccessValidationEnabled());
 
@@ -10276,21 +10386,6 @@ intptr_t StateCache::getProgramPipelineErrorImpl(const Context *context) const
     return mCachedProgramPipelineError;
 }
 
-intptr_t StateCache::getBasicDrawElementsErrorImpl(const Context *context) const
-{
-    ASSERT(mCachedBasicDrawElementsError == kInvalidPointer);
-    mCachedBasicDrawElementsError = reinterpret_cast<intptr_t>(ValidateDrawElementsStates(context));
-    return mCachedBasicDrawElementsError;
-}
-
-void StateCache::onVertexArrayBindingChange(Context *context)
-{
-    updateActiveAttribsMask(context);
-    updateVertexElementLimits(context);
-    updateBasicDrawStatesError();
-    updateBasicDrawElementsError();
-}
-
 void StateCache::onProgramExecutableChange(Context *context)
 {
     updateActiveAttribsMask(context);
@@ -10301,31 +10396,6 @@ void StateCache::onProgramExecutableChange(Context *context)
     updateActiveShaderStorageBufferIndices(context);
     updateActiveImageUnitIndices(context);
     updateCanDraw(context);
-}
-
-void StateCache::onVertexArrayFormatChange(Context *context)
-{
-    updateVertexElementLimits(context);
-}
-
-void StateCache::onVertexArrayBufferContentsChange(Context *context)
-{
-    updateVertexElementLimits(context);
-    updateBasicDrawStatesError();
-}
-
-void StateCache::onVertexArrayStateChange(Context *context)
-{
-    updateActiveAttribsMask(context);
-    updateVertexElementLimits(context);
-    updateBasicDrawStatesError();
-    updateBasicDrawElementsError();
-}
-
-void StateCache::onVertexArrayBufferStateChange(Context *context)
-{
-    updateBasicDrawStatesError();
-    updateBasicDrawElementsError();
 }
 
 void StateCache::onGLES1ClientStateChange(Context *context)
@@ -10357,7 +10427,6 @@ void StateCache::onActiveTransformFeedbackChange(Context *context)
 {
     updateTransformFeedbackActiveUnpaused(context);
     updateBasicDrawStatesError();
-    updateBasicDrawElementsError();
     updateValidDrawModes(context);
 }
 
@@ -10663,7 +10732,13 @@ bool StateCache::isCurrentContext(const Context *context,
            &context->getPrivateStateCache() == privateStateCache;
 }
 
-PrivateStateCache::PrivateStateCache() : mIsCachedBasicDrawStatesErrorValid(true) {}
+PrivateStateCache::PrivateStateCache()
+    : mIsCachedBasicDrawStatesErrorValid(true),
+      mIsCachedActiveAttribMasksValid(true),
+      mIsCachedVertexElementLimitValid(true),
+      mCachedBasicDrawElementsError(kInvalidPointer)
+{}
 
 PrivateStateCache::~PrivateStateCache() = default;
+
 }  // namespace gl

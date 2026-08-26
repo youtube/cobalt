@@ -187,7 +187,7 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/ui/webui/settings/glic_handler.h"
 #endif
 
@@ -594,11 +594,9 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                               : commerce::CanFetchProductSpecificationsData(
                                     shopping_service->GetAccountChecker())},
       {"showPasswordChangeControl",
-       // TODO(crbug.com/391131625): Update accordingly to enterprise
-       // requirements.
        PasswordChangeServiceFactory::GetForProfile(profile) &&
            PasswordChangeServiceFactory::GetForProfile(profile)
-               ->IsPasswordChangeAvailable()},
+               ->UserIsActivePasswordChangeUser()},
   };
 
   const bool show_ai_settings_for_testing = base::FeatureList::IsEnabled(

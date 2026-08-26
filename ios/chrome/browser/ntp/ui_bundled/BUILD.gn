@@ -22,12 +22,15 @@ source_set("ui_bundled") {
   ]
 }
 
-source_set("color") {
+source_set("theme") {
   sources = [
     "new_tab_page_color_palette.h",
     "new_tab_page_color_palette.mm",
     "new_tab_page_color_palette_util.h",
     "new_tab_page_color_palette_util.mm",
+    "new_tab_page_color_updating.h",
+    "new_tab_page_image_background_trait.h",
+    "new_tab_page_image_background_trait.mm",
     "new_tab_page_trait.h",
     "new_tab_page_trait.mm",
     "theme_utils.h",
@@ -36,6 +39,7 @@ source_set("color") {
   deps = [
     "//base",
     "//components/sync/protocol",
+    "//ios/chrome/browser/shared/ui/util",
     "//skia",
     "//skia:skia_core_public_headers",
     "//third_party/material_color_utilities",
@@ -104,7 +108,6 @@ source_set("component_factory") {
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/url_loading/model",
-    "//ios/public/provider/chrome/browser/ui_utils:ui_utils_api",
   ]
 }
 
@@ -115,17 +118,18 @@ source_set("coordinator") {
     "new_tab_page_coordinator.mm",
   ]
   deps = [
-    ":color",
     ":component_factory_protocol",
     ":constants",
     ":feature_flags",
     ":logo",
     ":ntp_internal",
+    ":theme",
     ":ui_bundled",
     "//base",
     "//components/feature_engagement/public",
     "//components/feed/core/v2/public:common",
     "//components/feed/core/v2/public/ios:feed_ios_public",
+    "//components/image_fetcher/ios",
     "//components/omnibox/browser",
     "//components/omnibox/common",
     "//components/policy:policy_code_generate",
@@ -159,11 +163,13 @@ source_set("coordinator") {
     "//ios/chrome/browser/follow/model:browser_agent",
     "//ios/chrome/browser/follow/model:enums",
     "//ios/chrome/browser/follow/model:service",
+    "//ios/chrome/browser/google/model:google_logo",
     "//ios/chrome/browser/home_customization/coordinator",
     "//ios/chrome/browser/home_customization/model",
     "//ios/chrome/browser/home_customization/utils",
     "//ios/chrome/browser/lens/ui_bundled:lens_entrypoint",
     "//ios/chrome/browser/ntp/model",
+    "//ios/chrome/browser/ntp/model:util",
     "//ios/chrome/browser/ntp/search_engine_logo/mediator",
     "//ios/chrome/browser/ntp/shared/metrics",
     "//ios/chrome/browser/ntp/shared/metrics:constants",
@@ -199,13 +205,11 @@ source_set("coordinator") {
     "//ios/chrome/browser/supervised_user/model:capabilities",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/toolbar/ui_bundled/public",
-    "//ios/chrome/browser/toolbar/ui_bundled/tab_groups:features_utils",
     "//ios/chrome/browser/toolbar/ui_bundled/tab_groups/coordinator",
     "//ios/chrome/browser/url_loading/model",
     "//ios/chrome/common:string_conversions",
     "//ios/chrome/common:timing",
     "//ios/chrome/common/ui/util",
-    "//ios/public/provider/chrome/browser/ui_utils:ui_utils_api",
     "//ios/web/public",
     "//ios/web/public/navigation",
     "//ui/base",
@@ -238,10 +242,10 @@ source_set("ntp_internal") {
     "new_tab_page_view_controller.mm",
   ]
   deps = [
-    ":color",
     ":constants",
     ":feature_flags",
     ":logo",
+    ":theme",
     ":ui_bundled",
     "//base",
     "//components/feature_engagement/public",
@@ -279,6 +283,8 @@ source_set("ntp_internal") {
     "//ios/chrome/browser/location_bar/ui_bundled:fakebox_buttons_snapshot",
     "//ios/chrome/browser/metrics/model:metrics_internal",
     "//ios/chrome/browser/ntp/model",
+    "//ios/chrome/browser/ntp/search_engine_logo/mediator",
+    "//ios/chrome/browser/ntp/search_engine_logo/ui",
     "//ios/chrome/browser/ntp/shared/metrics",
     "//ios/chrome/browser/ntp/shared/metrics:constants",
     "//ios/chrome/browser/ntp/shared/metrics:home_metrics",
@@ -344,6 +350,7 @@ source_set("unit_tests") {
     "new_tab_page_coordinator_unittest.mm",
     "new_tab_page_header_view_controller_unittest.mm",
     "new_tab_page_mediator_unittest.mm",
+    "new_tab_page_trait_unittest.mm",
   ]
   deps = [
     ":component_factory",
@@ -351,6 +358,7 @@ source_set("unit_tests") {
     ":feature_flags",
     ":logo",
     ":ntp_internal",
+    ":theme",
     ":ui_bundled",
     "//base",
     "//base/test:test_support",
@@ -382,6 +390,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/home_customization/model",
     "//ios/chrome/browser/image_fetcher/model",
     "//ios/chrome/browser/ntp/model",
+    "//ios/chrome/browser/ntp/search_engine_logo/ui",
     "//ios/chrome/browser/ntp/shared/metrics",
     "//ios/chrome/browser/ntp/shared/metrics:constants",
     "//ios/chrome/browser/ntp/shared/metrics:home_metrics",

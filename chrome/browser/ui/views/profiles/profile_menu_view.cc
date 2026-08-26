@@ -40,6 +40,7 @@
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_error_controller_factory.h"
+#include "chrome/browser/signin/signin_hats_util.h"
 #include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -112,18 +113,24 @@
 
 namespace {
 
-std::u16string GetSyncErrorButtonText(AvatarSyncErrorType error) {
+std::u16string GetSyncErrorButtonText(Profile* profile,
+                                      AvatarSyncErrorType error) {
   switch (error) {
-    case AvatarSyncErrorType::kSyncPaused:
     case AvatarSyncErrorType::kUnrecoverableError:
+      if (!ChromeSigninClientFactory::GetForProfile(profile)
+               ->IsClearPrimaryAccountAllowed(
+                   IdentityManagerFactory::GetForProfile(profile)
+                       ->HasPrimaryAccount(signin::ConsentLevel::kSync))) {
+        // As opposed to the corresponding error in an unmanaged account,
+        // sign-out hasn't happened here yet. The button directs to the sign-out
+        // confirmation dialog in settings.
+        return l10n_util::GetStringUTF16(
+            IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON);
+      }
+      [[fallthrough]];
+    case AvatarSyncErrorType::kSyncPaused:
       // The user was signed out. Offer them to sign in again.
       return l10n_util::GetStringUTF16(IDS_SYNC_ERROR_USER_MENU_SIGNIN_BUTTON);
-    case AvatarSyncErrorType::kManagedUserUnrecoverableError:
-      // As opposed to the corresponding error in an unmanaged account
-      // (AvatarSyncErrorType::kUnrecoverableError), sign-out hasn't happened
-      // here yet. The button directs to the sign-out confirmation dialog in
-      // settings.
-      return l10n_util::GetStringUTF16(IDS_SYNC_ERROR_USER_MENU_SIGNOUT_BUTTON);
     case AvatarSyncErrorType::kUpgradeClientError:
       return l10n_util::GetStringUTF16(IDS_SYNC_ERROR_USER_MENU_UPGRADE_BUTTON);
     case AvatarSyncErrorType::kPassphraseError:
@@ -156,6 +163,11 @@ std::u16string GetProfileIdentifier(const ProfileAttributesEntry& entry) {
 }
 
 std::u16string GetSyncPromoDescription(std::string_view email) {
+  if (switches::IsAvatarSyncPromoFeatureEnabled()) {
+    return l10n_util::GetStringUTF16(
+        IDS_PROFILE_MENU_DESCRIPTION_WITH_SYNC_PROMO);
+  }
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   if (base::FeatureList::IsEnabled(
           switches::kEnableHistorySyncOptinExpansionPill)) {
@@ -185,6 +197,11 @@ std::u16string GetSyncPromoDescription(std::string_view email) {
 }
 
 std::u16string GetSyncPromoButtonLabel() {
+  if (switches::IsAvatarSyncPromoFeatureEnabled()) {
+    return l10n_util::GetStringUTF16(
+        IDS_PROFILE_MENU_BUTTON_LABEL_WITH_SYNC_PROMO);
+  }
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   if (base::FeatureList::IsEnabled(
           switches::kEnableHistorySyncOptinExpansionPill)) {
@@ -236,8 +253,8 @@ void ProfileMenuView::OnClose() {
     // Launch a HaTS survey only if the user dismissed the profile menu by
     // clicking outside or pressing the Escape key. Do not launch if a button
     // within the menu was clicked.
-    profiles::LaunchSigninHatsSurveyForBrowser(
-        kHatsSurveyTriggerIdentityProfileMenuDismissed, &browser());
+    signin::LaunchSigninHatsSurveyForProfile(
+        kHatsSurveyTriggerIdentityProfileMenuDismissed, &profile());
   }
 }
 
@@ -354,12 +371,18 @@ void ProfileMenuView::OnSyncErrorButtonClicked(AvatarSyncErrorType error) {
 
   // The logic below must be consistent with GetSyncInfoForAvatarErrorType().
   switch (error) {
-    case AvatarSyncErrorType::kManagedUserUnrecoverableError:
-      chrome::ShowSettingsSubPage(&browser(), chrome::kSignOutSubPage);
-      break;
     case AvatarSyncErrorType::kUnrecoverableError: {
       signin::IdentityManager* identity_manager =
           IdentityManagerFactory::GetForProfile(&profile());
+      // Managed users get directed to the sign-out confirmation dialog in
+      // settings.
+      if (!ChromeSigninClientFactory::GetForProfile(&profile())
+               ->IsClearPrimaryAccountAllowed(
+                   identity_manager->HasPrimaryAccount(
+                       signin::ConsentLevel::kSync))) {
+        chrome::ShowSettingsSubPage(&browser(), chrome::kSignOutSubPage);
+        break;
+      }
       // This error means that the Sync engine failed to initialize. Shutdown
       // Sync engine by revoking sync consent.
       identity_manager->GetPrimaryAccountMutator()->RevokeSyncConsent(
@@ -466,8 +489,15 @@ void ProfileMenuView::OnOtherProfileSelected(
     // associated non-webapp browser.
     profiles::SwitchToProfile(
         profile_path, /*always_create=*/false,
-        base::BindOnce(&profiles::LaunchSigninHatsSurveyForBrowser,
-                       kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu));
+        base::BindOnce(
+            [](Browser* browser) {
+              if (!browser) {
+                return;
+              }
+              signin::LaunchSigninHatsSurveyForProfile(
+                  kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu,
+                  browser->GetProfile());
+            }));
   } else {
     // Open the same web app for another profile.
     // On non-macOS the only allowlisted case is PasswordManager WebApp, which
@@ -661,11 +691,14 @@ ProfileMenuView::GetIdentitySectionParams(const ProfileAttributesEntry& entry) {
     return params;
   }
 
-  // Sync error, including "paused".
-  if (error.has_value()) {
+  // Avoid reacting to AvatarSyncErrorType::kSyncPaused in case of no sync
+  // consent, as kSignInPending is handled differently below.
+  if (error.has_value() &&
+      (error.value() != AvatarSyncErrorType::kSyncPaused ||
+       identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync))) {
     params.subtitle =
         GetAvatarSyncErrorDescription(*error, primary_account_info.email);
-    params.button_text = GetSyncErrorButtonText(error.value());
+    params.button_text = GetSyncErrorButtonText(&profile(), error.value());
     params.button_action =
         base::BindRepeating(&ProfileMenuView::OnSyncErrorButtonClicked,
                             base::Unretained(this), error.value());

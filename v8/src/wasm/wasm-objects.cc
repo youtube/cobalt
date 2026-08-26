@@ -2039,6 +2039,11 @@ DirectHandle<WasmFuncRef> WasmTrustedInstanceData::GetOrCreateFuncRef(
                               ->implicit_arg(function_index)),
                       isolate)
                 : trusted_instance_data;
+  // Imported Wasm functions should always have a cached func ref. Recreating
+  // the `WasmInternalFunction` below does not work because the `function_index`
+  // is an import index which cannot be interpreted in the context of the
+  // imported `WasmTrustedInstanceData`.
+  SBXCHECK(!is_import || Is<WasmImportData>(implicit_arg));
 
   // TODO(14034): Create funcref RTTs lazily?
   DirectHandle<Map> rtt{
@@ -3193,6 +3198,27 @@ DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
   DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
       instance_type, kInstanceSize, elements_kind, inobject_properties,
       shared ? AllocationType::kSharedMap : AllocationType::kMap);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
+DirectHandle<Map> CreateContRefMap(Isolate* isolate,
+                                   wasm::CanonicalTypeIndex type) {
+  const int inobject_properties = 0;
+  const InstanceType instance_type = WASM_CONTINUATION_OBJECT_TYPE;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  const wasm::CanonicalValueType no_array_element = wasm::kWasmBottom;
+  wasm::CanonicalValueType heaptype =
+      wasm::CanonicalValueType::Ref(type, false, wasm::RefTypeKind::kCont);
+  DirectHandle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      heaptype, no_array_element, {}, 0, false);
+  constexpr int kInstanceSize = WasmContinuationObject::kSize;
+  DCHECK_EQ(kInstanceSize,
+            Cast<Map>(isolate->root(RootIndex::kWasmContinuationObjectMap))
+                ->instance_size());
+  DirectHandle<Map> map = isolate->factory()->NewContextlessMap(
+      instance_type, kInstanceSize, elements_kind, inobject_properties,
+      AllocationType::kMap);
   map->set_wasm_type_info(*type_info);
   return map;
 }

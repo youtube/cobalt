@@ -75,7 +75,6 @@ struct PendingTask;
 
 namespace cc {
 class Layer;
-class PaintCanvas;
 }  // namespace cc
 
 namespace blink {
@@ -88,6 +87,7 @@ class ExceptionState;
 class ExecutionContext;
 class ImageData;
 class ImageDataSettings;
+class MemoryManagedPaintCanvas;
 class MemoryManagedPaintRecorder;
 class Path2D;
 class SVGResource;
@@ -180,6 +180,10 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   }
 
   // CanvasRenderingContext implementation
+  bool IsComposited() const override;
+  scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
+      SourceDrawingBuffer source_buffer,
+      FlushReason reason) override;
   bool IsCanvas2DResourceProviderValid() override;
   const std::optional<cc::PaintRecord>& GetLastRecordingForCanvas2D() override;
   int AllocatedBufferCountPerPixel() override {
@@ -211,9 +215,9 @@ class MODULES_EXPORT CanvasRenderingContext2D final
 
   Color GetCurrentColor() const final;
 
-  cc::PaintCanvas* GetOrCreatePaintCanvas() final;
+  MemoryManagedPaintCanvas* GetOrCreatePaintCanvas() final;
   using BaseRenderingContext2D::GetPaintCanvas;  // Pull the non-const overload.
-  const cc::PaintCanvas* GetPaintCanvas() const final;
+  const MemoryManagedPaintCanvas* GetPaintCanvas() const final;
   const MemoryManagedPaintRecorder* Recorder() const override;
 
   void WillDraw(const SkIRect& dirty_rect,
@@ -344,7 +348,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void DrawFocusRing(const Path&, Element*);
   void UpdateElementAccessibility(const Path&, Element*);
 
-  bool IsComposited() const override;
   bool HasAlpha() const override { return CreationAttributes().alpha; }
   bool IsDesynchronized() const override {
     return CreationAttributes().desynchronized;

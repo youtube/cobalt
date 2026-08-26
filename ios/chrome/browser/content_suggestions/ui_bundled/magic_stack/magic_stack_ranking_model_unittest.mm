@@ -270,8 +270,6 @@ class MagicStackRankingModelTest : public PlatformTest {
     ClearDefaultBrowserPromoData();
     WriteFirstRunSentinel();
 
-    syncer::SyncService* syncService =
-        SyncServiceFactory::GetForProfile(GetProfile());
     AuthenticationService* authenticationService =
         AuthenticationServiceFactory::GetForProfile(GetProfile());
     signin::IdentityManager* identityManager =
@@ -287,16 +285,12 @@ class MagicStackRankingModelTest : public PlatformTest {
         ReadingListModelFactory::GetForProfile(GetProfile());
     feature_engagement::Tracker* tracker =
         feature_engagement::TrackerFactory::GetForProfile(GetProfile());
-    AuthenticationService* authentication_service =
-        AuthenticationServiceFactory::GetForProfile(GetProfile());
     _shortcutsMediator = [[ShortcutsMediator alloc]
         initWithReadingListModel:readingListModel
         featureEngagementTracker:(feature_engagement::Tracker*)tracker
-                     authService:authentication_service];
+                 identityManager:identityManager];
     _setUpListMediator = [[FakeSetUpListMediator alloc]
                    initWithPrefService:GetProfile()->GetPrefs()
-                           syncService:syncService
-                       identityManager:identityManager
                  authenticationService:authenticationService
                             sceneState:scene_state_
                  isDefaultSearchEngine:NO
@@ -523,8 +517,9 @@ TEST_F(MagicStackRankingModelTest, TestModuleClickIndexMetric) {
         return _magicStackRankingModel.hasReceivedMagicStackResponse;
       }));
 
-  [_magicStackRankingModel logMagicStackEngagementForType:
-                               ContentSuggestionsModuleType::kSetUpListSync];
+  [_magicStackRankingModel
+      logMagicStackEngagementForType:ContentSuggestionsModuleType::
+                                         kSetUpListDefaultBrowser];
   histogram_tester_->ExpectUniqueSample("IOS.MagicStack.Module.Click.SetUpList",
                                         0, 1);
 }

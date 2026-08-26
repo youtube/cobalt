@@ -1768,7 +1768,7 @@ bool ParseSessionDescription(absl::string_view message,
         return false;
       }
     } else if (HasAttribute(*aline, kAttributeFingerprint)) {
-      if (session_td->identity_fingerprint.get()) {
+      if (session_td->identity_fingerprint) {
         return ParseFailed(
             *aline,
             "Can't have multiple fingerprint attributes at the same level.",
@@ -3126,7 +3126,7 @@ bool ParseMediaDescription(
       unsupported_desc->set_protocol(protocol);
       content = std::move(unsupported_desc);
     }
-    if (!content.get()) {
+    if (!content) {
       // ParseContentDescription returns NULL if failed.
       return false;
     }

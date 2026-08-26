@@ -93,10 +93,10 @@ std::unique_ptr<TransportDescription> TransportDescriptionFactory::CreateAnswer(
   // Special affordance for testing: Answer without DTLS params
   // if we are insecure without a certificate, or if we are
   // insecure with a non-DTLS offer.
-  if ((!certificate_ || !offer->identity_fingerprint.get()) && insecure()) {
+  if ((!certificate_ || !offer->identity_fingerprint) && insecure()) {
     return desc;
   }
-  if (!offer->identity_fingerprint.get()) {
+  if (!offer->identity_fingerprint) {
     if (require_transport_attributes) {
       // We require DTLS, but the other side didn't offer it. Fail.
       RTC_LOG(LS_WARNING) << "Failed to create TransportDescription answer "

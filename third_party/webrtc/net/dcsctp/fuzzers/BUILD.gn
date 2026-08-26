@@ -12,7 +12,7 @@ rtc_library("dcsctp_fuzzers") {
   testonly = true
   deps = [
     "../../../api:array_view",
-    "../../../api/task_queue:task_queue",
+    "../../../api/task_queue",
     "../../../api/units:timestamp",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",

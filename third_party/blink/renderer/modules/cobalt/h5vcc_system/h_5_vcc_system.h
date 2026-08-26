@@ -15,8 +15,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
 
+#include <optional>
+
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -49,7 +50,7 @@ class MODULES_EXPORT H5vccSystem final
   ScriptPromise<IDLString> getAdvertisingId(ScriptState*, ExceptionState&);
   const String& advertisingId();
   ScriptPromise<IDLBoolean> getLimitAdTracking(ScriptState*, ExceptionState&);
-  absl::optional<bool> limitAdTracking();
+  std::optional<bool> limitAdTracking();
   ScriptPromise<IDLString> getFriendlyName(ScriptState*, ExceptionState&);
   ScriptPromise<IDLDouble> getScreenDiagonal(ScriptState*, ExceptionState&);
   ScriptPromise<IDLString> getTrackingAuthorizationStatus(ScriptState*,

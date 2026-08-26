@@ -15,7 +15,6 @@
 
 #include <list>
 #include <optional>
-#include <string>
 
 #include "api/call/audio_sink.h"
 #include "api/media_stream_interface.h"

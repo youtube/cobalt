@@ -157,7 +157,7 @@ class NetEqImplTest : public ::testing::Test {
     red_payload_splitter_ = deps.red_payload_splitter.get();
 
     deps.timestamp_scaler = std::unique_ptr<TimestampScaler>(
-        new TimestampScaler(*deps.decoder_database.get()));
+        new TimestampScaler(*deps.decoder_database));
 
     neteq_.reset(new NetEqImpl(config_, std::move(deps)));
     ASSERT_TRUE(neteq_ != nullptr);

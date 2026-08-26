@@ -68,6 +68,20 @@ std::u16string GetFormattingExpressionOverrides(
            u"${ADDRESS_HOME_FLOOR;, ;º}${ADDRESS_HOME_APT_NUM;, ;ª}";
   }
 
+  // The set of countries without separate address model
+  // with space zip code separator.
+  static constexpr auto kSpaceZipCodeSeparatorCountriesSet =
+      base::MakeFixedFlatSet<std::string_view>(
+          {"CZ", "GB", "GR", "HR", "IE", "LB", "MT", "SE", "SK"});
+
+  if (field_type == ADDRESS_HOME_ZIP &&
+      base::FeatureList::IsEnabled(features::kAutofillSupportSplitZipCode)) {
+    if (base::Contains(kSpaceZipCodeSeparatorCountriesSet,
+                       country_code.value())) {
+      return u"${ADDRESS_HOME_ZIP_PREFIX;;} ${ADDRESS_HOME_ZIP_SUFFIX;;}";
+    }
+  }
+
   return u"";
 }
 
@@ -176,7 +190,6 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR:
     case CREDIT_CARD_TYPE:
     case CREDIT_CARD_VERIFICATION_CODE:
-    case FIELD_WITH_DEFAULT_VALUE:
     case MERCHANT_EMAIL_SIGNUP:
     case MERCHANT_PROMO_CODE:
     case PASSWORD:
@@ -232,6 +245,9 @@ std::unique_ptr<AddressComponent> BuildTreeNode(
     case NATIONAL_ID_CARD_EXPIRATION_DATE:
     case NATIONAL_ID_CARD_ISSUE_DATE:
     case NATIONAL_ID_CARD_ISSUING_COUNTRY:
+    case REDRESS_NUMBER:
+    case KNOWN_TRAVELER_NUMBER:
+    case KNOWN_TRAVELER_NUMBER_EXPIRATION_DATE:
     case MAX_VALID_FIELD_TYPE:
       return nullptr;
   }

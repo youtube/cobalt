@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Scheduler-loop Quarantine is a quarantine pool behind PartitionAlloc with
 // Advanced Checks and `ADVANCED_MEMORY_SAFETY_CHECKS()`.
 // Both requests to prevent `free()`d allocation getting released to free-list,
@@ -73,6 +78,8 @@ struct SchedulerLoopQuarantineConfig {
   bool leak_on_destruction = false;
   bool enable_quarantine = false;
   bool enable_zapping = false;
+  // For informational purposes only.
+  char branch_name[32] = "";
 };
 
 class PA_COMPONENT_EXPORT(PARTITION_ALLOC) SchedulerLoopQuarantineRoot {
@@ -151,6 +158,9 @@ class SchedulerLoopQuarantineBranch {
                   SlotSpanMetadata* slot_span,
                   uintptr_t slot_start) PA_LOCKS_EXCLUDED(lock_);
 
+  void AllowScanlessPurge();
+  void DisallowScanlessPurge();
+
   const SchedulerLoopQuarantineConfig& GetConfigurationForTesting();
 
   class ScopedQuarantineExclusion {
@@ -218,6 +228,15 @@ class SchedulerLoopQuarantineBranch {
   // Using `std::atomic` here so that other threads can update this value.
   std::atomic_size_t branch_capacity_in_bytes_ = 0;
 
+  // TODO(http://crbug.com/329027914): Implement stack scanning, to be performed
+  // when this value is non-zero.
+  //
+  // Currently, a scanless purge is always performed. However, this value is
+  // still used as a hint to determine safer purge timings for memory
+  // optimization.
+  uint32_t disallow_scanless_purge_ PA_GUARDED_BY(lock_) = 0;
+
+  // Debug and testing data.
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   std::atomic_bool being_destructed_ = false;
 #endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)

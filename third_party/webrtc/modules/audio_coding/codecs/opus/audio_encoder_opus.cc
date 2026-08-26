@@ -482,7 +482,7 @@ bool AudioEncoderOpusImpl::EnableAudioNetworkAdaptor(
     RtcEventLog* event_log) {
   audio_network_adaptor_ =
       audio_network_adaptor_creator_(config_string, event_log);
-  return audio_network_adaptor_.get() != nullptr;
+  return audio_network_adaptor_ != nullptr;
 }
 
 void AudioEncoderOpusImpl::DisableAudioNetworkAdaptor() {

@@ -43,7 +43,7 @@ namespace {
 void MaybeResetBuffer(std::unique_ptr<ChannelBuffer<float>>* buffer,
                       const StreamConfig& config) {
   auto& buffer_ref = *buffer;
-  if (!buffer_ref.get() || buffer_ref->num_frames() != config.num_frames() ||
+  if (!buffer_ref || buffer_ref->num_frames() != config.num_frames() ||
       buffer_ref->num_channels() != config.num_channels()) {
     buffer_ref.reset(
         new ChannelBuffer<float>(config.num_frames(), config.num_channels()));

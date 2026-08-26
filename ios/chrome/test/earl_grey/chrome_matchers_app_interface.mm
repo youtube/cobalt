@@ -1380,20 +1380,13 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
   return grey_accessibilityID(kTabGridTabGroupsPageButtonIdentifier);
 }
 
-+ (id<GREYMatcher>)tabGridThirdPanelButton {
-  if (IsTabGroupSyncEnabled()) {
-    return [self tabGridTabGroupsPanelButton];
-  }
-  return [self tabGridOtherDevicesPanelButton];
-}
-
 + (id<GREYMatcher>)tabGridNormalModePageControl {
   return grey_allOf(
       grey_kindOfClassName(@"UIControl"),
       grey_descendant(
           [ChromeMatchersAppInterface tabGridIncognitoTabsPanelButton]),
       grey_descendant([ChromeMatchersAppInterface tabGridOpenTabsPanelButton]),
-      grey_descendant([ChromeMatchersAppInterface tabGridThirdPanelButton]),
+      grey_descendant([ChromeMatchersAppInterface tabGridTabGroupsPanelButton]),
       grey_ancestor(grey_kindOfClassName(@"UIToolbar")),
       grey_sufficientlyVisible(), nil);
 }
@@ -1558,13 +1551,10 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                       grey_ancestor(grey_kindOfClassName(@"UIToolbar")), nil);
   }
 
-  id<GREYMatcher> toolbarButtonMatcher =
-      grey_allOf(grey_accessibilityID(buttonID),
-                 grey_anyOf(grey_kindOfClassName(@"_UIButtonBarButton"),
-                            grey_kindOfClassName(@"UIButton"), nil),
-                 nil);
-  return grey_allOf(grey_descendant(toolbarButtonMatcher),
-                    grey_accessibilityID(@"Toolbar"), nil);
+  return grey_allOf(grey_accessibilityID(buttonID),
+                    grey_anyOf(grey_kindOfClassName(@"_UIButtonBarButton"),
+                               grey_kindOfClassName(@"UIButton"), nil),
+                    nil);
 }
 
 #pragma mark - Overflow Menu Destinations
@@ -1710,9 +1700,7 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)tabGridEditMenuCloseAllButton {
-  int ID = IsTabGroupSyncEnabled()
-               ? IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABSANDGROUPS
-               : IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABS;
+  int ID = IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABSANDGROUPS;
   return grey_allOf(
       [ChromeMatchersAppInterface contextMenuItemWithAccessibilityLabelID:ID],
       grey_sufficientlyVisible(), nil);

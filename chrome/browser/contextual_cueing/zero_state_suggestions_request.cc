@@ -22,9 +22,11 @@ ZeroStateSuggestionsRequest::ZeroStateSuggestionsRequest(
     OptimizationGuideKeyedService* optimization_guide_keyed_service,
     const optimization_guide::proto::ZeroStateSuggestionsRequest&
         pending_base_request,
-    const std::vector<content::WebContents*>& requested_tabs)
+    const std::vector<content::WebContents*>& requested_tabs,
+    const content::WebContents* focused_tab)
     : begin_time_(base::TimeTicks::Now()),
       pending_base_request_(pending_base_request),
+      requested_tabs_(requested_tabs),
       optimization_guide_keyed_service_(optimization_guide_keyed_service) {
   OPTIMIZATION_GUIDE_LOG(
       optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
@@ -38,6 +40,7 @@ ZeroStateSuggestionsRequest::ZeroStateSuggestionsRequest(
       requested_tabs.size(),
       base::BindOnce(&ZeroStateSuggestionsRequest::OnAllPageContextExtracted,
                      weak_ptr_factory_.GetWeakPtr()));
+
   for (auto* tab : requested_tabs) {
     auto* zss_data =
         ZeroStateSuggestionsPageData::GetOrCreateForPage(tab->GetPrimaryPage());
@@ -56,6 +59,10 @@ ZeroStateSuggestionsRequest::ZeroStateSuggestionsRequest(
       return;
     }
 
+    // If we're in multitab mode, store the information about focused tab.
+    if (focused_tab && tab == focused_tab) {
+      zss_data->set_is_focused_tab();
+    }
     // Otherwise, start grabbing the page context.
     zss_data->GetPageContext(barrier_callback);
   }
@@ -67,6 +74,12 @@ ZeroStateSuggestionsRequest::~ZeroStateSuggestionsRequest() {
       optimization_guide_keyed_service_->GetOptimizationGuideLogger(),
       "ZeroStateSuggestionsRequest: Destructing zero state suggestions "
       "request");
+}
+
+// static
+void ZeroStateSuggestionsRequest::Destroy(
+    std::unique_ptr<ZeroStateSuggestionsRequest> request) {
+  // The unique_ptr deletes automatically.
 }
 
 void ZeroStateSuggestionsRequest::AddCallback(
@@ -83,6 +96,11 @@ void ZeroStateSuggestionsRequest::AddCallback(
   }
 
   pending_callbacks_.AddUnsafe(std::move(callback));
+}
+
+std::vector<content::WebContents*>
+ZeroStateSuggestionsRequest::GetRequestedTabs() const {
+  return requested_tabs_;
 }
 
 void ZeroStateSuggestionsRequest::OnAllPageContextExtracted(

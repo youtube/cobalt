@@ -90,7 +90,7 @@ class TestNackRequester : public ::testing::Test,
         TaskQueueBase::Current(), nack_periodic_processor_.get(), clock_.get(),
         this, this, CreateTestFieldTrials());
     nack_module_->UpdateRtt(kDefaultRttMs);
-    return *nack_module_.get();
+    return *nack_module_;
   }
 
   static constexpr int64_t kDefaultRttMs = 20;

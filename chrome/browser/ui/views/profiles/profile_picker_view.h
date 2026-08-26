@@ -15,6 +15,7 @@
 #include "build/buildflag.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
+#include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
@@ -24,10 +25,7 @@
 #include "ui/views/view.h"
 #include "ui/views/widget/widget_delegate.h"
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-class ProfilePickerDiceSignInToolbar;
-#endif
-
+class ProfilePickerSignInToolbar;
 class Profile;
 class ScopedProfileKeepAlive;
 class ProfileManagementFlowController;
@@ -73,12 +71,9 @@ class ProfilePickerView : public views::WidgetDelegateView,
   void Reset(StepSwitchFinishedCallback callback) override;
   void ShowForceSigninErrorDialog(const ForceSigninUIError& error,
                                   bool success) override;
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   void SetNativeToolbarVisible(bool visible) override;
   bool IsNativeToolbarVisibleForTesting() const;
   SkColor GetPreferredBackgroundColor() const override;
-#endif
 
   // content::WebContentsDelegate:
   bool HandleKeyboardEvent(content::WebContents* source,
@@ -190,12 +185,10 @@ class ProfilePickerView : public views::WidgetDelegateView,
   void OnLocalProfileInitialized(std::optional<SkColor> profile_color,
                                  Profile* profile);
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Switches the layout to the sign-in screen (and creates a new profile or
   // load an existing one based on the `profile_info` content).
-  void SwitchToDiceSignIn(
-      ProfilePicker::ProfileInfo profile_info,
-      base::OnceCallback<void(bool)> switch_finished_callback);
+  void SwitchToSignIn(ProfilePicker::ProfileInfo profile_info,
+                      StepSwitchFinishedCallback switch_finished_callback);
 
   // Switches the profile picker layout to display the reauth page to the main
   // account of the given `profile` if needed. On success the `profile` is
@@ -204,8 +197,8 @@ class ProfilePickerView : public views::WidgetDelegateView,
   // `on_error_callback`.
   void SwitchToReauth(
       Profile* profile,
+      StepSwitchFinishedCallback switch_finished_callback,
       base::OnceCallback<void(const ForceSigninUIError&)> on_error_callback);
-#endif
 
   // Builds the views hierarchy.
   void BuildLayout();
@@ -267,11 +260,9 @@ class ProfilePickerView : public views::WidgetDelegateView,
   // WebContents outlive this observer.
   std::unique_ptr<NavigationFinishedObserver> show_screen_finished_observer_;
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   // Toolbar view displayed on top of the WebView for GAIA sign-in, owned by the
   // view hierarchy.
-  raw_ptr<ProfilePickerDiceSignInToolbar> toolbar_ = nullptr;
-#endif
+  raw_ptr<ProfilePickerSignInToolbar> toolbar_ = nullptr;
 
   std::unique_ptr<ProfileManagementFlowController> flow_controller_;
 
