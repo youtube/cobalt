@@ -220,9 +220,6 @@ std::optional<int> AudioOutputManager::GenerateTunnelModeAudioSessionId(
 
 bool AudioOutputManager::HasPassthroughSupportFor(JNIEnv* env, int encoding) {
   SB_DCHECK(env);
-  if (!j_audio_output_manager_) {
-    return false;
-  }
   return Java_AudioOutputManager_hasPassthroughSupportFor(
              env, j_audio_output_manager_, encoding) == JNI_TRUE;
 }
@@ -232,10 +229,6 @@ bool AudioOutputManager::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* configuration) {
   *configuration = {};
-
-  if (!j_audio_output_manager_) {
-    return false;
-  }
 
   ScopedJavaLocalRef<jobject> j_output_device_info =
       Java_OutputDeviceInfo_Constructor(env);

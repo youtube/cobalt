@@ -389,9 +389,6 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
     JNIEnv* env) {
   SB_DCHECK(env);
-  if (j_starboard_bridge_.is_null()) {
-    return nullptr;
-  }
   return Java_BaseStarboardBridge_getAudioOutputManager(env,
                                                         j_starboard_bridge_);
 }
