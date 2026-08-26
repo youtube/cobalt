@@ -529,10 +529,6 @@ MediaCapabilitiesCache::MediaCapabilitiesCache(
 }
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
-  if (!jni_zero::IsVMInitialized()) {
-    capabilities_is_dirty_ = true;
-    return;
-  }
   if (!capabilities_is_dirty_.exchange(false)) {
     return;
   }
