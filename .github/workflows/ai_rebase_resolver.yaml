@@ -1,6 +1,7 @@
-name: AI Rebase Resolver
-
 on:
+  push:
+    branches:
+      - 'experimental/staging_shadow'
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -69,47 +70,52 @@ jobs:
         run: |
           set -x
 
-          # 1. Checkout starting target: PR (with optional commit SHA), direct commit SHA, or base branch
-          if [[ -n "${{ inputs.pr_number }}" ]]; then
-            echo "Fetching PR #${{ inputs.pr_number }}..."
-            git fetch origin "pull/${{ inputs.pr_number }}/head:pr-${{ inputs.pr_number }}"
-            git checkout "pr-${{ inputs.pr_number }}"
+          PR_NUM="${{ inputs.pr_number }}"
+          COMMIT_SHA="${{ inputs.commit_sha }}"
+          BASE_BRANCH="${{ inputs.base_branch || 'experimental/staging_shadow' }}"
+          AI_PREFIX="${{ inputs.ai_branch_prefix || 'experimental/ai_' }}"
+          AGENT_REF="${{ inputs.agent_ref || 'experimental/rebase_agent' }}"
 
-            if [[ -n "${{ inputs.commit_sha }}" ]]; then
-              echo "Checking out target commit SHA inside PR #${{ inputs.pr_number }}: ${{ inputs.commit_sha }}..."
-              git checkout "${{ inputs.commit_sha }}"
-              SHORT_SHA=$(git rev-parse --short "${{ inputs.commit_sha }}")
-              BASE_NAME="pr_${{ inputs.pr_number }}_${SHORT_SHA}"
-              AI_BRANCH="${{ inputs.ai_branch_prefix }}pr_${{ inputs.pr_number }}_${SHORT_SHA}"
+          # 1. Checkout starting target: PR (with optional commit SHA), direct commit SHA, or base branch
+          if [[ -n "${PR_NUM}" ]]; then
+            echo "Fetching PR #${PR_NUM}..."
+            git fetch origin "pull/${PR_NUM}/head:pr-${PR_NUM}"
+            git checkout "pr-${PR_NUM}"
+
+            if [[ -n "${COMMIT_SHA}" ]]; then
+              echo "Checking out target commit SHA inside PR #${PR_NUM}: ${COMMIT_SHA}..."
+              git checkout "${COMMIT_SHA}"
+              SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
+              BASE_NAME="pr_${PR_NUM}_${SHORT_SHA}"
+              AI_BRANCH="${AI_PREFIX}pr_${PR_NUM}_${SHORT_SHA}"
             else
-              BASE_NAME="pr_${{ inputs.pr_number }}"
-              AI_BRANCH="${{ inputs.ai_branch_prefix }}pr_${{ inputs.pr_number }}"
+              BASE_NAME="pr_${PR_NUM}"
+              AI_BRANCH="${AI_PREFIX}pr_${PR_NUM}"
             fi
-          elif [[ -n "${{ inputs.commit_sha }}" ]]; then
-            echo "Fetching and checking out commit SHA: ${{ inputs.commit_sha }}..."
-            git fetch --depth=100 origin "${{ inputs.commit_sha }}" || git fetch origin --tags
-            git checkout "${{ inputs.commit_sha }}"
-            SHORT_SHA=$(git rev-parse --short "${{ inputs.commit_sha }}")
+          elif [[ -n "${COMMIT_SHA}" ]]; then
+            echo "Fetching and checking out commit SHA: ${COMMIT_SHA}..."
+            git fetch --depth=100 origin "${COMMIT_SHA}" || git fetch origin --tags
+            git checkout "${COMMIT_SHA}"
+            SHORT_SHA=$(git rev-parse --short "${COMMIT_SHA}")
             BASE_NAME="commit_${SHORT_SHA}"
-            AI_BRANCH="${{ inputs.ai_branch_prefix }}${SHORT_SHA}"
+            AI_BRANCH="${AI_PREFIX}${SHORT_SHA}"
           else
-            BASE_NAME="${{ inputs.base_branch }}"
-            echo "Checking out base branch ${BASE_NAME}..."
-            git fetch origin "${BASE_NAME}:${BASE_NAME}" || true
-            git checkout "${BASE_NAME}"
-            AI_BRANCH="${{ inputs.ai_branch_prefix }}${BASE_NAME}"
+            echo "Checking out base branch ${BASE_BRANCH}..."
+            git fetch origin "${BASE_BRANCH}:${BASE_BRANCH}" || true
+            git checkout "${BASE_BRANCH}"
+            CLEAN_NAME=$(echo "${BASE_BRANCH}" | sed 's|experimental/||g; s|/|_|g')
+            BASE_NAME="${BASE_BRANCH}"
+            AI_BRANCH="${AI_PREFIX}${CLEAN_NAME}"
           fi
 
           # 2. Create a separate, isolated AI branch from the base branch
           echo "Creating isolated AI branch: ${AI_BRANCH}..."
           git checkout -B "${AI_BRANCH}"
 
-          # 3. Ensure AI rebase scripts are available from agent_ref if not on branch
-          if [[ ! -d .github/rebase ]]; then
-            echo "Borrowing rebase scripts from ${{ inputs.agent_ref }}..."
-            git fetch origin "${{ inputs.agent_ref }}:${{ inputs.agent_ref }}" || true
-            git checkout "origin/${{ inputs.agent_ref }}" -- .github/rebase || true
-          fi
+          # 3. Always borrow latest rebase scripts from agent_ref
+          echo "Fetching latest rebase pipeline scripts from origin/${AGENT_REF}..."
+          git fetch origin "${AGENT_REF}:${AGENT_REF}" || true
+          git checkout "origin/${AGENT_REF}" -- .github/rebase
 
           echo "base_branch=${BASE_NAME}" >> "${GITHUB_OUTPUT}"
           echo "ai_branch=${AI_BRANCH}" >> "${GITHUB_OUTPUT}"
