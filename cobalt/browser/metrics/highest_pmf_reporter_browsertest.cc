@@ -169,6 +169,16 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
   // At least one of the config models must successfully register an
   // initialization ping.
   EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+  if (!samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.1minTest",
+        1000, 1);
+  }
+  if (!samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min",
+        1000, 1);
+  }
 
   auto rss_samples_override = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer."
@@ -178,6 +188,18 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest, MAYBE_ReportMetric) {
       "PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min");
 
   EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+  if (!rss_samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprint.1minTest",
+        1000, 1);
+  }
+  if (!rss_samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprint.0to2min",
+        1000, 1);
+  }
 
   // Verify negative: foreground metrics MUST NOT fire during standard startup
   EXPECT_TRUE(histogram_tester
@@ -230,6 +252,18 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
 
   EXPECT_FALSE(samples_override.empty() && samples_baseline.empty());
+  if (!samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.1minTest",
+        2000, 1);
+  }
+  if (!samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+        2000, 1);
+  }
 
   auto rss_samples_override = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer."
@@ -241,6 +275,20 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "0to2min");
 
   EXPECT_FALSE(rss_samples_override.empty() && rss_samples_baseline.empty());
+  if (!rss_samples_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "1minTest",
+        2000, 1);
+  }
+  if (!rss_samples_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "0to2min",
+        2000, 1);
+  }
 
   // Verify negative: standard startup baseline metrics MUST NOT fire when
   // foreground-measuring
@@ -293,8 +341,9 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
   test_task_runner_->FastForwardBy(base::Seconds(1));
   test_task_runner_->FastForwardBy(base::Minutes(2) + base::Seconds(2));
 
-  // Verify that the foreground metrics still fire with the new session's
-  // values.
+  // Verify that the foreground metrics fire with the NEW session's exact values
+  // (500 MB PMF, 800 MB RSS) and NOT the old startup values (3000 MB PMF, 3500
+  // MB RSS).
   auto fg_pmf_override = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer."
       "HighestPrivateMemoryFootprintWhenForegrounded.1minTest");
@@ -303,6 +352,26 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "HighestPrivateMemoryFootprintWhenForegrounded.0to2min");
 
   EXPECT_FALSE(fg_pmf_override.empty() && fg_pmf_baseline.empty());
+  if (!fg_pmf_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.1minTest",
+        500, 1);
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.1minTest",
+        3000, 0);
+  }
+  if (!fg_pmf_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+        500, 1);
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "HighestPrivateMemoryFootprintWhenForegrounded.0to2min",
+        3000, 0);
+  }
 
   auto fg_rss_override = histogram_tester.GetAllSamples(
       "Memory.Experimental.Renderer."
@@ -314,6 +383,30 @@ IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
       "0to2min");
 
   EXPECT_FALSE(fg_rss_override.empty() && fg_rss_baseline.empty());
+  if (!fg_rss_override.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "1minTest",
+        800, 1);
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "1minTest",
+        3500, 0);
+  }
+  if (!fg_rss_baseline.empty()) {
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "0to2min",
+        800, 1);
+    histogram_tester.ExpectBucketCount(
+        "Memory.Experimental.Renderer."
+        "PeakResidentSet.AtHighestPrivateMemoryFootprintWhenForegrounded."
+        "0to2min",
+        3500, 0);
+  }
 }
 
 IN_PROC_BROWSER_TEST_F(HighestPmfReporterBrowserTest,
