@@ -94,7 +94,9 @@ class MediaCapabilitiesProviderImpl : public MediaCapabilitiesProvider {
         DisplayUtil::GetSupportedHdrTypes(env);
 
     if (!j_supported_hdr_types) {
-      return supported_transfer_ids;
+      // Failed to get supported hdr types.
+      SB_LOG(ERROR) << "Failed to load supported hdr types.";
+      return std::set<SbMediaTransferId>();
     }
 
     std::vector<int> hdr_types;
