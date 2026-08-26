@@ -43,6 +43,12 @@ runs:
       run: |
         set -x
         tar -I 'zstd -T0' -xf test_artifacts.tar.zstd
+    - name: Prepare Test Filters
+      id: prepare-test-filters
+      uses: ./.github/actions/prepare_test_filters
+      with:
+        test_results_key: ${{ inputs.test_results_key }}
+        platform: ${{ matrix.platform }}
     - name: Prepare Test Execution
       id: prepare-test-execution
       shell: bash
@@ -84,8 +90,9 @@ runs:
         GTEST_TOTAL_SHARDS: ${{ inputs.num_gtest_shards }}
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
         PLATFORM: ${{ matrix.platform }}
+        FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
       run: |
-        set -x
+        set -exo pipefail
 
         failed_suites=""
 
@@ -95,16 +102,24 @@ runs:
         for test_executable_path in "${test_executables[@]}"; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
+          test_executable_name="${test_executable#run_}"
 
-          echo "Running tests for suite: ${test_executable}"
+          echo "Running tests for suite: ${test_executable_name}"
 
-          test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}/${test_executable}_filter.json"
-          if [ -f "${test_filter_json_dir}" ]; then
-            test_filter=$(jq -r '"-" + (.failing_tests | join(":"))' "${test_filter_json_dir}")
-          fi
+          test_filter=$(python3 cobalt/tools/test_filter.py \
+              --filter-dir "${FILTER_DIR}" \
+              --target "${test_executable_name}" \
+              --shard "${GTEST_SHARD_INDEX}")
 
           echo "Test filter evaluated to: ${test_filter}"
+
+          gtest_shard_index="${GTEST_SHARD_INDEX}"
+          gtest_total_shards="${GTEST_TOTAL_SHARDS}"
+          if [[ "${test_filter}" != -* && "${test_filter}" != "*" ]]; then
+            echo "Retrying specific failed tests for this shard. Disabling sharding."
+            gtest_shard_index="0"
+            gtest_total_shards="1"
+          fi
 
           xml_path="${test_output}/${test_executable}_result.xml"
           log_path="${test_output}/${test_executable}_log.txt"
@@ -121,12 +136,13 @@ runs:
 
           if [ "${test_filter}" == "-*" ]; then
             echo "Skipped due to test filter." > "${log_path}"
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' > "${xml_path}"
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 "${ENTRYPOINT}" \
                 --single-process-tests \
-                --gtest_shard_index="${GTEST_SHARD_INDEX}" \
-                --gtest_total_shards="${GTEST_TOTAL_SHARDS}" \
+                --gtest_shard_index="${gtest_shard_index}" \
+                --gtest_total_shards="${gtest_total_shards}" \
                 --gtest_output="xml:${xml_path}" \
                 --gtest_filter="${test_filter}" 2>&1 | tee "${log_path}" || {
               failed_suites="${failed_suites} ${test_executable}"
@@ -134,7 +150,9 @@ runs:
 
             if [[ ! -f "${xml_path}" ]]; then
               # Test binary crashed. Generate a fake JUnit XML report with the last run test.
-              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+              if [ -f "${log_path}" ]; then
+                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+              fi
             fi
           fi
         done
@@ -152,8 +170,10 @@ runs:
       shell: bash
       env:
         TEST_EXECUTABLES_JSON: ${{ inputs.test_executables_json }}
+        GTEST_SHARD_INDEX: ${{ matrix.shard }}
+        FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
       run: |
-        set -x
+        set -exo pipefail
 
         failed_suites=""
 
@@ -167,28 +187,31 @@ runs:
           # We use the test executable's base name for naming its logs and results.
           test_executable_name="${test_executable#run_}"
 
+          test_filter=$(python3 cobalt/tools/test_filter.py \
+              --filter-dir "${FILTER_DIR}" \
+              --target "${test_executable_name}" \
+              --shard "${GTEST_SHARD_INDEX}")
+
           xml_path="${test_output}/${test_executable_name}_result.xml"
           log_path="${test_output}/${test_executable_name}_log.txt"
 
-          echo "Running tests for target: ${test_executable_name}"
-
-          # Run JUnit tests and generate JSON report, then convert to XML.
-          #
-          # TODO(b/524653685):
-          # Even though these are junit tests, due to upstream implementation of the Robolectric tests they are
-          # only able to output JSON results. The rest of our CI pipeline is expecting XML so in the short term we are
-          # taking a shortcut to convert JSON to XML for expediency. Given that the Robolectric JSON output is the how
-          # Chromium infrastructure handles test results in general, we will eventually refactor the gtest results to
-          # also output JSON and then subsequently remove this conversion script after adopting JSON as a universal
-          # test result format in our testing workflow.
-          json_path="${test_output}/${test_executable_name}_result.json"
-          stdbuf -i0 -o0 -e0 ./"${test_executable_path}" --json-results-file="${json_path}" 2>&1 | tee "${log_path}" || {
-            failed_suites="${failed_suites} ${test_executable_name}"
-          }
-          if [[ -f "${json_path}" ]]; then
-            python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" "${json_path}" "${xml_path}"
+          if [ "${test_filter}" == "-*" ]; then
+            echo "Skipped due to test filter." > "${log_path}"
+            printf '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites tests="0" failures="0" errors="0" time="0"></testsuites>\n' > "${xml_path}"
           else
-            python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+            echo "Running tests for target: ${test_executable_name}"
+
+            # Run JUnit tests and generate JSON report, then convert to XML.
+            # TODO(b/524653685): Eventually refactor tests to output JSON natively and remove this XML conversion shortcut.
+            json_path="${test_output}/${test_executable_name}_result.json"
+            stdbuf -i0 -o0 -e0 ./"${test_executable_path}" --json-results-file="${json_path}" 2>&1 | tee "${log_path}" || {
+              failed_suites="${failed_suites} ${test_executable_name}"
+            }
+            if [[ -f "${json_path}" ]]; then
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" "${json_path}" "${xml_path}"
+            elif [ -f "${log_path}" ]; then
+              python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_path}" "${xml_path}"
+            fi
           fi
         done
 
@@ -202,5 +225,5 @@ runs:
       if: success() || failure()
       uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
       with:
-        name: ${{ inputs.test_results_key }}
+        name: ${{ inputs.test_results_key }}-${{ matrix.shard }}
         path: ${{ env.results_dir }}/*
