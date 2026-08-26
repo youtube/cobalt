@@ -39,7 +39,6 @@
 #include "starboard/shared/starboard/queue_application.h"
 
 #include "third_party/starboard/rdk/shared/ess_input.h"
-#include "third_party/starboard/rdk/shared/rdkservices.h"
 #include "third_party/starboard/rdk/shared/hang_detector.h"
 
 #include <memory>
@@ -70,7 +69,9 @@ class ApplicationRdk : public QueueApplication {
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 
-  void InjectAccessibilityTextToSpeechSettingsChanged(bool enabled);
+  void InjectAccessibilitySettingsChanged();
+  void InjectAccessibilityCaptionSettingsChanged();
+  void InjectAccessibilityTextToSpeechSettingsChanged();
 
  protected:
   // --- Application overrides ---
