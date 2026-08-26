@@ -45,12 +45,14 @@ namespace {
 const char kFingerprintSuffixForceUpdateCache[] = "-2";
 const char kProtobufFilename[] = "font_unique_name_table.pb";
 
+#if !(BUILDFLAG(IS_ANDROID) && BUILDFLAG(IS_COBALT))
 // These directories contain read-only font files stored in ROM.
 // Memory-mapping these files avoids large RAM allocations.
 // DO NOT add directories here unless the files are guaranteed read-only.
 // Modifying these files typically requires a firmware or system update.
 static const char* const kAndroidFontPaths[] = {
     "/system/fonts", "/vendor/fonts", "/product/fonts"};
+#endif
 
 void IndexFile(blink::FontUniqueNameTable& font_table,
                std::string_view font_file_path,
