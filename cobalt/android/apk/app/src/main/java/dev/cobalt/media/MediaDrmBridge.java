@@ -364,11 +364,15 @@ public class MediaDrmBridge {
     if (Build.VERSION.SDK_INT < 28) {
       return null;
     }
+    // Ensure a media crypto session exists so the DRM plugin has metrics populated.
+    if (mMediaCryptoSession == null) {
+      createMediaCryptoSessionWithAppProvisioning();
+    }
     byte[] metrics;
     try {
       metrics = mMediaDrm.getPropertyByteArray("metrics");
     } catch (Exception e) {
-      Log.e(TAG, "Failed to retrieve DRM Metrics.");
+      Log.e(TAG, "Failed to retrieve DRM Metrics.", e);
       return null;
     }
     return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
