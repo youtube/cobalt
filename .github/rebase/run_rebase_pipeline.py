@@ -119,6 +119,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
       help="Max autoninja compiler self-healing iterations (default: 60)",
   )
   parser.add_argument(
+      "--mode",
+      choices=["resolve-conflicts", "full-pipeline", "gn-gen", "build-only"],
+      default=None,
+      help=("Execution mode: 'resolve-conflicts' (Phase 1 only, heals "
+            "conflicts), 'gn-gen' (Phases 1-3), 'build-only' (Phase 4), "
+            "or 'full-pipeline' (Phases 1-4)."),
+  )
+  parser.add_argument(
       "--gcs-memory-uri",
       default=os.environ.get("GCS_MEMORY_URI"),
       help=(
@@ -129,6 +137,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def run_pipeline(args: argparse.Namespace) -> int:
   """Executes the end-to-end multi-phase Cobalt rebase pipeline."""
+  if args.mode == "resolve-conflicts":
+    args.skip_sync = True
+    args.skip_gn = True
+    args.skip_build = True
+  elif args.mode == "gn-gen":
+    args.skip_build = True
+  elif args.mode == "build-only":
+    args.skip_conflicts = True
+    args.skip_sync = True
+    args.skip_gn = True
+
   rebase_dir = os.path.dirname(os.path.abspath(__file__))
   out_dir = f"{args.platform}_{args.build_type}"
   effective_target = args.target

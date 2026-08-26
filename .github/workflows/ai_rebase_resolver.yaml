@@ -3,6 +3,10 @@ name: AI Rebase Resolver
 on:
   workflow_dispatch:
     inputs:
+      commit_sha:
+        description: 'Specific starting commit SHA (e.g. 4bbb4baf278b8162e15191c44c98c6e21c8d4aea)'
+        required: false
+        type: string
       pr_number:
         description: 'PR number to resolve (optional, e.g. 12040)'
         required: false
@@ -52,31 +56,51 @@ jobs:
       GIT_COMMITTER_EMAIL: "cobalt-github-releaser-bot@google.com"
       GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repository (Isolated)
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          path: src
           fetch-depth: 100
           token: ${{ env.GITHUB_TOKEN }}
 
       - name: Setup Working Branch
         id: branch_setup
+        working-directory: src
         run: |
           set -x
 
-          # 1. Checkout the vendor base branch or PR
+          # 1. Checkout starting target: PR (with optional commit SHA), direct commit SHA, or base branch
           if [[ -n "${{ inputs.pr_number }}" ]]; then
-            echo "Checking out PR #${{ inputs.pr_number }}..."
-            gh pr checkout "${{ inputs.pr_number }}"
-            BASE_NAME=$(git branch --show-current)
+            echo "Fetching PR #${{ inputs.pr_number }}..."
+            git fetch origin "pull/${{ inputs.pr_number }}/head:pr-${{ inputs.pr_number }}"
+            git checkout "pr-${{ inputs.pr_number }}"
+
+            if [[ -n "${{ inputs.commit_sha }}" ]]; then
+              echo "Checking out target commit SHA inside PR #${{ inputs.pr_number }}: ${{ inputs.commit_sha }}..."
+              git checkout "${{ inputs.commit_sha }}"
+              SHORT_SHA=$(git rev-parse --short "${{ inputs.commit_sha }}")
+              BASE_NAME="pr_${{ inputs.pr_number }}_${SHORT_SHA}"
+              AI_BRANCH="${{ inputs.ai_branch_prefix }}pr_${{ inputs.pr_number }}_${SHORT_SHA}"
+            else
+              BASE_NAME="pr_${{ inputs.pr_number }}"
+              AI_BRANCH="${{ inputs.ai_branch_prefix }}pr_${{ inputs.pr_number }}"
+            fi
+          elif [[ -n "${{ inputs.commit_sha }}" ]]; then
+            echo "Fetching and checking out commit SHA: ${{ inputs.commit_sha }}..."
+            git fetch --depth=100 origin "${{ inputs.commit_sha }}" || git fetch origin --tags
+            git checkout "${{ inputs.commit_sha }}"
+            SHORT_SHA=$(git rev-parse --short "${{ inputs.commit_sha }}")
+            BASE_NAME="commit_${SHORT_SHA}"
+            AI_BRANCH="${{ inputs.ai_branch_prefix }}${SHORT_SHA}"
           else
             BASE_NAME="${{ inputs.base_branch }}"
             echo "Checking out base branch ${BASE_NAME}..."
             git fetch origin "${BASE_NAME}:${BASE_NAME}" || true
             git checkout "${BASE_NAME}"
+            AI_BRANCH="${{ inputs.ai_branch_prefix }}${BASE_NAME}"
           fi
 
           # 2. Create a separate, isolated AI branch from the base branch
-          AI_BRANCH="${{ inputs.ai_branch_prefix }}${BASE_NAME}"
           echo "Creating isolated AI branch: ${AI_BRANCH}..."
           git checkout -B "${AI_BRANCH}"
 
@@ -96,19 +120,26 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SA_EMAIL }}
 
-      - name: Set Up Python & Rebase Dependencies
+      - name: Set Up Isolated Python Environment & Dependencies
+        working-directory: src
         run: |
-          python3 -m pip install --upgrade pip
+          python3 -m venv "${GITHUB_WORKSPACE}/.venv"
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+          echo "VIRTUAL_ENV=${GITHUB_WORKSPACE}/.venv" >> "${GITHUB_ENV}"
+          source "${GITHUB_WORKSPACE}/.venv/bin/activate"
+          pip install --upgrade pip
           if [[ -f .github/rebase/requirements.txt ]]; then
             pip install -r .github/rebase/requirements.txt
           fi
 
       - name: Run AI Conflict Resolver
         id: run_ai
+        working-directory: src
         continue-on-error: true
         env:
-          GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT || 'lxn-test' }}
           GCP_REGION: "us-central1"
+          REASONING_ENGINE_ID: ${{ secrets.REASONING_ENGINE_ID || '7153081251950231552' }}
           MODE: ${{ inputs.mode || 'resolve-conflicts' }}
         run: |
           set +e
@@ -128,6 +159,7 @@ jobs:
 
       - name: Commit, Push and Create/Update AI PR
         if: steps.run_ai.outputs.resolved == 'true' && inputs.dry_run != true
+        working-directory: src
         env:
           BASE_BRANCH: ${{ steps.branch_setup.outputs.base_branch }}
           AI_BRANCH: ${{ steps.branch_setup.outputs.ai_branch }}
@@ -141,7 +173,7 @@ jobs:
 
             # Create or update an isolated Draft PR for AI work
             PR_TITLE="[AI-Resolved] Experimental roll for ${BASE_BRANCH}"
-            PR_BODY="🤖 **Vertex AI Rebase Agent Resolution**\n\nThis PR contains AI automated conflict healing branched from \`${BASE_BRANCH}\`.\n\nAssigned to @linxinan-yt for review."
+            PR_BODY="**Vertex AI Rebase Agent Resolution**\n\nThis PR contains AI automated conflict healing branched from \`${BASE_BRANCH}\`."
 
             PR_EXISTS=$(gh pr list --head "${AI_BRANCH}" --json number --jq '.[0].number // ""')
             if [[ -n "${PR_EXISTS}" ]]; then
@@ -153,7 +185,7 @@ jobs:
                 --head "${AI_BRANCH}" \
                 --title "${PR_TITLE}" \
                 --body "${PR_BODY}" \
-                --assignee linxinan-yt
+                --assignee "${{ github.actor }}"
             fi
           else
             echo "No file changes to commit."
