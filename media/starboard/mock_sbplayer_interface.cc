@@ -17,6 +17,7 @@
 namespace media {
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::Return;
 
@@ -27,25 +28,36 @@ MockSbPlayerInterface::MockSbPlayerInterface() {
 MockSbPlayerInterface::~MockSbPlayerInterface() = default;
 
 void MockSbPlayerInterface::SetupDefaultExpectations() {
-  ON_CALL(*this, GetPreferredOutputMode(_))
-      .WillByDefault(Return(kSbPlayerOutputModePunchOut));
-  ON_CALL(*this, Destroy(_)).WillByDefault(Invoke([](SbPlayer player) {
-    if (player) {
-      delete reinterpret_cast<MockSbPlayer*>(player);
-    }
-  }));
-  ON_CALL(*this, GetMaximumNumberOfSamplesPerWrite(_, _))
-      .WillByDefault(Return(1));
-  ON_CALL(*this, SetPlaybackRate(_, _)).WillByDefault(Return(true));
-  ON_CALL(*this, SetVolume(_, _)).WillByDefault(Return());
-  ON_CALL(*this, GetCurrentFrame(_))
-      .WillByDefault(Return(kSbDecodeTargetInvalid));
+  EXPECT_CALL(*this, GetPreferredOutputMode(_))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(kSbPlayerOutputModePunchOut));
+  EXPECT_CALL(*this, Destroy(_))
+      .Times(AnyNumber())
+      .WillRepeatedly(Invoke([](SbPlayer player) {
+        if (player) {
+          delete reinterpret_cast<MockSbPlayer*>(player);
+        }
+      }));
+  EXPECT_CALL(*this, GetMaximumNumberOfSamplesPerWrite(_, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(1));
+  EXPECT_CALL(*this, SetPlaybackRate(_, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*this, SetVolume(_, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return());
+  EXPECT_CALL(*this, GetCurrentFrame(_))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(kSbDecodeTargetInvalid));
 #if BUILDFLAG(IS_IOS_TVOS)
-  ON_CALL(*this, GetUrlPlayerOutputModeSupported(_))
-      .WillByDefault(Return(true));
+  EXPECT_CALL(*this, GetUrlPlayerOutputModeSupported(_))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(true));
 #endif  // BUILDFLAG(IS_IOS_TVOS)
-  ON_CALL(*this, GetAudioConfiguration(_, _, _))
-      .WillByDefault(
+  EXPECT_CALL(*this, GetAudioConfiguration(_, _, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(
           Invoke([](SbPlayer /*player*/, int /*index*/,
                     SbMediaAudioConfiguration* out_audio_configuration) {
             if (out_audio_configuration) {
