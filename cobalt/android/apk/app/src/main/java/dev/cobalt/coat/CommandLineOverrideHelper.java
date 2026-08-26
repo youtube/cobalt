@@ -120,7 +120,6 @@ public final class CommandLineOverrideHelper {
     // NonMainThreads. Both features are needed for full coverage --
     // Starboard threads bypass base::PlatformThread entirely.
     paramOverrides.add("ReduceAndroidThreadStackSize");
-    paramOverrides.add("ReduceStarboardThreadStackSize");
 
     return paramOverrides;
   }
