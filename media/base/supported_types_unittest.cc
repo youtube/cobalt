@@ -40,8 +40,10 @@ TEST(SupportedTypesTest, IsSupportedVideoTypeBasics) {
   // Expect support for baseline configuration of known codecs.
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, kColorSpace}));
+#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, kColorSpace}));
+#endif
   EXPECT_TRUE(
       IsSupportedVideoType({VideoCodec::kTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kUnspecifiedLevel, kColorSpace}));
@@ -78,6 +80,7 @@ TEST(SupportedTypesTest, IsSupportedVideoTypeBasics) {
 #endif
 }
 
+#if defined(ENABLE_LIBVPX)
 TEST(SupportedTypesTest, IsSupportedVideoType_VP9TransferFunctions) {
   size_t num_found = 0;
   // TODO(hubbe): Verify support for HDR codecs when color management enabled.
@@ -198,6 +201,7 @@ TEST(SupportedTypesTest, IsSupportedVideoType_VP9Profiles) {
       {VideoCodec::kVP9, VP9PROFILE_PROFILE2, kUnspecifiedLevel, kColorSpace}));
 #endif
 }
+#endif
 
 TEST(SupportedTypesTest, IsSupportedAudioTypeWithSpatialRenderingBasics) {
   const bool is_spatial_rendering = true;
@@ -292,8 +296,10 @@ TEST(SupportedTypesTest, IsSupportedVideoTypeWithHdrMetadataBasics) {
   // Expect support for baseline configuration of known codecs.
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
+#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
+#endif
   EXPECT_TRUE(
       IsSupportedVideoType({VideoCodec::kTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kUnspecifiedLevel, color_space}));
@@ -304,8 +310,10 @@ TEST(SupportedTypesTest, IsSupportedVideoTypeWithHdrMetadataBasics) {
   color_space.transfer = VideoColorSpace::TransferID::SMPTEST2084;
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
+#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
+#endif
   EXPECT_TRUE(
       IsSupportedVideoType({VideoCodec::kTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kUnspecifiedLevel, color_space}));
@@ -314,8 +322,10 @@ TEST(SupportedTypesTest, IsSupportedVideoTypeWithHdrMetadataBasics) {
   color_space.transfer = VideoColorSpace::TransferID::ARIB_STD_B67;
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP8, VP8PROFILE_ANY, kUnspecifiedLevel, color_space}));
+#if defined(ENABLE_LIBVPX)
   EXPECT_TRUE(IsSupportedVideoType(
       {VideoCodec::kVP9, VP9PROFILE_PROFILE0, kUnspecifiedLevel, color_space}));
+#endif
   EXPECT_TRUE(
       IsSupportedVideoType({VideoCodec::kTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
                             kUnspecifiedLevel, color_space}));

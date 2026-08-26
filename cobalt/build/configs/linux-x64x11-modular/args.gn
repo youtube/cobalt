@@ -1,0 +1,19 @@
+import("//cobalt/build/configs/linux_common.gn")
+
+use_custom_libc = true
+
+# TODO: b/384652502 - Cobalt: Stop overriding enable_pkeys
+# ../../base/allocator/partition_allocator/pkey.cc:35:18: error: use of undeclared identifier 'SYS_pkey_mprotect'
+#   return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
+enable_pkeys = false
+
+# We don't implement the necessary APIs for mdns.
+enable_mdns = false
+
+# Enables a loadable module, so unsupported for modular builds.
+enable_library_cdms = false
+
+# TODO: b/425694385 - Investigate other ways to ensure emulated tls is
+# is respected with LTO.
+is_cfi = false
+use_thin_lto = false
