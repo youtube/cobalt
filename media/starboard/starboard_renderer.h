@@ -157,10 +157,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
-  void SetSbPlayerInterfaceForTesting(SbPlayerInterface* sbplayer_interface) {
-    test_sbplayer_interface_ = sbplayer_interface;
-  }
-
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -316,8 +312,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_dropped_ = 0;
 
   SbWindow sb_window_ = kSbWindowInvalid;
-
-  raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc
