@@ -141,7 +141,7 @@ def find_open_autoroll_pr(source, target, env):
     log(f'No open autoroll PR found for {head_branch} -> {target}')
     sys.exit(0)
 
-  if pr['title'].upper().startswith('CONFLICTED:'):
+  if pr['title'].upper().startswith('CONFLICTED'):
     pr_num = pr['number']
     pr_title = pr['title']
     log(f'Error: Found matching autoroll PR #{pr_num} but it is marked '

@@ -198,12 +198,12 @@ class TestMergeAutorollLts(unittest.TestCase):
 
   @patch('subprocess.run')
   def test_main_conflicted_pr(self, mock_run):
-    # Mock gh pr list returning a conflicted PR
+    # Mock gh pr list returning a conflicted PR (using the actual format from workflow)
     self._setup_mock_run(
         mock_run,
         prs_list=[{
             'number': 1,
-            'title': 'CONFLICTED: Autoroll from main to 27.lts',
+            'title': 'CONFLICTED Cherry pick PR #123: Some commit',
             'headRefName': 'autoroll-main-to-27.lts',
             'baseRefName': '27.lts',
         }])
