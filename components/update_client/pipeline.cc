@@ -4,6 +4,7 @@
 
 #include "components/update_client/pipeline.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <queue>
@@ -327,13 +328,9 @@ std::queue<Operation> MakeOperations(
              void(base::expected<base::FilePath, UnpackerError>)>)> cache_check,
     const std::string& install_data) {
 #if BUILDFLAG(IS_STARBOARD)
-  bool has_crx3 = false;
-  for (const ProtocolParser::Operation& operation : pipeline.operations) {
-    if (operation.type == "crx3") {
-      has_crx3 = true;
-      break;
-    }
-  }
+  const bool has_crx3 = std::any_of(
+      pipeline.operations.begin(), pipeline.operations.end(),
+      [](const ProtocolParser::Operation& op) { return op.type == "crx3"; });
   if (!has_crx3) {
     return MakeErrorOperations(event_adder, kInvalidOperationAttributesError,
                                protocol_request::kEventUnknown);
