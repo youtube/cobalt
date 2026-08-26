@@ -41,8 +41,15 @@ def log(msg):
   print('>> ' + msg)
 
 
-def git(*args, check=True, **kwargs):
-  return subprocess.run(['git'] + list(args), check=check, **kwargs).stdout
+def git(*args, check=True, authenticated=False, **kwargs):
+  auth_args = []
+  if authenticated:
+    auth_args = [
+        '-c', 'credential.helper=',
+        '-c', 'credential.helper=!gh auth git-credential'
+    ]
+  return subprocess.run(
+      ['git'] + auth_args + list(args), check=check, **kwargs).stdout
 
 
 def gh(*args, check=True, **kwargs):
@@ -174,15 +181,12 @@ def rebase_and_push(target, pr, env):
   orig_cwd = os.getcwd()
   try:
     log('Fetching branches...')
-    git('-c',
-        'credential.helper=',
-        '-c',
-        'credential.helper=!gh auth git-credential',
-        'fetch',
+    git('fetch',
         REPO_URL,
         f'+{target}:refs/remotes/origin/{target}',
         f'+{head}:refs/remotes/origin/{head}',
         check=True,
+        authenticated=True,
         env=env)
 
     log('Creating temporary worktree...')
@@ -210,14 +214,11 @@ def rebase_and_push(target, pr, env):
     git('rebase', f'origin/{target}', check=True)
 
     log(f'Pushing {target}...')
-    git('-c',
-        'credential.helper=',
-        '-c',
-        'credential.helper=!gh auth git-credential',
-        'push',
+    git('push',
         REPO_URL,
         f'HEAD:{target}',
         check=True,
+        authenticated=True,
         env=env)
   finally:
     log('Cleaning up temporary worktree...')

@@ -356,6 +356,16 @@ class TestWrappers(unittest.TestCase):
     mock_run.assert_called_once_with(['git', 'status'], check=False)
 
   @patch('subprocess.run')
+  def test_git_wrapper_authenticated(self, mock_run):
+    merge_autoroll.git('status', authenticated=True)
+    mock_run.assert_called_once_with([
+        'git',
+        '-c', 'credential.helper=',
+        '-c', 'credential.helper=!gh auth git-credential',
+        'status'
+    ], check=True)
+
+  @patch('subprocess.run')
   def test_gh_wrapper_default_check(self, mock_run):
     merge_autoroll.gh('auth', 'status')
     mock_run.assert_called_once_with(['gh', 'auth', 'status'], check=True)
