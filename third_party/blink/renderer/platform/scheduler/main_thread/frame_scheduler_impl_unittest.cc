@@ -735,11 +735,13 @@ TEST_F(FrameSchedulerImplTest, PageHidden_ExplicitInit) {
   LazyInitThrottleableTaskQueue();
   EXPECT_FALSE(IsThrottled());
   page_scheduler_->SetPageVisible(false);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(IsThrottled());
 }
 
 TEST_F(FrameSchedulerImplTest, PageHidden_LazyInit) {
   page_scheduler_->SetPageVisible(false);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   LazyInitThrottleableTaskQueue();
   EXPECT_TRUE(IsThrottled());
 }
@@ -748,10 +750,12 @@ TEST_F(FrameSchedulerImplTest, PageHiddenThenVisible_ExplicitInit) {
   LazyInitThrottleableTaskQueue();
   EXPECT_FALSE(IsThrottled());
   page_scheduler_->SetPageVisible(false);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(IsThrottled());
   page_scheduler_->SetPageVisible(true);
   EXPECT_FALSE(IsThrottled());
   page_scheduler_->SetPageVisible(false);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(IsThrottled());
 }
 
@@ -764,16 +768,19 @@ TEST_F(FrameSchedulerImplTest,
   frame_scheduler_->SetCrossOriginToNearestMainFrame(false);
   EXPECT_FALSE(IsThrottled());
   frame_scheduler_->SetCrossOriginToNearestMainFrame(true);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(IsThrottled());
   frame_scheduler_->SetFrameVisible(true);
   EXPECT_FALSE(IsThrottled());
   frame_scheduler_->SetFrameVisible(false);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   EXPECT_TRUE(IsThrottled());
 }
 
 TEST_F(FrameSchedulerImplTest, FrameHidden_CrossOrigin_LazyInit) {
   frame_scheduler_->SetFrameVisible(false);
   frame_scheduler_->SetCrossOriginToNearestMainFrame(true);
+  task_environment_.FastForwardBy(base::Milliseconds(1500));
   LazyInitThrottleableTaskQueue();
   EXPECT_TRUE(IsThrottled());
 }
