@@ -16,8 +16,10 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 import urllib.error
 from unittest.mock import MagicMock, patch
@@ -222,6 +224,32 @@ class TestMergeAutorollLts(unittest.TestCase):
                                      text=True,
                                      check=True,
                                      env=unittest.mock.ANY)
+
+  @patch('subprocess.run')
+  def test_main_conflicted_autoroll_file(self, mock_run):
+    for conflict_content in ['CONFLICTED:12345\n', '<<<<<<< HEAD\n']:
+      # Call real mkdtemp before mocking it
+      test_tmpdir = tempfile.mkdtemp()
+
+      with patch('merge_autoroll_lts.tempfile.mkdtemp') as mock_mkdtemp:
+        mock_mkdtemp.return_value = test_tmpdir
+
+        os.makedirs(os.path.join(test_tmpdir, '.github'))
+        autoroll_path = os.path.join(test_tmpdir, '.github/AUTOROLL')
+        with open(autoroll_path, 'w') as f:
+          f.write(conflict_content)
+
+        # Reset mock_run call history for each iteration
+        mock_run.reset_mock()
+        self._setup_mock_run(mock_run)
+
+        try:
+          with patch('sys.stdout'), patch('sys.stderr'):
+            with self.assertRaises(SystemExit) as cm:
+              merge_autoroll_lts.main()
+          self.assertEqual(cm.exception.code, 1)
+        finally:
+          shutil.rmtree(test_tmpdir, ignore_errors=True)
 
   @patch('subprocess.run')
   def test_main_list_prs_fails(self, mock_run):

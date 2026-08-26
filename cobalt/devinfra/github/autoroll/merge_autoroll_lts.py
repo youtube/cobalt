@@ -151,6 +151,19 @@ def find_open_autoroll_pr(source, target, env):
   return pr
 
 
+def has_conflicts(filepath):
+  if not os.path.exists(filepath):
+    return False
+  try:
+    with open(filepath, 'r', encoding='utf-8') as f:
+      for line in f:
+        if line.startswith('CONFLICTED:') or line.startswith('<<<<<<<'):
+          return True
+  except Exception as e:
+    log(f'Error reading {filepath}: {e}')
+  return False
+
+
 def rebase_and_push(target, pr, env):
   head = pr['headRefName']
   pr_number = pr['number']
@@ -186,6 +199,12 @@ def rebase_and_push(target, pr, env):
     git('sparse-checkout', 'init', '--cone')
     git('sparse-checkout', 'set', '.github')
     git('checkout')
+
+    autoroll_files = ['.github/AUTOROLL', '.github/AUTOROLL_CHROMIUM']
+    for f in autoroll_files:
+      if has_conflicts(f):
+        log(f'Error: Autoroll file {f} contains conflict markers or is marked CONFLICTED.')
+        sys.exit(1)
 
     log('Rebasing...')
     git('rebase', f'origin/{target}', check=True)
