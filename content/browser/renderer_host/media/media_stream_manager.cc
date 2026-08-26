@@ -3282,7 +3282,8 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
     return;
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && \
+    BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   // 1. Only the first call to SetCapturedDisplaySurfaceFocus() has an
   //    effect, so a direct call to SetCapturedDisplaySurfaceFocus()
   //    before the scheduled task is executed would render the scheduled
@@ -3300,7 +3301,8 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
                      /*is_from_microtask=*/false,
                      /*is_from_timer=*/true),
       conditional_focus_window_);
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) &&
+        // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
   // We only start tracking once stream generation is truly complete.
   // If the CaptureHandle observable by this capturer has changed asynchronously
