@@ -28,7 +28,6 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
-import android.view.Display;
 import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
@@ -633,24 +632,6 @@ public class BaseStarboardBridge {
     if (activity instanceof BaseCobaltActivity) {
       ((BaseCobaltActivity) activity).setVideoSurfaceBounds(x, y, width, height);
     }
-  }
-
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/media_capabilities_cache.cc
-  /** Return supported hdr types. */
-  @CalledByNative
-  public int[] getSupportedHdrTypes() {
-    Display defaultDisplay = DisplayUtil.getDefaultDisplay();
-    if (defaultDisplay == null) {
-      return null;
-    }
-
-    Display.HdrCapabilities hdrCapabilities = defaultDisplay.getHdrCapabilities();
-    if (hdrCapabilities == null) {
-      return null;
-    }
-
-    return hdrCapabilities.getSupportedHdrTypes();
   }
 
   public void registerCobaltService(CobaltService.Factory factory) {
