@@ -127,16 +127,32 @@ ExperimentConfigManager::ExperimentConfigManager(
 }
 
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
+<<<<<<< HEAD
   // First, determine the config type based on the crash streak.
+=======
+  if (cached_config_type_) {
+    return *cached_config_type_;
+  }
+
+>>>>>>> 541a3c5cce (cobalt: Use std::optional for cached config type (#10636))
   DCHECK(metrics_local_state_);
   DCHECK(!called_store_safe_config_);
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
+<<<<<<< HEAD
   static_assert(
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
+=======
+  static_assert(kDefaultCrashStreakEmptyConfigThreshold >
+                    kDefaultCrashStreakSafeConfigThreshold,
+                "Threshold to use an empty experiment config should be larger "
+                "than to use the safe one.");
+  if (num_crashes >= crash_streak_empty_config_threshold) {
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+>>>>>>> 541a3c5cce (cobalt: Use std::optional for cached config type (#10636))
     return ExperimentConfigType::kEmptyConfig;
   }
 
@@ -161,6 +177,10 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // If the feature is enabled and the config is expired, override the result to
   // treat it as an empty config.
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
+<<<<<<< HEAD
+=======
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+>>>>>>> 541a3c5cce (cobalt: Use std::optional for cached config type (#10636))
     return ExperimentConfigType::kEmptyConfig;
   }
 
@@ -176,9 +196,17 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
       CompareVersions(recorded_cobalt_version, COBALT_VERSION) ==
           VersionComparisonResult::kGreaterThan) {
     UMA_HISTOGRAM_BOOLEAN("Cobalt.Finch.RollbackDetected", true);
+<<<<<<< HEAD
     return ExperimentConfigType::kEmptyConfig;
   }
 
+=======
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    return ExperimentConfigType::kEmptyConfig;
+  }
+
+  cached_config_type_ = config_type;
+>>>>>>> 541a3c5cce (cobalt: Use std::optional for cached config type (#10636))
   return config_type;
 }
 
