@@ -1,0 +1,10 @@
+---
+---
+  Checks:          '-*,
+                    llvm-namespace-comment,
+                    modernize-use-override,
+                    readability-container-size-empty,
+                    readability-static-definition-in-anonymous-namespace,
+                    readability-redundant-smartptr-get,
+                    readability-redundant-declaration'
+...
