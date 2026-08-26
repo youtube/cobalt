@@ -463,12 +463,7 @@ HTMLDocumentParser::HTMLDocumentParser(Document& document,
   if (!document.GetFrame() && !document.IsPrefetchOnly())
     return;
 
-<<<<<<< HEAD
-  if (prefetch_policy == kAllowPrefetching && !ShouldSkipPreloadScan()) {
-    preloader_ = MakeGarbageCollected<HTMLResourcePreloader>(document);
-  }
-=======
-  if (prefetch_policy == kAllowPrefetching) {
+if (prefetch_policy == kAllowPrefetching) {
 #if BUILDFLAG(IS_COBALT)
     if (!base::FeatureList::IsEnabled(
             features::kCobaltBypassHTMLPreloadScanner)) {
@@ -479,9 +474,7 @@ HTMLDocumentParser::HTMLDocumentParser(Document& document,
 #endif  // BUILDFLAG(IS_COBALT)
   }
 
-  should_skip_preload_scan_ = ShouldSkipPreloadScan();
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  should_skip_preload_scan_ = ShouldSkipPreloadScan();}
 
 HTMLDocumentParser::~HTMLDocumentParser() {
   TRACE_EVENT_WITH_FLOW0("blink", "HTMLDocumentParser::~HTMLDocumentParser",

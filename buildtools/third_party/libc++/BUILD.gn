@@ -1005,12 +1005,7 @@ target(libcxx_target_type, "libc++") {
     }
   }
 
-<<<<<<< HEAD
-  # Disabling -Wexit-time-destructors, as libc++ uses `static string` objects
-  # for locale code.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
-  if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     sources -= [ "//third_party/libc++/src/src/atomic.cpp" ]
     deps += [
@@ -1018,5 +1013,6 @@ target(libcxx_target_type, "libc++") {
       "//third_party/musl:c",
     ]
   }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  # Disabling -Wexit-time-destructors, as libc++ uses `static string` objects
+  # for locale code.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]}

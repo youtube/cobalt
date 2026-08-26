@@ -12,9 +12,6 @@ blink_modules_sources("locks") {
     "lock_manager.h",
   ]
 
-<<<<<<< HEAD
-  deps = [ "//third_party/blink/renderer/modules/shared_storage" ]
-=======
   deps =
       [ "//third_party/blink/renderer/modules/shared_storage:shared_storage" ]
 
@@ -24,5 +21,4 @@ blink_modules_sources("locks") {
     deps -=
         [ "//third_party/blink/renderer/modules/shared_storage:shared_storage" ]
   }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }

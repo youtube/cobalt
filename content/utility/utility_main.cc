@@ -36,14 +36,9 @@
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
-<<<<<<< HEAD
-#include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
-=======
 #if !BUILDFLAG(IS_COBALT)
 #include "services/on_device_model/on_device_model_service.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "services/tracing/public/cpp/trace_startup.h"
+#endif  // !BUILDFLAG(IS_COBALT)#include "services/tracing/public/cpp/trace_startup.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

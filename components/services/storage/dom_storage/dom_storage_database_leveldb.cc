@@ -368,17 +368,11 @@ DbStatus DomStorageDatabaseLevelDB::Commit(
   if (fail_commits_for_testing_) {
     return DbStatus::IOError("Simulated I/O Error");
   }
-<<<<<<< HEAD
-  return FromLevelDBStatus(
-      db_->Write(leveldb::WriteOptions(), GetAsWriteBatch(batch)));
-=======
 #if BUILDFLAG(IS_COBALT)
-  return FromLevelDBStatus(db_->Write(CreateSyncWriteOptions(), batch));
+  return FromLevelDBStatus(db_->Write(CreateSyncWriteOptions(), GetAsWriteBatch(batch)));
 #else
-  return FromLevelDBStatus(db_->Write(leveldb::WriteOptions(), batch));
-#endif
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  return FromLevelDBStatus(db_->Write(leveldb::WriteOptions(), GetAsWriteBatch(batch)));
+#endif}
 
 DbStatus DomStorageDatabaseLevelDB::RewriteDB() {
   if (!db_) {

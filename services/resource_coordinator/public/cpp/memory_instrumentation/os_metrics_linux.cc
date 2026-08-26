@@ -524,14 +524,18 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-<<<<<<< HEAD
 // Get values from smaps_rollup for the current process.
 void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
     *pss = 0;
     *swap_pss = 0;
-=======
+    return;
+  }
+  *pss = value->pss_kb;
+  *swap_pss = value->swap_pss_kb;
+}
+
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #if !BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
@@ -552,9 +556,7 @@ void GetSmapsRollup(base::ProcessId pid,
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
-  if (!smaps_file) {
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    return;
+  if (!smaps_file) {    return;
   }
 
   char line[kMaxLineSize];
@@ -867,12 +869,6 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-<<<<<<< HEAD
-    size_t pss, swap_pss;
-    GetSmapsRollup(&pss, &swap_pss);
-    dump->pss_kb = pss / 1024;
-    dump->swap_pss_kb = swap_pss / 1024;
-=======
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     size_t pss, swap_pss;
     GetSmapsRollup(handle, &pss, &swap_pss);
@@ -880,9 +876,7 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
 #else
     GetSmapsRollup(&dump->pss_kb, &dump->swap_pss_kb);
-#endif
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+#endif  }
 
 
 

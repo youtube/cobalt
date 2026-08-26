@@ -103,19 +103,12 @@ enum class LoggingDest {
 #endif
 };
 
-<<<<<<< HEAD
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
 content::ShellCrashReporterClient& GetShellCrashReporterClient() {
   static base::NoDestructor<content::ShellCrashReporterClient>
       shell_crash_client;
   return *shell_crash_client;
-}
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROIDTV)
-base::LazyInstance<content::ShellCrashReporterClient>::Leaky
-    g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#endif
+}#endif
 
 #if BUILDFLAG(IS_WIN)
 // If "Content Shell" doesn't show up in your list of trace providers in

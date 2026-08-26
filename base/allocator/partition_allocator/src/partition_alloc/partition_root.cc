@@ -1797,8 +1797,6 @@ PA_NOINLINE void PartitionRoot::QuarantineForBrp(
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
 // static
-<<<<<<< HEAD
-=======
 #if PA_CONFIG(ENABLE_SHADOW_METADATA)
 void PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask mask) {
 #if PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
@@ -1830,9 +1828,7 @@ void PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask mask) {
 }
 #endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
-// static
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-void PartitionRoot::CheckMetadataIntegrity(const void* ptr) {
+// staticvoid PartitionRoot::CheckMetadataIntegrity(const void* ptr) {
   uintptr_t address = internal::ObjectInnerPtr2Addr(ptr);
   if (!IsManagedByPartitionAlloc(address)) {
     // Not managed by PA; cannot help to determine its integrity.

@@ -115,9 +115,7 @@ declare_args() {
       (is_win && (is_asan || is_ubsan || is_msan || is_tsan)) ||
       !(is_win || is_linux || is_mac) || v8_current_cpu != "x64" || !is_clang ||
       is_component_build
-<<<<<<< HEAD
-
-  # We use target_os == "ios" here because it isn't equivalent to is_ios
+# We use target_os == "ios" here because it isn't equivalent to is_ios
   # (is_ios is based on host_os).
   if (target_os == "ios") {
     if (target_platform == "iphoneos") {
@@ -130,9 +128,6 @@ declare_args() {
       v8_enable_lite_mode = true
     }
   }
-=======
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   # Enable the Turbofan compiler.
   # Sets -dV8_ENABLE_TURBOFAN.
   v8_enable_turbofan = ""

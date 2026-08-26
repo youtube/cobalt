@@ -204,8 +204,6 @@ template <class charT> class messages_byname;
 #    include <ios>
 #    include <version>
 
-<<<<<<< HEAD
-=======
 // TODO: Properly qualify calls now that the locale base API defines functions instead of macros
 // NOLINTBEGIN(libcpp-robust-against-adl)
 
@@ -219,10 +217,7 @@ template <class charT> class messages_byname;
 #      endif
 #    else
 #      define _LIBCPP_HAS_CATOPEN 0
-#    endif
-
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#    if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+#    endif#    if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #      pragma GCC system_header
 #    endif
 

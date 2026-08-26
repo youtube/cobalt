@@ -736,20 +736,17 @@ source_set("unit_tests") {
     sources += [ "demuxer_memory_limit_cast_unittest.cc" ]
   }
 
-<<<<<<< HEAD
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+# TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt && use_starboard_media) {
     sources += [
       "starboard/experimental_features_unittest.cc",
       "starboard/ipc_param_traits_unittest.cc",
       "starboard/starboard_renderer_config_unittest.cc"
     ]
-  }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  }}
 
 source_set("perftests") {
   testonly = true

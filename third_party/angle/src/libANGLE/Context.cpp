@@ -4102,27 +4102,9 @@ Extensions Context::generateSupportedExtensions() const
     // Blob cache extension is provided by the ANGLE frontend
     supportedExtensions.blobCacheANGLE = true;
 
-<<<<<<< HEAD
-    // Disable extensions that are implemented through shader compiler transformations
-    if (mState.usesPassthroughShaders())
-    {
-        supportedExtensions.multiDrawANGLE                       = false;
-        supportedExtensions.shaderPixelLocalStorageANGLE         = false;
-        supportedExtensions.shaderPixelLocalStorageCoherentANGLE = false;
-        if (frontendFeatures.clipCullDistanceBrokenWithPassthroughShaders.enabled)
-        {
-            supportedExtensions.clipCullDistanceEXT = false;
-        }
-        if (frontendFeatures.noperspectiveInterpolationBrokenWithPassthroughShaders.enabled)
-        {
-            supportedExtensions.shaderNoperspectiveInterpolationNV = false;
-        }
-    }
-=======
 #if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
     supportedExtensions.EGLImageExternalOES = true;
 #endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     return supportedExtensions;
 }

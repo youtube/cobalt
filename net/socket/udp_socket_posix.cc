@@ -34,12 +34,8 @@
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
 #include "base/task/thread_pool.h"
-<<<<<<< HEAD
 #include "base/trace_event/trace_event.h"
-=======
-#include "base/time/time.h"
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "net/base/cronet_buildflags.h"
+#include "base/time/time.h"#include "net/base/cronet_buildflags.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_address_util.h"

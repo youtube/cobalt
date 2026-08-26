@@ -873,11 +873,10 @@ static_library("test_support") {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
   }
 
-<<<<<<< HEAD
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+# TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (is_cobalt) {
     sources -= [
       "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
@@ -896,9 +895,7 @@ static_library("test_support") {
       "../public/test/test_devtools_protocol_client.cc",
       "../public/test/test_devtools_protocol_client.h",
     ]
-  }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  }}
 
 # Fuchsia performance tests on smart displays use web_engine and a browser
 # like shell instead of an actual browser, so Fuchsia needs a separate target.
@@ -2477,12 +2474,7 @@ test("content_browsertests") {
     ]
   }
 
-<<<<<<< HEAD
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
-  # enable the diagnostic by removing this line.
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
-  if (!enable_devtools_backend) {
+if (!enable_devtools_backend) {
     sources -= [
       "../browser/devtools/devtools_issue_storage_browsertest.cc",
       "../browser/devtools/devtools_trust_token_browsertest.cc",
@@ -2514,8 +2506,10 @@ test("content_browsertests") {
       "//content/browser/attribution_reporting:registration_result_mojom",
     ]
   }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]}
 
 grit("web_ui_mojo_test_resources") {
   source = "web_ui_mojo_test_resources.grd"
@@ -3748,11 +3742,10 @@ test("content_unittests") {
     deps += [ "//chromecast:chromecast_buildflags" ]
   }
 
-<<<<<<< HEAD
-  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+# TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-=======
+
   if (!enable_privacy_sandbox_apis) {
     _filtered_sources = filter_exclude(sources, [
       "../browser/browsing_topics/*",
@@ -3782,9 +3775,7 @@ test("content_unittests") {
       "//content/browser/interest_group:interest_group_proto",
       "//content/browser/private_aggregation:for_content_tests",
     ]
-  }
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+  }}
 
 if (is_ios) {
   bundle_data("content_shell_pak_bundle_data") {

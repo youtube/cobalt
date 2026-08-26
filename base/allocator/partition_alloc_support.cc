@@ -986,8 +986,7 @@ void PartitionAllocSupport::ReconfigureAfterZygoteFork(
 
 void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
     const std::string& process_type,
-<<<<<<< HEAD
-    bool configure_dangling_pointer_detector,
+bool configure_dangling_pointer_detector,
     bool is_in_death_test_child) {
   // In Death Tests, `FeatureList` is never initialized. Even in these cases
   // we call this method to finalize the allocator configuration.
@@ -995,12 +994,7 @@ void PartitionAllocSupport::ReconfigureAfterFeatureListInit(
   if (!is_in_death_test_child) {
     CHECK(base::FeatureList::GetInstance());
   }
-
-=======
-    bool configure_dangling_pointer_detector) {
-#if !BUILDFLAG(IS_COBALT)
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (configure_dangling_pointer_detector) {
+#if !BUILDFLAG(IS_COBALT)  if (configure_dangling_pointer_detector) {
     base::allocator::InstallDanglingRawPtrChecks();
   }
   base::allocator::InstallUnretainedDanglingRawPtrChecks();

@@ -167,18 +167,10 @@ constexpr bool kUseLazyCommit = false;
 
 // On these platforms, lock all the partitions before fork(), and unlock after.
 // This may be required on more platforms in the future.
-<<<<<<< HEAD
-#define PA_CONFIG_HAS_ATFORK_HANDLER()                 \
-  (PA_BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(IS_LINUX) || \
-   PA_BUILDFLAG(IS_CHROMEOS))
-
-=======
 #define PA_CONFIG_HAS_ATFORK_HANDLER()                                      \
   (PA_BUILDFLAG(IS_APPLE) || (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || PA_BUILDFLAG(IS_CHROMEOS))
 // Enable shadow metadata.
-//
->>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-// With this flag, shadow pools will be mapped, on which writable shadow
+//// With this flag, shadow pools will be mapped, on which writable shadow
 // metadatas are placed, and the real metadatas are set to read-only instead.
 // This feature is only enabled with 64-bit environment because pools work
 // differently with 32-bits pointers (see glossary).
