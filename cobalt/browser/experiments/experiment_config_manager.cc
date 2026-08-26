@@ -132,12 +132,33 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   DCHECK(!called_store_safe_config_);
   int num_crashes = metrics_local_state_->GetInteger(
       variations::prefs::kVariationsCrashStreak);
+<<<<<<< HEAD
   static_assert(
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
     return ExperimentConfigType::kEmptyConfig;
+=======
+  base::UmaHistogramExactLinear("Cobalt.Finch.CrashStreakAtStartup",
+                                num_crashes, 20);
+  static_assert(kDefaultCrashStreakEmptyConfigThreshold >
+                    kDefaultCrashStreakSafeConfigThreshold,
+                "Threshold to use an empty experiment config should be larger "
+                "than to use the safe one.");
+
+  // Helper lambda to log UMA metrics and return the config type.
+  auto log_and_return = [](ExperimentConfigType type,
+                           FinchConfigOutcome outcome) {
+    base::UmaHistogramEnumeration("Cobalt.Finch.ConfigOutcome", outcome);
+    return type;
+  };
+
+  if (num_crashes >= crash_streak_empty_config_threshold) {
+    cached_config_type_ = ExperimentConfigType::kEmptyConfig;
+    return log_and_return(ExperimentConfigType::kEmptyConfig,
+                          FinchConfigOutcome::kEmptyConfigCrashStreak);
+>>>>>>> 6ed26381bc (cobalt: Add UMA metrics for Finch configurations (#10982))
   }
 
   ExperimentConfigType config_type;
