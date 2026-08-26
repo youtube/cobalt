@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Script to merge LTS autoroll PRs.
+"""Script to merge autoroll PRs.
 
 Rebases the changes and pushes directly to the target branch.
 """
@@ -229,7 +229,7 @@ def rebase_and_push(target, pr, env):
 
 
 def main():
-  parser = argparse.ArgumentParser(description='Merge LTS autoroll PRs.')
+  parser = argparse.ArgumentParser(description='Merge autoroll PRs.')
   parser.add_argument(
       '--source-branch', required=True, help='Source branch name')
   parser.add_argument(

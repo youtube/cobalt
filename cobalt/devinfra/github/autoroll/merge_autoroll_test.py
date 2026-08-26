@@ -31,7 +31,7 @@ import merge_autoroll
 # pylint: enable=wrong-import-position
 
 
-class TestMergeAutorollLts(unittest.TestCase):
+class TestMergeAutoroll(unittest.TestCase):
   """Test cases for merge_autoroll main execution flows."""
 
   def setUp(self):
@@ -57,7 +57,7 @@ class TestMergeAutorollLts(unittest.TestCase):
             '--source-branch',
             'main',
             '--target-branch',
-            '27.lts',
+            'target',
             '--key-file',
             '/tmp/fake_key.pem',
         ],
@@ -81,9 +81,9 @@ class TestMergeAutorollLts(unittest.TestCase):
     if prs_list is None:
       prs_list = [{
           'number': 1,
-          'title': 'Autoroll from main to 27.lts',
-          'headRefName': 'autoroll-main-to-27.lts',
-          'baseRefName': '27.lts',
+          'title': 'Autoroll from main to target',
+          'headRefName': 'autoroll-main-to-target',
+          'baseRefName': 'target',
       }]
 
     def run_side_effect(args, **kwargs):
@@ -140,7 +140,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     # Verify gh pr list call
     mock_run.assert_any_call([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
                              capture_output=True,
@@ -152,14 +152,14 @@ class TestMergeAutorollLts(unittest.TestCase):
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'fetch',
-        merge_autoroll.REPO_URL, '+27.lts:refs/remotes/origin/27.lts',
-        '+autoroll-main-to-27.lts:refs/remotes/origin/autoroll-main-to-27.lts'
+        merge_autoroll.REPO_URL, '+target:refs/remotes/origin/target',
+        '+autoroll-main-to-target:refs/remotes/origin/autoroll-main-to-target'
     ],
                              check=True,
                              env=unittest.mock.ANY)
     mock_run.assert_any_call([
         'git', 'worktree', 'add', '--no-checkout', unittest.mock.ANY,
-        'origin/autoroll-main-to-27.lts'
+        'origin/autoroll-main-to-target'
     ],
                              check=True)
     mock_run.assert_any_call(['git', 'sparse-checkout', 'init', '--cone'],
@@ -167,11 +167,11 @@ class TestMergeAutorollLts(unittest.TestCase):
     mock_run.assert_any_call(['git', 'sparse-checkout', 'set', '.github'],
                              check=True)
     mock_run.assert_any_call(['git', 'checkout'], check=True)
-    mock_run.assert_any_call(['git', 'rebase', 'origin/27.lts'], check=True)
+    mock_run.assert_any_call(['git', 'rebase', 'origin/target'], check=True)
     mock_run.assert_any_call([
         'git', '-c', 'credential.helper=', '-c',
         'credential.helper=!gh auth git-credential', 'push',
-        merge_autoroll.REPO_URL, 'HEAD:27.lts'
+        merge_autoroll.REPO_URL, 'HEAD:target'
     ],
                              check=True,
                              env=unittest.mock.ANY)
@@ -190,7 +190,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     self.assertEqual(cm.exception.code, 0)
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
                                      capture_output=True,
@@ -206,8 +206,8 @@ class TestMergeAutorollLts(unittest.TestCase):
         prs_list=[{
             'number': 1,
             'title': 'CONFLICTED Cherry pick PR #123: Some commit',
-            'headRefName': 'autoroll-main-to-27.lts',
-            'baseRefName': '27.lts',
+            'headRefName': 'autoroll-main-to-target',
+            'baseRefName': 'target',
         }])
 
     with patch('sys.stdout'), patch('sys.stderr'):
@@ -217,7 +217,7 @@ class TestMergeAutorollLts(unittest.TestCase):
     self.assertEqual(cm.exception.code, 1)
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
                                      capture_output=True,
@@ -260,7 +260,7 @@ class TestMergeAutorollLts(unittest.TestCase):
         merge_autoroll.main()
     mock_run.assert_called_once_with([
         'gh', 'pr', 'list', '--repo', merge_autoroll.REPO_OWNER_PATH,
-        '--state', 'open', '--head', 'autoroll-main-to-27.lts', '--json',
+        '--state', 'open', '--head', 'autoroll-main-to-target', '--json',
         'number,headRefName,baseRefName,title'
     ],
                                      capture_output=True,
