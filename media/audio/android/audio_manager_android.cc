@@ -73,21 +73,16 @@ namespace {
 // Maximum number of output streams that can be open simultaneously.
 constexpr int kMaxOutputStreams = 10;
 
-<<<<<<< HEAD
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+[[maybe_unused]] constexpr int kDefaultInputBufferSize = 1024;
+#else
 constexpr int kDefaultInputBufferSize = 1024;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 constexpr int kDefaultOutputBufferSize = 2048;
 // Randomly picked up frame size which is close to return value on N4.
 // Return this value when getProperty(PROPERTY_OUTPUT_FRAMES_PER_BUFFER)
 // fails.
 constexpr int kDefaultLowLatencyOutputBufferSize = 256;
-=======
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-[[maybe_unused]] const int kDefaultInputBufferSize = 1024;
-#else
-const int kDefaultInputBufferSize = 1024;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-const int kDefaultOutputBufferSize = 2048;
->>>>>>> parent of 99ff9ad6c11 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 class JniDelegateImpl : public AudioManagerAndroid::JniDelegate {
  public:
