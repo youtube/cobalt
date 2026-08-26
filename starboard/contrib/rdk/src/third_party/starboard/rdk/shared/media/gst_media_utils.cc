@@ -132,6 +132,7 @@ template <typename C>
 bool GstRegistryHasElementForCodecImpl(C codec) {
   static_assert(std::is_same<C, SbMediaVideoCodec>::value ||
                 std::is_same<C, SbMediaAudioCodec>::value, "Invalid codec");
+  EnsureGstInit();
   GST_DEBUG_CATEGORY_INIT(cobalt_gst_media_utils, "cobaltmediautils", 0,
                           "Cobalt GStreamer Utils");
   auto type = std::is_same<C, SbMediaVideoCodec>::value
@@ -213,6 +214,19 @@ bool GstRegistryHasElementForCodec(C codec) {
 
 }  // namespace
 
+void EnsureGstInit() {
+  static gsize init = 0;
+  if (g_once_init_enter (&init)) {
+    GError *error = NULL;
+    gst_init_check(NULL, NULL, &error);
+    if (error) {
+      SB_LOG(ERROR) << "gst init fail:" << error->message;
+      g_error_free(error);
+    }
+    g_once_init_leave (&init, 1);
+  }
+}
+
 bool GstRegistryHasElementForMediaType(SbMediaVideoCodec codec) {
   return GstRegistryHasElementForCodec(codec);
 }
@@ -230,12 +244,14 @@ GstCaps* CodecToGstCaps(SbMediaVideoCodec codec) {
     case kSbMediaVideoCodecH264:
       return gst_caps_new_simple ("video/x-h264",
        "stream-format", G_TYPE_STRING, "byte-stream",
-       "alignment", G_TYPE_STRING, "nal", nullptr);
+       "alignment", G_TYPE_STRING, "au",
+       "parsed", G_TYPE_BOOLEAN, TRUE, nullptr);
 
     case kSbMediaVideoCodecH265:
       return gst_caps_new_simple ("video/x-h265",
        "stream-format", G_TYPE_STRING, "byte-stream",
-       "alignment", G_TYPE_STRING, "nal", nullptr);
+       "alignment", G_TYPE_STRING, "au",
+       "parsed", G_TYPE_BOOLEAN, TRUE, nullptr);
 
     case kSbMediaVideoCodecMpeg2:
       return gst_caps_new_simple ("video/mpeg",
