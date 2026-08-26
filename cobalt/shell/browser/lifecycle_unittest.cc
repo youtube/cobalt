@@ -81,10 +81,10 @@ TEST_F(LifecycleTest, StartupHidden) {
 
 TEST_F(LifecycleTest, StartupURLPreloadParameter) {
   GURL normal_url = GetStartupURL(/*should_preload=*/false);
-  EXPECT_EQ(normal_url.query().find("launch=preload"), std::string::npos);
+  EXPECT_FALSE(base::Contains(normal_url.query(), "launch=preload"));
 
   GURL preload_url = GetStartupURL(/*should_preload=*/true);
-  EXPECT_NE(preload_url.query().find("launch=preload"), std::string::npos);
+  EXPECT_TRUE(base::Contains(preload_url.query(), "launch=preload"));
 }
 
 TEST_F(LifecycleTest, Reveal) {
