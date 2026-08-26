@@ -557,6 +557,10 @@ void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
 void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
   SB_CHECK(audio_configurations_.empty());
 
+  if (!StarboardBridge::GetInstance()->is_initialized()) {
+    return;
+  }
+
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations.
   // The limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
