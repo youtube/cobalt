@@ -41,24 +41,26 @@ def log(msg):
   print('>> ' + msg)
 
 
-def git(*args, check=True, authenticated=False, **kwargs):
+def run_cmd(cmd, check=True, **kwargs):
+  return subprocess.run(cmd, check=check, **kwargs).stdout
+
+
+def git(*args, authenticated=False, **kwargs):
   auth_args = []
   if authenticated:
     auth_args = [
         '-c', 'credential.helper=',
         '-c', 'credential.helper=!gh auth git-credential'
     ]
-  return subprocess.run(
-      ['git'] + auth_args + list(args), check=check, **kwargs).stdout
+  return run_cmd(['git'] + auth_args + list(args), **kwargs)
 
 
-def gh(*args, check=True, **kwargs):
-  return subprocess.run(['gh'] + list(args), check=check, **kwargs).stdout
+def gh(*args, **kwargs):
+  return run_cmd(['gh'] + list(args), **kwargs)
 
 
-def openssl(*args, stdin=None, check=True, **kwargs):
-  return subprocess.run(
-      ['openssl'] + list(args), input=stdin, check=check, **kwargs).stdout
+def openssl(*args, stdin=None, **kwargs):
+  return run_cmd(['openssl'] + list(args), input=stdin, **kwargs)
 
 
 def generate_jwt(app_id, private_key_path):

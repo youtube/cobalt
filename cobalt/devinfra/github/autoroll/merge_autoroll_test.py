@@ -346,6 +346,15 @@ class TestWrappers(unittest.TestCase):
   """Test cases for wrapper functions."""
 
   @patch('subprocess.run')
+  def test_run_cmd(self, mock_run):
+    merge_autoroll.run_cmd(['echo', 'hello'])
+    mock_run.assert_called_once_with(['echo', 'hello'], check=True)
+
+    mock_run.reset_mock()
+    merge_autoroll.run_cmd(['echo', 'hello'], check=False)
+    mock_run.assert_called_once_with(['echo', 'hello'], check=False)
+
+  @patch('subprocess.run')
   def test_git_wrapper_default_check(self, mock_run):
     merge_autoroll.git('status')
     mock_run.assert_called_once_with(['git', 'status'], check=True)
