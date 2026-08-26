@@ -41,10 +41,6 @@ source_set("audio") {
     "//media/base/android",
   ]
 
-  if (is_cobalt) {
-    visibility -= [ ":flac_audio_handler_fuzzer" ]
-  }
-
   sources = [
     "aecdump_recording_manager.cc",
     "aecdump_recording_manager.h",
