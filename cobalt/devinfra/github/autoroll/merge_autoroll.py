@@ -187,7 +187,6 @@ def rebase_and_push(target, pr, env):
         REPO_URL,
         f'+{target}:refs/remotes/origin/{target}',
         f'+{head}:refs/remotes/origin/{head}',
-        check=True,
         authenticated=True,
         env=env)
 
@@ -196,8 +195,7 @@ def rebase_and_push(target, pr, env):
         'add',
         '--no-checkout',
         tmpdir,
-        f'origin/{head}',
-        check=True)
+        f'origin/{head}')
     worktree_added = True
 
     os.chdir(tmpdir)
@@ -213,13 +211,12 @@ def rebase_and_push(target, pr, env):
         sys.exit(1)
 
     log('Rebasing...')
-    git('rebase', f'origin/{target}', check=True)
+    git('rebase', f'origin/{target}')
 
     log(f'Pushing {target}...')
     git('push',
         REPO_URL,
         f'HEAD:{target}',
-        check=True,
         authenticated=True,
         env=env)
   finally:
