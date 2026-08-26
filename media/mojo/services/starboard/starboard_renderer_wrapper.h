@@ -24,6 +24,7 @@
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
+#include "build/build_config.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
@@ -139,6 +140,11 @@ class StarboardRendererWrapper
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
   void OnGetSbWindowHandle();
+#if BUILDFLAG(IS_IOS_TVOS)
+  void OnDurationChange(base::TimeDelta duration);
+  void OnBufferedTimeRangesChange(base::TimeDelta start,
+                                  base::TimeDelta length);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client);
 #if BUILDFLAG(IS_ANDROID)

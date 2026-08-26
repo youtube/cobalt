@@ -147,6 +147,7 @@ template("evergreen_final_target") {
       data_deps = [
         ":copy_${original_target_name}_content",
         ":copy_${original_target_name}_lib",
+        ":copy_${original_target_name}_uncompressed_lib",
         ":copy_${original_target_name}_zstd_lib",
         "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       ]
@@ -183,6 +184,14 @@ template("evergreen_final_target") {
       outputs = [
         "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml",
       ]
+    }
+
+    copy("copy_${original_target_name}_uncompressed_lib") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      sources = [ "$root_out_dir/${lib_name}.so" ]
+      outputs =
+          [ "$root_out_dir/app/${original_target_name}/lib/${lib_name}.so" ]
+      deps = [ ":${original_target_name}" ]
     }
 
     compiled_action("copy_${original_target_name}_lib") {
