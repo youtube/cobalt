@@ -1,0 +1,58 @@
+name: Prepare Test Filters
+description: Downloads previous test results and prepares the filter directory.
+inputs:
+  test_results_key:
+    description: "Artifact key used to store test results."
+    required: true
+  platform:
+    description: "The platform being tested."
+    required: true
+  download_path:
+    description: "Directory to download test results to."
+    required: false
+    default: "previous_results"
+  download_behavior:
+    description: "Download behavior: 'always', 'on_retry', or 'never'."
+    required: false
+    default: "on_retry"
+  allow_download_failure:
+    description: "Whether to allow download failures."
+    required: false
+    default: "true"
+
+outputs:
+  filter_dir:
+    description: "Directory containing the prepared test filters."
+    value: ${{ steps.prepare-filters.outputs.filter_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download Results
+      if: ${{ inputs.download_behavior == 'always' || (inputs.download_behavior == 'on_retry' && github.run_attempt > 1) }}
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      continue-on-error: ${{ inputs.allow_download_failure == 'true' }}
+      with:
+        pattern: ${{ inputs.test_results_key }}*
+        path: ${{ inputs.download_path }}
+    - name: Prepare Test Filters
+      id: prepare-filters
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        DOWNLOAD_PATH: ${{ inputs.download_path }}
+      run: |
+        # Prepare resolved filter directory.
+        set -ex
+        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
+        mkdir -p "${RESOLVED_FILTER_DIR}"
+        echo "filter_dir=${RESOLVED_FILTER_DIR}" >> "${GITHUB_OUTPUT}"
+
+        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
+
+        # Overwrite with retry filters if they exist.
+        if [ -n "${DOWNLOAD_PATH}" ] && [ -d "${GITHUB_WORKSPACE}/${DOWNLOAD_PATH}" ]; then
+          find "${GITHUB_WORKSPACE}/${DOWNLOAD_PATH}" \
+            -type d -name "retry_filters" \
+            -exec cp -r {}/. "${RESOLVED_FILTER_DIR}/" \; || true
+        fi
+      shell: bash

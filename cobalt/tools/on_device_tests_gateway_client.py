@@ -18,11 +18,16 @@
 import argparse
 import json
 import logging
-import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 import grpc
+
+try:
+  from cobalt.tools.test_filter import get_gtest_filter
+except ImportError:
+  from test_filter import get_gtest_filter
+
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
 
@@ -57,7 +62,8 @@ class OnDeviceTestsGatewayClient:
 
   def __init__(self):
     self.channel = grpc.insecure_channel(
-        target=f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}',  # pylint:disable=line-too-long
+        target=(f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST}:'
+                f'{_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT}'),
         # These options need to match server settings.
         options=[
             ('grpc.keepalive_time_ms', 10000),
@@ -149,27 +155,6 @@ def _get_test_args_and_dimensions(
   return test_args, device_type, device_pool
 
 
-def _get_gtest_filter(filter_json_dir: str, target_name: str) -> str:
-  """Retrieves gtest filters for a given target.
-
-  Args:
-      filter_json_dir: Directory containing filter JSON files.
-      target_name: The name of the gtest target.
-
-  Returns:
-      A string containing the gtest filters.
-  """
-  gtest_filter = '*'
-  filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
-  if os.path.exists(filter_json_file):
-    with open(filter_json_file, 'r', encoding='utf-8') as f:
-      filter_data = json.load(f)
-      failing_tests = ':'.join(filter_data.get('failing_tests', []))
-      if failing_tests:
-        gtest_filter = '-' + failing_tests
-  return gtest_filter
-
-
 def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
   """Builds the list of files for a unit test request."""
   # TODO: b/432536319 - Use flag to determine file ending.
@@ -250,7 +235,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif target_gtest_filter:
         gtest_filter = target_gtest_filter
       else:
-        gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+        gtest_filter = get_gtest_filter(args.filter_json_dir, target_name)
         if gtest_filter == '-*':
           print(f'Skipping {target_name} due to test filter.')
           continue
