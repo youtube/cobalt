@@ -106,6 +106,26 @@ public class BaseStarboardBridge {
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
 
+  /**
+   * Lightweight constructor used by test activities (e.g. CobaltTestActivity).
+   *
+   * <p>Initializes JNI bindings and AudioOutputManager without launching a secondary native
+   * Starboard main event loop.
+   */
+  protected BaseStarboardBridge(
+      Context appContext, Holder<Activity> activityHolder, Holder<Service> serviceHolder) {
+    Log.i(TAG, "BaseStarboardBridge test init.");
+    BaseStarboardBridgeJni.get().initJNI(this);
+
+    mAppContext = appContext;
+    mActivityHolder = activityHolder;
+    mServiceHolder = serviceHolder;
+    mArgs = new String[0];
+    mAudioOutputManager = new AudioOutputManager(appContext);
+    mIsAmatiDevice = false;
+    mNativeApp = 0;
+  }
+
   public BaseStarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,

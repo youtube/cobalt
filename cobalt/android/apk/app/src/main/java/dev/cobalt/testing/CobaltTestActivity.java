@@ -14,8 +14,13 @@
 
 package dev.cobalt.testing;
 
+import android.app.Activity;
+import android.app.Service;
+import android.content.Context;
 import android.os.Bundle;
+import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.util.Holder;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.JNIUtils;
 import org.chromium.native_test.NativeUnitTestActivity;
@@ -23,15 +28,34 @@ import org.chromium.native_test.NativeUnitTestActivity;
 /**
  * CobaltTestActivity is a custom NativeUnitTestActivity used to run native unit tests on Android.
  *
- * <p>It ensures that the Chromium base library's application context and JNI class loader are
- * properly initialized before the native test harness starts.
+ * <p>It ensures that the Chromium base library's application context, JNI class loader, and
+ * StarboardBridge JNI instance are properly initialized before the native test harness starts.
  */
 public class CobaltTestActivity extends NativeUnitTestActivity {
+  /**
+   * Lightweight TestStarboardBridge subclass used to initialize JNI bindings and AudioOutputManager
+   * for native unit tests without starting a duplicate native Starboard main thread.
+   */
+  private static class TestStarboardBridge extends BaseStarboardBridge {
+    public TestStarboardBridge(Context context, Holder<Activity> activityHolder) {
+      super(context, activityHolder, new Holder<Service>());
+    }
+  }
+
+  private TestStarboardBridge mTestStarboardBridge;
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     ContextUtils.initApplicationContext(getApplicationContext());
     JNIUtils.setDefaultClassLoader(getClassLoader());
     DisplayUtil.cacheDefaultDisplay(this);
+
+    // super.onCreate loads the native shared library (.so) into memory via System.loadLibrary.
     super.onCreate(savedInstanceState);
+
+    // Instantiate TestStarboardBridge AFTER super.onCreate so native JNI methods are bound.
+    Holder<Activity> activityHolder = new Holder<>();
+    activityHolder.set(this);
+    mTestStarboardBridge = new TestStarboardBridge(getApplicationContext(), activityHolder);
   }
 }
