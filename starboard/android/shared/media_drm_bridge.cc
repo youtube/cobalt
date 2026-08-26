@@ -137,12 +137,11 @@ DrmOperationResult ToOperationResult(
 // static
 std::unique_ptr<MediaDrmBridge> MediaDrmBridge::Create(
     base::raw_ref<MediaDrmBridge::Host> host,
-    std::string_view key_system,
-    bool enable_app_provisioning) {
+    std::string_view key_system) {
   auto bridge =
       std::make_unique<MediaDrmBridge>(PassKey<MediaDrmBridge>(), host);
 
-  if (!bridge->Initialize(key_system, enable_app_provisioning)) {
+  if (!bridge->Initialize(key_system)) {
     return nullptr;
   }
   SB_LOG(INFO) << "Created MediaDrmBridge.";
@@ -157,19 +156,6 @@ MediaDrmBridge::~MediaDrmBridge() {
   if (!j_media_drm_bridge_.is_null()) {
     Java_MediaDrmBridge_destroy(AttachCurrentThread(), j_media_drm_bridge_);
   }
-}
-
-void MediaDrmBridge::CreateSession(int ticket,
-                                   std::string_view init_data,
-                                   std::string_view mime) const {
-  JNIEnv* env = AttachCurrentThread();
-
-  JniIntWrapper j_ticket = static_cast<jint>(ticket);
-  auto j_init_data = ToScopedJavaByteArray(env, init_data);
-  auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
-
-  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
-                                    j_init_data, j_mime);
 }
 
 DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
@@ -241,17 +227,6 @@ const void* MediaDrmBridge::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-bool MediaDrmBridge::CreateMediaCryptoSession() {
-  bool result = Java_MediaDrmBridge_createMediaCryptoSession(
-      AttachCurrentThread(), j_media_drm_bridge_);
-  if (!result && !j_media_crypto_.is_null()) {
-    j_media_crypto_.Reset();
-    return false;
-  }
-
-  return true;
-}
-
 void MediaDrmBridge::OnSessionMessage(
     JNIEnv* env,
     jint ticket,
@@ -299,15 +274,13 @@ bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
-bool MediaDrmBridge::Initialize(std::string_view key_system,
-                                bool enable_app_provisioning) {
+bool MediaDrmBridge::Initialize(std::string_view key_system) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
-      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
-                                 reinterpret_cast<jlong>(this)));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge(Java_MediaDrmBridge_create(
+      env, j_key_system, reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
